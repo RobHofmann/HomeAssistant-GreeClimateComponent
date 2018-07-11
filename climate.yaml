@@ -1,0 +1,21 @@
+- platform: gree
+  name: First AC
+  host: <ip of your first AC>
+  port: 7000
+  mac: '<mac address of your first AC>'
+  encryption_key: '<encryptionkey of your first AC>'
+  min_temp: 16
+  max_temp: 30
+  target_temp: 21
+  target_temp_step: 1
+
+- platform: gree
+  name: Second AC
+  host: <ip of your second AC>
+  port: 7000
+  mac: '<mac address of your second AC>'
+  encryption_key: '<encryptionkey of your second AC>'
+  min_temp: 16
+  max_temp: 30
+  target_temp: 21
+  target_temp_step: 1

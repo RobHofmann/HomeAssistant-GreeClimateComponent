@@ -1,0 +1,7 @@
+# Optional: Enable info logging for the AC component
+logger:
+  default: error
+  logs:
+    custom_components.climate.gree: info
+
+climate: !include climate.yaml
