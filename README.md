@@ -4,8 +4,8 @@ Custom Gree climate component written in Python3 for Home Assistant. Controls AC
 **NOTE: This is my first ever Python script. Don't expect any mind blowing architectures in this code. Actually dont expect anything :)**
 
 **Sources used:**
-https://github.com/tomikaa87/gree-remote
-https://github.com/vpnmaster/homeassistant-custom-components
+ - https://github.com/tomikaa87/gree-remote
+ - https://github.com/vpnmaster/homeassistant-custom-components
 
 ## TODO
 I still need to create a script which fetches the Encryption Key from your Gree AC Device. Will do later.
