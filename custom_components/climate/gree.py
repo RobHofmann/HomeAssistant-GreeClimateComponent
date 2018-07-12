@@ -142,7 +142,7 @@ class GreeClimate(ClimateDevice):
         self._firstTimeRun = True
 
         _LOGGER.info('Fetching Device Encryption Key')
-        self._encryption_key = self.GetDeviceKey()
+        self._encryption_key = self.GetDeviceKey().encode("utf8")
         _LOGGER.info('Fetched Device Encryption Key: %s' % self._encryption_key)
 
         # Cipher to use to encrypt/decrypt
@@ -194,7 +194,7 @@ class GreeClimate(ClimateDevice):
         _LOGGER.info('GetDeviceKey()')
         _LOGGER.info('Creating encryptor with Device Key')
         GENERIC_GREE_DEVICE_KEY = "a3K8Bx%2r8Y7#xDh"
-        cipher = AES.new(GENERIC_GREE_DEVICE_KEY, AES.MODE_ECB)
+        cipher = AES.new(GENERIC_GREE_DEVICE_KEY.encode("utf8"), AES.MODE_ECB)
         _LOGGER.info('Encrypting Pack')
         pack = base64.b64encode(cipher.encrypt(self.Pad('{"mac":"' + str(self._mac_addr) + '","t":"bind","uid":0}').encode("utf8"))).decode('utf-8')
         _LOGGER.info('Creating JSON')
