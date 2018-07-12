@@ -29,7 +29,6 @@ _LOGGER = logging.getLogger(__name__)
 
 SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE | SUPPORT_OPERATION_MODE | SUPPORT_FAN_MODE | SUPPORT_SWING_MODE | SUPPORT_ON_OFF
 
-CONF_ENCRYPTION_KEY = 'encryption_key'
 CONF_MIN_TEMP = 'min_temp'
 CONF_MAX_TEMP = 'max_temp'
 CONF_TARGET_TEMP = 'target_temp'
@@ -69,7 +68,6 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_HOST): cv.string,
     vol.Required(CONF_PORT): cv.positive_int,
     vol.Required(CONF_MAC): cv.string,
-    vol.Required(CONF_ENCRYPTION_KEY): cv.string,
     vol.Optional(CONF_TIMEOUT, default=DEFAULT_TIMEOUT): cv.positive_int, 
     vol.Optional(CONF_MIN_TEMP, default=DEFAULT_MIN_TEMP): cv.positive_int,
     vol.Optional(CONF_MAX_TEMP, default=DEFAULT_MAX_TEMP): cv.positive_int,
@@ -89,7 +87,6 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     ip_addr = config.get(CONF_HOST)
     port = config.get(CONF_PORT)
     mac_addr = config.get(CONF_MAC).encode().replace(b':', b'')
-    encryption_key = config.get(CONF_ENCRYPTION_KEY)
       
     min_temp = config.get(CONF_MIN_TEMP)
     max_temp = config.get(CONF_MAX_TEMP)
@@ -106,24 +103,20 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     default_operation_from_idle = config.get(CONF_DEFAULT_OPERATION_FROM_IDLE)
         
     async_add_devices([
-        GreeClimate(hass, name, ip_addr, port, encryption_key, mac_addr, min_temp, max_temp, target_temp, target_temp_step, temp_sensor_entity_id, operation_list, fan_list, swing_updn_mode_list, default_operation, default_fan_mode, default_operation_from_idle, default_swing_updn_mode)
+        GreeClimate(hass, name, ip_addr, port, mac_addr, min_temp, max_temp, target_temp, target_temp_step, temp_sensor_entity_id, operation_list, fan_list, swing_updn_mode_list, default_operation, default_fan_mode, default_operation_from_idle, default_swing_updn_mode)
     ])
 
 class GreeClimate(ClimateDevice):
 
-    def __init__(self, hass, name, ip_addr, port, encryption_key, mac_addr, min_temp, max_temp, target_temp, target_temp_step, temp_sensor_entity_id, operation_list, fan_list, swing_updn_mode_list, default_operation, default_fan_mode, default_operation_from_idle, default_swing_updn_mode):
+    def __init__(self, hass, name, ip_addr, port, mac_addr, min_temp, max_temp, target_temp, target_temp_step, temp_sensor_entity_id, operation_list, fan_list, swing_updn_mode_list, default_operation, default_fan_mode, default_operation_from_idle, default_swing_updn_mode):
         # Initialize the Broadlink IR Climate device.
 
         self.hass = hass
         self._name = name
         self._ip_addr = ip_addr
         self._port = port
-        self._encryption_key = encryption_key.encode("utf8")
         self._mac_addr = mac_addr.decode('utf-8')
         
-        # Cipher to use to encrypt/decrypt
-        self.CIPHER = AES.new(self._encryption_key, AES.MODE_ECB)
-
         self._min_temp = min_temp
         self._max_temp = max_temp
         self._target_temperature = target_temp
@@ -148,6 +141,13 @@ class GreeClimate(ClimateDevice):
 
         self._firstTimeRun = True
 
+        _LOGGER.info('Fetching Device Encryption Key')
+        self._encryption_key = self.GetDeviceKey()
+        _LOGGER.info('Fetched Device Encryption Key: %s' % self._encryption_key)
+
+        # Cipher to use to encrypt/decrypt
+        self.CIPHER = AES.new(self._encryption_key, AES.MODE_ECB)
+
         if temp_sensor_entity_id:
             async_track_state_change(
                 hass, temp_sensor_entity_id, self._async_temp_sensor_changed)
@@ -162,23 +162,49 @@ class GreeClimate(ClimateDevice):
         aesBlockSize = 16
         return s + (aesBlockSize - len(s) % aesBlockSize) * chr(aesBlockSize - len(s) % aesBlockSize)            
 
-    def GreeGetValues(self, propertyNames):
-        sentJsonPayload = '{"cid": "app","i": 0,"pack": "' + base64.b64encode(self.CIPHER.encrypt(self.Pad('{"cols":' + simplejson.dumps(propertyNames) + ',"mac": "' + str(self._mac_addr) + '","t": "status"}').encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid": 0}'
-        
+    def FetchResult(self, cipher, ip_addr, port, json):
+        _LOGGER.info('FetchResult(%s, %s, %s)' % (ip_addr, port, json))
         # Setup UDP Client & start transfering
+        _LOGGER.info('Creating sock')
         clientSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        clientSock.sendto(bytes(sentJsonPayload, "utf-8"), (self._ip_addr, self._port))
+        _LOGGER.info('Sending over UDP')
+        clientSock.sendto(bytes(json, "utf-8"), (ip_addr, port))
+        _LOGGER.info('Receiving over UDP')
         data, addr = clientSock.recvfrom(64000)
+        _LOGGER.info('Loading received JSON')
         receivedJson = simplejson.loads(data)
+        _LOGGER.info('Closing socket')
         clientSock.close()
 
         pack = receivedJson['pack']
+        _LOGGER.info('Base64-decoding received pack')
         base64decodedPack = base64.b64decode(pack)
-        decryptedPack = self.CIPHER.decrypt(base64decodedPack)
+        _LOGGER.info('Decrypting received pack')
+        decryptedPack = cipher.decrypt(base64decodedPack)
+        _LOGGER.info('Decoding received pack')
         decodedPack = decryptedPack.decode("utf-8")
+        _LOGGER.info('Removing unneeded chars from received pack')
         replacedPack = decodedPack.replace('\x0f', '').replace(decodedPack[decodedPack.rindex('}')+1:], '')
+        _LOGGER.info('Loading pack JSON')
         loadedJsonPack = simplejson.loads(replacedPack)
-        return loadedJsonPack['dat']
+        _LOGGER.info('Returning pack JSON')
+        return loadedJsonPack
+
+    def GetDeviceKey(self):
+        _LOGGER.info('GetDeviceKey()')
+        _LOGGER.info('Creating encryptor with Device Key')
+        GENERIC_GREE_DEVICE_KEY = "a3K8Bx%2r8Y7#xDh"
+        cipher = AES.new(GENERIC_GREE_DEVICE_KEY, AES.MODE_ECB)
+        _LOGGER.info('Encrypting Pack')
+        pack = base64.b64encode(cipher.encrypt(self.Pad('{"mac":"' + str(self._mac_addr) + '","t":"bind","uid":0}').encode("utf8"))).decode('utf-8')
+        _LOGGER.info('Creating JSON')
+        jsonPayloadToSend = '{"cid": "app","i": 1,"pack": "' + pack + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid": 0}'
+        _LOGGER.info('Fetching & Returning result')
+        return self.FetchResult(cipher, self._ip_addr, self._port, jsonPayloadToSend)['key']
+
+    def GreeGetValues(self, propertyNames):
+        jsonPayloadToSend = '{"cid": "app","i": 0,"pack": "' + base64.b64encode(self.CIPHER.encrypt(self.Pad('{"cols":' + simplejson.dumps(propertyNames) + ',"mac": "' + str(self._mac_addr) + '","t": "status"}').encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid": 0}'
+        return self.FetchResult(self.CIPHER, self._ip_addr, self._port, jsonPayloadToSend)['dat']
 
     def SetAcOptions(self, acOptions, newOptionsToOverride, optionValuesValuesToOverride = None):
         if not (optionValuesValuesToOverride is None):

@@ -8,9 +8,6 @@ Custom Gree climate component written in Python3 for Home Assistant. Controls AC
  - https://github.com/vpnmaster/homeassistant-custom-components
  - https://developers.home-assistant.io/
 
-## TODO
-I still need to create a script which fetches the Encryption Key from your Gree AC Device. Will do later.
-
 ## Component Installation
 1. In the root of your /config folder, create a file called climate.yaml
 
@@ -20,7 +17,6 @@ I still need to create a script which fetches the Encryption Key from your Gree 
      host: <ip of your first AC>
      port: 7000
      mac: '<mac address of your first AC>'
-     encryption_key: '<encryptionkey of your first AC>'
      min_temp: 16
      max_temp: 30
      target_temp: 21
@@ -31,7 +27,6 @@ I still need to create a script which fetches the Encryption Key from your Gree 
      host: <ip of your second AC>
      port: 7000
      mac: '<mac address of your second AC>'
-     encryption_key: '<encryptionkey of your second AC>'
      min_temp: 16
      max_temp: 30
      target_temp: 21
