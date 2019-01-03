@@ -18,10 +18,13 @@ SUPPORT_OPERATION_MODE, SUPPORT_TARGET_TEMPERATURE, SUPPORT_FAN_MODE, SUPPORT_SW
 from homeassistant.const import (ATTR_UNIT_OF_MEASUREMENT, ATTR_TEMPERATURE, CONF_NAME, CONF_HOST, CONF_PORT, CONF_MAC, CONF_TIMEOUT, CONF_CUSTOMIZE, STATE_ON, STATE_OFF, STATE_UNKNOWN)
 from homeassistant.helpers.event import (async_track_state_change)
 from homeassistant.core import callback
-from homeassistant.helpers.restore_state import async_get_last_state
+from homeassistant.helpers.restore_state import RestoreEntity
 from configparser import ConfigParser
 from Crypto.Cipher import AES
-import simplejson
+
+#quick hotfix for json lib. just in case.
+try: import simplejson
+except ImportError: import json as simplejson
 
 REQUIREMENTS = ['pycryptodome']
 
@@ -170,7 +173,8 @@ class GreeClimate(ClimateDevice):
         _LOGGER.info('Sending over UDP')
         clientSock.sendto(bytes(json, "utf-8"), (ip_addr, port))
         _LOGGER.info('Receiving over UDP')
-        data, addr = clientSock.recvfrom(64000)
+        # Freeze issue here. change to recv(64000) due to changes of lib. need to investigate further (no device to test)
+        data, addr = clientSock.recv(64000)
         _LOGGER.info('Loading received JSON')
         receivedJson = simplejson.loads(data)
         _LOGGER.info('Closing socket')
