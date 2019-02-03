@@ -21,6 +21,7 @@ Custom Gree climate component written in Python3 for Home Assistant. Controls AC
      max_temp: 30
      target_temp: 21
      target_temp_step: 1
+     encryption_key: <custom encryption key if wifi already configured>
    
    - platform: gree
      name: Second AC
@@ -47,3 +48,16 @@ Custom Gree climate component written in Python3 for Home Assistant. Controls AC
      logs:
        custom_components.climate.gree: info
    ```
+4. OPTIONAL: Provide encryption key if HVAC's wifi is already configured. 
+
+One way is to pull the sqlite db from android device like described here:
+
+https://stackoverflow.com/questions/9997976/android-pulling-sqlite-database-android-device
+
+```
+adb backup -f ~/backup.ab -noapk com.gree.ewpesmart
+dd if=data.ab bs=1 skip=24 | python -c "import zlib,sys;sys.stdout.write(zlib.decompress(sys.stdin.read()))" | tar -xvf -
+sqlite3 data.ab 'select privateKey from db_device_20170503;' # but table name can differ a little bit.
+```
+
+Write it down in climate.yaml `encryption_key: <key>`. This solves Issue#1.

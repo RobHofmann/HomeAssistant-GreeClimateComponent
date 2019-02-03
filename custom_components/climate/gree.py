@@ -18,7 +18,8 @@ SUPPORT_OPERATION_MODE, SUPPORT_TARGET_TEMPERATURE, SUPPORT_FAN_MODE, SUPPORT_SW
 from homeassistant.const import (ATTR_UNIT_OF_MEASUREMENT, ATTR_TEMPERATURE, CONF_NAME, CONF_HOST, CONF_PORT, CONF_MAC, CONF_TIMEOUT, CONF_CUSTOMIZE, STATE_ON, STATE_OFF, STATE_UNKNOWN)
 from homeassistant.helpers.event import (async_track_state_change)
 from homeassistant.core import callback
-from homeassistant.helpers.restore_state import async_get_last_state
+#from homeassistant.helpers.restore_state import async_get_last_state
+from homeassistant.helpers.restore_state import RestoreEntity
 from configparser import ConfigParser
 from Crypto.Cipher import AES
 import simplejson
@@ -40,6 +41,7 @@ CONF_SWING_UPDN_MODES = 'swing_updn_modes'
 CONF_DEFAULT_OPERATION = 'default_operation'
 CONF_DEFAULT_FAN_MODE = 'default_fan_mode'
 CONF_DEFAULT_SWING_UPDN_MODE = 'default_swing_updn_mode'
+CONF_ENCRYPTION_KEY = 'encryption_key'
 
 CONF_DEFAULT_OPERATION_FROM_IDLE = 'default_operation_from_idle'
 
@@ -78,7 +80,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_DEFAULT_OPERATION, default=DEFAULT_OPERATION): cv.string,
     vol.Optional(CONF_DEFAULT_FAN_MODE, default=DEFAULT_FAN_MODE): cv.string,
     vol.Optional(CONF_DEFAULT_SWING_UPDN_MODE, default = DEFAULT_SWING_UPDN_MODE): cv.string,
-    vol.Optional(CONF_DEFAULT_OPERATION_FROM_IDLE): cv.string
+    vol.Optional(CONF_DEFAULT_OPERATION_FROM_IDLE): cv.string,
+    vol.Optional(CONF_ENCRYPTION_KEY): cv.string
 })
 
 @asyncio.coroutine
@@ -99,16 +102,17 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     default_operation = config.get(CONF_DEFAULT_OPERATION)
     default_fan_mode = config.get(CONF_DEFAULT_FAN_MODE)
     default_swing_updn_mode = config.get(CONF_DEFAULT_SWING_UPDN_MODE)
+    encryption_key = config.get(CONF_ENCRYPTION_KEY)
     
     default_operation_from_idle = config.get(CONF_DEFAULT_OPERATION_FROM_IDLE)
         
     async_add_devices([
-        GreeClimate(hass, name, ip_addr, port, mac_addr, min_temp, max_temp, target_temp, target_temp_step, temp_sensor_entity_id, operation_list, fan_list, swing_updn_mode_list, default_operation, default_fan_mode, default_operation_from_idle, default_swing_updn_mode)
+        GreeClimate(hass, name, ip_addr, port, mac_addr, min_temp, max_temp, target_temp, target_temp_step, temp_sensor_entity_id, operation_list, fan_list, swing_updn_mode_list, default_operation, default_fan_mode, default_operation_from_idle, default_swing_updn_mode, encryption_key)
     ])
 
 class GreeClimate(ClimateDevice):
 
-    def __init__(self, hass, name, ip_addr, port, mac_addr, min_temp, max_temp, target_temp, target_temp_step, temp_sensor_entity_id, operation_list, fan_list, swing_updn_mode_list, default_operation, default_fan_mode, default_operation_from_idle, default_swing_updn_mode):
+    def __init__(self, hass, name, ip_addr, port, mac_addr, min_temp, max_temp, target_temp, target_temp_step, temp_sensor_entity_id, operation_list, fan_list, swing_updn_mode_list, default_operation, default_fan_mode, default_operation_from_idle, default_swing_updn_mode, encryption_key=None):
         # Initialize the Broadlink IR Climate device.
 
         self.hass = hass
@@ -136,14 +140,18 @@ class GreeClimate(ClimateDevice):
         self._swing_updn_mode_list = swing_updn_mode_list
 
         self._default_operation_from_idle = default_operation_from_idle
+
+        if encryption_key:
+            _LOGGER.info('Using configured encryption key: {}'.format(encryption_key))
+            self._encryption_key = encryption_key.encode("utf8")
+        else:
+            _LOGGER.info('Fetching Device Encryption Key')
+            self._encryption_key = self.GetDeviceKey().encode("utf8")
+            _LOGGER.info('Fetched Device Encryption Key: %s' % self._encryption_key)
         
         self._acOptions = { 'Pow': None, 'Mod': None, 'SetTem': None, 'WdSpd': None, 'Air': None, 'Blo': None, 'Health': None, 'SwhSlp': None, 'Lig': None, 'SwingLfRig': None, 'SwUpDn': None, 'Quiet': None, 'Tur': None, 'StHt': None, 'TemUn': None, 'HeatCoolType': None, 'TemRec': None, 'SvSt': None }
 
         self._firstTimeRun = True
-
-        _LOGGER.info('Fetching Device Encryption Key')
-        self._encryption_key = self.GetDeviceKey().encode("utf8")
-        _LOGGER.info('Fetched Device Encryption Key: %s' % self._encryption_key)
 
         # Cipher to use to encrypt/decrypt
         self.CIPHER = AES.new(self._encryption_key, AES.MODE_ECB)
