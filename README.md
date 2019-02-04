@@ -22,6 +22,7 @@ Custom Gree climate component written in Python3 for Home Assistant. Controls AC
      target_temp: 21
      target_temp_step: 1
      encryption_key: <custom encryption key if wifi already configured>
+     uid: <some kind of device identifier>  
    
    - platform: gree
      name: Second AC
@@ -61,3 +62,5 @@ sqlite3 data.ab 'select privateKey from db_device_20170503;' # but table name ca
 ```
 
 Write it down in climate.yaml `encryption_key: <key>`. This solves Issue#1.
+
+5. OPTIONAL: Provide the `uid` parameter (can be sniffed)
