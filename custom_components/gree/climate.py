@@ -14,7 +14,9 @@ import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
 
 from homeassistant.components.climate import (ClimateDevice, PLATFORM_SCHEMA,
-SUPPORT_OPERATION_MODE, SUPPORT_TARGET_TEMPERATURE, SUPPORT_FAN_MODE, SUPPORT_SWING_MODE, SUPPORT_ON_OFF)
+SUPPORT_OPERATION_MODE, SUPPORT_FAN_MODE, SUPPORT_SWING_MODE)
+from homeassistant.components.climate.const import (
+SUPPORT_TARGET_TEMPERATURE, SUPPORT_ON_OFF)
 from homeassistant.const import (ATTR_UNIT_OF_MEASUREMENT, ATTR_TEMPERATURE, CONF_NAME, CONF_HOST, CONF_PORT, CONF_MAC, CONF_TIMEOUT, CONF_CUSTOMIZE, STATE_ON, STATE_OFF, STATE_UNKNOWN)
 from homeassistant.helpers.event import (async_track_state_change)
 from homeassistant.core import callback
