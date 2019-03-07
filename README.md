@@ -1,7 +1,13 @@
 # HomeAssistant-GreeClimateComponent
 Custom Gree climate component written in Python3 for Home Assistant. Controls AC's supporting the Gree protocol.
 
-**NOTE: This is my first ever Python script. Don't expect any mind blowing architectures in this code. Actually dont expect anything :)**
+Tested on:
+* Innova HVAC
+* Home-Assistant 0.89
+
+**If you are experiencing issues please be sure to provide details about your device, ha version and what exactly went wrong.**
+
+If your HVAC has already been configured to be controled remotely by an android app, the encryption key might have changed.
 
 **Sources used:**
  - https://github.com/tomikaa87/gree-remote
