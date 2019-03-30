@@ -9,7 +9,9 @@ Custom Gree climate component written in Python3 for Home Assistant. Controls AC
  - https://developers.home-assistant.io/
 
 ## Component Installation
-1. In the root of your /config folder, create a file called climate.yaml
+1. Copy the custom_components folder to your own hassio /config folder.
+
+2. In the root of your /config folder, create a file called climate.yaml
 
    ```yaml
    - platform: gree
@@ -33,17 +35,17 @@ Custom Gree climate component written in Python3 for Home Assistant. Controls AC
      target_temp_step: 1
    ```
 
-2. In your configuration.yaml add the following:
+3. In your configuration.yaml add the following:
   
    ```yaml
    climate: !include climate.yaml
    ```
 
-3. OPTIONAL: Add info logging to this component (to see if/how it works)
+4. OPTIONAL: Add info logging to this component (to see if/how it works)
   
    ```yaml
    logger:
      default: error
      logs:
-       custom_components.climate.gree: info
+       custom_components.climate.gree: info # not sure if this works in HASSIO 0.88.0+ (untested)
    ```
