@@ -61,16 +61,16 @@ Tested on:
 
 5. OPTIONAL: Provide encryption key if HVAC's wifi is already configured. 
 
- One way is to pull the sqlite db from android device like described here:
+   One way is to pull the sqlite db from android device like described here:
+  
+   https://stackoverflow.com/questions/9997976/android-pulling-sqlite-database-android-device
 
- https://stackoverflow.com/questions/9997976/android-pulling-sqlite-database-android-device
-
-```
-adb backup -f ~/backup.ab -noapk com.gree.ewpesmart
-dd if=data.ab bs=1 skip=24 | python -c "import zlib,sys;sys.stdout.write(zlib.decompress(sys.stdin.read()))" | tar -xvf -
-sqlite3 data.ab 'select privateKey from db_device_20170503;' # but table name can differ a little bit.
-```
-
- Write it down in climate.yaml `encryption_key: <key>`. This solves Issue#1.
+   ```
+   adb backup -f ~/backup.ab -noapk com.gree.ewpesmart
+   dd if=data.ab bs=1 skip=24 | python -c "import zlib,sys;sys.stdout.write(zlib.decompress(sys.stdin.read()))" | tar -xvf -
+   sqlite3 data.ab 'select privateKey from db_device_20170503;' # but table name can differ a little bit.
+   ```
+   
+   Write it down in climate.yaml `encryption_key: <key>`. This solves Issue#1.
 
 6. OPTIONAL: Provide the `uid` parameter (can be sniffed) NOTE: This is not needed for all devices
