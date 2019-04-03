@@ -47,5 +47,6 @@ Custom Gree climate component written in Python3 for Home Assistant. Controls AC
    logger:
      default: error
      logs:
-       custom_components.climate.gree: info # not sure if this works in HASSIO 0.88.0+ (untested)
+       custom_components.gree: debug
+       custom_components.gree.climate: debug
    ```
