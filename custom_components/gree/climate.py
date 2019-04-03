@@ -40,6 +40,8 @@ CONF_SWING_UPDN_MODES = 'swing_updn_modes'
 CONF_DEFAULT_OPERATION = 'default_operation'
 CONF_DEFAULT_FAN_MODE = 'default_fan_mode'
 CONF_DEFAULT_SWING_UPDN_MODE = 'default_swing_updn_mode'
+CONF_ENCRYPTION_KEY = 'encryption_key'
+CONF_UID = 'uid'
 
 CONF_DEFAULT_OPERATION_FROM_IDLE = 'default_operation_from_idle'
 
@@ -78,7 +80,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_DEFAULT_OPERATION, default=DEFAULT_OPERATION): cv.string,
     vol.Optional(CONF_DEFAULT_FAN_MODE, default=DEFAULT_FAN_MODE): cv.string,
     vol.Optional(CONF_DEFAULT_SWING_UPDN_MODE, default = DEFAULT_SWING_UPDN_MODE): cv.string,
-    vol.Optional(CONF_DEFAULT_OPERATION_FROM_IDLE): cv.string
+    vol.Optional(CONF_DEFAULT_OPERATION_FROM_IDLE): cv.string,
+    vol.Optional(CONF_ENCRYPTION_KEY): cv.string,
+    vol.Optional(CONF_UID): cv.positive_int
 })
 
 @asyncio.coroutine
@@ -99,23 +103,25 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     default_operation = config.get(CONF_DEFAULT_OPERATION)
     default_fan_mode = config.get(CONF_DEFAULT_FAN_MODE)
     default_swing_updn_mode = config.get(CONF_DEFAULT_SWING_UPDN_MODE)
+    encryption_key = config.get(CONF_ENCRYPTION_KEY)
+    uid = config.get(CONF_UID)
     
     default_operation_from_idle = config.get(CONF_DEFAULT_OPERATION_FROM_IDLE)
         
     async_add_devices([
-        GreeClimate(hass, name, ip_addr, port, mac_addr, min_temp, max_temp, target_temp, target_temp_step, temp_sensor_entity_id, operation_list, fan_list, swing_updn_mode_list, default_operation, default_fan_mode, default_operation_from_idle, default_swing_updn_mode)
+        GreeClimate(hass, name, ip_addr, port, mac_addr, min_temp, max_temp, target_temp, target_temp_step, temp_sensor_entity_id, operation_list, fan_list, swing_updn_mode_list, default_operation, default_fan_mode, default_operation_from_idle, default_swing_updn_mode, encryption_key, uid)
     ])
 
 class GreeClimate(ClimateDevice):
 
-    def __init__(self, hass, name, ip_addr, port, mac_addr, min_temp, max_temp, target_temp, target_temp_step, temp_sensor_entity_id, operation_list, fan_list, swing_updn_mode_list, default_operation, default_fan_mode, default_operation_from_idle, default_swing_updn_mode):
+    def __init__(self, hass, name, ip_addr, port, mac_addr, min_temp, max_temp, target_temp, target_temp_step, temp_sensor_entity_id, operation_list, fan_list, swing_updn_mode_list, default_operation, default_fan_mode, default_operation_from_idle, default_swing_updn_mode, encryption_key=None, uid=None):
         # Initialize the Broadlink IR Climate device.
 
         self.hass = hass
         self._name = name
         self._ip_addr = ip_addr
         self._port = port
-        self._mac_addr = mac_addr.decode('utf-8')
+        self._mac_addr = mac_addr.decode('utf-8').lower()
         
         self._min_temp = min_temp
         self._max_temp = max_temp
@@ -136,14 +142,23 @@ class GreeClimate(ClimateDevice):
         self._swing_updn_mode_list = swing_updn_mode_list
 
         self._default_operation_from_idle = default_operation_from_idle
+
+        if encryption_key:
+            _LOGGER.info('Using configured encryption key: {}'.format(encryption_key))
+            self._encryption_key = encryption_key.encode("utf8")
+        else:
+            _LOGGER.info('Fetching Device Encryption Key')
+            self._encryption_key = self.GetDeviceKey().encode("utf8")
+            _LOGGER.info('Fetched Device Encryption Key: %s' % self._encryption_key)
+
+        if uid:
+            self._uid = uid
+        else:
+            self._uid = 0
         
         self._acOptions = { 'Pow': None, 'Mod': None, 'SetTem': None, 'WdSpd': None, 'Air': None, 'Blo': None, 'Health': None, 'SwhSlp': None, 'Lig': None, 'SwingLfRig': None, 'SwUpDn': None, 'Quiet': None, 'Tur': None, 'StHt': None, 'TemUn': None, 'HeatCoolType': None, 'TemRec': None, 'SvSt': None }
 
         self._firstTimeRun = True
-
-        _LOGGER.info('Fetching Device Encryption Key')
-        self._encryption_key = self.GetDeviceKey().encode("utf8")
-        _LOGGER.info('Fetched Device Encryption Key: %s' % self._encryption_key)
 
         # Cipher to use to encrypt/decrypt
         self.CIPHER = AES.new(self._encryption_key, AES.MODE_ECB)
@@ -167,6 +182,7 @@ class GreeClimate(ClimateDevice):
         # Setup UDP Client & start transfering
         _LOGGER.info('Creating sock')
         clientSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        clientSock.settimeout(3)
         _LOGGER.info('Sending over UDP')
         clientSock.sendto(bytes(json, "utf-8"), (ip_addr, port))
         _LOGGER.info('Receiving over UDP')
@@ -203,7 +219,7 @@ class GreeClimate(ClimateDevice):
         return self.FetchResult(cipher, self._ip_addr, self._port, jsonPayloadToSend)['key']
 
     def GreeGetValues(self, propertyNames):
-        jsonPayloadToSend = '{"cid": "app","i": 0,"pack": "' + base64.b64encode(self.CIPHER.encrypt(self.Pad('{"cols":' + simplejson.dumps(propertyNames) + ',"mac": "' + str(self._mac_addr) + '","t": "status"}').encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid": 0}'
+        jsonPayloadToSend = '{"cid":"app","i":0,"pack":"' + base64.b64encode(self.CIPHER.encrypt(self.Pad('{"cols":' + simplejson.dumps(propertyNames) + ',"mac":"' + str(self._mac_addr) + '","t":"status"}').encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid":{}'.format(self._uid) + '}'
         return self.FetchResult(self.CIPHER, self._ip_addr, self._port, jsonPayloadToSend)['dat']
 
     def SetAcOptions(self, acOptions, newOptionsToOverride, optionValuesValuesToOverride = None):
@@ -223,15 +239,17 @@ class GreeClimate(ClimateDevice):
         
     def SendStateToAc(self):
         _LOGGER.info('Defining statePackJson')
-        statePackJson = '{"opt": ["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt"],"p": [%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s],"t": "cmd"}' % (self._acOptions['Pow'], self._acOptions['Mod'], self._acOptions['SetTem'], self._acOptions['WdSpd'], self._acOptions['Air'], self._acOptions['Blo'], self._acOptions['Health'], self._acOptions['SwhSlp'], self._acOptions['Lig'], self._acOptions['SwingLfRig'], self._acOptions['SwUpDn'], self._acOptions['Quiet'], self._acOptions['Tur'], self._acOptions['StHt'], self._acOptions['TemUn'], self._acOptions['HeatCoolType'], self._acOptions['TemRec'], self._acOptions['SvSt'])
+        #statePackJson = '{' + '"opt":["TemUn","SetTem","TemRec","Pow","SwUpDn","Quiet","Mod","WdSpd"],"p":[{TemUn},{SetTem},{TemRec},{Pow},{SwUpDn},{Quiet},{Mod},{WdSpd}],"t":"cmd"'.format(**self._acOptions) + '}'
+        statePackJson = '{' + '"opt":["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt"],"p":[{Pow},{Mod}, {SetTem},{WdSpd},{Air},{Blo},{Health},{SwhSlp},{Lig},{SwingLfRig},{SwUpDn},{Quiet},{Tur},{StHt},{TemUn},{HeatCoolType},{TemRec},{SvSt}],"t":"cmd"'.format(**self._acOptions) + '}'
         _LOGGER.info('statePackJson: ' + statePackJson)
         _LOGGER.info('str(self._mac_addr): ' + str(self._mac_addr))
-        sentJsonPayload = '{"cid": "app","i": 0,"pack": "' + base64.b64encode(self.CIPHER.encrypt(self.Pad(statePackJson).encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid": 0}'
+        sentJsonPayload = '{"cid":"app","i":0,"pack":"' + base64.b64encode(self.CIPHER.encrypt(self.Pad(statePackJson).encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid":{}'.format(self._uid) + '}'
         _LOGGER.info('sentJsonPayload: ' + sentJsonPayload)
 
         # Setup UDP Client & start transfering
         _LOGGER.info('Creating socket')
         clientSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        clientSock.settimeout(3)
         _LOGGER.info('Sending bytes to %s:%s' % (self._ip_addr, self._port))
         clientSock.sendto(bytes(sentJsonPayload, "utf-8"), (self._ip_addr, self._port))
         _LOGGER.info('Receiving response')
