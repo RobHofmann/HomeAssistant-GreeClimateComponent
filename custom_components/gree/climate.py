@@ -21,7 +21,8 @@ from homeassistant.core import callback
 from homeassistant.helpers.restore_state import RestoreEntity
 from configparser import ConfigParser
 from Crypto.Cipher import AES
-import simplejson
+try: import simplejson
+except ImportError: import json as simplejson
 
 REQUIREMENTS = ['pycryptodome']
 
