@@ -130,7 +130,7 @@ class GreeClimate(ClimateDevice):
         self._target_temperature_step = target_temp_step
         self._unit_of_measurement = hass.config.units.temperature_unit
         
-        self._current_temperature = 0
+        self._current_temperature = None
         self._temp_sensor_entity_id = temp_sensor_entity_id
 
         self._current_operation = default_operation
