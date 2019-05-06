@@ -3,7 +3,11 @@ Custom Gree climate component written in Python3 for Home Assistant. Controls AC
 
 Tested on:
 * Innova HVAC, Cooper & Hunter HVAC
-* Home-Assistant 0.89, 0.90.2, 0.91.3
+* Home-Assistant 
+    - 0.89
+    - 0.90.2
+    - 0.91.3
+    - 0.92.2
 
  **If you are experiencing issues please be sure to provide details about your device, Home Assistant version and what exactly went wrong.**
 
