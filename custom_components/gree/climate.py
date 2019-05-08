@@ -14,7 +14,7 @@ import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
 
 from homeassistant.components.climate import (ClimateDevice, PLATFORM_SCHEMA)
-from homeassistant.components.climate.const import (SUPPORT_OPERATION_MODE, SUPPORT_TARGET_TEMPERATURE, SUPPORT_FAN_MODE, SUPPORT_SWING_MODE, SUPPORT_ON_OFF)
+from homeassistant.components.climate.const import (SUPPORT_OPERATION_MODE, SUPPORT_TARGET_TEMPERATURE, SUPPORT_FAN_MODE, SUPPORT_SWING_MODE, SUPPORT_ON_OFF, STATE_AUTO, STATE_COOL, STATE_DRY, STATE_FAN_ONLY, STATE_HEAT)
 from homeassistant.const import (ATTR_UNIT_OF_MEASUREMENT, ATTR_TEMPERATURE, CONF_NAME, CONF_HOST, CONF_PORT, CONF_MAC, CONF_TIMEOUT, CONF_CUSTOMIZE, STATE_ON, STATE_OFF, STATE_UNKNOWN)
 from homeassistant.helpers.event import (async_track_state_change)
 from homeassistant.core import callback
@@ -53,8 +53,8 @@ DEFAULT_MIN_TEMP = 16
 DEFAULT_MAX_TEMP = 30
 DEFAULT_TARGET_TEMP = 20
 DEFAULT_TARGET_TEMP_STEP = 1
-DEFAULT_OPERATION_LIST = ['Auto', 'Cool', 'Dry', 'Fan', 'Heat']
-DEFAULT_FAN_MODE_LIST = ['Auto', 'Low', 'Medium-Low', 'Medium', 'Medium-High', 'High', 'Turbo', 'Quiet']
+DEFAULT_OPERATION_LIST = [STATE_AUTO, STATE_COOL, STATE_DRY, STATE_FAN_ONLY, STATE_HEAT]
+DEFAULT_FAN_MODE_LIST = [STATE_AUTO, 'Low', 'Medium-Low', 'Medium', 'Medium-High', 'High', 'Turbo', 'Quiet']
 DEFAULT_SWING_UPDN_MODES = ['Default', 'Swing in full range', 'Fixed in the upmost position', 'Fixed in the middle-up position', 'Fixed in the middle position', 'Fixed in the middle-low position', 'Fixed in the lowest position', 'Swing in the downmost region', 'Swing in the middle-low region', 'Swing in the middle region', 'Swing in the middle-up region', 'Swing in the upmost region']
 DEFAULT_OPERATION = 'Cool'
 DEFAULT_FAN_MODE = 'Auto'
