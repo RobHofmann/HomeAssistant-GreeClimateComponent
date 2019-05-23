@@ -53,11 +53,11 @@ DEFAULT_MIN_TEMP = 16
 DEFAULT_MAX_TEMP = 30
 DEFAULT_TARGET_TEMP = 20
 DEFAULT_TARGET_TEMP_STEP = 1
-DEFAULT_OPERATION_LIST = [STATE_AUTO, STATE_COOL, STATE_DRY, STATE_FAN_ONLY, STATE_HEAT]
+DEFAULT_OPERATION_LIST = [STATE_AUTO, STATE_COOL, STATE_DRY, STATE_FAN_ONLY, STATE_HEAT, STATE_OFF]
 DEFAULT_FAN_MODE_LIST = [STATE_AUTO, 'Low', 'Medium-Low', 'Medium', 'Medium-High', 'High', 'Turbo', 'Quiet']
 DEFAULT_SWING_UPDN_MODES = ['Default', 'Swing in full range', 'Fixed in the upmost position', 'Fixed in the middle-up position', 'Fixed in the middle position', 'Fixed in the middle-low position', 'Fixed in the lowest position', 'Swing in the downmost region', 'Swing in the middle-low region', 'Swing in the middle region', 'Swing in the middle-up region', 'Swing in the upmost region']
-DEFAULT_OPERATION = 'Cool'
-DEFAULT_FAN_MODE = 'Auto'
+DEFAULT_OPERATION = STATE_OFF
+DEFAULT_FAN_MODE = STATE_AUTO
 DEFAULT_SWING_UPDN_MODE = 'Fixed in the upmost position'
 
 CUSTOMIZE_SCHEMA = vol.Schema({
@@ -528,18 +528,21 @@ class GreeClimate(ClimateDevice):
 
     def turn_on(self):
         # Turn device on.
-        self.SyncState({'Pow': 1})
+        self.SyncState({'Pow': 1, 'Mod': self._operation_list.index(STATE_COOL)})
         self.schedule_update_ha_state()
 
     def turn_off(self):
         # Turn device off.
-        self.SyncState({'Pow': 0})
+        self.SyncState({'Pow': 0, 'Mod': self._operation_list.index(STATE_OFF)})
         self.schedule_update_ha_state()
 
     def set_operation_mode(self, operation_mode):
         _LOGGER.info('set_operation_mode() |' + str(operation_mode))
-        # Set new target temperature.
-        self.SyncState({'Mod': self._operation_list.index(operation_mode)})
+        # Set new operation mode
+        if (operation_mode == STATE_OFF):
+            self.SyncState({'Mod': self._operation_list.index(operation_mode), 'Pow': 0})
+        else:
+            self.SyncState({'Mod': self._operation_list.index(operation_mode), 'Pow': 1})
         self.schedule_update_ha_state()
         
     @asyncio.coroutine
