@@ -1,19 +1,33 @@
 - platform: gree
+  # required settings:
   name: First AC
   host: <ip of your first AC>
-  port: 7000
   mac: '<mac address of your first AC>'
+  # optional settings:
+  port: 7000
+  timeout: 10
   min_temp: 16
   max_temp: 30
-  target_temp: 21
   target_temp_step: 1
+  temp_sensor: <temperature sensor in first AC room>
+  lights: <input_boolean used to switch lights on/off of your first AC>
+  xfan: <input_boolean used to switch xfan on/off of your first AC>
+  sleep: <input_boolean used to switch sleep on/off of your first AC>
+  powersave: <input_boolean used to switch powersave on/off of your first AC>
 
 - platform: gree
+  # required settings:
   name: Second AC
   host: <ip of your second AC>
-  port: 7000
   mac: '<mac address of your second AC>'
+  # optional settings:
+  port: 7000
+  timeout: 10
   min_temp: 16
   max_temp: 30
-  target_temp: 21
   target_temp_step: 1
+  temp_sensor: <temperature sensor in second AC room>
+  lights: <input_boolean used to switch lights on/off of your second AC>
+  xfan: <input_boolean used to switch xfan on/off of your second AC>
+  sleep: <input_boolean used to switch sleep on/off of your second AC>
+  powersave: <input_boolean used to switch powersave on/off of your second AC>
