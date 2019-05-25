@@ -79,3 +79,5 @@ Tested on:
    Write it down in climate.yaml `encryption_key: <key>`. This solves Issue#1.
 
 6. OPTIONAL: Provide the `uid` parameter (can be sniffed) NOTE: This is not needed for all devices
+
+7. OPTIONAL: Provice input_boolean's to set lights, xfan, sleep and powersave mode on/off.
