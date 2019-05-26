@@ -36,6 +36,10 @@ Tested on:
      target_temp_step: 1
      encryption_key: <OPTIONAL: custom encryption key if wifi already configured>
      uid: <some kind of device identifier. NOTE: for some devices this is optional>
+     lights: <OPTIONAL: input_boolean to switch AC lights mode on/off>
+     xfan: <OPTIONAL: input_boolean to switch AC xfan mode on/off>
+     sleep: <OPTIONAL: input_boolean to switch AC sleep mode on/off>
+     powersave: <OPTIONAL: input_boolean to switch AC powersave mode on/off>
    
    - platform: gree
      name: Second AC
@@ -79,3 +83,5 @@ Tested on:
    Write it down in climate.yaml `encryption_key: <key>`. This solves Issue#1.
 
 6. OPTIONAL: Provide the `uid` parameter (can be sniffed) NOTE: This is not needed for all devices
+
+7. OPTIONAL: Provice input_boolean's to set lights, xfan, sleep and powersave mode on/off.
