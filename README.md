@@ -36,11 +36,11 @@ Tested on:
      target_temp_step: 1
      encryption_key: <OPTIONAL: custom encryption key if wifi already configured>
      uid: <some kind of device identifier. NOTE: for some devices this is optional>
-     temp_sensor: <temperature sensor to use for current temp>
-     lights: <OPTIONAL: input_boolean to switch AC lights mode on/off>
-     xfan: <OPTIONAL: input_boolean to switch AC xfan mode on/off>
-     sleep: <OPTIONAL: input_boolean to switch AC sleep mode on/off>
-     powersave: <OPTIONAL: input_boolean to switch AC powersave mode on/off>
+     temp_sensor: <entity id of the temperature sensor. For example: sensor.bedroom_temperature>
+     lights: <OPTIONAL: input_boolean to switch AC lights mode on/off. For example: input_boolean.first_ac_lights>
+     xfan: <OPTIONAL: input_boolean to switch AC xfan mode on/off. For example: input_boolean.first_ac_xfan>
+     sleep: <OPTIONAL: input_boolean to switch AC sleep mode on/off. For example: input_boolean.first_ac_sleep>
+     powersave: <OPTIONAL: input_boolean to switch AC powersave mode on/off. For example: input_boolean.first_ac_powersave>
    
    - platform: gree
      name: Second AC
