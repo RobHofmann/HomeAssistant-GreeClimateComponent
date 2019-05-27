@@ -6,8 +6,6 @@
   # optional settings:
   port: 7000
   timeout: 10
-  min_temp: 16
-  max_temp: 30
   target_temp_step: 1
   temp_sensor: <temperature sensor in first AC room>
   lights: <input_boolean used to switch lights on/off of your first AC>
@@ -23,8 +21,6 @@
   # optional settings:
   port: 7000
   timeout: 10
-  min_temp: 16
-  max_temp: 30
   target_temp_step: 1
   temp_sensor: <temperature sensor in second AC room>
   lights: <input_boolean used to switch lights on/off of your second AC>
