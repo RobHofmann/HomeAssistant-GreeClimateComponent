@@ -30,9 +30,6 @@ Tested on:
      host: <ip of your first AC>
      port: 7000
      mac: '<mac address of your first AC>'
-     min_temp: 16
-     max_temp: 30
-     target_temp: 21
      target_temp_step: 1
      encryption_key: <OPTIONAL: custom encryption key if wifi already configured>
      uid: <some kind of device identifier. NOTE: for some devices this is optional>
@@ -47,9 +44,6 @@ Tested on:
      host: <ip of your second AC>
      port: 7000
      mac: '<mac address of your second AC>'
-     min_temp: 16
-     max_temp: 30
-     target_temp: 21
      target_temp_step: 1
    ```
 
