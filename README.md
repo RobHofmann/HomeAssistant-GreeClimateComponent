@@ -1,3 +1,4 @@
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
 # WARNING: 0.96 Climate Update
 If you are dependent on this component, please don't update to 0.96 yet when it comes out. It will probably break this integration. I will work on it to fix it asap.
 
@@ -25,7 +26,7 @@ Tested on:
  - https://developers.home-assistant.io/
  
 ## HACS
-This component is currently under review to be added to HACS. Please see https://github.com/custom-components/hacs/pull/253 for the latest status.
+This component is added to HACS default repository list.
 
 ## Component Installation
 1. Copy the custom_components folder to your own hassio /config folder.
