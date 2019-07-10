@@ -9,6 +9,8 @@ Tested on:
     - 0.91.3
     - 0.92.2
     - 0.93.1
+    - 0.94.x
+    - 0.95.x
 
  **If you are experiencing issues please be sure to provide details about your device, Home Assistant version and what exactly went wrong.**
 
