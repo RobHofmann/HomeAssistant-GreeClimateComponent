@@ -1,3 +1,6 @@
+# WARNING: 0.96 Climate Update
+If you are dependent on this component, please don't update to 0.96 yet when it comes out. It will probably break this integration. I will work on it to fix it asap.
+
 # HomeAssistant-GreeClimateComponent
 Custom Gree climate component written in Python3 for Home Assistant. Controls AC's supporting the Gree protocol.
 
@@ -20,6 +23,9 @@ Tested on:
  - https://github.com/tomikaa87/gree-remote
  - https://github.com/vpnmaster/homeassistant-custom-components
  - https://developers.home-assistant.io/
+ 
+## HACS
+This component is currently under review to be added to HACS. Please see https://github.com/custom-components/hacs/pull/253 for the latest status.
 
 ## Component Installation
 1. Copy the custom_components folder to your own hassio /config folder.
