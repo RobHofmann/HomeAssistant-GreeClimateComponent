@@ -523,9 +523,9 @@ class GreeClimate(ClimateDevice):
 
     @property
     def state(self):
-        _LOGGER.info('state(): ' + str(self._current_state))
+        _LOGGER.info('state(): ' + str(self._current_operation_mode))
         # Return the current state.
-        return self._current_state
+        return self._current_operation_mode
 
     @property
     def is_on(self):
