@@ -28,7 +28,8 @@ Tested on:
 ## HACS
 This component is added to HACS default repository list.
 
-## Component Installation
+## Custom Component Installation
+!!! PLEASE NOTE !!!: Don't use this method if you are using HACS.
 1. Copy the custom_components folder to your own hassio /config folder.
 
 2. In the root of your /config folder, create a file called climate.yaml
