@@ -44,6 +44,7 @@ CONF_TARGET_TEMP_STEP = 'target_temp_step'
 CONF_TEMP_SENSOR = 'temp_sensor'
 CONF_LIGHTS = 'lights'
 CONF_XFAN = 'xfan'
+CONF_HEALTH = 'health'
 CONF_POWERSAVE = 'powersave'
 CONF_SLEEP = 'sleep'
 CONF_ENCRYPTION_KEY = 'encryption_key'
@@ -72,6 +73,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_TEMP_SENSOR): cv.entity_id,
     vol.Optional(CONF_LIGHTS): cv.entity_id,
     vol.Optional(CONF_XFAN): cv.entity_id,
+    vol.Optional(CONF_HEALTH): cv.entity_id,
     vol.Optional(CONF_POWERSAVE): cv.entity_id,
     vol.Optional(CONF_SLEEP): cv.entity_id,
     vol.Optional(CONF_ENCRYPTION_KEY): cv.string,
@@ -91,6 +93,7 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     temp_sensor_entity_id = config.get(CONF_TEMP_SENSOR)
     lights_entity_id = config.get(CONF_LIGHTS)
     xfan_entity_id = config.get(CONF_XFAN)
+    health_entity_id = config.get(CONF_HEALTH)
     powersave_entity_id = config.get(CONF_POWERSAVE)
     sleep_entity_id = config.get(CONF_SLEEP)
     operation_mode_list = OPERATION_MODE_LIST
@@ -101,12 +104,12 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     
     _LOGGER.info('Adding Gree climate device to hass')
     async_add_devices([
-        GreeClimate(hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, powersave_entity_id, sleep_entity_id, operation_mode_list, fan_mode_list, swing_mode_list, encryption_key, uid)
+        GreeClimate(hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, operation_mode_list, fan_mode_list, swing_mode_list, encryption_key, uid)
     ])
 
 class GreeClimate(ClimateDevice):
 
-    def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, powersave_entity_id, sleep_entity_id, operation_mode_list, fan_mode_list, swing_mode_list, encryption_key=None, uid=None):
+    def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, operation_mode_list, fan_mode_list, swing_mode_list, encryption_key=None, uid=None):
         _LOGGER.info('Initialize the GREE climate device')
         self.hass = hass
         self._name = name
@@ -123,6 +126,7 @@ class GreeClimate(ClimateDevice):
         self._temp_sensor_entity_id = temp_sensor_entity_id
         self._lights_entity_id = lights_entity_id
         self._xfan_entity_id = xfan_entity_id
+        self._health_entity_id = health_entity_id
         self._powersave_entity_id = powersave_entity_id
         self._sleep_entity_id = sleep_entity_id
 
@@ -132,6 +136,7 @@ class GreeClimate(ClimateDevice):
         self._current_state = None
         self._current_lights = None
         self._current_xfan = None
+        self._current_health = None
         self._current_powersave = None
         self._current_sleep = None
 
@@ -172,6 +177,11 @@ class GreeClimate(ClimateDevice):
             _LOGGER.info('Setting up xfan entity: ' + str(xfan_entity_id))
             async_track_state_change(
                 hass, xfan_entity_id, self._async_xfan_entity_state_changed)
+
+        if health_entity_id:
+            _LOGGER.info('Setting up health entity: ' + str(health_entity_id))
+            async_track_state_change(
+                hass, health_entity_id, self._async_health_entity_state_changed)
 
         if powersave_entity_id:
             _LOGGER.info('Setting up powersave entity: ' + str(powersave_entity_id))
@@ -286,7 +296,21 @@ class GreeClimate(ClimateDevice):
                 attr = xfan_state.attributes
                 if self._current_xfan in (STATE_ON, STATE_OFF):
                     self.hass.states.async_set(self._xfan_entity_id, self._current_xfan, attr)
-        _LOGGER.info('HA xfan option set according to HVAC state to: ' + str(self._current_xfan))
+        _LOGGER.info('HA health option set according to HVAC state to: ' + str(self._current_health))
+        # Sync current HVAC health option to HA
+        if (self._acOptions['Health'] == 1):
+            self._current_health = STATE_ON
+        elif (self._acOptions['Health'] == 0):
+            self._current_health = STATE_OFF
+        else:
+            self._current_health = STATE_UNKNOWN
+        if self._health_entity_id:
+            health_state = self.hass.states.get(self._health_entity_id)
+            if health_state:
+                attr = health_state.attributes
+                if self._current_health in (STATE_ON, STATE_OFF):
+                    self.hass.states.async_set(self._health_entity_id, self._current_health, attr)
+        _LOGGER.info('HA health option set according to HVAC state to: ' + str(self._current_health))
         # Sync current HVAC powersave option to HA
         if (self._acOptions['SvSt'] == 1):
             self._current_powersave = STATE_ON
@@ -467,6 +491,32 @@ class GreeClimate(ClimateDevice):
             self.SyncState({'Blo': 0})
             return
         _LOGGER.error('Unable to update from xfan_entity!')
+
+    @asyncio.coroutine
+    def _async_health_entity_state_changed(self, entity_id, old_state, new_state):
+        _LOGGER.info('health_entity state changed |' + str(entity_id) + '|' + str(old_state) + '|' + str(new_state))
+        if new_state is None:
+            return
+        if new_state.state is self._current_health:
+            # do nothing if state change is triggered due to Sync with HVAC
+            return
+        if not self._current_operation_mode in (STATE_COOL, STATE_DRY):
+            # do nothing if not in cool or dry mode
+            _LOGGER.info('Cant set health in %s mode' % str(self._current_operation_mode))
+            return
+        self._async_update_current_health(new_state)
+        yield from self.async_update_ha_state()
+
+    @callback
+    def _async_update_current_health(self, state):
+        _LOGGER.info('Updating HVAC with changed health_entity state |' + str(state))
+        if state.state is STATE_ON:
+            self.SyncState({'Health': 1})
+            return
+        elif state.state is STATE_OFF:
+            self.SyncState({'Health': 0})
+            return
+        _LOGGER.error('Unable to update from health_entity!')
 
     @asyncio.coroutine
     def _async_powersave_entity_state_changed(self, entity_id, old_state, new_state):
