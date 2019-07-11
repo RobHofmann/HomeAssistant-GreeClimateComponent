@@ -2,7 +2,9 @@
 
 ## Component configuration
 
-```yaml
+To configure this component, add the following configuration to your configuration.yaml (replacing the placeholders).
+
+```
  climate:
    - platform: gree
      name: First AC
