@@ -2,7 +2,7 @@
 
 ## Component configuration
 
-   ```yaml
+```yaml
  climate:
    - platform: gree
      name: First AC
@@ -24,4 +24,4 @@
      port: 7000
      mac: '<mac address of your second AC>'
      target_temp_step: 1
-   ```
+```
