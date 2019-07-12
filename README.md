@@ -1,6 +1,6 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
 # WARNING: 0.96 Climate Update
-If you are dependent on this component, please don't update to 0.96 yet when it comes out. It will probably break this integration. I will work on it to fix it asap.
+In 0.96 the climate platform will be greatly rewritten by the maintainers of Home Assistant. I've taken the liberty to run on 0.96 beta 1 to see what is needed to change this component. I've created the needed changes in this branch: https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/tree/newclimatecomponent. I expect to see some more changes in the platform, and will continue to update the component accordingly.
 
 # HomeAssistant-GreeClimateComponent
 Custom Gree climate component written in Python3 for Home Assistant. Controls AC's supporting the Gree protocol.
