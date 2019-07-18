@@ -14,15 +14,19 @@ import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
 
 from homeassistant.components.climate import (ClimateDevice, PLATFORM_SCHEMA)
+
 from homeassistant.components.climate.const import (
-    SUPPORT_OPERATION_MODE, SUPPORT_TARGET_TEMPERATURE, SUPPORT_FAN_MODE, SUPPORT_SWING_MODE, SUPPORT_ON_OFF, 
-    STATE_AUTO, STATE_COOL, STATE_DRY, STATE_FAN_ONLY, STATE_HEAT)
+    HVAC_MODE_OFF, HVAC_MODE_AUTO, HVAC_MODE_COOL, HVAC_MODE_DRY,
+    HVAC_MODE_FAN_ONLY, HVAC_MODE_HEAT, SUPPORT_FAN_MODE,
+    SUPPORT_TARGET_TEMPERATURE, SUPPORT_SWING_MODE)
 
 from homeassistant.const import (
     ATTR_UNIT_OF_MEASUREMENT, ATTR_TEMPERATURE, 
     CONF_NAME, CONF_HOST, CONF_PORT, CONF_MAC, CONF_TIMEOUT, CONF_CUSTOMIZE, 
     STATE_ON, STATE_OFF, STATE_UNKNOWN, 
     TEMP_CELSIUS, PRECISION_WHOLE, PRECISION_TENTHS)
+
+from homeassistant.components.fan import SPEED_HIGH, SPEED_LOW, SPEED_MEDIUM
 
 from homeassistant.helpers.event import (async_track_state_change)
 from homeassistant.core import callback
@@ -36,7 +40,7 @@ REQUIREMENTS = ['pycryptodome']
 
 _LOGGER = logging.getLogger(__name__)
 
-SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE | SUPPORT_OPERATION_MODE | SUPPORT_FAN_MODE | SUPPORT_SWING_MODE | SUPPORT_ON_OFF
+SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE | SUPPORT_FAN_MODE | SUPPORT_SWING_MODE
 
 DEFAULT_NAME = 'Gree Climate'
 
@@ -59,9 +63,10 @@ MIN_TEMP = 16
 MAX_TEMP = 30
 
 # fixed values in gree mode lists
-OPERATION_MODE_LIST = [STATE_AUTO, STATE_COOL, STATE_DRY, STATE_FAN_ONLY, STATE_HEAT, STATE_OFF]
-FAN_MODE_LIST = [STATE_AUTO, 'Low', 'Medium-Low', 'Medium', 'Medium-High', 'High', 'Turbo', 'Quiet']
-SWING_MODE_LIST = ['Default', 'Swing in full range', 'Fixed in the upmost position', 'Fixed in the middle-up position', 'Fixed in the middle position', 'Fixed in the middle-low position', 'Fixed in the lowest position', 'Swing in the downmost region', 'Swing in the middle-low region', 'Swing in the middle region', 'Swing in the middle-up region', 'Swing in the upmost region']
+HVAC_MODES = [HVAC_MODE_AUTO, HVAC_MODE_COOL, HVAC_MODE_DRY, HVAC_MODE_FAN_ONLY, HVAC_MODE_HEAT, HVAC_MODE_OFF]
+
+FAN_MODES = ['Auto', SPEED_LOW, 'Medium-Low', SPEED_MEDIUM, 'Medium-High', SPEED_HIGH, 'Turbo', 'Quiet']
+SWING_MODES = ['Default', 'Swing in full range', 'Fixed in the upmost position', 'Fixed in the middle-up position', 'Fixed in the middle position', 'Fixed in the middle-low position', 'Fixed in the lowest position', 'Swing in the downmost region', 'Swing in the middle-low region', 'Swing in the middle region', 'Swing in the middle-up region', 'Swing in the upmost region']
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
@@ -96,20 +101,20 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     health_entity_id = config.get(CONF_HEALTH)
     powersave_entity_id = config.get(CONF_POWERSAVE)
     sleep_entity_id = config.get(CONF_SLEEP)
-    operation_mode_list = OPERATION_MODE_LIST
-    fan_mode_list = FAN_MODE_LIST
-    swing_mode_list = SWING_MODE_LIST
+    hvac_modes = HVAC_MODES
+    fan_modes = FAN_MODES
+    swing_modes = SWING_MODES
     encryption_key = config.get(CONF_ENCRYPTION_KEY)
     uid = config.get(CONF_UID)
     
     _LOGGER.info('Adding Gree climate device to hass')
     async_add_devices([
-        GreeClimate(hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, operation_mode_list, fan_mode_list, swing_mode_list, encryption_key, uid)
+        GreeClimate(hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, hvac_modes, fan_modes, swing_modes, encryption_key, uid)
     ])
 
 class GreeClimate(ClimateDevice):
 
-    def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, operation_mode_list, fan_mode_list, swing_mode_list, encryption_key=None, uid=None):
+    def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, hvac_modes, fan_modes, swing_modes, encryption_key=None, uid=None):
         _LOGGER.info('Initialize the GREE climate device')
         self.hass = hass
         self._name = name
@@ -130,19 +135,18 @@ class GreeClimate(ClimateDevice):
         self._powersave_entity_id = powersave_entity_id
         self._sleep_entity_id = sleep_entity_id
 
-        self._current_operation_mode = None
-        self._current_fan_mode = None
-        self._current_swing_mode = None
-        self._current_state = None
+        self._hvac_mode = None
+        self._fan_mode = None
+        self._swing_mode = None
         self._current_lights = None
         self._current_xfan = None
         self._current_health = None
         self._current_powersave = None
         self._current_sleep = None
 
-        self._operation_mode_list = operation_mode_list
-        self._fan_mode_list = fan_mode_list
-        self._swing_mode_list = swing_mode_list
+        self._hvac_modes = hvac_modes
+        self._fan_modes = fan_modes
+        self._swing_modes = swing_modes
 
         if encryption_key:
             _LOGGER.info('Using configured encryption key: {}'.format(encryption_key))
@@ -340,44 +344,33 @@ class GreeClimate(ClimateDevice):
                     self.hass.states.async_set(self._sleep_entity_id, self._current_sleep, attr)
         _LOGGER.info('HA sleep option set according to HVAC state to: ' + str(self._current_sleep))
 
-    def UpdateHACurrentOperationMode(self):
+    def UpdateHAHvacMode(self):
         # Sync current HVAC operation mode to HA
         if (self._acOptions['Pow'] == 0):
-            self._current_operation_mode = STATE_OFF
+            self._hvac_mode = HVAC_MODE_OFF
         else:
-            self._current_operation_mode = self._operation_mode_list[self._acOptions['Mod']]
-        _LOGGER.info('HA operation mode set according to HVAC state to: ' + str(self._current_operation_mode))
-
-    def UpdateHAOnOffState(self):
-        # Sync current HVAC On/Off state to HA
-        if (self._acOptions['Pow'] == 1):
-            self._current_state = STATE_ON
-        elif (self._acOptions['Pow'] == 0):
-            self._current_state = STATE_OFF
-        else:
-            self._current_state = STATE_UNKNOWN
-        _LOGGER.info('HA On/Off set according to HVAC state to: ' + str(self._current_state))
+            self._hvac_mode = self._hvac_modes[self._acOptions['Mod']]
+        _LOGGER.info('HA operation mode set according to HVAC state to: ' + str(self._hvac_mode))
 
     def UpdateHACurrentSwingMode(self):
         # Sync current HVAC Swing mode state to HA
-        self._current_swing_mode = self._swing_mode_list[self._acOptions['SwUpDn']]
-        _LOGGER.info('HA swing mode set according to HVAC state to: ' + str(self._current_swing_mode))
+        self._swing_mode = self._swing_modes[self._acOptions['SwUpDn']]
+        _LOGGER.info('HA swing mode set according to HVAC state to: ' + str(self._swing_mode))
 
     def UpdateHAFanMode(self):
         # Sync current HVAC Fan mode state to HA
         if (int(self._acOptions['Tur']) == 1):
-            self._current_fan_mode = 'Turbo'
+            self._fan_mode = 'Turbo'
         elif (int(self._acOptions['Quiet']) >= 1):
-            self._current_fan_mode = 'Quiet'
+            self._fan_mode = 'Quiet'
         else:
-            self._current_fan_mode = self._fan_mode_list[int(self._acOptions['WdSpd'])]
-        _LOGGER.info('HA fan mode set according to HVAC state to: ' + str(self._current_fan_mode))
+            self._fan_mode = self._fan_modes[int(self._acOptions['WdSpd'])]
+        _LOGGER.info('HA fan mode set according to HVAC state to: ' + str(self._fan_mode))
 
     def UpdateHAStateToCurrentACState(self):
         self.UpdateHATargetTemperature()
         self.UpdateHAOptions()
-        self.UpdateHACurrentOperationMode()
-        self.UpdateHAOnOffState()
+        self.UpdateHAHvacMode()
         self.UpdateHACurrentSwingMode()
         self.UpdateHAFanMode()
 
@@ -474,9 +467,9 @@ class GreeClimate(ClimateDevice):
         if new_state.state is self._current_xfan:
             # do nothing if state change is triggered due to Sync with HVAC
             return
-        if not self._current_operation_mode in (STATE_COOL, STATE_DRY):
+        if not self._hvac_mode in (STATE_COOL, STATE_DRY):
             # do nothing if not in cool or dry mode
-            _LOGGER.info('Cant set xfan in %s mode' % str(self._current_operation_mode))
+            _LOGGER.info('Cant set xfan in %s mode' % str(self._hvac_mode))
             return
         self._async_update_current_xfan(new_state)
         yield from self.async_update_ha_state()
@@ -500,9 +493,9 @@ class GreeClimate(ClimateDevice):
         if new_state.state is self._current_health:
             # do nothing if state change is triggered due to Sync with HVAC
             return
-        if not self._current_operation_mode in (STATE_COOL, STATE_DRY):
+        if not self._hvac_mode in (STATE_COOL, STATE_DRY):
             # do nothing if not in cool or dry mode
-            _LOGGER.info('Cant set health in %s mode' % str(self._current_operation_mode))
+            _LOGGER.info('Cant set health in %s mode' % str(self._hvac_mode))
             return
         self._async_update_current_health(new_state)
         yield from self.async_update_ha_state()
@@ -526,9 +519,9 @@ class GreeClimate(ClimateDevice):
         if new_state.state is self._current_powersave:
             # do nothing if state change is triggered due to Sync with HVAC
             return
-        if not self._current_operation_mode in (STATE_COOL):
+        if not self._hvac_mode in (STATE_COOL):
             # do nothing if not in cool mode
-            _LOGGER.info('Cant set powersave in %s mode' % str(self._current_operation_mode))
+            _LOGGER.info('Cant set powersave in %s mode' % str(self._hvac_mode))
             return
         self._async_update_current_powersave(new_state)
         yield from self.async_update_ha_state()
@@ -553,9 +546,9 @@ class GreeClimate(ClimateDevice):
         if new_state.state is self._current_sleep:
             # do nothing if state change is triggered due to Sync with HVAC
             return
-        if not self._current_operation_mode in (STATE_COOL, STATE_HEAT):
+        if not self._hvac_mode in (STATE_COOL, STATE_HEAT):
             # do nothing if not in cool or heat mode
-            _LOGGER.info('Cant set sleep in %s mode' % str(self._current_operation_mode))
+            _LOGGER.info('Cant set sleep in %s mode' % str(self._hvac_mode))
             return
         self._async_update_current_sleep(new_state)
         yield from self.async_update_ha_state()
@@ -570,21 +563,6 @@ class GreeClimate(ClimateDevice):
             self.SyncState({'SwhSlp': 0})
             return
         _LOGGER.error('Unable to update from sleep_entity!')
-
-    @property
-    def state(self):
-        _LOGGER.info('state(): ' + str(self._current_operation_mode))
-        # Return the current state.
-        return self._current_operation_mode
-
-    @property
-    def is_on(self):
-        _LOGGER.info('is_on(): ' + str(self._current_state))
-        # Return true if on.
-        if (self._current_state == STATE_ON):
-            return True
-        else:
-            return False
 
     @property
     def should_poll(self):
@@ -640,40 +618,40 @@ class GreeClimate(ClimateDevice):
         return self._target_temperature_step
 
     @property
-    def current_operation(self):
-        _LOGGER.info('current_operation(): ' + str(self._current_operation_mode))
+    def hvac_mode(self):
+        _LOGGER.info('hvac_mode(): ' + str(self._hvac_mode))
         # Return current operation mode ie. heat, cool, idle.
-        return self._current_operation_mode
+        return self._hvac_mode
 
     @property
-    def current_swing_mode(self):
-        _LOGGER.info('current_swing_mode(): ' + str(self._current_swing_mode))
+    def swing_mode(self):
+        _LOGGER.info('swing_mode(): ' + str(self._swing_mode))
         # get the current swing mode
-        return self._current_swing_mode
+        return self._swing_mode
 
     @property
-    def swing_list(self):
-        _LOGGER.info('swing_list(): ' + str(self._swing_mode_list))
+    def swing_modes(self):
+        _LOGGER.info('swing_modes(): ' + str(self._swing_modes))
         # get the list of available swing modes
-        return self._swing_mode_list
+        return self._swing_modes
 
     @property
-    def operation_list(self):
-        _LOGGER.info('operation_list(): ' + str(self._operation_mode_list))
+    def hvac_modes(self):
+        _LOGGER.info('hvac_modes(): ' + str(self._hvac_modes))
         # Return the list of available operation modes.
-        return self._operation_mode_list
+        return self._hvac_modes
 
     @property
-    def current_fan_mode(self):
-        _LOGGER.info('current_fan_mode(): ' + str(self._current_fan_mode))
+    def fan_mode(self):
+        _LOGGER.info('fan_mode(): ' + str(self._fan_mode))
         # Return the fan mode.
-        return self._current_fan_mode
+        return self._fan_mode
 
     @property
-    def fan_list(self):
-        _LOGGER.info('fan_list(): ' + str(self._fan_mode_list))
+    def fan_modes(self):
+        _LOGGER.info('fan_list(): ' + str(self._fan_modes))
         # Return the list of available fan modes.
-        return self._fan_mode_list
+        return self._fan_modes
         
     @property
     def supported_features(self):
@@ -698,7 +676,7 @@ class GreeClimate(ClimateDevice):
         if not (self._acOptions['Pow'] == 0):
             # do nothing if HVAC is switched off
             _LOGGER.info('SyncState with SwUpDn=' + str(swing_mode))
-            self.SyncState({'SwUpDn': self._swing_mode_list.index(swing_mode)})
+            self.SyncState({'SwUpDn': self._swing_modes.index(swing_mode)})
             self.schedule_update_ha_state()
 
     def set_fan_mode(self, fan):
@@ -712,31 +690,19 @@ class GreeClimate(ClimateDevice):
                 _LOGGER.info('Enabling quiet mode')
                 self.SyncState({'Tur': 0, 'Quiet': 1})
             else:
-                _LOGGER.info('Setting normal fan mode to ' + str(self._fan_mode_list.index(fan)))
-                self.SyncState({'WdSpd': str(self._fan_mode_list.index(fan)), 'Tur': 0, 'Quiet': 0})
+                _LOGGER.info('Setting normal fan mode to ' + str(self._fan_modes.index(fan)))
+                self.SyncState({'WdSpd': str(self._fan_modes.index(fan)), 'Tur': 0, 'Quiet': 0})
             self.schedule_update_ha_state()
 
-    def turn_on(self):
-        _LOGGER.info('turn_on()')
-        # Turn device on.
-        self.SyncState({'Pow': 1})
-        self.schedule_update_ha_state()
-
-    def turn_off(self):
-        _LOGGER.info('turn_off()')
-        # Turn device off.
-        self.SyncState({'Pow': 0})
-        self.schedule_update_ha_state()
-
-    def set_operation_mode(self, operation_mode):
-        _LOGGER.info('set_operation_mode(): ' + str(operation_mode))
+    def set_hvac_mode(self, hvac_mode):
+        _LOGGER.info('set_hvac_mode(): ' + str(hvac_mode))
         # Set new operation mode.
-        if (operation_mode == STATE_OFF):
+        if (hvac_mode == HVAC_MODE_OFF):
             self.SyncState({'Pow': 0})
         else:
-            self.SyncState({'Mod': self._operation_mode_list.index(operation_mode), 'Pow': 1})
+            self.SyncState({'Mod': self._hvac_modes.index(hvac_mode), 'Pow': 1})
         self.schedule_update_ha_state()
-        
+
     @asyncio.coroutine
     def async_added_to_hass(self):
         _LOGGER.info('Gree climate device added to hass()')
