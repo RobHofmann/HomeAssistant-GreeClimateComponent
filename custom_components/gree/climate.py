@@ -467,7 +467,7 @@ class GreeClimate(ClimateDevice):
         if new_state.state is self._current_xfan:
             # do nothing if state change is triggered due to Sync with HVAC
             return
-        if not self._hvac_mode in (STATE_COOL, STATE_DRY):
+        if not self._hvac_mode in (HVAC_MODE_COOL, HVAC_MODE_DRY):
             # do nothing if not in cool or dry mode
             _LOGGER.info('Cant set xfan in %s mode' % str(self._hvac_mode))
             return
@@ -493,7 +493,7 @@ class GreeClimate(ClimateDevice):
         if new_state.state is self._current_health:
             # do nothing if state change is triggered due to Sync with HVAC
             return
-        if not self._hvac_mode in (STATE_COOL, STATE_DRY):
+        if not self._hvac_mode in (HVAC_MODE_COOL, HVAC_MODE_DRY):
             # do nothing if not in cool or dry mode
             _LOGGER.info('Cant set health in %s mode' % str(self._hvac_mode))
             return
@@ -519,7 +519,7 @@ class GreeClimate(ClimateDevice):
         if new_state.state is self._current_powersave:
             # do nothing if state change is triggered due to Sync with HVAC
             return
-        if not self._hvac_mode in (STATE_COOL):
+        if not self._hvac_mode in (HVAC_MODE_COOL):
             # do nothing if not in cool mode
             _LOGGER.info('Cant set powersave in %s mode' % str(self._hvac_mode))
             return
@@ -546,7 +546,7 @@ class GreeClimate(ClimateDevice):
         if new_state.state is self._current_sleep:
             # do nothing if state change is triggered due to Sync with HVAC
             return
-        if not self._hvac_mode in (STATE_COOL, STATE_HEAT):
+        if not self._hvac_mode in (HVAC_MODE_COOL, HVAC_MODE_HEAT):
             # do nothing if not in cool or heat mode
             _LOGGER.info('Cant set sleep in %s mode' % str(self._hvac_mode))
             return
