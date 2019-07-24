@@ -35,7 +35,7 @@ This component is added to HACS default repository list.
      target_temp_step: 1
      encryption_key: <OPTIONAL: custom encryption key if wifi already configured>
      uid: <some kind of device identifier. NOTE: for some devices this is optional>
-     temp_sensor: <entity id of the temperature sensor. For example: sensor.bedroom_temperature>
+     temp_sensor: <entity id of the EXTERNAL temperature sensor. For example: sensor.bedroom_temperature. NOTE: this attaches an external temperature sensor to your AC. Gree unfortunately doesnt support a "current temperature" on its own.>
      lights: <OPTIONAL: input_boolean to switch AC lights mode on/off. For example: input_boolean.first_ac_lights>
      xfan: <OPTIONAL: input_boolean to switch AC xfan mode on/off. For example: input_boolean.first_ac_xfan>
      health: <OPTIONAL: input_boolean used to switch the Health option on/off of your first AC. For example: input_boolean.first_ac_health>
