@@ -1,0 +1,8 @@
+set_horizontal_swing_mode:
+  description: Set horizontal swing operation for climate device.
+  fields:
+    entity_id:
+      description: Name(s) of entities to change.
+      example: 'climate.nest'
+    swing_mode:
+      description: New value of swing mode.
