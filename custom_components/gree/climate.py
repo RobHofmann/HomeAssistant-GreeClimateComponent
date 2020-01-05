@@ -300,7 +300,7 @@ class GreeClimate(ClimateDevice):
                 attr = xfan_state.attributes
                 if self._current_xfan in (STATE_ON, STATE_OFF):
                     self.hass.states.async_set(self._xfan_entity_id, self._current_xfan, attr)
-        _LOGGER.info('HA health option set according to HVAC state to: ' + str(self._current_health))
+        _LOGGER.info('HA xfan option set according to HVAC state to: ' + str(self._current_xfan))
         # Sync current HVAC health option to HA
         if (self._acOptions['Health'] == 1):
             self._current_health = STATE_ON
