@@ -67,7 +67,7 @@ HVAC_MODES = [HVAC_MODE_AUTO, HVAC_MODE_COOL, HVAC_MODE_DRY, HVAC_MODE_FAN_ONLY,
 
 FAN_MODES = ['Auto', SPEED_LOW, 'Medium-Low', SPEED_MEDIUM, 'Medium-High', SPEED_HIGH, 'Turbo', 'Quiet']
 SWING_MODES = ['Default', 'Swing in full range', 'Fixed in the upmost position', 'Fixed in the middle-up position', 'Fixed in the middle position', 'Fixed in the middle-low position', 'Fixed in the lowest position', 'Swing in the downmost region', 'Swing in the middle-low region', 'Swing in the middle region', 'Swing in the middle-up region', 'Swing in the upmost region']
-HORIZONTAL_SWING_MODES = ['Default', 'Swing in full range', 'Fixed in leftmost position', 'Fixed in middle-left postion', 'Fixed in middle position', 'Fixed in middle-right postion', 'Fixed in rightmost positi n']
+HORIZONTAL_SWING_MODES = ['Default', 'Swing in full range', 'Fixed in leftmost position', 'Fixed in middle-left position', 'Fixed in middle position', 'Fixed in middle-right position', 'Fixed in rightmost position']
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
