@@ -40,8 +40,6 @@ REQUIREMENTS = ['pycryptodome']
 
 _LOGGER = logging.getLogger(__name__)
 
-SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE | SUPPORT_FAN_MODE | SUPPORT_SWING_MODE
-
 DEFAULT_NAME = 'Gree Climate'
 
 CONF_TARGET_TEMP_STEP = 'target_temp_step'
@@ -143,16 +141,22 @@ class GreeClimate(ClimateDevice):
         self._current_health = None
         self._current_powersave = None
         self._current_sleep = None
+        self._supported_features = SUPPORT_TARGET_TEMPERATURE | SUPPORT_FAN_MODE
 
         self._hvac_modes = hvac_modes
         self._fan_modes = fan_modes
         self._swing_modes = swing_modes
 
+        deviceInfo = self.GetDeviceInfo()
+
+        if deviceInfo['mac'] != self._mac_addr:
+            self._parentMac = deviceInfo['mac']
+
         if encryption_key:
             _LOGGER.info('Using configured encryption key: {}'.format(encryption_key))
             self._encryption_key = encryption_key.encode("utf8")
         else:
-            self._encryption_key = self.GetDeviceKey().encode("utf8")
+            self._encryption_key = deviceInfo['key'].encode("utf8")
             _LOGGER.info('Fetched device encrytion key: %s' % str(self._encryption_key))
 
         if uid:
@@ -210,6 +214,8 @@ class GreeClimate(ClimateDevice):
         data, addr = clientSock.recvfrom(64000)
         receivedJson = simplejson.loads(data)
         clientSock.close()
+        if 'r' in receivedJson and receivedJson['r'] == 400:
+            raise Exception('Server response 400')
         pack = receivedJson['pack']
         base64decodedPack = base64.b64decode(pack)
         decryptedPack = cipher.decrypt(base64decodedPack)
@@ -218,44 +224,58 @@ class GreeClimate(ClimateDevice):
         loadedJsonPack = simplejson.loads(replacedPack)        
         return loadedJsonPack
 
-    def GetDeviceKey(self):
+    def GetDeviceInfo(self):
         _LOGGER.info('Retrieving HVAC encryption key')
         GENERIC_GREE_DEVICE_KEY = "a3K8Bx%2r8Y7#xDh"
         cipher = AES.new(GENERIC_GREE_DEVICE_KEY.encode("utf8"), AES.MODE_ECB)
         pack = base64.b64encode(cipher.encrypt(self.Pad('{"mac":"' + str(self._mac_addr) + '","t":"bind","uid":0}').encode("utf8"))).decode('utf-8')
         jsonPayloadToSend = '{"cid": "app","i": 1,"pack": "' + pack + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid": 0}'
-        return self.FetchResult(cipher, self._ip_addr, self._port, self._timeout, jsonPayloadToSend)['key']
+        return self.FetchResult(cipher, self._ip_addr, self._port, self._timeout, jsonPayloadToSend)
 
     def GreeGetValues(self, propertyNames):
         jsonPayloadToSend = '{"cid":"app","i":0,"pack":"' + base64.b64encode(self.CIPHER.encrypt(self.Pad('{"cols":' + simplejson.dumps(propertyNames) + ',"mac":"' + str(self._mac_addr) + '","t":"status"}').encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid":{}'.format(self._uid) + '}'
-        return self.FetchResult(self.CIPHER, self._ip_addr, self._port, self._timeout, jsonPayloadToSend)['dat']
+        response = self.FetchResult(self.CIPHER, self._ip_addr, self._port, self._timeout, jsonPayloadToSend)
+        values = {}
+        for i, key in enumerate(response['cols']):
+            value = response['dat'][i]
+            values[key] = value
+        return values
 
-    def SetAcOptions(self, acOptions, newOptionsToOverride, optionValuesToOverride = None):
-        if not (optionValuesToOverride is None):
-            _LOGGER.info('Setting acOptions with retrieved HVAC values')
-            for key in newOptionsToOverride:
-                _LOGGER.info('Setting %s: %s' % (key, optionValuesToOverride[newOptionsToOverride.index(key)]))
-                acOptions[key] = optionValuesToOverride[newOptionsToOverride.index(key)]
-            _LOGGER.info('Done setting acOptions')
-        else:
-            _LOGGER.info('Overwriting acOptions with new settings')
-            for key, value in newOptionsToOverride.items():
-                _LOGGER.info('Overwriting %s: %s' % (key, value))
-                acOptions[key] = value
-            _LOGGER.info('Done overwriting acOptions')
+    def SetAcOptions(self, acOptions, newOptionsToOverride):
+        _LOGGER.info('Overwriting acOptions with new settings')
+        for key, value in newOptionsToOverride.items():
+            _LOGGER.info('Overwriting %s: %s' % (key, value))
+            acOptions[key] = value
+        _LOGGER.info('Done overwriting acOptions')
         return acOptions
         
     def SendStateToAc(self, timeout):
         _LOGGER.info('Start sending state to HVAC')
-        statePackJson = '{' + '"opt":["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt"],"p":[{Pow},{Mod},{SetTem},{WdSpd},{Air},{Blo},{Health},{SwhSlp},{Lig},{SwingLfRig},{SwUpDn},{Quiet},{Tur},{StHt},{TemUn},{HeatCoolType},{TemRec},{SvSt}],"t":"cmd"'.format(**self._acOptions) + '}'
-        sentJsonPayload = '{"cid":"app","i":0,"pack":"' + base64.b64encode(self.CIPHER.encrypt(self.Pad(statePackJson).encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid":{}'.format(self._uid) + '}'
+        statePack = {
+            "t": "cmd",
+            "opt": [],
+            "p": [],
+        }
+        for key, value in self._acOptions.items():
+            if value is not None:
+                statePack['opt'].append(key)
+                statePack['p'].append(int(value))
+        mac = self._mac_addr
+        if self._parentMac:
+            statePack['sub'] = self._mac_addr
+            mac = self._parentMac
+        statePackJson = simplejson.dumps(statePack)
+        sentJsonPayload = '{"cid":"app","i":0,"pack":"' + base64.b64encode(self.CIPHER.encrypt(self.Pad(statePackJson).encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(mac) + '","uid":{}'.format(self._uid) + '}'
         # Setup UDP Client & start transfering
         clientSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         clientSock.settimeout(timeout)
+        _LOGGER.info('Fetching(%s, %s, %s, %s)' % (self._ip_addr, self._port, timeout, sentJsonPayload))
         clientSock.sendto(bytes(sentJsonPayload, "utf-8"), (self._ip_addr, self._port))
         data, addr = clientSock.recvfrom(64000)
         receivedJson = simplejson.loads(data)
         clientSock.close()
+        if 'r' in receivedJson and receivedJson['r'] == 400:
+            raise Exception('Server response 400')
         pack = receivedJson['pack']
         base64decodedPack = base64.b64decode(pack)
         decryptedPack = self.CIPHER.decrypt(base64decodedPack)
@@ -359,7 +379,7 @@ class GreeClimate(ClimateDevice):
 
     def UpdateHAFanMode(self):
         # Sync current HVAC Fan mode state to HA
-        if (int(self._acOptions['Tur']) == 1):
+        if self._acOptions['Tur'] is not None and (int(self._acOptions['Tur']) == 1):
             self._fan_mode = 'Turbo'
         elif (int(self._acOptions['Quiet']) >= 1):
             self._fan_mode = 'Quiet'
@@ -371,8 +391,10 @@ class GreeClimate(ClimateDevice):
         self.UpdateHATargetTemperature()
         self.UpdateHAOptions()
         self.UpdateHAHvacMode()
-        self.UpdateHACurrentSwingMode()
-        self.UpdateHAFanMode()
+        if self._supported_features & SUPPORT_SWING_MODE:
+            self.UpdateHACurrentSwingMode()
+        if self._supported_features & SUPPORT_FAN_MODE:
+            self.UpdateHAFanMode()
 
     def SyncState(self, acOptions = {}):
         #Fetch current settings from HVAC
@@ -382,7 +404,7 @@ class GreeClimate(ClimateDevice):
         currentValues = self.GreeGetValues(optionsToFetch)
 
         # Set latest status from device
-        self._acOptions = self.SetAcOptions(self._acOptions, optionsToFetch, currentValues)
+        self._acOptions = self.SetAcOptions(self._acOptions, currentValues)
 
         # Overwrite status with our choices
         if not(acOptions == {}):
@@ -401,6 +423,9 @@ class GreeClimate(ClimateDevice):
             self._firstTimeRun = False
 
         # Update HA state to current HVAC state
+        if 'SwUpDn' in currentValues:
+            self._supported_features |= SUPPORT_SWING_MODE
+
         self.UpdateHAStateToCurrentACState()
 
         _LOGGER.info('Finished SyncState')
@@ -655,9 +680,8 @@ class GreeClimate(ClimateDevice):
         
     @property
     def supported_features(self):
-        _LOGGER.info('supported_features(): ' + str(SUPPORT_FLAGS))
-        # Return the list of supported features.
-        return SUPPORT_FLAGS        
+        _LOGGER.info('supported_features(): ' + str(self._supported_features))
+        return self._supported_features
  
     def set_temperature(self, **kwargs):
         _LOGGER.info('set_temperature(): ' + str(kwargs.get(ATTR_TEMPERATURE)))
@@ -707,3 +731,4 @@ class GreeClimate(ClimateDevice):
     def async_added_to_hass(self):
         _LOGGER.info('Gree climate device added to hass()')
         self.SyncState()
+
