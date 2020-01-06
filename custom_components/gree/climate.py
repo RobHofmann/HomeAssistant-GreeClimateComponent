@@ -493,10 +493,6 @@ class GreeClimate(ClimateDevice):
         if new_state.state is self._current_health:
             # do nothing if state change is triggered due to Sync with HVAC
             return
-        if not self._hvac_mode in (HVAC_MODE_COOL, HVAC_MODE_DRY):
-            # do nothing if not in cool or dry mode
-            _LOGGER.info('Cant set health in %s mode' % str(self._hvac_mode))
-            return
         self._async_update_current_health(new_state)
         yield from self.async_update_ha_state()
 
