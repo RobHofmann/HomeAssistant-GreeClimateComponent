@@ -160,7 +160,7 @@ class GreeClimate(ClimateDevice):
         else:
             self._uid = 0
         
-        self._acOptions = { 'Pow': None, 'Mod': None, 'SetTem': None, 'WdSpd': None, 'Air': None, 'Blo': None, 'Health': None, 'SwhSlp': None, 'Lig': None, 'SwingLfRig': None, 'SwUpDn': None, 'Quiet': None, 'Tur': None, 'StHt': None, 'TemUn': None, 'HeatCoolType': None, 'TemRec': None, 'SvSt': None }
+        self._acOptions = { 'Pow': None, 'Mod': None, 'SetTem': None, 'WdSpd': None, 'Air': None, 'Blo': None, 'Health': None, 'SwhSlp': None, 'Lig': None, 'SwingLfRig': None, 'SwUpDn': None, 'Quiet': None, 'Tur': None, 'StHt': None, 'TemUn': None, 'HeatCoolType': None, 'TemRec': None, 'SvSt': None, 'SlpMod': None }
 
         self._firstTimeRun = True
 
@@ -247,7 +247,7 @@ class GreeClimate(ClimateDevice):
         
     def SendStateToAc(self, timeout):
         _LOGGER.info('Start sending state to HVAC')
-        statePackJson = '{' + '"opt":["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt"],"p":[{Pow},{Mod},{SetTem},{WdSpd},{Air},{Blo},{Health},{SwhSlp},{Lig},{SwingLfRig},{SwUpDn},{Quiet},{Tur},{StHt},{TemUn},{HeatCoolType},{TemRec},{SvSt}],"t":"cmd"'.format(**self._acOptions) + '}'
+        statePackJson = '{' + '"opt":["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt","SlpMod"],"p":[{Pow},{Mod},{SetTem},{WdSpd},{Air},{Blo},{Health},{SwhSlp},{Lig},{SwingLfRig},{SwUpDn},{Quiet},{Tur},{StHt},{TemUn},{HeatCoolType},{TemRec},{SvSt},{SlpMod}],"t":"cmd"'.format(**self._acOptions) + '}'
         sentJsonPayload = '{"cid":"app","i":0,"pack":"' + base64.b64encode(self.CIPHER.encrypt(self.Pad(statePackJson).encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid":{}'.format(self._uid) + '}'
         # Setup UDP Client & start transfering
         clientSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -272,7 +272,7 @@ class GreeClimate(ClimateDevice):
     def UpdateHAOptions(self):
         # Sync HA with retreived HVAC options
         # WdSpd = fanspeed (0=auto), SvSt = powersave, Air = Air in/out (1=air in, 2=air out), Health = health
-        # SwhSlp = sleep, StHt = 8 degc heating, Lig = lights, Blo = xfan
+        # SwhSlp,SlpMod = sleep (both needed for sleep deactivation), StHt = 8 degc heating, Lig = lights, Blo = xfan
         # Sync current HVAC lights option to HA
         if (self._acOptions['Lig'] == 1):
             self._current_lights = STATE_ON
@@ -330,9 +330,9 @@ class GreeClimate(ClimateDevice):
                     self.hass.states.async_set(self._powersave_entity_id, self._current_powersave, attr)
         _LOGGER.info('HA powersave option set according to HVAC state to: ' + str(self._current_powersave))
         # Sync current HVAC sleep option to HA
-        if (self._acOptions['SwhSlp'] == 1):
+        if (self._acOptions['SwhSlp'] == 1) and (self._acOptions['SlpMod'] == 1):
             self._current_sleep = STATE_ON
-        elif (self._acOptions['SwhSlp'] == 0):
+        elif (self._acOptions['SwhSlp'] == 0) and (self._acOptions['SlpMod'] == 0):
             self._current_sleep = STATE_OFF
         else:
             self._current_sleep = STATE_UNKNOWN
@@ -378,7 +378,7 @@ class GreeClimate(ClimateDevice):
         #Fetch current settings from HVAC
         _LOGGER.info('Starting SyncState')
 
-        optionsToFetch = ["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt"]
+        optionsToFetch = ["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt","SlpMod"]
         currentValues = self.GreeGetValues(optionsToFetch)
 
         # Set latest status from device
@@ -557,10 +557,10 @@ class GreeClimate(ClimateDevice):
     def _async_update_current_sleep(self, state):
         _LOGGER.info('Updating HVAC with changed sleep_entity state |' + str(state))
         if state.state is STATE_ON:
-            self.SyncState({'SwhSlp': 1})
+            self.SyncState({'SwhSlp': 1, 'SlpMod': 1})
             return
         elif state.state is STATE_OFF:
-            self.SyncState({'SwhSlp': 0})
+            self.SyncState({'SwhSlp': 0, 'SlpMod': 0})
             return
         _LOGGER.error('Unable to update from sleep_entity!')
 
