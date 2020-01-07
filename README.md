@@ -41,6 +41,7 @@ This component is added to HACS default repository list.
      health: <OPTIONAL: input_boolean used to switch the Health option on/off of your first AC. For example: input_boolean.first_ac_health>
      sleep: <OPTIONAL: input_boolean to switch AC sleep mode on/off. For example: input_boolean.first_ac_sleep>
      powersave: <OPTIONAL: input_boolean to switch AC powersave mode on/off. For example: input_boolean.first_ac_powersave>
+     eightdegheat: <input_boolean used to switch 8 degree heating on/off on your first AC>
    
    - platform: gree
      name: Second AC
