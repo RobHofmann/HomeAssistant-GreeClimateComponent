@@ -275,9 +275,13 @@ class GreeClimate(ClimateDevice):
         _LOGGER.info('Done sending state to HVAC: ' + str(receivedJsonPayload))
 
     def UpdateHATargetTemperature(self):
-        # Sync set temperature to HA
-        self._target_temperature = self._acOptions['SetTem']
-        _LOGGER.info('HA target temp set according to HVAC state to: ' + str(self._acOptions['SetTem']))
+        # Sync set temperature to HA. If 8℃ heating is active we set the temp in HA to 8℃ so that it shows the same as the AC display.
+        if (int(self._acOptions['StHt']) == 1):
+            self._target_temperature = 8
+            _LOGGER.info('HA target temp set according to HVAC state to 8℃ since 8℃ heating mode is active')
+        else:
+            self._target_temperature = self._acOptions['SetTem']
+            _LOGGER.info('HA target temp set according to HVAC state to: ' + str(self._acOptions['SetTem']))
 
     def UpdateHAOptions(self):
         # Sync HA with retreived HVAC options
