@@ -6,7 +6,9 @@ Custom Gree climate component written in Python3 for Home Assistant. Controls AC
 Tested on:
 * Innova HVAC, Cooper & Hunter HVAC
 * Home-Assistant 
-    - 0.96.x (for older versions, please see the releases tab)
+    - 0.96.x+ (for older versions, please see the releases tab)
+    - 0.10X+
+    - 0.107.7
 
  **If you are experiencing issues please be sure to provide details about your device, Home Assistant version and what exactly went wrong.**
 
@@ -31,7 +33,7 @@ This component is added to HACS default repository list.
      name: First AC
      host: <ip of your first AC>
      port: 7000
-     mac: '<mac address of your first AC>'
+     mac: '<mac address of your first AC. NOTE: Format can be XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX depending on your model>'
      target_temp_step: 1
      encryption_key: <OPTIONAL: custom encryption key if wifi already configured>
      uid: <some kind of device identifier. NOTE: for some devices this is optional>
@@ -47,7 +49,7 @@ This component is added to HACS default repository list.
      name: Second AC
      host: <ip of your second AC>
      port: 7000
-     mac: '<mac address of your second AC>'
+     mac: '<mac address of your second AC. NOTE: Format can be XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX depending on your model>'
      target_temp_step: 1
    ```
 
