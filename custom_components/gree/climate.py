@@ -13,7 +13,7 @@ import os.path
 import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
 
-from homeassistant.components.climate import (ClimateDevice, PLATFORM_SCHEMA)
+from homeassistant.components.climate import (ClimateEntity, PLATFORM_SCHEMA)
 
 from homeassistant.components.climate.const import (
     HVAC_MODE_OFF, HVAC_MODE_AUTO, HVAC_MODE_COOL, HVAC_MODE_DRY,
@@ -115,7 +115,7 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
         GreeClimate(hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, hvac_modes, fan_modes, swing_modes, encryption_key, uid)
     ])
 
-class GreeClimate(ClimateDevice):
+class GreeClimate(ClimateEntity):
 
     def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id,  hvac_modes, fan_modes, swing_modes, encryption_key=None, uid=None):
         _LOGGER.info('Initialize the GREE climate device')
