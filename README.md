@@ -10,6 +10,9 @@ Tested on:
     - 0.10X+
     - 0.107.7
 
+Supported thirdparty AC devices:
+* AC Pioneer Fortis Series with WI-FI module CS532AE
+
  **If you are experiencing issues please be sure to provide details about your device, Home Assistant version and what exactly went wrong.**
 
  If your HVAC has already been configured to be controled remotely by an android app, the encryption key might have changed.
@@ -18,6 +21,7 @@ Tested on:
  - https://github.com/tomikaa87/gree-remote
  - https://github.com/vpnmaster/homeassistant-custom-components
  - https://developers.home-assistant.io/
+ 
  
 ## HACS
 This component is added to HACS default repository list.
