@@ -3,14 +3,17 @@
 # HomeAssistant-GreeClimateComponent
 Custom Gree climate component written in Python3 for Home Assistant. Controls AC's supporting the Gree protocol.
 
-Tested on:
-* Innova HVAC, Cooper & Hunter HVAC
-* Home-Assistant 
-    - 0.96.x+ (for older versions, please see the releases tab)
-    - 0.10X+
-    - 0.107.7
+Tested on the following hardware:
+- Innova HVAC
+- Cooper & Hunter (CH-S12FTXE(WI-FI)-NG)
+- AC Pioneer Fortis Series with WI-FI module CS532AE
 
- **If you are experiencing issues please be sure to provide details about your device, Home Assistant version and what exactly went wrong.**
+Tested on these Home Assistant versions:
+- 0.96.x+ (for older versions, please see the releases tab)
+- 0.10X+
+- 0.107.7
+
+**If you are experiencing issues please be sure to provide details about your device, Home Assistant version and what exactly went wrong.**
 
  If your HVAC has already been configured to be controled remotely by an android app, the encryption key might have changed.
 
