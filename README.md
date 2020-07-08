@@ -40,7 +40,7 @@ This component is added to HACS default repository list.
      port: 7000
      mac: '<mac address of your first AC. NOTE: Format can be XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX depending on your model>'
      target_temp_step: 1
-     encryption_key: <OPTIONAL: custom encryption key if wifi already configured>
+     encryption_key: <OPTIONAL: custom encryption key>
      uid: <some kind of device identifier. NOTE: for some devices this is optional>
      temp_sensor: <entity id of the EXTERNAL temperature sensor. For example: sensor.bedroom_temperature. NOTE: this attaches an external temperature sensor to your AC. Gree unfortunately doesnt support a "current temperature" on its own.>
      lights: <OPTIONAL: input_boolean to switch AC lights mode on/off. For example: input_boolean.first_ac_lights>
@@ -74,7 +74,7 @@ This component is added to HACS default repository list.
        custom_components.gree.climate: debug
    ```
 
-5. OPTIONAL: Provide encryption key if HVAC's wifi is already configured. 
+5. OPTIONAL: Provide encryption key if you have it or feel like extracting it. 
 
    One way is to pull the sqlite db from android device like described here:
   
@@ -86,7 +86,7 @@ This component is added to HACS default repository list.
    sqlite3 data.ab 'select privateKey from db_device_20170503;' # but table name can differ a little bit.
    ```
    
-   Write it down in climate.yaml `encryption_key: <key>`. This solves Issue#1.
+   Write it down in climate.yaml `encryption_key: <key>`.
 
 6. OPTIONAL: Provide the `uid` parameter (can be sniffed) NOTE: This is not needed for all devices
 
