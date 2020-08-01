@@ -7,6 +7,7 @@ Tested on the following hardware:
 - Innova HVAC
 - Cooper & Hunter (CH-S12FTXE(WI-FI)-NG)
 - AC Pioneer Fortis Series with WI-FI module CS532AE
+- AC Gree GWH12ACC-K6DNA1D
 
 Tested on these Home Assistant versions:
 - 0.96.x+ (for older versions, please see the releases tab)
