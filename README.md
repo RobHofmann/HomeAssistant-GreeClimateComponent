@@ -12,9 +12,7 @@ Tested on the following hardware:
 Tested on these Home Assistant versions:
 - 0.96.x+ (for older versions, please see the releases tab)
 - 0.10X+
-- 0.107.7
-- 0.111.x
-- 0.112.x
+- 0.11X+
 
 **If you are experiencing issues please be sure to provide details about your device, Home Assistant version and what exactly went wrong.**
 
