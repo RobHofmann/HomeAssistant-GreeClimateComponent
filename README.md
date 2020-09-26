@@ -32,6 +32,9 @@ This component is added to HACS default repository list.
 
 ## Custom Component Installation
 !!! PLEASE NOTE !!!: Skip step 1 if you are using HACS.
+
+0. Configure HVAC wifi: https://github.com/arthurkrupa/gree-hvac-mqtt-bridge#configuring-hvac-wifi
+
 1. Copy the custom_components folder to your own hassio /config folder.
 
 2. In the root of your /config folder, create a file called climate.yaml
