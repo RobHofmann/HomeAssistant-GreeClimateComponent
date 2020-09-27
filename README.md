@@ -22,7 +22,7 @@ Tested on these Home Assistant versions:
 
  If your HVAC has already been configured to be controled remotely by an android app, the encryption key might have changed.
 
- To configure HVAC wifi without using the app: https://github.com/arthurkrupa/gree-hvac-mqtt-bridge#configuring-hvac-wifi
+ To configure HVAC wifi (without the android app): https://github.com/arthurkrupa/gree-hvac-mqtt-bridge#configuring-hvac-wifi
 
 **Sources used:**
  - https://github.com/tomikaa87/gree-remote
