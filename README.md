@@ -22,6 +22,8 @@ Tested on these Home Assistant versions:
 
  If your HVAC has already been configured to be controled remotely by an android app, the encryption key might have changed.
 
+ To configure HVAC wifi without using the app: https://github.com/arthurkrupa/gree-hvac-mqtt-bridge#configuring-hvac-wifi
+
 **Sources used:**
  - https://github.com/tomikaa87/gree-remote
  - https://github.com/vpnmaster/homeassistant-custom-components
@@ -32,8 +34,6 @@ This component is added to HACS default repository list.
 
 ## Custom Component Installation
 !!! PLEASE NOTE !!!: Skip step 1 if you are using HACS.
-
-0. Configure HVAC wifi: https://github.com/arthurkrupa/gree-hvac-mqtt-bridge#configuring-hvac-wifi
 
 1. Copy the custom_components folder to your own hassio /config folder.
 
