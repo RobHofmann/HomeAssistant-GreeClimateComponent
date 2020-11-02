@@ -48,7 +48,7 @@ This component is added to HACS default repository list.
      target_temp_step: 1
      encryption_key: <OPTIONAL: custom encryption key>
      uid: <some kind of device identifier. NOTE: for some devices this is optional>
-     temp_sensor: <entity id of the EXTERNAL temperature sensor. For example: sensor.bedroom_temperature. NOTE: this attaches an external temperature sensor to your AC. Gree unfortunately doesnt support a "current temperature" on its own.>
+     temp_sensor: <entity id of the EXTERNAL temperature sensor. For example: sensor.bedroom_temperature>
      lights: <OPTIONAL: input_boolean to switch AC lights mode on/off. For example: input_boolean.first_ac_lights>
      xfan: <OPTIONAL: input_boolean to switch AC xfan mode on/off. For example: input_boolean.first_ac_xfan>
      health: <OPTIONAL: input_boolean used to switch the Health option on/off of your first AC. For example: input_boolean.first_ac_health>
@@ -98,3 +98,16 @@ This component is added to HACS default repository list.
 6. OPTIONAL: Provide the `uid` parameter (can be sniffed) NOTE: This is not needed for all devices
 
 7. OPTIONAL: Provice input_boolean's to set lights, xfan, sleep and powersave mode on/off.
+
+## Optional Features
+NOTE: Your AC has to support these features for it to be used.
+```
+     temp_sensor: This attaches an external temperature sensor to your AC. Gree unfortunately doesnt support a "current temperature" on its own.
+     lights: This switches the backlight of the AC Display on or off
+     xfan: This dries the AC after being used. This is to avoid nasty smells from usage.
+     health: The air goes through a filter to "clean the air".
+     sleep: This will enable a comfortable sleep mode. The AC won't make a lot of noise using this.
+     powersave: It seems this mode should be an efficient way of approximately reaching the desired temperature (temperatures will vary using this).
+     eightdegheat:  This feature maintains the room temperature steadily at 8°C and prevents the room from freezing by activating the heating operation automatically when nobody is at home over a longer period during severe winter
+     air: This feature will extract air from the room. This is to remove hot air or nasty smells from the room.
+```
