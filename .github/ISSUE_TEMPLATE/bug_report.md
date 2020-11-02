@@ -33,3 +33,6 @@ If applicable, add screenshots to help explain your problem.
 
 **Additional context**
 Add any other context about the problem here.
+
+**Logs**
+Please share your Home Assistant logs here. Make sure to remove any personal/secret information.
