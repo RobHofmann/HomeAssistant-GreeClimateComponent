@@ -12,6 +12,7 @@ Tested on the following hardware:
 - Toyotomi Izuru TRN/TRG-828ZR
 - Sinclair ASH-13BIF2
 - TOSOT BORA-GWH09AAB
+- CASCADE BORA-CWH09AAB
 
 Tested on these Home Assistant versions:
 - 0.96.x+ (for older versions, please see the releases tab)
