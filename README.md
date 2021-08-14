@@ -13,6 +13,7 @@ Tested on the following hardware:
 - Sinclair ASH-13BIF2
 - TOSOT BORA-GWH09AAB
 - CASCADE BORA-CWH09AAB
+- EWT S-090 GDI-HRFN1, EWT S-120 GDI-HRFN1 (WI-FI module CS532AEH)
 
 Tested on these Home Assistant versions:
 - 0.96.x+ (for older versions, please see the releases tab)
