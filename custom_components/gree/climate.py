@@ -216,6 +216,8 @@ class GreeClimate(ClimateEntity):
             _LOGGER.info('Setting up air entity: ' + str(air_entity_id))
             async_track_state_change(
                 hass, air_entity_id, self._async_air_entity_state_changed)
+        
+        self._unique_id = 'climate.gree_' + mac_addr.decode('utf-8').lower()
 
     # Pad helper method to help us get the right string for encrypting
     def Pad(self, s):
@@ -805,3 +807,8 @@ class GreeClimate(ClimateEntity):
     def async_added_to_hass(self):
         _LOGGER.info('Gree climate device added to hass()')
         self.SyncState()
+
+    @property
+    def unique_id(self):
+        # Return unique_id
+        return self._unique_id
