@@ -47,6 +47,9 @@ DEFAULT_NAME = 'Gree Climate'
 # Gree central air conditioner communicates all sub-devices through a gateway
 # At this point, tcid is the gateway mac address, and mac is the sub-device mac address.
 CONF_TCID = 'tcid'
+# Synchronize all parameters at one time, especially when some parameters are invalid to the device, it can cause an exception.
+# This option is used to sync the parts changed only each time.
+CONF_SYNC_MODIFIED_ONLY = 'sync_modified_only'
 
 CONF_TARGET_TEMP_STEP = 'target_temp_step'
 CONF_TEMP_SENSOR = 'temp_sensor'
@@ -91,7 +94,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_EIGHTDEGHEAT): cv.entity_id,
     vol.Optional(CONF_AIR): cv.entity_id,
     vol.Optional(CONF_ENCRYPTION_KEY): cv.string,
-    vol.Optional(CONF_UID): cv.positive_int
+    vol.Optional(CONF_UID): cv.positive_int,
+    vol.Optional(CONF_SYNC_MODIFIED_ONLY): cv.boolean
 })
 
 @asyncio.coroutine
@@ -119,14 +123,16 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     encryption_key = config.get(CONF_ENCRYPTION_KEY)
     uid = config.get(CONF_UID)
     
+    sync_modified_only = config.get(CONF_SYNC_MODIFIED_ONLY)
+    
     _LOGGER.info('Adding Gree climate device to hass')
     async_add_devices([
-        GreeClimate(hass, name, ip_addr, port, mac_addr, tcid, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, hvac_modes, fan_modes, swing_modes, encryption_key, uid)
+        GreeClimate(hass, name, ip_addr, port, mac_addr, tcid, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, hvac_modes, fan_modes, swing_modes, encryption_key, uid, sync_modified_only)
     ])
 
 class GreeClimate(ClimateEntity):
 
-    def __init__(self, hass, name, ip_addr, port, mac_addr, tcid, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, hvac_modes, fan_modes, swing_modes, encryption_key=None, uid=None):
+    def __init__(self, hass, name, ip_addr, port, mac_addr, tcid, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, hvac_modes, fan_modes, swing_modes, encryption_key=None, uid=None, sync_modified_only=None):
         _LOGGER.info('Initialize the GREE climate device')
         self.hass = hass
         self._name = name
@@ -183,6 +189,11 @@ class GreeClimate(ClimateEntity):
             self._uid = uid
         else:
             self._uid = 0
+        
+        if sync_modified_only:
+            self._sync_modified_only = sync_modified_only
+        else:
+            self._sync_modified_only = False
         
         self._acOptions = { 'Pow': None, 'Mod': None, 'SetTem': None, 'WdSpd': None, 'Air': None, 'Blo': None, 'Health': None, 'SwhSlp': None, 'Lig': None, 'SwingLfRig': None, 'SwUpDn': None, 'Quiet': None, 'Tur': None, 'StHt': None, 'TemUn': None, 'HeatCoolType': None, 'TemRec': None, 'SvSt': None, 'SlpMod': None }
 
@@ -282,12 +293,23 @@ class GreeClimate(ClimateEntity):
             _LOGGER.info('Done overwriting acOptions')
         return acOptions
         
-    def SendStateToAc(self, timeout):
+    def SendStateToAc(self, timeout, acOptions):
         _LOGGER.info('Start sending state to HVAC')
-        statePackJson = '{' + '"opt":["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt","SlpMod"],"p":[{Pow},{Mod},{SetTem},{WdSpd},{Air},{Blo},{Health},{SwhSlp},{Lig},{SwingLfRig},{SwUpDn},{Quiet},{Tur},{StHt},{TemUn},{HeatCoolType},{TemRec},{SvSt},{SlpMod}],"t":"cmd"'.format(**self._acOptions)
+        if not self._sync_modified_only:
+            acOptions = self._acOptions
+        commands = []
+        values = []
+        for cmd in acOptions.keys():
+            commands.append(cmd)
+            values.append(int(acOptions[cmd]))
+        statePack = {
+            'opt': commands,
+            'p': values,
+            't': 'cmd'
+        }
         if self._is_sub_device:
-            statePackJson += ',"sub":"' + str(self._mac_addr) + '"'
-        statePackJson += '}'
+            statePack['sub'] = str(self._mac_addr)
+        statePackJson = simplejson.dumps(statePack).replace(' ', '')
         sentJsonPayload = '{"cid":"app","i":0,"pack":"' + base64.b64encode(self.CIPHER.encrypt(self.Pad(statePackJson).encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._tcid) + '","uid":{}'.format(self._uid) + '}'
         # Setup UDP Client & start transfering
         clientSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -467,7 +489,7 @@ class GreeClimate(ClimateEntity):
         if not (self._firstTimeRun):
             if not(acOptions == {}):
                 # loop used to send changed settings from HA to HVAC
-                self.SendStateToAc(self._timeout)
+                self.SendStateToAc(self._timeout, acOptions)
         else:
             # loop used once for Gree Climate initialisation only
             self._firstTimeRun = False
