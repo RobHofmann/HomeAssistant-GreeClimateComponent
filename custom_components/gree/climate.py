@@ -51,6 +51,8 @@ CONF_TCID = 'tcid'
 # This option is used to sync the parts changed only each time.
 CONF_SYNC_MODIFIED_ONLY = 'sync_modified_only'
 
+CONF_UNUSE_CMD_TUR = 'unuse_cmd_tur'
+
 CONF_TARGET_TEMP_STEP = 'target_temp_step'
 CONF_TEMP_SENSOR = 'temp_sensor'
 CONF_LIGHTS = 'lights'
@@ -95,7 +97,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_AIR): cv.entity_id,
     vol.Optional(CONF_ENCRYPTION_KEY): cv.string,
     vol.Optional(CONF_UID): cv.positive_int,
-    vol.Optional(CONF_SYNC_MODIFIED_ONLY): cv.boolean
+    vol.Optional(CONF_SYNC_MODIFIED_ONLY): cv.boolean,
+    vol.Optional(CONF_UNUSE_CMD_TUR): cv.boolean
 })
 
 @asyncio.coroutine
@@ -125,14 +128,16 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     
     sync_modified_only = config.get(CONF_SYNC_MODIFIED_ONLY)
     
+    unuse_cmd_tur = config.get(CONF_UNUSE_CMD_TUR)
+    
     _LOGGER.info('Adding Gree climate device to hass')
     async_add_devices([
-        GreeClimate(hass, name, ip_addr, port, mac_addr, tcid, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, hvac_modes, fan_modes, swing_modes, encryption_key, uid, sync_modified_only)
+        GreeClimate(hass, name, ip_addr, port, mac_addr, tcid, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, hvac_modes, fan_modes, swing_modes, encryption_key, uid, sync_modified_only, unuse_cmd_tur)
     ])
 
 class GreeClimate(ClimateEntity):
 
-    def __init__(self, hass, name, ip_addr, port, mac_addr, tcid, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, hvac_modes, fan_modes, swing_modes, encryption_key=None, uid=None, sync_modified_only=None):
+    def __init__(self, hass, name, ip_addr, port, mac_addr, tcid, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, hvac_modes, fan_modes, swing_modes, encryption_key=None, uid=None, sync_modified_only=None, unuse_cmd_tur=None):
         _LOGGER.info('Initialize the GREE climate device')
         self.hass = hass
         self._name = name
@@ -194,6 +199,8 @@ class GreeClimate(ClimateEntity):
             self._sync_modified_only = sync_modified_only
         else:
             self._sync_modified_only = False
+            
+        self._unuse_cmd_tur = unuse_cmd_tur
         
         self._acOptions = { 'Pow': None, 'Mod': None, 'SetTem': None, 'WdSpd': None, 'Air': None, 'Blo': None, 'Health': None, 'SwhSlp': None, 'Lig': None, 'SwingLfRig': None, 'SwUpDn': None, 'Quiet': None, 'Tur': None, 'StHt': None, 'TemUn': None, 'HeatCoolType': None, 'TemRec': None, 'SvSt': None, 'SlpMod': None }
 
@@ -453,7 +460,7 @@ class GreeClimate(ClimateEntity):
 
     def UpdateHAFanMode(self):
         # Sync current HVAC Fan mode state to HA
-        if (int(self._acOptions['Tur']) == 1):
+        if (not self._unuse_cmd_tur) and (int(self._acOptions['Tur']) == 1):
             self._fan_mode = 'Turbo'
         elif (int(self._acOptions['Quiet']) >= 1):
             self._fan_mode = 'Quiet'
@@ -823,15 +830,24 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('set_fan_mode(): ' + str(fan))
         # Set the fan mode.
         if not (self._acOptions['Pow'] == 0):
+            __Tur = 0
+            cmd = { 'Quiet': 0 }
             if (fan.lower() == 'turbo'):
                 _LOGGER.info('Enabling turbo mode')
-                self.SyncState({'Tur': 1, 'Quiet': 0})
+                __Tur = 1
             elif (fan.lower() == 'quiet'):
                 _LOGGER.info('Enabling quiet mode')
-                self.SyncState({'Tur': 0, 'Quiet': 1})
+                cmd['Quiet'] = 1
             else:
                 _LOGGER.info('Setting normal fan mode to ' + str(self._fan_modes.index(fan)))
-                self.SyncState({'WdSpd': str(self._fan_modes.index(fan)), 'Tur': 0, 'Quiet': 0})
+                cmd['WdSpd'] = str(self._fan_modes.index(fan))
+            if self._unuse_cmd_tur:
+                if (__Tur == 1):
+                    _LOGGER.info('CMD: Tur disabled. Turbo mode is WdSpd: ' + str(self._fan_modes.index(fan)))
+                    cmd['WdSpd'] = str(self._fan_modes.index(fan))
+            else:
+                cmd['Tur'] = __Tur
+            self.SyncState(cmd)
             self.schedule_update_ha_state()
 
     def set_hvac_mode(self, hvac_mode):
