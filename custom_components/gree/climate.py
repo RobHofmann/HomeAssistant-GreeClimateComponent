@@ -85,7 +85,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_HOST): cv.string,
     vol.Required(CONF_PORT, default=DEFAULT_PORT): cv.positive_int,
     vol.Required(CONF_MAC): cv.string,
-    vol.Optional(CONF_TCID): cv.string,
+    vol.Optional(CONF_TCID, default=''): cv.string,
     vol.Optional(CONF_TIMEOUT, default=DEFAULT_TIMEOUT): cv.positive_int,
     vol.Optional(CONF_TARGET_TEMP_STEP, default=DEFAULT_TARGET_TEMP_STEP): vol.Coerce(float),
     vol.Optional(CONF_TEMP_SENSOR): cv.entity_id,
@@ -98,9 +98,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_AIR): cv.entity_id,
     vol.Optional(CONF_ENCRYPTION_KEY): cv.string,
     vol.Optional(CONF_UID): cv.positive_int,
-    vol.Optional(CONF_SYNC_MODIFIED_ONLY): cv.boolean,
-    vol.Optional(CONF_UNUSE_CMD_TUR): cv.boolean,
-    vol.Optional(CONF_UNUSE_SWING): cv.boolean
+    vol.Optional(CONF_SYNC_MODIFIED_ONLY, default=False): cv.boolean,
+    vol.Optional(CONF_UNUSE_CMD_TUR, default=False): cv.boolean,
+    vol.Optional(CONF_UNUSE_SWING, default=False): cv.boolean
 })
 
 @asyncio.coroutine
@@ -135,12 +135,12 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     
     _LOGGER.info('Adding Gree climate device to hass')
     async_add_devices([
-        GreeClimate(hass, name, ip_addr, port, mac_addr, tcid, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, hvac_modes, fan_modes, swing_modes, encryption_key, uid, sync_modified_only, unuse_cmd_tur, unuse_swing)
+        GreeClimate(hass, name, ip_addr, port, mac_addr, tcid, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, hvac_modes, fan_modes, swing_modes, sync_modified_only, unuse_cmd_tur, unuse_swing, encryption_key, uid)
     ])
 
 class GreeClimate(ClimateEntity):
 
-    def __init__(self, hass, name, ip_addr, port, mac_addr, tcid, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, hvac_modes, fan_modes, swing_modes, encryption_key=None, uid=None, sync_modified_only=None, unuse_cmd_tur=None, unuse_swing=None):
+    def __init__(self, hass, name, ip_addr, port, mac_addr, tcid, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, hvac_modes, fan_modes, swing_modes, sync_modified_only, unuse_cmd_tur, unuse_swing, encryption_key=None, uid=None):
         _LOGGER.info('Initialize the GREE climate device')
         self.hass = hass
         self._name = name
@@ -183,6 +183,7 @@ class GreeClimate(ClimateEntity):
         if tcid:
             self._tcid = tcid.encode("utf8").replace(b':', b'').decode('utf-8').lower()
             self._is_sub_device = True
+            _LOGGER.info('This device is marked as a sub-device over the gateway: {}'.format(self._tcid))
         else:
             self._tcid = self._mac_addr
 
@@ -197,12 +198,8 @@ class GreeClimate(ClimateEntity):
             self._uid = uid
         else:
             self._uid = 0
-        
-        if sync_modified_only:
-            self._sync_modified_only = sync_modified_only
-        else:
-            self._sync_modified_only = False
-            
+
+        self._sync_modified_only = sync_modified_only
         self._unuse_cmd_tur = unuse_cmd_tur
         
         self.__SUPPORT_FLAGS = SUPPORT_FLAGS
