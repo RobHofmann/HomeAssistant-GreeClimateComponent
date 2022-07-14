@@ -168,7 +168,7 @@ class GreeClimate(ClimateEntity):
         else:
             self._uid = 0
         
-        self._acOptions = { 'Pow': None, 'Mod': None, 'SetTem': None, 'WdSpd': None, 'Air': None, 'Blo': None, 'Health': None, 'SwhSlp': None, 'Lig': None, 'SwingLfRig': None, 'SwUpDn': None, 'Quiet': None, 'Tur': None, 'StHt': None, 'TemUn': None, 'HeatCoolType': None, 'TemRec': None, 'SvSt': None, 'SlpMod': None }
+        self._acOptions = { 'Pow': None, 'Mod': None, 'SetTem': None, 'WdSpd': None, 'Air': None, 'Blo': None, 'Health': None, 'SwhSlp': None, 'Lig': None, 'SwingLfRig': None, 'SwUpDn': None, 'Quiet': None, 'Tur': None, 'StHt': None, 'TemUn': None, 'TemSen': None, 'HeatCoolType': None, 'TemRec': None, 'SvSt': None, 'SlpMod': None }
 
         self._firstTimeRun = True
 
@@ -267,7 +267,7 @@ class GreeClimate(ClimateEntity):
         
     def SendStateToAc(self, timeout):
         _LOGGER.info('Start sending state to HVAC')
-        statePackJson = '{' + '"opt":["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt","SlpMod"],"p":[{Pow},{Mod},{SetTem},{WdSpd},{Air},{Blo},{Health},{SwhSlp},{Lig},{SwingLfRig},{SwUpDn},{Quiet},{Tur},{StHt},{TemUn},{HeatCoolType},{TemRec},{SvSt},{SlpMod}],"t":"cmd"'.format(**self._acOptions) + '}'
+        statePackJson = '{' + '"opt":["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","TemSen","HeatCoolType","TemRec","SvSt","SlpMod"],"p":[{Pow},{Mod},{SetTem},{WdSpd},{Air},{Blo},{Health},{SwhSlp},{Lig},{SwingLfRig},{SwUpDn},{Quiet},{Tur},{StHt},{TemUn},{TemSen},{HeatCoolType},{TemRec},{SvSt},{SlpMod}],"t":"cmd"'.format(**self._acOptions) + '}'
         sentJsonPayload = '{"cid":"app","i":0,"pack":"' + base64.b64encode(self.CIPHER.encrypt(self.Pad(statePackJson).encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid":{}'.format(self._uid) + '}'
         # Setup UDP Client & start transfering
         clientSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -291,7 +291,11 @@ class GreeClimate(ClimateEntity):
             _LOGGER.info('HA target temp set according to HVAC state to 8℃ since 8℃ heating mode is active')
         else:
             self._target_temperature = self._acOptions['SetTem']
-            _LOGGER.info('HA target temp set according to HVAC state to: ' + str(self._acOptions['SetTem']))
+            _LOGGER.info('HA target temp set according to HVAC state to: ' + str(self._acOptions['TemSen']))
+
+    def UpdateHACurrentTemperature(self):
+        self._current_temperature = self._acOptions['TemSen']
+        _LOGGER.info('HA target temp set according to HVAC state to: ' + str(self._acOptions['TemSen']))
 
     def UpdateHAOptions(self):
         # Sync HA with retreived HVAC options
@@ -421,6 +425,7 @@ class GreeClimate(ClimateEntity):
 
     def UpdateHAStateToCurrentACState(self):
         self.UpdateHATargetTemperature()
+        self.UpdateHACurrentTemperature()
         self.UpdateHAOptions()
         self.UpdateHAHvacMode()
         self.UpdateHACurrentSwingMode()
@@ -430,7 +435,7 @@ class GreeClimate(ClimateEntity):
         #Fetch current settings from HVAC
         _LOGGER.info('Starting SyncState')
 
-        optionsToFetch = ["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt","SlpMod"]
+        optionsToFetch = ["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","TemSen","HeatCoolType","TemRec","SvSt","SlpMod"]
         currentValues = self.GreeGetValues(optionsToFetch)
 
         # Set latest status from device
