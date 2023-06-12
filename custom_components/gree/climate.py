@@ -463,8 +463,7 @@ class GreeClimate(ClimateEntity):
         if new_state is None:
             return
         self._async_update_current_temp(new_state)
-        for x in self.async_update_ha_state():
-            yield x
+        return self.async_update_ha_state()
         
     @callback
     def _async_update_current_temp(self, state):
@@ -496,8 +495,7 @@ class GreeClimate(ClimateEntity):
             # do nothing if state change is triggered due to Sync with HVAC
             return
         self._async_update_current_lights(new_state)
-        for x in self.async_update_ha_state():
-            yield x
+        return self.async_update_ha_state()
 
     @callback
     def _async_update_current_lights(self, state):
@@ -522,8 +520,7 @@ class GreeClimate(ClimateEntity):
             _LOGGER.info('Cant set xfan in %s mode' % str(self._hvac_mode))
             return
         self._async_update_current_xfan(new_state)
-        for x in self.async_update_ha_state():
-            yield x
+        return self.async_update_ha_state()
 
     @callback
     def _async_update_current_xfan(self, state):
@@ -544,8 +541,7 @@ class GreeClimate(ClimateEntity):
             # do nothing if state change is triggered due to Sync with HVAC
             return
         self._async_update_current_health(new_state)
-        for x in self.async_update_ha_state():
-            yield x
+        return self.async_update_ha_state()
 
     @callback
     def _async_update_current_health(self, state):
@@ -570,8 +566,7 @@ class GreeClimate(ClimateEntity):
             _LOGGER.info('Cant set powersave in %s mode' % str(self._hvac_mode))
             return
         self._async_update_current_powersave(new_state)
-        for x in self.async_update_ha_state():
-            yield x
+        return self.async_update_ha_state()
 
     @callback
     def _async_update_current_powersave(self, state):
@@ -597,8 +592,7 @@ class GreeClimate(ClimateEntity):
             _LOGGER.info('Cant set sleep in %s mode' % str(self._hvac_mode))
             return
         self._async_update_current_sleep(new_state)
-        for x in self.async_update_ha_state():
-            yield x
+        return self.async_update_ha_state()
 
     @callback
     def _async_update_current_sleep(self, state):
@@ -623,8 +617,7 @@ class GreeClimate(ClimateEntity):
             _LOGGER.info('Cant set 8℃ heat in %s mode' % str(self._hvac_mode))
             return
         self._async_update_current_eightdegheat(new_state)
-        for x in self.async_update_ha_state():
-            yield x
+        return self.async_update_ha_state()
 
     @callback
     def _async_update_current_eightdegheat(self, state):
@@ -645,8 +638,7 @@ class GreeClimate(ClimateEntity):
             # do nothing if state change is triggered due to Sync with HVAC
             return
         self._async_update_current_air(new_state)
-        for x in self.async_update_ha_state():
-            yield x
+        return self.async_update_ha_state()
 
     @callback
     def _async_update_current_air(self, state):
