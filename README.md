@@ -15,6 +15,7 @@ Tested on the following hardware:
 - CASCADE BORA-CWH09AAB
 - EWT S-090 GDI-HRFN1, EWT S-120 GDI-HRFN1 (WI-FI module CS532AEH)
 - Tadiran Alpha Expert Inverter
+- DAITSU WIFI model (ASD9KI-DC, ASD18KI-DC-2)
 
 Tested on these Home Assistant versions:
 - 0.96.x+ (for older versions, please see the releases tab)
