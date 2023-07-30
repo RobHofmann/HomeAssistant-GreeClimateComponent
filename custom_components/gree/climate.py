@@ -792,6 +792,12 @@ class GreeClimate(ClimateEntity):
             self.SyncState({'Mod': self._hvac_modes.index(hvac_mode), 'Pow': 1})
         self.schedule_update_ha_state()
 
+    def turn_on(self):
+        _LOGGER.info('turn_on(): ')
+        # Turn on.
+        self.SyncState({'Pow': 1})
+        self.schedule_update_ha_state()
+
     async def async_added_to_hass(self):
         _LOGGER.info('Gree climate device added to hass()')
         self.SyncState()
