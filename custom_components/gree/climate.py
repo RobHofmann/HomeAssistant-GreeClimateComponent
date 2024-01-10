@@ -53,6 +53,16 @@ SUPPORT_FLAGS = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.F
 
 DEFAULT_NAME = 'Gree Climate'
 
+# Gree central air conditioner communicates all sub-devices through a gateway
+# At this point, tcid is the gateway mac address, and mac is the sub-device mac address.
+CONF_TCID = 'tcid'
+# Synchronize all parameters at one time, especially when some parameters are invalid to the device, it can cause an exception.
+# This option is used to sync the parts changed only each time.
+CONF_SYNC_MODIFIED_ONLY = 'sync_modified_only'
+
+CONF_UNUSE_CMD_TUR = 'unuse_cmd_tur'
+CONF_UNUSE_SWING = 'unuse_swing'
+
 CONF_TARGET_TEMP_STEP = 'target_temp_step'
 CONF_TEMP_SENSOR = 'temp_sensor'
 CONF_LIGHTS = 'lights'
@@ -84,6 +94,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_HOST): cv.string,
     vol.Required(CONF_PORT, default=DEFAULT_PORT): cv.positive_int,
     vol.Required(CONF_MAC): cv.string,
+    vol.Optional(CONF_TCID, default=''): cv.string,
     vol.Optional(CONF_TIMEOUT, default=DEFAULT_TIMEOUT): cv.positive_int,
     vol.Optional(CONF_TARGET_TEMP_STEP, default=DEFAULT_TARGET_TEMP_STEP): vol.Coerce(float),
     vol.Optional(CONF_TEMP_SENSOR): cv.entity_id,
@@ -95,7 +106,10 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_EIGHTDEGHEAT): cv.entity_id,
     vol.Optional(CONF_AIR): cv.entity_id,
     vol.Optional(CONF_ENCRYPTION_KEY): cv.string,
-    vol.Optional(CONF_UID): cv.positive_int
+    vol.Optional(CONF_UID): cv.positive_int,
+    vol.Optional(CONF_SYNC_MODIFIED_ONLY, default=False): cv.boolean,
+    vol.Optional(CONF_UNUSE_CMD_TUR, default=False): cv.boolean,
+    vol.Optional(CONF_UNUSE_SWING, default=False): cv.boolean
 })
 
 async def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
@@ -104,6 +118,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     ip_addr = config.get(CONF_HOST)
     port = config.get(CONF_PORT)
     mac_addr = config.get(CONF_MAC).encode().replace(b':', b'')
+    tcid = config.get(CONF_TCID)
     timeout = config.get(CONF_TIMEOUT)
 
     target_temp_step = config.get(CONF_TARGET_TEMP_STEP)
@@ -121,14 +136,19 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     encryption_key = config.get(CONF_ENCRYPTION_KEY)
     uid = config.get(CONF_UID)
     
+    sync_modified_only = config.get(CONF_SYNC_MODIFIED_ONLY)
+    
+    unuse_cmd_tur = config.get(CONF_UNUSE_CMD_TUR)
+    unuse_swing = config.get(CONF_UNUSE_SWING)
+    
     _LOGGER.info('Adding Gree climate device to hass')
     async_add_devices([
-        GreeClimate(hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, hvac_modes, fan_modes, swing_modes, encryption_key, uid)
+        GreeClimate(hass, name, ip_addr, port, mac_addr, tcid, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, hvac_modes, fan_modes, swing_modes, sync_modified_only, unuse_cmd_tur, unuse_swing, encryption_key, uid)
     ])
 
 class GreeClimate(ClimateEntity):
 
-    def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, hvac_modes, fan_modes, swing_modes, encryption_key=None, uid=None):
+    def __init__(self, hass, name, ip_addr, port, mac_addr, tcid, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, hvac_modes, fan_modes, swing_modes, sync_modified_only, unuse_cmd_tur, unuse_swing, encryption_key=None, uid=None):
         _LOGGER.info('Initialize the GREE climate device')
         self.hass = hass
         self._name = name
@@ -165,6 +185,15 @@ class GreeClimate(ClimateEntity):
         self._hvac_modes = hvac_modes
         self._fan_modes = fan_modes
         self._swing_modes = swing_modes
+        
+        self._is_sub_device = False
+        
+        if tcid:
+            self._tcid = tcid.encode("utf8").replace(b':', b'').decode('utf-8').lower()
+            self._is_sub_device = True
+            _LOGGER.info('This device is marked as a sub-device over the gateway: {}'.format(self._tcid))
+        else:
+            self._tcid = self._mac_addr
 
         if encryption_key:
             _LOGGER.info('Using configured encryption key: {}'.format(encryption_key))
@@ -177,6 +206,13 @@ class GreeClimate(ClimateEntity):
             self._uid = uid
         else:
             self._uid = 0
+
+        self._sync_modified_only = sync_modified_only
+        self._unuse_cmd_tur = unuse_cmd_tur
+        
+        self.__SUPPORT_FLAGS = SUPPORT_FLAGS
+        if unuse_swing:
+            self.__SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE | SUPPORT_FAN_MODE
         
         self._acOptions = { 'Pow': None, 'Mod': None, 'SetTem': None, 'WdSpd': None, 'Air': None, 'Blo': None, 'Health': None, 'SwhSlp': None, 'Lig': None, 'SwingLfRig': None, 'SwUpDn': None, 'Quiet': None, 'Tur': None, 'StHt': None, 'TemUn': None, 'HeatCoolType': None, 'TemRec': None, 'SvSt': None, 'SlpMod': None }
 
@@ -229,6 +265,7 @@ class GreeClimate(ClimateEntity):
 
     # Pad helper method to help us get the right string for encrypting
     def Pad(self, s):
+        _LOGGER.info('Preparing pack: ' + s)
         aesBlockSize = 16
         return s + (aesBlockSize - len(s) % aesBlockSize) * chr(aesBlockSize - len(s) % aesBlockSize)            
 
@@ -253,11 +290,11 @@ class GreeClimate(ClimateEntity):
         GENERIC_GREE_DEVICE_KEY = "a3K8Bx%2r8Y7#xDh"
         cipher = AES.new(GENERIC_GREE_DEVICE_KEY.encode("utf8"), AES.MODE_ECB)
         pack = base64.b64encode(cipher.encrypt(self.Pad('{"mac":"' + str(self._mac_addr) + '","t":"bind","uid":0}').encode("utf8"))).decode('utf-8')
-        jsonPayloadToSend = '{"cid": "app","i": 1,"pack": "' + pack + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid": 0}'
+        jsonPayloadToSend = '{"cid": "app","i": 1,"pack": "' + pack + '","t":"pack","tcid":"' + str(self._tcid) + '","uid": 0}'
         return self.FetchResult(cipher, self._ip_addr, self._port, self._timeout, jsonPayloadToSend)['key']
 
     def GreeGetValues(self, propertyNames):
-        jsonPayloadToSend = '{"cid":"app","i":0,"pack":"' + base64.b64encode(self.CIPHER.encrypt(self.Pad('{"cols":' + simplejson.dumps(propertyNames) + ',"mac":"' + str(self._mac_addr) + '","t":"status"}').encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid":{}'.format(self._uid) + '}'
+        jsonPayloadToSend = '{"cid":"app","i":0,"pack":"' + base64.b64encode(self.CIPHER.encrypt(self.Pad('{"cols":' + simplejson.dumps(propertyNames) + ',"mac":"' + str(self._mac_addr) + '","t":"status"}').encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._tcid) + '","uid":{}'.format(self._uid) + '}'
         return self.FetchResult(self.CIPHER, self._ip_addr, self._port, self._timeout, jsonPayloadToSend)['dat']
 
     def SetAcOptions(self, acOptions, newOptionsToOverride, optionValuesToOverride = None):
@@ -275,10 +312,24 @@ class GreeClimate(ClimateEntity):
             _LOGGER.info('Done overwriting acOptions')
         return acOptions
         
-    def SendStateToAc(self, timeout):
+    def SendStateToAc(self, timeout, acOptions):
         _LOGGER.info('Start sending state to HVAC')
-        statePackJson = '{' + '"opt":["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt","SlpMod"],"p":[{Pow},{Mod},{SetTem},{WdSpd},{Air},{Blo},{Health},{SwhSlp},{Lig},{SwingLfRig},{SwUpDn},{Quiet},{Tur},{StHt},{TemUn},{HeatCoolType},{TemRec},{SvSt},{SlpMod}],"t":"cmd"'.format(**self._acOptions) + '}'
-        sentJsonPayload = '{"cid":"app","i":0,"pack":"' + base64.b64encode(self.CIPHER.encrypt(self.Pad(statePackJson).encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid":{}'.format(self._uid) + '}'
+        if not self._sync_modified_only:
+            acOptions = self._acOptions
+        commands = []
+        values = []
+        for cmd in acOptions.keys():
+            commands.append(cmd)
+            values.append(int(acOptions[cmd]))
+        statePack = {
+            'opt': commands,
+            'p': values,
+            't': 'cmd'
+        }
+        if self._is_sub_device:
+            statePack['sub'] = str(self._mac_addr)
+        statePackJson = simplejson.dumps(statePack).replace(' ', '')
+        sentJsonPayload = '{"cid":"app","i":0,"pack":"' + base64.b64encode(self.CIPHER.encrypt(self.Pad(statePackJson).encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._tcid) + '","uid":{}'.format(self._uid) + '}'
         # Setup UDP Client & start transfering
         clientSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         clientSock.settimeout(timeout)
@@ -421,7 +472,7 @@ class GreeClimate(ClimateEntity):
 
     def UpdateHAFanMode(self):
         # Sync current HVAC Fan mode state to HA
-        if (int(self._acOptions['Tur']) == 1):
+        if (not self._unuse_cmd_tur) and (int(self._acOptions['Tur']) == 1):
             self._fan_mode = 'Turbo'
         elif (int(self._acOptions['Quiet']) >= 1):
             self._fan_mode = 'Quiet'
@@ -457,7 +508,7 @@ class GreeClimate(ClimateEntity):
         if not (self._firstTimeRun):
             if not(acOptions == {}):
                 # loop used to send changed settings from HA to HVAC
-                self.SendStateToAc(self._timeout)
+                self.SendStateToAc(self._timeout, acOptions)
         else:
             # loop used once for Gree Climate initialisation only
             self._firstTimeRun = False
@@ -755,9 +806,9 @@ class GreeClimate(ClimateEntity):
         
     @property
     def supported_features(self):
-        _LOGGER.info('supported_features(): ' + str(SUPPORT_FLAGS))
+        _LOGGER.info('supported_features(): ' + str(self.__SUPPORT_FLAGS))
         # Return the list of supported features.
-        return SUPPORT_FLAGS        
+        return self.__SUPPORT_FLAGS        
  
     def set_temperature(self, **kwargs):
         _LOGGER.info('set_temperature(): ' + str(kwargs.get(ATTR_TEMPERATURE)))
@@ -783,15 +834,24 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('set_fan_mode(): ' + str(fan))
         # Set the fan mode.
         if not (self._acOptions['Pow'] == 0):
+            __Tur = 0
+            cmd = { 'Quiet': 0 }
             if (fan.lower() == 'turbo'):
                 _LOGGER.info('Enabling turbo mode')
-                self.SyncState({'Tur': 1, 'Quiet': 0})
+                __Tur = 1
             elif (fan.lower() == 'quiet'):
                 _LOGGER.info('Enabling quiet mode')
-                self.SyncState({'Tur': 0, 'Quiet': 1})
+                cmd['Quiet'] = 1
             else:
                 _LOGGER.info('Setting normal fan mode to ' + str(self._fan_modes.index(fan)))
-                self.SyncState({'WdSpd': str(self._fan_modes.index(fan)), 'Tur': 0, 'Quiet': 0})
+                cmd['WdSpd'] = str(self._fan_modes.index(fan))
+            if self._unuse_cmd_tur:
+                if (__Tur == 1):
+                    _LOGGER.info('CMD: Tur disabled. Turbo mode is WdSpd: ' + str(self._fan_modes.index(fan)))
+                    cmd['WdSpd'] = str(self._fan_modes.index(fan))
+            else:
+                cmd['Tur'] = __Tur
+            self.SyncState(cmd)
             self.schedule_update_ha_state()
 
     def set_hvac_mode(self, hvac_mode):
