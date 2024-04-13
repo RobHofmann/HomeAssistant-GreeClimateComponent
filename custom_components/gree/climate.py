@@ -70,8 +70,11 @@ DEFAULT_TIMEOUT = 10
 DEFAULT_TARGET_TEMP_STEP = 1
 
 # from the remote control and gree app
-MIN_TEMP = 16
-MAX_TEMP = 30
+MIN_TEMP_C = 16
+MAX_TEMP_C = 30
+
+MIN_TEMP_F = 61
+MAX_TEMP_F = 86
 
 # fixed values in gree mode lists
 HVAC_MODES = [HVACMode.AUTO, HVACMode.COOL, HVACMode.DRY, HVACMode.FAN_ONLY, HVACMode.HEAT, HVACMode.OFF]
@@ -140,6 +143,7 @@ class GreeClimate(ClimateEntity):
         self._target_temperature = None
         self._target_temperature_step = target_temp_step
         self._unit_of_measurement = hass.config.units.temperature_unit
+        _LOGGER.info("Unit of measurement: %s", self._unit_of_measurement)
         
         self._current_temperature = None
         self._temp_sensor_entity_id = temp_sensor_entity_id
@@ -300,8 +304,16 @@ class GreeClimate(ClimateEntity):
             self._target_temperature = 8
             _LOGGER.info('HA target temp set according to HVAC state to 8℃ since 8℃ heating mode is active')
         else:
-            self._target_temperature = self._acOptions['SetTem']
-            _LOGGER.info('HA target temp set according to HVAC state to: ' + str(self._acOptions['SetTem']))
+            temp_c = self._acOptions['SetTem'] # "SetTem" is always in C units
+            temp_f = self.gree_c_to_f(SetTem=self._acOptions['SetTem'], TemRec=self._acOptions['TemRec'])
+
+            if(self._unit_of_measurement == "°C"):
+                display_temp = temp_c
+            else:
+                display_temp = temp_f
+
+            self._target_temperature = display_temp
+            _LOGGER.info('HA target temp set according to HVAC state to: SetTem: ' + str(self._acOptions['SetTem']) + ", TemRec: " + str(self._acOptions['TemRec']))
 
     def UpdateHAOptions(self):
         # Sync HA with retreived HVAC options
@@ -695,12 +707,22 @@ class GreeClimate(ClimateEntity):
 
     @property
     def min_temp(self):
+        if(self._unit_of_measurement == "°C"):
+            MIN_TEMP = MIN_TEMP_C
+        else:
+            MIN_TEMP = MIN_TEMP_F
+
         _LOGGER.info('min_temp(): ' + str(MIN_TEMP))
         # Return the minimum temperature.
         return MIN_TEMP
         
     @property
     def max_temp(self):
+        if(self._unit_of_measurement == "°C"):
+            MAX_TEMP = MAX_TEMP_C
+        else:
+            MAX_TEMP = MAX_TEMP_F
+
         _LOGGER.info('max_temp(): ' + str(MAX_TEMP))
         # Return the maximum temperature.
         return MAX_TEMP
@@ -760,14 +782,25 @@ class GreeClimate(ClimateEntity):
         return SUPPORT_FLAGS        
  
     def set_temperature(self, **kwargs):
-        _LOGGER.info('set_temperature(): ' + str(kwargs.get(ATTR_TEMPERATURE)))
+        _LOGGER.info('set_temperature(): ' + str(kwargs.get(ATTR_TEMPERATURE)) + str(self._unit_of_measurement))
+
         # Set new target temperatures.
         if kwargs.get(ATTR_TEMPERATURE) is not None:
             # do nothing if temperature is none
             if not (self._acOptions['Pow'] == 0):
                 # do nothing if HVAC is switched off
-                _LOGGER.info('SyncState with SetTem=' + str(kwargs.get(ATTR_TEMPERATURE)))
-                self.SyncState({ 'SetTem': int(kwargs.get(ATTR_TEMPERATURE))})
+
+                if (self._unit_of_measurement == "°C"):
+                    SetTem = kwargs.get(ATTR_TEMPERATURE)
+                    TemRec = 0
+                else:
+                    SetTem, TemRec = self.gree_f_to_c(desired_temp_f=kwargs.get(ATTR_TEMPERATURE))
+
+                self.SyncState({'SetTem': int(SetTem)})
+                self.SyncState({'TemRec': int(TemRec)})
+                _LOGGER.info('Set Temp to ' + str(kwargs.get(ATTR_TEMPERATURE)) + str(self._unit_of_measurement)
+                             + ' ->  SyncState with SetTem=' + str(SetTem) + ', SyncState with TemRec=' + str(TemRec))
+
                 self.schedule_update_ha_state()
 
     def set_swing_mode(self, swing_mode):
@@ -817,3 +850,34 @@ class GreeClimate(ClimateEntity):
     def unique_id(self):
         # Return unique_id
         return self._unique_id
+
+    def gree_f_to_c(self, desired_temp_f):
+        # Convert to fractional C values for AC
+        # See: https://github.com/tomikaa87/gree-remote
+        SetTem = round((desired_temp_f - 32.0) * 5.0 / 9.0)
+        TemRec = (int)((((desired_temp_f - 32.0) * 5.0 / 9.0) - SetTem) > -0.001)
+
+        return SetTem, TemRec
+
+    def gree_c_to_f(sefl,SetTem, TemRec):
+        # Convert SetTem back to the minimum and maximum Fahrenheit before rounding
+        # We consider the worst case scenario: SetTem could be the result of rounding from any value in a range
+        # If TemRec is 1, it indicates the value was closer to the upper range of the rounding
+        # If TemRec is 0, it indicates the value was closer to the lower range
+
+        if TemRec == 1:
+            # SetTem is closer to its higher bound, so we consider SetTem as the lower limit
+            min_celsius = SetTem
+            max_celsius = SetTem + 0.4999  # Just below the next rounding threshold
+        else:
+            # SetTem is closer to its lower bound, so we consider SetTem-1 as the potential lower limit
+            min_celsius = SetTem - 0.4999  # Just above the previous rounding threshold
+            max_celsius = SetTem
+
+        # Convert these Celsius values back to Fahrenheit
+        min_fahrenheit = (min_celsius * 9.0 / 5.0) + 32.0
+        max_fahrenheit = (max_celsius * 9.0 / 5.0) + 32.0
+
+        int_fahrenheit = round((min_fahrenheit + max_fahrenheit) / 2.0)
+
+        return int_fahrenheit
