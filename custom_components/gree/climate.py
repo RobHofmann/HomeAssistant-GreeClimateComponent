@@ -37,7 +37,7 @@ from homeassistant.const import (
     UnitOfTemperature
 )
 
-from homeassistant.helpers.event import (async_track_state_change)
+from homeassistant.helpers.event import (async_track_state_change_event)
 from homeassistant.core import callback
 from homeassistant.helpers.restore_state import RestoreEntity
 from configparser import ConfigParser
@@ -187,42 +187,42 @@ class GreeClimate(ClimateEntity):
 
         if temp_sensor_entity_id:
             _LOGGER.info('Setting up temperature sensor: ' + str(temp_sensor_entity_id))
-            async_track_state_change(
+            async_track_state_change_event(
                 hass, temp_sensor_entity_id, self._async_temp_sensor_changed)
                 
         if lights_entity_id:
             _LOGGER.info('Setting up lights entity: ' + str(lights_entity_id))
-            async_track_state_change(
+            async_track_state_change_event(
                 hass, lights_entity_id, self._async_lights_entity_state_changed)
 
         if xfan_entity_id:
             _LOGGER.info('Setting up xfan entity: ' + str(xfan_entity_id))
-            async_track_state_change(
+            async_track_state_change_event(
                 hass, xfan_entity_id, self._async_xfan_entity_state_changed)
 
         if health_entity_id:
             _LOGGER.info('Setting up health entity: ' + str(health_entity_id))
-            async_track_state_change(
+            async_track_state_change_event(
                 hass, health_entity_id, self._async_health_entity_state_changed)
 
         if powersave_entity_id:
             _LOGGER.info('Setting up powersave entity: ' + str(powersave_entity_id))
-            async_track_state_change(
+            async_track_state_change_event(
                 hass, powersave_entity_id, self._async_powersave_entity_state_changed)
 
         if sleep_entity_id:
             _LOGGER.info('Setting up sleep entity: ' + str(sleep_entity_id))
-            async_track_state_change(
+            async_track_state_change_event(
                 hass, sleep_entity_id, self._async_sleep_entity_state_changed)
 
         if eightdegheat_entity_id:
             _LOGGER.info('Setting up 8℃ heat entity: ' + str(eightdegheat_entity_id))
-            async_track_state_change(
+            async_track_state_change_event(
                 hass, eightdegheat_entity_id, self._async_eightdegheat_entity_state_changed)
 
         if air_entity_id:
             _LOGGER.info('Setting up air entity: ' + str(air_entity_id))
-            async_track_state_change(
+            async_track_state_change_event(
                 hass, air_entity_id, self._async_air_entity_state_changed)
         
         self._unique_id = 'climate.gree_' + mac_addr.decode('utf-8').lower()
