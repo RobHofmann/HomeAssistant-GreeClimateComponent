@@ -577,7 +577,7 @@ class GreeClimate(ClimateEntity):
             return
         _LOGGER.error('Unable to update from health_entity!')
 
-    async def _async_health_entity_state_changed(self, event: Event[EventStateChangedData]) -> None:
+    async def _async_powersave_entity_state_changed(self, event: Event[EventStateChangedData]) -> None:
         entity_id = event.data["entity_id"]
         old_state = event.data["old_state"]
         new_state = event.data["new_state"]
