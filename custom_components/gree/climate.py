@@ -832,7 +832,7 @@ class GreeClimate(ClimateEntity):
             self.SyncState({'SwUpDn': self._swing_modes.index(swing_mode)})
             self.schedule_update_ha_state()
 
-    def set_preset_mode(self, swing_mode):
+    def set_preset_mode(self, preset_mode):
         _LOGGER.info('Set preset mode(): ' + str(preset_mode))
         # set the preset mode
         if not (self._acOptions['Pow'] == 0):
