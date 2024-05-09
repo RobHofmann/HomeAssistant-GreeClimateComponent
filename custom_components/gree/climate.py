@@ -49,7 +49,7 @@ REQUIREMENTS = ['pycryptodome']
 
 _LOGGER = logging.getLogger(__name__)
 
-SUPPORT_FLAGS = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.FAN_MODE | ClimateEntityFeature.SWING_MODE
+SUPPORT_FLAGS = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.FAN_MODE | ClimateEntityFeature.SWING_MODE | ClimateEntityFeature.PRESET_MODE | ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
 
 DEFAULT_NAME = 'Gree Climate'
 
@@ -78,6 +78,7 @@ HVAC_MODES = [HVACMode.AUTO, HVACMode.COOL, HVACMode.DRY, HVACMode.FAN_ONLY, HVA
 
 FAN_MODES = ['Auto', 'Low', 'Medium-Low', 'Medium', 'Medium-High', 'High', 'Turbo', 'Quiet']
 SWING_MODES = ['Default', 'Swing in full range', 'Fixed in the upmost position', 'Fixed in the middle-up position', 'Fixed in the middle position', 'Fixed in the middle-low position', 'Fixed in the lowest position', 'Swing in the downmost region', 'Swing in the middle-low region', 'Swing in the middle region', 'Swing in the middle-up region', 'Swing in the upmost region']
+PRESET_MODES = ['Default', 'Full swing', 'Fixed in the leftmost position', 'Fixed in the middle-left position', 'Fixed in the middle postion','Fixed in the middle-right position', 'Fixed in the rightmost position']
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
@@ -118,17 +119,18 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     hvac_modes = HVAC_MODES
     fan_modes = FAN_MODES
     swing_modes = SWING_MODES
+    preset_modes = PRESET_MODES
     encryption_key = config.get(CONF_ENCRYPTION_KEY)
     uid = config.get(CONF_UID)
     
     _LOGGER.info('Adding Gree climate device to hass')
     async_add_devices([
-        GreeClimate(hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, hvac_modes, fan_modes, swing_modes, encryption_key, uid)
+        GreeClimate(hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, encryption_key, uid)
     ])
 
 class GreeClimate(ClimateEntity):
 
-    def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, hvac_modes, fan_modes, swing_modes, encryption_key=None, uid=None):
+    def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, encryption_key=None, uid=None):
         _LOGGER.info('Initialize the GREE climate device')
         self.hass = hass
         self._name = name
@@ -154,6 +156,7 @@ class GreeClimate(ClimateEntity):
         self._hvac_mode = None
         self._fan_mode = None
         self._swing_mode = None
+        self._preset_mode = None
         self._current_lights = None
         self._current_xfan = None
         self._current_health = None
@@ -165,6 +168,9 @@ class GreeClimate(ClimateEntity):
         self._hvac_modes = hvac_modes
         self._fan_modes = fan_modes
         self._swing_modes = swing_modes
+        self._preset_modes = preset_modes
+
+        self._enable_turn_on_off_backwards_compatibility = False
 
         if encryption_key:
             _LOGGER.info('Using configured encryption key: {}'.format(encryption_key))
@@ -418,6 +424,11 @@ class GreeClimate(ClimateEntity):
         # Sync current HVAC Swing mode state to HA
         self._swing_mode = self._swing_modes[self._acOptions['SwUpDn']]
         _LOGGER.info('HA swing mode set according to HVAC state to: ' + str(self._swing_mode))
+    
+    def UpdateHACurrentPresetMode(self):
+        # Sync current HVAC preset mode state to HA
+        self._preset_mode = self._preset_modes[self._acOptions['SwingLfRig']]
+        _LOGGER.info('HA preset mode set according to HVAC state to: ' + str(self._preset_mode))
 
     def UpdateHAFanMode(self):
         # Sync current HVAC Fan mode state to HA
@@ -434,6 +445,7 @@ class GreeClimate(ClimateEntity):
         self.UpdateHAOptions()
         self.UpdateHAHvacMode()
         self.UpdateHACurrentSwingMode()
+        self.UpdateHACurrentPresetMode()
         self.UpdateHAFanMode()
 
     def SyncState(self, acOptions = {}):
@@ -760,6 +772,18 @@ class GreeClimate(ClimateEntity):
         return self._swing_modes
 
     @property
+    def preset_mode(self):
+        _LOGGER.info('preset_mode(): ' + str(self._preset_mode))
+        # get the current preset mode
+        return self._preset_mode
+
+    @property
+    def preset_modes(self):
+        _LOGGER.info('preset_modes(): ' + str(self._preset_modes))
+        # get the list of available preset modes
+        return self._preset_modes
+
+    @property
     def hvac_modes(self):
         _LOGGER.info('hvac_modes(): ' + str(self._hvac_modes))
         # Return the list of available operation modes.
@@ -781,8 +805,13 @@ class GreeClimate(ClimateEntity):
     def supported_features(self):
         _LOGGER.info('supported_features(): ' + str(SUPPORT_FLAGS))
         # Return the list of supported features.
-        return SUPPORT_FLAGS        
- 
+        return SUPPORT_FLAGS
+
+    @property
+    def unique_id(self):
+        # Return unique_id
+        return self._unique_id
+
     def set_temperature(self, **kwargs):
         _LOGGER.info('set_temperature(): ' + str(kwargs.get(ATTR_TEMPERATURE)))
         # Set new target temperatures.
@@ -801,6 +830,15 @@ class GreeClimate(ClimateEntity):
             # do nothing if HVAC is switched off
             _LOGGER.info('SyncState with SwUpDn=' + str(swing_mode))
             self.SyncState({'SwUpDn': self._swing_modes.index(swing_mode)})
+            self.schedule_update_ha_state()
+
+    def set_preset_mode(self, preset_mode):
+        _LOGGER.info('Set preset mode(): ' + str(preset_mode))
+        # set the preset mode
+        if not (self._acOptions['Pow'] == 0):
+            # do nothing if HVAC is switched off
+            _LOGGER.info('SyncState with SwingLfRig=' + str(preset_mode))
+            self.SyncState({'SwingLfRig': self._preset_modes.index(preset_mode)})
             self.schedule_update_ha_state()
 
     def set_fan_mode(self, fan):
@@ -833,11 +871,12 @@ class GreeClimate(ClimateEntity):
         self.SyncState({'Pow': 1})
         self.schedule_update_ha_state()
 
+    def turn_off(self):
+        _LOGGER.info('turn_off(): ')
+        # Turn on.
+        self.SyncState({'Pow': 0})
+        self.schedule_update_ha_state()
+
     async def async_added_to_hass(self):
         _LOGGER.info('Gree climate device added to hass()')
         self.SyncState()
-
-    @property
-    def unique_id(self):
-        # Return unique_id
-        return self._unique_id
