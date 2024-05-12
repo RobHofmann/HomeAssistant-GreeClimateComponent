@@ -893,13 +893,19 @@ class GreeClimate(ClimateEntity):
     def turn_on(self):
         _LOGGER.info('turn_on(): ')
         # Turn on.
-        self.SyncState({'Pow': 1})
+        c = {'Pow': 1}
+        if self._auto_light:
+            c.update({'Lig': 1})
+        self.SyncState(c)
         self.schedule_update_ha_state()
 
     def turn_off(self):
         _LOGGER.info('turn_off(): ')
-        # Turn on.
-        self.SyncState({'Pow': 0})
+        # Turn off.
+        c = {'Pow': 0}
+        if self._auto_light:
+            c.update({'Lig': 0})
+        self.SyncState(c)
         self.schedule_update_ha_state()
 
     async def async_added_to_hass(self):
