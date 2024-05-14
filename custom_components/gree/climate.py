@@ -136,7 +136,6 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     ])
 
 class GreeClimate(ClimateEntity):
-
     def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, auto_xfan, auto_light,encryption_key=None, uid=None):
         _LOGGER.info('Initialize the GREE climate device')
         self.hass = hass
@@ -216,6 +215,11 @@ class GreeClimate(ClimateEntity):
                 _LOGGER.info('Setting up xfan entity: ' + str(xfan_entity_id))
                 async_track_state_change_event(
                     hass, xfan_entity_id, self._async_xfan_entity_state_changed)
+                
+        if xfan_entity_id:
+            _LOGGER.info('Setting up xfan entity: ' + str(xfan_entity_id))
+            async_track_state_change_event(
+                hass, xfan_entity_id, self._async_xfan_entity_state_changed)
 
         if health_entity_id:
             _LOGGER.info('Setting up health entity: ' + str(health_entity_id))
@@ -906,6 +910,12 @@ class GreeClimate(ClimateEntity):
         if self._auto_light:
             c.update({'Lig': 0})
         self.SyncState(c)
+        self.schedule_update_ha_state()
+
+    def turn_off(self):
+        _LOGGER.info('turn_off(): ')
+        # Turn on.
+        self.SyncState({'Pow': 0})
         self.schedule_update_ha_state()
 
     async def async_added_to_hass(self):
