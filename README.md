@@ -62,6 +62,9 @@ This component is added to HACS default repository list.
      powersave: <OPTIONAL: input_boolean to switch AC powersave mode on/off. For example: input_boolean.first_ac_powersave>
      eightdegheat: <OPTIONAL: input_boolean used to switch 8 degree heating on/off on your first AC>
      air: <OPTIONAL: input_boolean used to switch air/scavenging on/off on your first AC>
+     target_temp: <OPTIONAL: input_number used to set the temperature of your first AC. This is usefull if you want to use dashboards with custom frontend components>
+     auto_xfan: <OPTIONAL: boolean (true/false); this feature will always turn on xFan in cool and dry mode to avoid mold & rust created from potential water buildup in the AC>
+     auto_light: <OPTIONAL: boolean (true/false); this feature will always turn light on when power on and turn light light off when power off automatically> 
    
    - platform: gree
      name: Second AC
