@@ -492,6 +492,7 @@ class GreeClimate(ClimateEntity):
             self._device_online = False
             return
         else:
+            self._device_online = True
             # Set latest status from device
             self._acOptions = self.SetAcOptions(self._acOptions, optionsToFetch, currentValues)
 
