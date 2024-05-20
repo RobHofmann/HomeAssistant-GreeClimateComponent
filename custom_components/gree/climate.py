@@ -34,6 +34,7 @@ from homeassistant.const import (
     STATE_OFF, 
     STATE_ON,
     STATE_UNKNOWN,
+    STATE_UNAVAILABLE,
     UnitOfTemperature
 )
 
@@ -44,6 +45,7 @@ from configparser import ConfigParser
 from Crypto.Cipher import AES
 try: import simplejson
 except ImportError: import json as simplejson
+from datetime import timedelta
 
 REQUIREMENTS = ['pycryptodome']
 
@@ -71,6 +73,9 @@ CONF_TARGET_TEMP = 'target_temp'
 DEFAULT_PORT = 7000
 DEFAULT_TIMEOUT = 10
 DEFAULT_TARGET_TEMP_STEP = 1
+
+# update() interval
+SCAN_INTERVAL = timedelta(seconds=60)
 
 # from the remote control and gree app
 MIN_TEMP = 16
@@ -148,6 +153,7 @@ class GreeClimate(ClimateEntity):
         self._port = port
         self._mac_addr = mac_addr.decode('utf-8').lower()
         self._timeout = timeout
+        self._device_online = False
 
         self._target_temperature = None
         self._target_temperature_step = target_temp_step
@@ -186,9 +192,10 @@ class GreeClimate(ClimateEntity):
         if encryption_key:
             _LOGGER.info('Using configured encryption key: {}'.format(encryption_key))
             self._encryption_key = encryption_key.encode("utf8")
+            self.CIPHER = AES.new(self._encryption_key, AES.MODE_ECB)
         else:
-            self._encryption_key = self.GetDeviceKey().encode("utf8")
-            _LOGGER.info('Fetched device encrytion key: %s' % str(self._encryption_key))
+            self._encryption_key = None
+            self.CIPHER = None
 
         self._auto_xfan = auto_xfan
         self._auto_light = auto_light
@@ -201,9 +208,6 @@ class GreeClimate(ClimateEntity):
         self._acOptions = { 'Pow': None, 'Mod': None, 'SetTem': None, 'WdSpd': None, 'Air': None, 'Blo': None, 'Health': None, 'SwhSlp': None, 'Lig': None, 'SwingLfRig': None, 'SwUpDn': None, 'Quiet': None, 'Tur': None, 'StHt': None, 'TemUn': None, 'HeatCoolType': None, 'TemRec': None, 'SvSt': None, 'SlpMod': None }
 
         self._firstTimeRun = True
-
-        # Cipher to use to encrypt/decrypt
-        self.CIPHER = AES.new(self._encryption_key, AES.MODE_ECB)
 
         if temp_sensor_entity_id:
             _LOGGER.info('Setting up temperature sensor: ' + str(temp_sensor_entity_id))
@@ -480,32 +484,38 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('Starting SyncState')
 
         optionsToFetch = ["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt","SlpMod"]
-        currentValues = self.GreeGetValues(optionsToFetch)
-
-        # Set latest status from device
-        self._acOptions = self.SetAcOptions(self._acOptions, optionsToFetch, currentValues)
-
-        # Overwrite status with our choices
-        if not(acOptions == {}):
-            self._acOptions = self.SetAcOptions(self._acOptions, acOptions)
-
-        # Initialize the receivedJsonPayload variable (for return)
-        receivedJsonPayload = ''
-
-        # If not the first (boot) run, update state towards the HVAC
-        if not (self._firstTimeRun):
-            if not(acOptions == {}):
-                # loop used to send changed settings from HA to HVAC
-                self.SendStateToAc(self._timeout)
+        
+        try:
+            currentValues = self.GreeGetValues(optionsToFetch)
+        except:
+            _LOGGER.info('Error while getting values from device! ')
+            self._device_online = False
+            return
         else:
-            # loop used once for Gree Climate initialisation only
-            self._firstTimeRun = False
+            # Set latest status from device
+            self._acOptions = self.SetAcOptions(self._acOptions, optionsToFetch, currentValues)
 
-        # Update HA state to current HVAC state
-        self.UpdateHAStateToCurrentACState()
+            # Overwrite status with our choices
+            if not(acOptions == {}):
+                self._acOptions = self.SetAcOptions(self._acOptions, acOptions)
 
-        _LOGGER.info('Finished SyncState')
-        return receivedJsonPayload
+            # Initialize the receivedJsonPayload variable (for return)
+            receivedJsonPayload = ''
+
+            # If not the first (boot) run, update state towards the HVAC
+            if not (self._firstTimeRun):
+                if not(acOptions == {}):
+                    # loop used to send changed settings from HA to HVAC
+                    self.SendStateToAc(self._timeout)
+            else:
+                # loop used once for Gree Climate initialisation only
+                self._firstTimeRun = False
+
+            # Update HA state to current HVAC state
+            self.UpdateHAStateToCurrentACState()
+
+            _LOGGER.info('Finished SyncState')
+            return receivedJsonPayload
 
     async def _async_temp_sensor_changed(self, event: Event[EventStateChangedData]) -> None:
         entity_id = event.data["entity_id"]
@@ -754,10 +764,30 @@ class GreeClimate(ClimateEntity):
         # Return the polling state.
         return True
 
+    @property
+    def available(self):
+        if self._device_online:
+            _LOGGER.info('available(): Device is online')
+            return True
+        else:
+            _LOGGER.info('available(): Device is offline')
+            return False
+
     def update(self):
         _LOGGER.info('update()')
         # Update HA State from Device
-        self.SyncState()
+        if not self._encryption_key:
+            try:
+                self._encryption_key = self.GetDeviceKey().encode("utf8")
+            except:
+                _LOGGER.info('Failed to fetch device encrytion key!')
+            else:
+                self.CIPHER = AES.new(self._encryption_key, AES.MODE_ECB)
+                _LOGGER.info('Fetched device encrytion key: %s' % str(self._encryption_key))
+                self._device_online = True
+                self.SyncState()
+        else:
+            self.SyncState()
 
     @property
     def name(self):
@@ -848,7 +878,7 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('fan_list(): ' + str(self._fan_modes))
         # Return the list of available fan modes.
         return self._fan_modes
-        
+
     @property
     def supported_features(self):
         _LOGGER.info('supported_features(): ' + str(SUPPORT_FLAGS))
@@ -945,4 +975,3 @@ class GreeClimate(ClimateEntity):
 
     async def async_added_to_hass(self):
         _LOGGER.info('Gree climate device added to hass()')
-        self.SyncState()
