@@ -44,6 +44,7 @@ from configparser import ConfigParser
 from Crypto.Cipher import AES
 try: import simplejson
 except ImportError: import json as simplejson
+from datetime import timedelta
 
 REQUIREMENTS = ['pycryptodome']
 
@@ -71,12 +72,15 @@ CONF_HORIZONTAL_SWING = 'horizontal_swing'
 CONF_ANTI_DIRECT_BLOW = 'anti_direct_blow'
 
 DEFAULT_PORT = 7000
-DEFAULT_TIMEOUT = 10
+DEFAULT_TIMEOUT = 5
 DEFAULT_TARGET_TEMP_STEP = 1
 
 # from the remote control and gree app
 MIN_TEMP = 16
 MAX_TEMP = 30
+
+# update() interval
+SCAN_INTERVAL = timedelta(seconds=60)
 
 # fixed values in gree mode lists
 HVAC_MODES = [HVACMode.AUTO, HVACMode.COOL, HVACMode.DRY, HVACMode.FAN_ONLY, HVACMode.HEAT, HVACMode.OFF]
@@ -137,6 +141,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     auto_light = config.get(CONF_AUTO_LIGHT)
     horizontal_swing = config.get(CONF_HORIZONTAL_SWING)
     anti_direct_blow_entity_id = config.get(CONF_ANTI_DIRECT_BLOW)
+    
     _LOGGER.info('Adding Gree climate device to hass')
 
     async_add_devices([
@@ -146,7 +151,6 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
 class GreeClimate(ClimateEntity):
 
     def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, auto_xfan, auto_light, horizontal_swing, encryption_key=None, uid=None):
-
         _LOGGER.info('Initialize the GREE climate device')
         self.hass = hass
         self._name = name
@@ -154,6 +158,8 @@ class GreeClimate(ClimateEntity):
         self._port = port
         self._mac_addr = mac_addr.decode('utf-8').lower()
         self._timeout = timeout
+        self._device_online = None
+        self._online_attempts = 0
 
         self._target_temperature = None
         self._target_temperature_step = target_temp_step
@@ -194,9 +200,10 @@ class GreeClimate(ClimateEntity):
         if encryption_key:
             _LOGGER.info('Using configured encryption key: {}'.format(encryption_key))
             self._encryption_key = encryption_key.encode("utf8")
+            self.CIPHER = AES.new(self._encryption_key, AES.MODE_ECB)
         else:
-            self._encryption_key = self.GetDeviceKey().encode("utf8")
-            _LOGGER.info('Fetched device encrytion key: %s' % str(self._encryption_key))
+            self._encryption_key = None
+            self.CIPHER = None
 
         self._auto_xfan = auto_xfan
         self._auto_light = auto_light
@@ -210,9 +217,6 @@ class GreeClimate(ClimateEntity):
         self._acOptions = { 'Pow': None, 'Mod': None, 'SetTem': None, 'WdSpd': None, 'Air': None, 'Blo': None, 'Health': None, 'SwhSlp': None, 'Lig': None, 'AntiDirectBlow': None, 'SwingLfRig': None, 'SwUpDn': None, 'Quiet': None, 'Tur': None, 'StHt': None, 'TemUn': None, 'HeatCoolType': None, 'TemRec': None, 'SvSt': None, 'SlpMod': None }
 
         self._firstTimeRun = True
-
-        # Cipher to use to encrypt/decrypt
-        self.CIPHER = AES.new(self._encryption_key, AES.MODE_ECB)
 
         if temp_sensor_entity_id:
             _LOGGER.info('Setting up temperature sensor: ' + str(temp_sensor_entity_id))
@@ -294,7 +298,19 @@ class GreeClimate(ClimateEntity):
         cipher = AES.new(GENERIC_GREE_DEVICE_KEY.encode("utf8"), AES.MODE_ECB)
         pack = base64.b64encode(cipher.encrypt(self.Pad('{"mac":"' + str(self._mac_addr) + '","t":"bind","uid":0}').encode("utf8"))).decode('utf-8')
         jsonPayloadToSend = '{"cid": "app","i": 1,"pack": "' + pack + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid": 0}'
-        return self.FetchResult(cipher, self._ip_addr, self._port, self._timeout, jsonPayloadToSend)['key']
+        try:
+            self._encryption_key = self.FetchResult(cipher, self._ip_addr, self._port, self._timeout, jsonPayloadToSend)['key'].encode("utf8")
+        except:
+            _LOGGER.info('Error getting device encryption key!')
+            self._device_online = False
+            self._online_attempts = 0
+            return False
+        else:
+            _LOGGER.info('Fetched device encrytion key: %s' % str(self._encryption_key))
+            self.CIPHER = AES.new(self._encryption_key, AES.MODE_ECB)
+            self._device_online = True
+            self._online_attempts = 0
+            return True
 
     def GreeGetValues(self, propertyNames):
         jsonPayloadToSend = '{"cid":"app","i":0,"pack":"' + base64.b64encode(self.CIPHER.encrypt(self.Pad('{"cols":' + simplejson.dumps(propertyNames) + ',"mac":"' + str(self._mac_addr) + '","t":"status"}').encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid":{}'.format(self._uid) + '}'
@@ -317,7 +333,7 @@ class GreeClimate(ClimateEntity):
         
     def SendStateToAc(self, timeout):
         _LOGGER.info('Start sending state to HVAC')
-        statePackJson = '{' + '"opt":["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","AntiDirectBlow","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt","SlpMod"],"p":[{Pow},{Mod},{SetTem},{WdSpd},{Air},{Blo},{Health},{SwhSlp},{Lig},{SwingLfRig},{SwUpDn},{Quiet},{Tur},{StHt},{TemUn},{HeatCoolType},{TemRec},{SvSt},{SlpMod}],"t":"cmd"'.format(**self._acOptions) + '}'
+        statePackJson = '{' + '"opt":["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","AntiDirectBlow","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt","SlpMod"],"p":[{Pow},{Mod},{SetTem},{WdSpd},{Air},{Blo},{Health},{SwhSlp},{Lig},{AntiDirectBlow},{SwingLfRig},{SwUpDn},{Quiet},{Tur},{StHt},{TemUn},{HeatCoolType},{TemRec},{SvSt},{SlpMod}],"t":"cmd"'.format(**self._acOptions) + '}'
         sentJsonPayload = '{"cid":"app","i":0,"pack":"' + base64.b64encode(self.CIPHER.encrypt(self.Pad(statePackJson).encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid":{}'.format(self._uid) + '}'
         # Setup UDP Client & start transfering
         clientSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -452,7 +468,6 @@ class GreeClimate(ClimateEntity):
                 if self._current_air in (STATE_ON, STATE_OFF):
                     self.hass.states.async_set(self._air_entity_id, self._current_air, attr)
         _LOGGER.info('HA air option set according to HVAC state to: ' + str(self._current_air))
-
         # Sync current HVAC anti direct blow option to HA
         if (self._acOptions['AntiDirectBlow'] == 1):
             self._current_anti_direct_blow = STATE_ON
@@ -510,32 +525,44 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('Starting SyncState')
 
         optionsToFetch = ["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","AntiDirectBlow","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt","SlpMod"]
-        currentValues = self.GreeGetValues(optionsToFetch)
-
-        # Set latest status from device
-        self._acOptions = self.SetAcOptions(self._acOptions, optionsToFetch, currentValues)
-
-        # Overwrite status with our choices
-        if not(acOptions == {}):
-            self._acOptions = self.SetAcOptions(self._acOptions, acOptions)
-
-        # Initialize the receivedJsonPayload variable (for return)
-        receivedJsonPayload = ''
-
-        # If not the first (boot) run, update state towards the HVAC
-        if not (self._firstTimeRun):
-            if not(acOptions == {}):
-                # loop used to send changed settings from HA to HVAC
-                self.SendStateToAc(self._timeout)
+        
+        try:
+            currentValues = self.GreeGetValues(optionsToFetch)
+        except:
+            _LOGGER.info('Could not connect with device. ')
+            self._online_attempts +=1
+            if (self._online_attempts == 3):
+                _LOGGER.info('Could not connect with device 3 times. Set it as offline.')
+                self._device_online = False
+                self._online_attempts = 0
         else:
-            # loop used once for Gree Climate initialisation only
-            self._firstTimeRun = False
+            if not self._device_online:
+                self._device_online = True
+                self._online_attempts = 0
+            # Set latest status from device
+            self._acOptions = self.SetAcOptions(self._acOptions, optionsToFetch, currentValues)
 
-        # Update HA state to current HVAC state
-        self.UpdateHAStateToCurrentACState()
+            # Overwrite status with our choices
+            if not(acOptions == {}):
+                self._acOptions = self.SetAcOptions(self._acOptions, acOptions)
 
-        _LOGGER.info('Finished SyncState')
-        return receivedJsonPayload
+            # Initialize the receivedJsonPayload variable (for return)
+            receivedJsonPayload = ''
+
+            # If not the first (boot) run, update state towards the HVAC
+            if not (self._firstTimeRun):
+                if not(acOptions == {}):
+                    # loop used to send changed settings from HA to HVAC
+                    self.SendStateToAc(self._timeout)
+            else:
+                # loop used once for Gree Climate initialisation only
+                self._firstTimeRun = False
+
+            # Update HA state to current HVAC state
+            self.UpdateHAStateToCurrentACState()
+
+            _LOGGER.info('Finished SyncState')
+            return receivedJsonPayload
 
     async def _async_temp_sensor_changed(self, event: Event[EventStateChangedData]) -> None:
         entity_id = event.data["entity_id"]
@@ -808,10 +835,22 @@ class GreeClimate(ClimateEntity):
         # Return the polling state.
         return True
 
+    @property
+    def available(self):
+        if self._device_online:
+            _LOGGER.info('available(): Device is online')
+            return True
+        else:
+            _LOGGER.info('available(): Device is offline')
+            return False
+
     def update(self):
         _LOGGER.info('update()')
-        # Update HA State from Device
-        self.SyncState()
+        if not self._encryption_key:
+            if self.GetDeviceKey():
+                self.SyncState()
+        else:
+            self.SyncState()
 
     @property
     def name(self):
@@ -1008,4 +1047,8 @@ class GreeClimate(ClimateEntity):
 
     async def async_added_to_hass(self):
         _LOGGER.info('Gree climate device added to hass()')
-        self.SyncState()
+        if not self._encryption_key:
+            if self.GetDeviceKey():
+                self.SyncState()
+        else:
+            self.SyncState()
