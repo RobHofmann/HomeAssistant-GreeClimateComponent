@@ -283,10 +283,10 @@ class GreeClimate(ClimateEntity):
         receivedJson = simplejson.loads(data)
         clientSock.close()
         pack = receivedJson['pack']
-        tag = receivedJson['tag']
         base64decodedPack = base64.b64decode(pack)
         decryptedPack = cipher.decrypt(base64decodedPack)
-        if tag:
+        if self.encryption_version == 2:
+            tag = receivedJson['tag']
             cipher.verify(base64.b64decode(tag))
         decodedPack = decryptedPack.decode("utf-8")
         replacedPack = decodedPack.replace('\x0f', '').replace(decodedPack[decodedPack.rindex('}')+1:], '')
@@ -370,10 +370,10 @@ class GreeClimate(ClimateEntity):
         receivedJson = simplejson.loads(data)
         clientSock.close()
         pack = receivedJson['pack']
-        tag = receivedJson['tag']
         base64decodedPack = base64.b64decode(pack)
         decryptedPack = cipher.decrypt(base64decodedPack)
-        if tag:
+        if self.encryption_version == 2:
+            tag = receivedJson['tag']
             cipher.verify(base64.b64decode(tag))
         decodedPack = decryptedPack.decode("utf-8")
         replacedPack = decodedPack.replace('\x0f', '').replace(decodedPack[decodedPack.rindex('}')+1:], '')
