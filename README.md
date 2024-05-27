@@ -52,7 +52,8 @@ This component is added to HACS default repository list.
      port: 7000
      mac: '<mac address of your first AC. NOTE: Format can be XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX depending on your model>'
      target_temp_step: 1
-     encryption_key: <OPTIONAL: custom encryption key>
+     encryption_key: <OPTIONAL: custom encryption key. Integration will try to get key from device if empty>
+     encryption_version: <OPTIONAL: should be set to 2 for V1.21>
      uid: <some kind of device identifier. NOTE: for some devices this is optional>
      temp_sensor: <entity id of the EXTERNAL temperature sensor. For example: sensor.bedroom_temperature>
      lights: <OPTIONAL: input_boolean to switch AC lights mode on/off. For example: input_boolean.first_ac_lights>
