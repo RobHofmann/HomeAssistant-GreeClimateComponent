@@ -301,19 +301,24 @@ class GreeClimate(ClimateEntity):
         jsonPayloadToSend = '{"cid": "app","i": 1,"pack": "' + pack + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid": 0}'
         return self.FetchResult(cipher, self._ip_addr, self._port, self._timeout, jsonPayloadToSend)['key']
 
+    def GetGCMCipher(self, key):
+        cipher = AES.new(key, AES.MODE_GCM, nonce=GCM_IV)
+        cipher.update(GCM_ADD)
+        return cipher
+
+    def EncryptGCM(self, key, plaintext):
+        encrypted_data, tag = self.GetGCMCipher(key).encrypt_and_digest(plaintext.encode("utf8"))
+        pack = base64.b64encode(encrypted_data).decode('utf-8')
+        tag = base64.b64encode(tag).decode('utf-8')
+        return (pack, tag)
+
     def GetDeviceKeyGCM(self):
         _LOGGER.info('Retrieving HVAC encryption key')
         GENERIC_GREE_DEVICE_KEY = b'{yxAHAY_Lm6pbC/<'
-        cipher = AES.new(GENERIC_GREE_DEVICE_KEY, AES.MODE_GCM, nonce=GCM_IV)
-        cipher.update(GCM_ADD)
         plaintext = '{"cid":"' + str(self._mac_addr) + '", "mac":"' + str(self._mac_addr) + '","t":"bind","uid":0}'
-        encrypted_data, tag = cipher.encrypt_and_digest(plaintext.encode("utf8"))
-        pack = base64.b64encode(encrypted_data).decode('utf-8')
-        tag = base64.b64encode(tag).decode('utf-8')
+        pack, tag = self.EncryptGCM(GENERIC_GREE_DEVICE_KEY, plaintext)
         jsonPayloadToSend = '{"cid": "app","i": 1,"pack": "' + pack + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid": 0, "tag" : "' + tag + '"}'
-        cipher = AES.new(GENERIC_GREE_DEVICE_KEY, AES.MODE_GCM, nonce=GCM_IV)
-        cipher.update(GCM_ADD)
-        return self.FetchResult(cipher, self._ip_addr, self._port, self._timeout, jsonPayloadToSend)['key']
+        return self.FetchResult(self.GetGCMCipher(GENERIC_GREE_DEVICE_KEY), self._ip_addr, self._port, self._timeout, jsonPayloadToSend)['key']
 
     def GreeGetValues(self, propertyNames):
         plaintext = '{"cols":' + simplejson.dumps(propertyNames) + ',"mac":"' + str(self._mac_addr) + '","t":"status"}'
@@ -321,15 +326,9 @@ class GreeClimate(ClimateEntity):
             cipher = self.CIPHER
             jsonPayloadToSend = '{"cid":"app","i":0,"pack":"' + base64.b64encode(cipher.encrypt(self.Pad(plaintext).encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid":{}'.format(self._uid) + '}'
         elif self.encryption_version == 2:
-            cipher = AES.new(self._encryption_key, AES.MODE_GCM, nonce=GCM_IV)
-            cipher.update(GCM_ADD)
-            encrypted_data, tag = cipher.encrypt_and_digest(plaintext.encode("utf8"))
-            pack = base64.b64encode(encrypted_data).decode('utf-8')
-            tag = base64.b64encode(tag).decode('utf-8')
+            pack, tag = self.EncryptGCM(self._encryption_key, plaintext)
             jsonPayloadToSend = '{"cid":"app","i":0,"pack":"' + pack + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid":{}'.format(self._uid) + ',"tag" : "' + tag + '"}'
-            cipher = AES.new(self._encryption_key, AES.MODE_GCM, nonce=GCM_IV)
-            cipher.update(GCM_ADD)
-
+            cipher = self.GetGCMCipher(self._encryption_key)
         return self.FetchResult(cipher, self._ip_addr, self._port, self._timeout, jsonPayloadToSend)['dat']
 
     def SetAcOptions(self, acOptions, newOptionsToOverride, optionValuesToOverride = None):
@@ -354,30 +353,10 @@ class GreeClimate(ClimateEntity):
             cipher = self.CIPHER
             sentJsonPayload = '{"cid":"app","i":0,"pack":"' + base64.b64encode(cipher.encrypt(self.Pad(statePackJson).encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid":{}'.format(self._uid) + '}'
         elif self.encryption_version == 2:
-            cipher = AES.new(self._encryption_key, AES.MODE_GCM, nonce=GCM_IV)
-            cipher.update(GCM_ADD)
-            encrypted_data, tag = cipher.encrypt_and_digest(statePackJson.encode("utf8"))
-            pack = base64.b64encode(encrypted_data).decode('utf-8')
-            tag = base64.b64encode(tag).decode('utf-8')
+            pack, tag = self.EncryptGCM(self._encryption_key, statePackJson)
             sentJsonPayload = '{"cid":"app","i":0,"pack":"' + pack + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid":{}'.format(self._uid) + ',"tag":"' + tag +'"}'
-            cipher = AES.new(self._encryption_key, AES.MODE_GCM, nonce=GCM_IV)
-            cipher.update(GCM_ADD)
-        # Setup UDP Client & start transfering
-        clientSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        clientSock.settimeout(timeout)
-        clientSock.sendto(bytes(sentJsonPayload, "utf-8"), (self._ip_addr, self._port))
-        data, addr = clientSock.recvfrom(64000)
-        receivedJson = simplejson.loads(data)
-        clientSock.close()
-        pack = receivedJson['pack']
-        base64decodedPack = base64.b64decode(pack)
-        decryptedPack = cipher.decrypt(base64decodedPack)
-        if self.encryption_version == 2:
-            tag = receivedJson['tag']
-            cipher.verify(base64.b64decode(tag))
-        decodedPack = decryptedPack.decode("utf-8")
-        replacedPack = decodedPack.replace('\x0f', '').replace(decodedPack[decodedPack.rindex('}')+1:], '')
-        receivedJsonPayload = simplejson.loads(replacedPack)
+            cipher = self.GetGCMCipher(self._encryption_key)
+        receivedJsonPayload = self.FetchResult(cipher, self._ip_addr, self._port, timeout, sentJsonPayload)
         _LOGGER.info('Done sending state to HVAC: ' + str(receivedJsonPayload))
 
     def UpdateHATargetTemperature(self):
