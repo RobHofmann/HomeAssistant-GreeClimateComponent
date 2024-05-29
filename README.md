@@ -16,6 +16,7 @@ Tested on the following hardware:
 - EWT S-090 GDI-HRFN1, EWT S-120 GDI-HRFN1 (WI-FI module CS532AEH)
 - Tadiran Alpha Expert Inverter
 - Copmax Air-Air Heatpump GWH12QC-K6DNA5F 3.5kW
+- Bulex vivair multisplit units; 20-080MC4NO outdoor unit, 20-025 NWI (2,5 kW) indoor unit, 20-035 NWI (3,5 kW) indoor unit
 
 Tested on these Home Assistant versions:
 - 0.96.x+ (for older versions, please see the releases tab)
