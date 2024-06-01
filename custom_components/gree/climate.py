@@ -157,7 +157,7 @@ class GreeClimate(ClimateEntity):
 
         self._target_temperature = None
         self._target_temperature_step = target_temp_step
-        self._unit_of_measurement = hass.config.units.temperature_unit
+        self._unit_of_measurement = '°C'
         
         self._current_temperature = None
         self._temp_sensor_entity_id = temp_sensor_entity_id
