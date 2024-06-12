@@ -16,6 +16,7 @@ Tested on the following hardware:
 - EWT S-090 GDI-HRFN1, EWT S-120 GDI-HRFN1 (WI-FI module CS532AEH)
 - Tadiran Alpha Expert Inverter
 - Copmax Air-Air Heatpump GWH12QC-K6DNA5F 3.5kW
+- Bulex vivair multisplit units; 20-080MC4NO outdoor unit, 20-025 NWI (2,5 kW) indoor unit, 20-035 NWI (3,5 kW) indoor unit
 
 Tested on these Home Assistant versions:
 - 0.96.x+ (for older versions, please see the releases tab)
@@ -52,7 +53,8 @@ This component is added to HACS default repository list.
      port: 7000
      mac: '<mac address of your first AC. NOTE: Format can be XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX depending on your model>'
      target_temp_step: 1
-     encryption_key: <OPTIONAL: custom encryption key>
+     encryption_key: <OPTIONAL: custom encryption key. Integration will try to get key from device if empty>
+     encryption_version: <OPTIONAL: should be set to 2 for V1.21>
      uid: <some kind of device identifier. NOTE: for some devices this is optional>
      temp_sensor: <entity id of the EXTERNAL temperature sensor. For example: sensor.bedroom_temperature>
      lights: <OPTIONAL: input_boolean to switch AC lights mode on/off. For example: input_boolean.first_ac_lights>
@@ -62,7 +64,7 @@ This component is added to HACS default repository list.
      powersave: <OPTIONAL: input_boolean to switch AC powersave mode on/off. For example: input_boolean.first_ac_powersave>
      eightdegheat: <OPTIONAL: input_boolean used to switch 8 degree heating on/off on your first AC>
      air: <OPTIONAL: input_boolean used to switch air/scavenging on/off on your first AC>
-     target_temp: <OPTIONAL: input_number used to set the temperature of your first AC. This is usefull if you want to use dashboards with custom frontend components>
+     target_temp: <OPTIONAL: input_number used to set the temperature of your first AC>
      auto_xfan: <OPTIONAL: boolean (true/false); this feature will always turn on xFan in cool and dry mode to avoid mold & rust created from potential water buildup in the AC>
      auto_light: <OPTIONAL: boolean (true/false); this feature will always turn light on when power on and turn light light off when power off automatically> 
    
@@ -119,4 +121,7 @@ NOTE: Your AC has to support these features for it to be used.
      powersave: It seems this mode should be an efficient way of approximately reaching the desired temperature (temperatures will vary using this).
      eightdegheat:  This feature maintains the room temperature steadily at 8°C and prevents the room from freezing by activating the heating operation automatically when nobody is at home over a longer period during severe winter
      air: This feature will extract air from the room. This is to remove hot air or nasty smells from the room.
+     target_temp: You can use a custom input_number entity as the input of the set temperature for this AC. Define the input_number entity in this parameter. This is useful if you want to use dashboards with custom frontend components.
+     auto_xfan: This feature will always turn on xFan in cool and dry mode to avoid mold & rust created from potential water buildup in the AC
+     auto_light: This feature will always turn light on when power on and turn light light off when power off automatically
 ```

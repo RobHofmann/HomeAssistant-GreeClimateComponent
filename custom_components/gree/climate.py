@@ -202,6 +202,8 @@ class GreeClimate(ClimateEntity):
         self._preset_modes = preset_modes
 
         self._enable_turn_on_off_backwards_compatibility = False
+        
+        self.encryption_version = encryption_version
 
         self.encryption_version = encryption_version
         self.CIPHER = None
@@ -359,6 +361,25 @@ class GreeClimate(ClimateEntity):
             self._device_online = True
             self._online_attempts = 0
             return True
+
+    def GetGCMCipher(self, key):
+        cipher = AES.new(key, AES.MODE_GCM, nonce=GCM_IV)
+        cipher.update(GCM_ADD)
+        return cipher
+
+    def EncryptGCM(self, key, plaintext):
+        encrypted_data, tag = self.GetGCMCipher(key).encrypt_and_digest(plaintext.encode("utf8"))
+        pack = base64.b64encode(encrypted_data).decode('utf-8')
+        tag = base64.b64encode(tag).decode('utf-8')
+        return (pack, tag)
+
+    def GetDeviceKeyGCM(self):
+        _LOGGER.info('Retrieving HVAC encryption key')
+        GENERIC_GREE_DEVICE_KEY = b'{yxAHAY_Lm6pbC/<'
+        plaintext = '{"cid":"' + str(self._mac_addr) + '", "mac":"' + str(self._mac_addr) + '","t":"bind","uid":0}'
+        pack, tag = self.EncryptGCM(GENERIC_GREE_DEVICE_KEY, plaintext)
+        jsonPayloadToSend = '{"cid": "app","i": 1,"pack": "' + pack + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid": 0, "tag" : "' + tag + '"}'
+        return self.FetchResult(self.GetGCMCipher(GENERIC_GREE_DEVICE_KEY), self._ip_addr, self._port, self._timeout, jsonPayloadToSend)['key']
 
     def GreeGetValues(self, propertyNames):
         plaintext = '{"cols":' + simplejson.dumps(propertyNames) + ',"mac":"' + str(self._mac_addr) + '","t":"status"}'
