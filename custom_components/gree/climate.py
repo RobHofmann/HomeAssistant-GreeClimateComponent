@@ -53,6 +53,8 @@ SUPPORT_FLAGS = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.F
 
 DEFAULT_NAME = 'Gree Climate'
 
+TEMP_OFFSET = 40
+
 CONF_TARGET_TEMP_STEP = 'target_temp_step'
 CONF_TEMP_SENSOR = 'temp_sensor'
 CONF_LIGHTS = 'lights'
@@ -211,7 +213,7 @@ class GreeClimate(ClimateEntity):
         else:
             self._uid = 0
         
-        self._acOptions = { 'Pow': None, 'Mod': None, 'SetTem': None, 'WdSpd': None, 'Air': None, 'Blo': None, 'Health': None, 'SwhSlp': None, 'Lig': None, 'SwingLfRig': None, 'SwUpDn': None, 'Quiet': None, 'Tur': None, 'StHt': None, 'TemUn': None, 'HeatCoolType': None, 'TemRec': None, 'SvSt': None, 'SlpMod': None }
+        self._acOptions = { 'Pow': None, 'Mod': None, 'SetTem': None, 'WdSpd': None, 'Air': None, 'Blo': None, 'Health': None, 'SwhSlp': None, 'Lig': None, 'SwingLfRig': None, 'SwUpDn': None, 'Quiet': None, 'Tur': None, 'StHt': None, 'TemSen': None, 'TemUn': None, 'HeatCoolType': None, 'TemRec': None, 'SvSt': None, 'SlpMod': None }
 
         self._firstTimeRun = True
 
@@ -348,7 +350,7 @@ class GreeClimate(ClimateEntity):
         
     def SendStateToAc(self, timeout):
         _LOGGER.info('Start sending state to HVAC')
-        statePackJson = '{' + '"opt":["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt","SlpMod"],"p":[{Pow},{Mod},{SetTem},{WdSpd},{Air},{Blo},{Health},{SwhSlp},{Lig},{SwingLfRig},{SwUpDn},{Quiet},{Tur},{StHt},{TemUn},{HeatCoolType},{TemRec},{SvSt},{SlpMod}],"t":"cmd"'.format(**self._acOptions) + '}'
+        statePackJson = '{' + '"opt":["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemSen","TemUn","HeatCoolType","TemRec","SvSt","SlpMod"],"p":[{Pow},{Mod},{SetTem},{WdSpd},{Air},{Blo},{Health},{SwhSlp},{Lig},{SwingLfRig},{SwUpDn},{Quiet},{Tur},{StHt},{TemSen},{TemUn},{HeatCoolType},{TemRec},{SvSt},{SlpMod}],"t":"cmd"'.format(**self._acOptions) + '}'
         if self.encryption_version == 1:
             cipher = self.CIPHER
             sentJsonPayload = '{"cid":"app","i":0,"pack":"' + base64.b64encode(cipher.encrypt(self.Pad(statePackJson).encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid":{}'.format(self._uid) + '}'
@@ -506,7 +508,17 @@ class GreeClimate(ClimateEntity):
             self._fan_mode = self._fan_modes[int(self._acOptions['WdSpd'])]
         _LOGGER.info('HA fan mode set according to HVAC state to: ' + str(self._fan_mode))
 
+    def UpdateHACurrentTemperature(self):
+        if self._temp_sensor_entity_id is not None or self._acOptions['TemSen'] is None:
+            return
+        
+        temp = self._acOptions['TemSen']    
+        self._current_temperature = temp if temp <= TEMP_OFFSET else temp - TEMP_OFFSET
+
+        _LOGGER.info('HA target temp set according to HVAC state to: ' + str(self._acOptions['TemSen']))
+
     def UpdateHAStateToCurrentACState(self):
+        self.UpdateHACurrentTemperature()
         self.UpdateHATargetTemperature()
         self.UpdateHAOptions()
         self.UpdateHAHvacMode()
@@ -518,7 +530,7 @@ class GreeClimate(ClimateEntity):
         #Fetch current settings from HVAC
         _LOGGER.info('Starting SyncState')
 
-        optionsToFetch = ["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt","SlpMod"]
+        optionsToFetch = ["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemSen","TemUn","HeatCoolType","TemRec","SvSt","SlpMod"]
         currentValues = self.GreeGetValues(optionsToFetch)
 
         # Set latest status from device
