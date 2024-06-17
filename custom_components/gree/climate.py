@@ -515,7 +515,7 @@ class GreeClimate(ClimateEntity):
         temp = self._acOptions['TemSen']    
         self._current_temperature = temp if temp <= TEMP_OFFSET else temp - TEMP_OFFSET
 
-        _LOGGER.info('HA target temp set according to HVAC state to: ' + str(self._acOptions['TemSen']))
+        _LOGGER.info('HA target temp set according to HVAC state to: ' + str(temp))
 
     def UpdateHAStateToCurrentACState(self):
         self.UpdateHACurrentTemperature()
