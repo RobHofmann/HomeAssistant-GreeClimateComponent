@@ -161,7 +161,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     ])
 
 class GreeClimate(ClimateEntity):
-
+  
     def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, auto_xfan, auto_light, horizontal_swing, encryption_version, disable_available_check, max_online_attempts, encryption_key=None, uid=None):
         _LOGGER.info('Initialize the GREE climate device')
         self.hass = hass

@@ -18,12 +18,7 @@ Tested on the following hardware:
 - Copmax Air-Air Heatpump GWH12QC-K6DNA5F 3.5kW
 - Bulex vivair multisplit units; 20-080MC4NO outdoor unit, 20-025 NWI (2,5 kW) indoor unit, 20-035 NWI (3,5 kW) indoor unit
 
-Tested on these Home Assistant versions:
-- 0.96.x+ (for older versions, please see the releases tab)
-- 0.10X+
-- 0.11X+
-- 2023.x.x
-- 2024.x.x
+Tested on Home Assistant 2024.5.4.
 
 **If you are experiencing issues please be sure to provide details about your device, Home Assistant version and what exactly went wrong.**
 
