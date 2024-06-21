@@ -71,6 +71,8 @@ CONF_TARGET_TEMP = 'target_temp'
 CONF_HORIZONTAL_SWING = 'horizontal_swing'
 CONF_ANTI_DIRECT_BLOW = 'anti_direct_blow'
 CONF_ENCRYPTION_VERSION = 'encryption_version'
+CONF_DISABLE_AVAILABLE_CHECK  = 'disable_available_check'
+CONF_MAX_ONLINE_ATTEMPTS = 'max_online_attempts'
 
 DEFAULT_PORT = 7000
 DEFAULT_TIMEOUT = 10
@@ -110,12 +112,14 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_AIR): cv.entity_id,
     vol.Optional(CONF_ENCRYPTION_KEY): cv.string,
     vol.Optional(CONF_UID): cv.positive_int,
-    vol.Optional(CONF_AUTO_XFAN): cv.boolean,
-    vol.Optional(CONF_AUTO_LIGHT): cv.boolean,
+    vol.Optional(CONF_AUTO_XFAN, default=False): cv.boolean,
+    vol.Optional(CONF_AUTO_LIGHT, default=False): cv.boolean,
     vol.Optional(CONF_TARGET_TEMP): cv.entity_id,
     vol.Optional(CONF_ENCRYPTION_VERSION, default=1): cv.positive_int,
-    vol.Optional(CONF_HORIZONTAL_SWING): cv.boolean,
-    vol.Optional(CONF_ANTI_DIRECT_BLOW): cv.entity_id
+    vol.Optional(CONF_HORIZONTAL_SWING, default=False): cv.boolean,
+    vol.Optional(CONF_ANTI_DIRECT_BLOW): cv.entity_id,
+    vol.Optional(CONF_DISABLE_AVAILABLE_CHECK, default=False): cv.boolean,
+    vol.Optional(CONF_MAX_ONLINE_ATTEMPTS, default=3): cv.positive_int
 })
 
 async def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
@@ -147,16 +151,18 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     horizontal_swing = config.get(CONF_HORIZONTAL_SWING)
     anti_direct_blow_entity_id = config.get(CONF_ANTI_DIRECT_BLOW)
     encryption_version = config.get(CONF_ENCRYPTION_VERSION)
+    disable_available_check = config.get(CONF_DISABLE_AVAILABLE_CHECK)
+    max_online_attempts = config.get(CONF_MAX_ONLINE_ATTEMPTS)
     
     _LOGGER.info('Adding Gree climate device to hass')
 
     async_add_devices([
-        GreeClimate(hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, auto_xfan, auto_light, horizontal_swing, encryption_version, encryption_key, uid)
+        GreeClimate(hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, auto_xfan, auto_light, horizontal_swing, encryption_version, disable_available_check, max_online_attempts, encryption_key, uid)
     ])
 
 class GreeClimate(ClimateEntity):
 
-    def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, auto_xfan, auto_light, horizontal_swing, encryption_version, encryption_key=None, uid=None):
+    def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, auto_xfan, auto_light, horizontal_swing, encryption_version, disable_available_check, max_online_attempts, encryption_key=None, uid=None):
         _LOGGER.info('Initialize the GREE climate device')
         self.hass = hass
         self._name = name
@@ -166,6 +172,8 @@ class GreeClimate(ClimateEntity):
         self._timeout = timeout
         self._device_online = None
         self._online_attempts = 0
+        self._max_online_attempts = max_online_attempts
+        self._disable_available_check = disable_available_check
 
         self._target_temperature = None
         self._target_temperature_step = target_temp_step
@@ -202,8 +210,6 @@ class GreeClimate(ClimateEntity):
         self._preset_modes = preset_modes
 
         self._enable_turn_on_off_backwards_compatibility = False
-        
-        self.encryption_version = encryption_version
 
         self.encryption_version = encryption_version
         self.CIPHER = None
@@ -309,7 +315,7 @@ class GreeClimate(ClimateEntity):
             cipher.verify(base64.b64decode(tag))
         decodedPack = decryptedPack.decode("utf-8")
         replacedPack = decodedPack.replace('\x0f', '').replace(decodedPack[decodedPack.rindex('}')+1:], '')
-        loadedJsonPack = simplejson.loads(replacedPack)        
+        loadedJsonPack = simplejson.loads(replacedPack)  
         return loadedJsonPack
 
     def GetDeviceKey(self):
@@ -361,25 +367,6 @@ class GreeClimate(ClimateEntity):
             self._device_online = True
             self._online_attempts = 0
             return True
-
-    def GetGCMCipher(self, key):
-        cipher = AES.new(key, AES.MODE_GCM, nonce=GCM_IV)
-        cipher.update(GCM_ADD)
-        return cipher
-
-    def EncryptGCM(self, key, plaintext):
-        encrypted_data, tag = self.GetGCMCipher(key).encrypt_and_digest(plaintext.encode("utf8"))
-        pack = base64.b64encode(encrypted_data).decode('utf-8')
-        tag = base64.b64encode(tag).decode('utf-8')
-        return (pack, tag)
-
-    def GetDeviceKeyGCM(self):
-        _LOGGER.info('Retrieving HVAC encryption key')
-        GENERIC_GREE_DEVICE_KEY = b'{yxAHAY_Lm6pbC/<'
-        plaintext = '{"cid":"' + str(self._mac_addr) + '", "mac":"' + str(self._mac_addr) + '","t":"bind","uid":0}'
-        pack, tag = self.EncryptGCM(GENERIC_GREE_DEVICE_KEY, plaintext)
-        jsonPayloadToSend = '{"cid": "app","i": 1,"pack": "' + pack + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid": 0, "tag" : "' + tag + '"}'
-        return self.FetchResult(self.GetGCMCipher(GENERIC_GREE_DEVICE_KEY), self._ip_addr, self._port, self._timeout, jsonPayloadToSend)['key']
 
     def GreeGetValues(self, propertyNames):
         plaintext = '{"cols":' + simplejson.dumps(propertyNames) + ',"mac":"' + str(self._mac_addr) + '","t":"status"}'
@@ -599,20 +586,21 @@ class GreeClimate(ClimateEntity):
         
         if self._anti_direct_blow_entity_id:
             optionsToFetch.append("AntiDirectBlow")
-
         try:
             currentValues = self.GreeGetValues(optionsToFetch)
         except:
             _LOGGER.info('Could not connect with device. ')
-            self._online_attempts +=1
-            if (self._online_attempts == 3):
-                _LOGGER.info('Could not connect with device 3 times. Set it as offline.')
-                self._device_online = False
-                self._online_attempts = 0
+            if not self._disable_available_check:
+                self._online_attempts +=1
+                if (self._online_attempts == self._max_online_attempts):
+                    _LOGGER.info('Could not connect with device %s times. Set it as offline.' % self._max_online_attempts)
+                    self._device_online = False
+                    self._online_attempts = 0
         else:
-            if not self._device_online:
-                self._device_online = True
-                self._online_attempts = 0
+            if not self._disable_available_check:
+                if not self._device_online:
+                    self._device_online = True
+                    self._online_attempts = 0
             # Set latest status from device
             self._acOptions = self.SetAcOptions(self._acOptions, optionsToFetch, currentValues)
 
@@ -911,18 +899,27 @@ class GreeClimate(ClimateEntity):
 
     @property
     def available(self):
-        if self._device_online:
-            _LOGGER.info('available(): Device is online')
+        if self._disable_available_check:
             return True
         else:
-            _LOGGER.info('available(): Device is offline')
-            return False
+            if self._device_online:
+                _LOGGER.info('available(): Device is online')
+                return True
+            else:
+                _LOGGER.info('available(): Device is offline')
+                return False
 
     def update(self):
         _LOGGER.info('update()')
         if not self._encryption_key:
-            if self.GetDeviceKey():
-                self.SyncState()
+            if self.encryption_version == 1:
+                if self.GetDeviceKey():
+                    self.SyncState()
+            elif self.encryption_version == 2:
+                if self.GetDeviceKeyGCM():
+                    self.SyncState()
+            else:
+                _LOGGER.error('Encryption version %s is not implemented.' % encryption_version)
         else:
             self.SyncState()
 
@@ -1120,14 +1117,4 @@ class GreeClimate(ClimateEntity):
 
     async def async_added_to_hass(self):
         _LOGGER.info('Gree climate device added to hass()')
-        if not self._encryption_key:
-            if self.encryption_version == 1:
-                if self.GetDeviceKey():
-                    self.SyncState()
-            elif self.encryption_version == 2:
-                if self.GetDeviceKeyGCM():
-                    self.SyncState()
-            else:
-                _LOGGER.error('Encryption version %s is not implemented.' % encryption_version)
-        else:
-            self.SyncState()
+        self.update()
