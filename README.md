@@ -66,7 +66,9 @@ This component is added to HACS default repository list.
      air: <OPTIONAL: input_boolean used to switch air/scavenging on/off on your first AC>
      target_temp: <OPTIONAL: input_number used to set the temperature of your first AC>
      auto_xfan: <OPTIONAL: boolean (true/false); this feature will always turn on xFan in cool and dry mode to avoid mold & rust created from potential water buildup in the AC>
-     auto_light: <OPTIONAL: boolean (true/false); this feature will always turn light on when power on and turn light light off when power off automatically> 
+     auto_light: <OPTIONAL: boolean (true/false); this feature will always turn light on when power on and turn light light off when power off automatically>
+     horizontal_swing: <OPTIONAL: boolean (true/false); this feature will enable horizontal swing on devices that have this functionality. This feature replaces presets in the UI
+     anti_direct_blow: <OPTIONAL: input_boolean used to switch Anti Direct Blow feature on devices devices that have this functionality. Until next release, it should be set only when device        really has this feature
    
    - platform: gree
      name: Second AC
