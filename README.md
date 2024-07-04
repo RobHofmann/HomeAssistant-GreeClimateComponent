@@ -67,7 +67,7 @@ This component is added to HACS default repository list.
      light_sensor: <OPTIONAL: input_boolean this feature will enable built-in light sensor. 
      max_online_attempts: <OPTIONAL: integer specifying number of attempts to connect to the device before it goes into the unavailable state
      disable_available_check: <OPTIONAL: boolean (true/false): if set to true device is always available in Home Assistant, useful for automation, device never goes into an unavailable state
-   
+
    - platform: gree
      name: Second AC
      host: <ip of your second AC>
