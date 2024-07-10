@@ -11,6 +11,7 @@ Tested on the following hardware:
 - Inventor Life Pro WiFi
 - Toyotomi Izuru TRN/TRG-828ZR
 - Sinclair ASH-13BIF2
+- Sinclair ASH-12BIV
 - TOSOT BORA-GWH09AAB
 - CASCADE BORA-CWH09AAB
 - EWT S-090 GDI-HRFN1, EWT S-120 GDI-HRFN1 (WI-FI module CS532AEH)
