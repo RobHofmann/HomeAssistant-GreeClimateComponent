@@ -50,7 +50,7 @@ REQUIREMENTS = ['pycryptodome']
 
 _LOGGER = logging.getLogger(__name__)
 
-SUPPORT_FLAGS = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.FAN_MODE | ClimateEntityFeature.SWING_MODE | ClimateEntityFeature.PRESET_MODE | ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
+SUPPORT_FLAGS = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.FAN_MODE | ClimateEntityFeature.SWING_MODE | ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
 
 DEFAULT_NAME = 'Gree Climate'
 
@@ -1164,12 +1164,9 @@ class GreeClimate(ClimateEntity):
 
     @property
     def preset_modes(self):
-        if self._horizontal_swing:
-            _LOGGER.info('preset_modes(): ' + str(self._preset_modes))
-            # get the list of available preset modes
-            return self._preset_modes
-        else:
-            return None
+        _LOGGER.info('preset_modes(): ' + str(self._preset_modes))
+        # get the list of available preset modes
+        return self._preset_modes
 
     @property
     def hvac_modes(self):
@@ -1191,9 +1188,13 @@ class GreeClimate(ClimateEntity):
         
     @property
     def supported_features(self):
-        _LOGGER.info('supported_features(): ' + str(SUPPORT_FLAGS))
+        if self._horizontal_swing:
+            sf =  SUPPORT_FLAGS | ClimateEntityFeature.PRESET_MODE
+        else:
+            sf = SUPPORT_FLAGS
+        _LOGGER.info('supported_features(): ' + str(sf))
         # Return the list of supported features.
-        return SUPPORT_FLAGS
+        return sf
 
     @property
     def unique_id(self):
@@ -1221,16 +1222,11 @@ class GreeClimate(ClimateEntity):
             self.schedule_update_ha_state()
 
     def set_preset_mode(self, preset_mode):
-        if self._horizontal_swing:
-            _LOGGER.info('Set preset mode(): ' + str(preset_mode))
-            # set the preset mode
-            if not (self._acOptions['Pow'] == 0):
-                # do nothing if HVAC is switched off
-                _LOGGER.info('SyncState with SwingLfRig=' + str(preset_mode))
-                self.SyncState({'SwingLfRig': self._preset_modes.index(preset_mode)})
-                self.schedule_update_ha_state()
-        else:
-            return None
+        if not (self._acOptions['Pow'] == 0):
+            # do nothing if HVAC is switched off
+            _LOGGER.info('SyncState with SwingLfRig=' + str(preset_mode))
+            self.SyncState({'SwingLfRig': self._preset_modes.index(preset_mode)})
+            self.schedule_update_ha_state()
 
     def set_fan_mode(self, fan):
         _LOGGER.info('set_fan_mode(): ' + str(fan))
