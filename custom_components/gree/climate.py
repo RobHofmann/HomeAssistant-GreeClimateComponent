@@ -1068,10 +1068,10 @@ class GreeClimate(ClimateEntity):
         if not (self._acOptions['Pow'] == 0):
             if (fan.lower() == 'turbo'):
                 _LOGGER.info('Enabling turbo mode')
-                self.SyncState({'Tur': 1, 'Quiet': 0})
+                self.SyncState({'WdSpd': 5,'Tur': 1})
             elif (fan.lower() == 'quiet'):
                 _LOGGER.info('Enabling quiet mode')
-                self.SyncState({'Tur': 0, 'Quiet': 1})
+                self.SyncState({'WdSpd': 1, 'Quiet': 2})
             else:
                 _LOGGER.info('Setting normal fan mode to ' + str(self._fan_modes.index(fan)))
                 self.SyncState({'WdSpd': str(self._fan_modes.index(fan)), 'Tur': 0, 'Quiet': 0})
