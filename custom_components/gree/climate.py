@@ -1,15 +1,9 @@
 #!/usr/bin/python
 # Do basic imports
-import importlib.util
 import socket
 import base64
-import re
-import sys
 
-import asyncio
 import logging
-import binascii
-import os.path
 import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
 
@@ -23,24 +17,18 @@ from homeassistant.components.climate import (
 from homeassistant.const import (
     ATTR_TEMPERATURE, 
     ATTR_UNIT_OF_MEASUREMENT,
-    CONF_CUSTOMIZE,
     CONF_HOST,
     CONF_MAC,
     CONF_NAME,
     CONF_PORT,
     CONF_TIMEOUT,
-    PRECISION_TENTHS,
-    PRECISION_WHOLE,
     STATE_OFF, 
     STATE_ON,
-    STATE_UNKNOWN,
-    UnitOfTemperature
+    STATE_UNKNOWN
 )
 
 from homeassistant.core import Event, EventStateChangedData, callback
 from homeassistant.helpers.event import async_track_state_change_event
-from homeassistant.helpers.restore_state import RestoreEntity
-from configparser import ConfigParser
 from Crypto.Cipher import AES
 try: import simplejson
 except ImportError: import json as simplejson
@@ -294,7 +282,7 @@ class GreeClimate(ClimateEntity):
             _LOGGER.info('Setting up light sensor entity: ' + str(light_sensor_entity_id))
             if self.hass.states.get(light_sensor_entity_id) is not None and self.hass.states.get(light_sensor_entity_id).state is STATE_ON:
                 self._enable_light_sensor = True
-            elif self.hass.states.get(light_sensor_entity_id) is not None and self.hass.states.get(light_sensor_entity_id).state is STATE_OFF:
+            else:
                 self._enable_light_sensor = False
             async_track_state_change_event(hass, light_sensor_entity_id, self._async_light_sensor_entity_state_changed)
         else:
@@ -304,7 +292,7 @@ class GreeClimate(ClimateEntity):
             _LOGGER.info('Setting up auto light entity: ' + str(auto_light_entity_id))
             if self.hass.states.get(auto_light_entity_id) is not None and self.hass.states.get(auto_light_entity_id).state is STATE_ON:
                 self._auto_light = True
-            elif self.hass.states.get(auto_light_entity_id) is not None and self.hass.states.get(auto_light_entity_id).state is STATE_OFF:
+            else:
                 self._auto_light = False
             async_track_state_change_event(hass, auto_light_entity_id, self._async_auto_light_entity_state_changed)
         else:
@@ -314,7 +302,7 @@ class GreeClimate(ClimateEntity):
             _LOGGER.info('Setting up auto xfan entity: ' + str(auto_xfan_entity_id))
             if self.hass.states.get(auto_xfan_entity_id) is not None and self.hass.states.get(auto_xfan_entity_id).state is STATE_ON:
                 self._auto_xfan = True
-            elif self.hass.states.get(auto_xfan_entity_id) is not None and self.hass.states.get(auto_xfan_entity_id).state is STATE_OFF:
+            else:
                 self._auto_xfan = False
             async_track_state_change_event(hass, auto_xfan_entity_id, self._async_auto_xfan_entity_state_changed)
         else:
@@ -330,6 +318,7 @@ class GreeClimate(ClimateEntity):
         clientSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         clientSock.settimeout(timeout)
         clientSock.sendto(bytes(json, "utf-8"), (ip_addr, port))
+        _LOGGER.info('3')
         data, addr = clientSock.recvfrom(64000)
         receivedJson = simplejson.loads(data)
         clientSock.close()
@@ -757,6 +746,9 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('lights_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
             return
+        if new_state.state is "off" and (old_state is None or old_state.state is None):
+            _LOGGER.info('lights_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
+            return
         if new_state.state is self._current_lights:
             # do nothing if state change is triggered due to Sync with HVAC
             return
@@ -780,6 +772,9 @@ class GreeClimate(ClimateEntity):
         new_state = event.data["new_state"]
         _LOGGER.info('xfan_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
+            return
+        if new_state.state is "off" and (old_state is None or old_state.state is None):
+            _LOGGER.info('xfan_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
             return
         if new_state.state is self._current_xfan:
             # do nothing if state change is triggered due to Sync with HVAC
@@ -809,6 +804,9 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('health_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
             return
+        if new_state.state is "off" and (old_state is None or old_state.state is None):
+            _LOGGER.info('health_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
+            return
         if new_state.state is self._current_health:
             # do nothing if state change is triggered due to Sync with HVAC
             return
@@ -833,10 +831,19 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('powersave_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
             return
+        if new_state.state is "off" and (old_state is None or old_state.state is None):
+            _LOGGER.info('powersave_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
+            return
         if new_state.state is self._current_powersave:
             # do nothing if state change is triggered due to Sync with HVAC
             return
-        if hasattr(self, "_hvac_mode") and self._hvac_mode is not None and not self._hvac_mode in (HVACMode.COOL):
+        if not hasattr(self, "_hvac_mode"):
+            _LOGGER.info('Cant set powersave in unknown mode')
+            return
+        if self._hvac_mode is None:
+            _LOGGER.info('Cant set powersave in unknown HVAC mode (self._hvac_mode is None)')
+            return
+        if not self._hvac_mode in (HVACMode.COOL):
             # do nothing if not in cool mode
             _LOGGER.info('Cant set powersave in %s mode' % str(self._hvac_mode))
             return
@@ -861,6 +868,9 @@ class GreeClimate(ClimateEntity):
         new_state = event.data["new_state"]
         _LOGGER.info('sleep_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
+            return
+        if new_state.state is "off" and (old_state is None or old_state.state is None):
+            _LOGGER.info('sleep_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
             return
         if new_state.state is self._current_sleep:
             # do nothing if state change is triggered due to Sync with HVAC
@@ -890,6 +900,9 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('eightdegheat_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
             return
+        if new_state.state is "off" and (old_state is None or old_state.state is None):
+            _LOGGER.info('eightdegheat_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
+            return
         if new_state.state is self._current_eightdegheat:
             # do nothing if state change is triggered due to Sync with HVAC
             return
@@ -918,6 +931,9 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('air_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
             return
+        if new_state.state is "off" and (old_state is None or old_state.state is None):
+            _LOGGER.info('air_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
+            return
         if new_state.state is self._current_air:
             # do nothing if state change is triggered due to Sync with HVAC
             return
@@ -943,6 +959,9 @@ class GreeClimate(ClimateEntity):
             _LOGGER.info('anti_direct_blow_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
             if new_state is None:
                 return
+            if new_state.state is "off" and (old_state is None or old_state.state is None):
+                _LOGGER.info('anti_direct_blow_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
+                return
             if new_state.state is self._current_anti_direct_blow:
                 # do nothing if state change is triggered due to Sync with HVAC
                 return
@@ -966,6 +985,9 @@ class GreeClimate(ClimateEntity):
         new_state = event.data["new_state"]
         _LOGGER.info('light_sensor_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
+            return
+        if new_state.state is "off" and (old_state is None or old_state.state is None):
+            _LOGGER.info('light_sensor_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
             return
         if new_state.state is self._enable_light_sensor:
             # do nothing if state change is triggered due to Sync with HVAC
@@ -993,7 +1015,13 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('auto_light_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
             return
-        if hasattr(self, "_auto_light") and new_state.state is self._auto_light:
+        if new_state.state is "off" and (old_state is None or old_state.state is None):
+            _LOGGER.info('auto_light_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
+            return
+        if not hasattr(self, "_auto_light"):
+            _LOGGER.info('auto_light_entity state changed | auto_light not (yet) initialized. Skipping.')
+            return
+        if new_state.state is self._auto_light:
             # do nothing if state change is triggered due to Sync with HVAC
             return
         self._async_update_auto_light(new_state)
@@ -1021,7 +1049,13 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('auto_xfan_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
             return
-        if hasattr(self, "_auto_xfan") and new_state.state is self._auto_xfan:
+        if new_state.state is "off" and (old_state is None or old_state.state is None):
+            _LOGGER.info('auto_xfan_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
+            return
+        if not hasattr(self, "_auto_xfan"):
+            _LOGGER.info('auto_xfan_entity state changed | auto_xfan not (yet) initialized. Skipping.')
+            return
+        if new_state.state is self._auto_xfan:
             # do nothing if state change is triggered due to Sync with HVAC
             return
         self._async_update_auto_xfan(new_state)
@@ -1045,6 +1079,9 @@ class GreeClimate(ClimateEntity):
         new_state = event.data["new_state"]
         _LOGGER.info('target_temp_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
+            return
+        if new_state.state is "off" and (old_state is None or old_state.state is None):
+            _LOGGER.info('target_temp_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
             return
         if int(float(new_state.state)) is self._target_temperature:
             # do nothing if state change is triggered due to Sync with HVAC
@@ -1189,7 +1226,7 @@ class GreeClimate(ClimateEntity):
     @property
     def supported_features(self):
         if hasattr(self, "_horizontal_swing") and self._horizontal_swing:
-            sf =  SUPPORT_FLAGS | ClimateEntityFeature.PRESET_MODE
+            sf = SUPPORT_FLAGS | ClimateEntityFeature.PRESET_MODE
         else:
             sf = SUPPORT_FLAGS
         _LOGGER.info('supported_features(): ' + str(sf))
@@ -1283,7 +1320,7 @@ class GreeClimate(ClimateEntity):
         if hasattr(self, "_auto_light") and self._auto_light:
             c.update({'Lig': 0})
             if hasattr(self, "_has_light_sensor") and self._has_light_sensor and hasattr(self, "_enable_light_sensor") and self._enable_light_sensor:
-                    c.update({'LigSen': 1})
+                c.update({'LigSen': 1})
         self.SyncState(c)
         self.schedule_update_ha_state()
 
