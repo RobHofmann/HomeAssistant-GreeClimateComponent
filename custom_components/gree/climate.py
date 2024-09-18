@@ -42,6 +42,8 @@ SUPPORT_FLAGS = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.F
 
 DEFAULT_NAME = 'Gree Climate'
 
+CONF_MIN_TEMP = 'min_temp'
+CONF_MAX_TEMP = 'max_temp'
 CONF_TARGET_TEMP_STEP = 'target_temp_step'
 CONF_TEMP_SENSOR = 'temp_sensor'
 CONF_LIGHTS = 'lights'
@@ -67,10 +69,6 @@ DEFAULT_PORT = 7000
 DEFAULT_TIMEOUT = 10
 DEFAULT_TARGET_TEMP_STEP = 1
 
-# from the remote control and gree app
-MIN_TEMP = 16
-MAX_TEMP = 30
-
 # update() interval
 SCAN_INTERVAL = timedelta(seconds=60)
 
@@ -92,6 +90,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_PORT, default=DEFAULT_PORT): cv.positive_int,
     vol.Required(CONF_MAC): cv.string,
     vol.Optional(CONF_TIMEOUT, default=DEFAULT_TIMEOUT): cv.positive_int,
+    vol.Optional(CONF_MIN_TEMP, default=16): cv.positive_int,
+    vol.Optional(CONF_MAX_TEMP, default=30): cv.positive_int,
     vol.Optional(CONF_TARGET_TEMP_STEP, default=DEFAULT_TARGET_TEMP_STEP): vol.Coerce(float),
     vol.Optional(CONF_TEMP_SENSOR): cv.entity_id,
     vol.Optional(CONF_LIGHTS): cv.entity_id,
@@ -122,6 +122,8 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     mac_addr = config.get(CONF_MAC).encode().replace(b':', b'')
     timeout = config.get(CONF_TIMEOUT)
 
+    min_temp = config.get(CONF_MIN_TEMP)
+    max_temp = config.get(CONF_MAX_TEMP)
     target_temp_step = config.get(CONF_TARGET_TEMP_STEP)
     temp_sensor_entity_id = config.get(CONF_TEMP_SENSOR)
     lights_entity_id = config.get(CONF_LIGHTS)
@@ -150,12 +152,12 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     _LOGGER.info('Adding Gree climate device to hass')
 
     async_add_devices([
-        GreeClimate(hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, auto_xfan_entity_id, auto_light_entity_id, horizontal_swing, light_sensor_entity_id, encryption_version, disable_available_check, max_online_attempts, encryption_key, uid)
+        GreeClimate(hass, name, ip_addr, port, mac_addr, timeout, min_temp, max_temp, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, auto_xfan_entity_id, auto_light_entity_id, horizontal_swing, light_sensor_entity_id, encryption_version, disable_available_check, max_online_attempts, encryption_key, uid)
     ])
 
 class GreeClimate(ClimateEntity):
 
-    def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, auto_xfan_entity_id, auto_light_entity_id, horizontal_swing, light_sensor_entity_id, encryption_version, disable_available_check, max_online_attempts, encryption_key=None, uid=None):
+    def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, min_temp, max_temp, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, auto_xfan_entity_id, auto_light_entity_id, horizontal_swing, light_sensor_entity_id, encryption_version, disable_available_check, max_online_attempts, encryption_key=None, uid=None):
         _LOGGER.info('Initialize the GREE climate device')
         self.hass = hass
         self._name = name
@@ -168,6 +170,9 @@ class GreeClimate(ClimateEntity):
         self._online_attempts = 0
         self._max_online_attempts = max_online_attempts
         self._disable_available_check = disable_available_check
+
+        self._min_temp = min_temp
+        self._max_temp = max_temp
 
         self._target_temperature = None
         self._target_temperature_step = target_temp_step
@@ -318,6 +323,7 @@ class GreeClimate(ClimateEntity):
         clientSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         clientSock.settimeout(timeout)
         clientSock.sendto(bytes(json, "utf-8"), (ip_addr, port))
+        _LOGGER.info('3')
         data, addr = clientSock.recvfrom(64000)
         receivedJson = simplejson.loads(data)
         clientSock.close()
@@ -439,7 +445,7 @@ class GreeClimate(ClimateEntity):
                 target_temp_state = self.hass.states.get(self._target_temp_entity_id)
                 if target_temp_state:
                     attr = target_temp_state.attributes
-                    if self._target_temperature in range(MIN_TEMP, MAX_TEMP+1):
+                    if self._target_temperature in range(self._min_temp, self._max_temp+1):
                         self.hass.states.async_set(self._target_temp_entity_id, float(self._target_temperature), attr)
             _LOGGER.info('HA target temp set according to HVAC state to: ' + str(self._acOptions['SetTem']))
 
@@ -1092,7 +1098,7 @@ class GreeClimate(ClimateEntity):
     def _async_update_current_target_temp(self, state):
         s = int(float(state.state))
         _LOGGER.info('Updating HVAC with changed target_temp_entity state | ' + str(s))
-        if (s >= MIN_TEMP) and (s <= MAX_TEMP):
+        if (s >= self._min_temp) and (s <= self._max_temp):
             self.SyncState({'SetTem': s})
             return
         _LOGGER.error('Unable to update from target_temp_entity!')
@@ -1149,15 +1155,15 @@ class GreeClimate(ClimateEntity):
 
     @property
     def min_temp(self):
-        _LOGGER.info('min_temp(): ' + str(MIN_TEMP))
+        _LOGGER.info('min_temp(): ' + str(self._min_temp))
         # Return the minimum temperature.
-        return MIN_TEMP
+        return self._min_temp
         
     @property
     def max_temp(self):
-        _LOGGER.info('max_temp(): ' + str(MAX_TEMP))
+        _LOGGER.info('max_temp(): ' + str(self._max_temp))
         # Return the maximum temperature.
-        return MAX_TEMP
+        return self._max_temp
         
     @property
     def target_temperature(self):
