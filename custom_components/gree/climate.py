@@ -323,7 +323,6 @@ class GreeClimate(ClimateEntity):
         clientSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         clientSock.settimeout(timeout)
         clientSock.sendto(bytes(json, "utf-8"), (ip_addr, port))
-        _LOGGER.info('3')
         data, addr = clientSock.recvfrom(64000)
         receivedJson = simplejson.loads(data)
         clientSock.close()
