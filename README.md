@@ -18,6 +18,7 @@ Tested on the following hardware:
 - Tadiran Alpha Expert Inverter
 - Copmax Air-Air Heatpump GWH12QC-K6DNA5F 3.5kW
 - Bulex vivair multisplit units; 20-080MC4NO outdoor unit, 20-025 NWI (2,5 kW) indoor unit, 20-035 NWI (3,5 kW) indoor unit
+- Kinghome "Pular" - KW12HQ25SDI (Requires encryption_version=2)
 
 Tested on Home Assistant 2024.5.4.
 
