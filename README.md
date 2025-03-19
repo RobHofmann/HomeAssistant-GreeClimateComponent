@@ -115,6 +115,8 @@ This component is added to HACS default repository list.
 ## Optional Features
 NOTE: Your AC has to support these features for it to be used.
 ```
+     min_temp: Minimum temperature. Defaults to 16°C but some hardware will allow to step down to 8°C instead of separate 8°C mode.
+     max_temp: Maximum temperature. Defautls to 30°C but could be lowered if needed for some reason.
      temp_sensor: This attaches an external temperature sensor to your AC. Gree unfortunately doesnt support a "current temperature" on its own.
      lights: This switches the backlight of the AC Display on or off
      xfan: This dries the AC after being used. This is to avoid nasty smells from usage.
