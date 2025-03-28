@@ -32,20 +32,20 @@
     - [x] Create `tests/test_update.py` and move update tests.
     - [x] Create `tests/test_command.py` and move command tests.
     - [x] Delete original `tests/test_climate.py`.
-- [ ] **Step 0.3: Implement and Fix `GreeClimate.update` Tests.**
-    - [ ] **Step 0.3.1: Finalize `test_update_calls_get_values`.**
+- [x] **Step 0.3: Implement and Fix `GreeClimate.update` Tests.**
+    - [x] **Step 0.3.1: Finalize `test_update_calls_get_values`.**
         - [x] Implement initial logic (mocking, calling update).
         - [x] Add `try...except IndexError` block and logging.
         - [x] Add setup to prevent initial feature check call (`_has_temp_sensor = False`, etc.).
         - [x] Fix `assert_called_once_with` arguments to match actual mock call. 
         - [x] Verify test passes. (Stop after this step for review/commit.)
-    - [ ] **Step 0.3.2: Finalize `test_update_success_full` (xfail).**
+    - [x] **Step 0.3.2: Finalize `test_update_success_full` (xfail).**
         - [x] Implement test logic.
         - [x] Mark as `xfail` due to known source code issue. (Stop after this step for review/commit.)
         - [x] Verify test is marked `XFAIL` in output. (Stop after this step for review/commit.)
     - [x] **Step 0.3.3: Implement `test_update_timeout`.** (Stop after this step for review/commit.)
     - [x] **Step 0.3.4: Implement `test_update_invalid_response`.** (Stop after this step for review/commit.)
-    - [ ] **Step 0.3.5: Implement `test_update_sets_availability`.** (Stop after this step for review/commit.)
+    - [x] **Step 0.3.5: Implement `test_update_sets_availability`.** (Stop after this step for review/commit.)
 - [ ] **Step 0.4: Implement and Fix `GreeClimate` Command Method Tests.**
     - [ ] **Step 0.4.1: Fix `mock_hass` fixture for command tests.**
         - [x] Add mock `hass.loop.call_soon_threadsafe` in `conftest.py`. (Stop after this step for review/commit.)

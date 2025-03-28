@@ -135,4 +135,7 @@ cython_debug/
 
 # OS Files
 .DS_Store
-Thumbs.db 
+Thumbs.db
+
+# Cursor IDE
+.cursor/ 
