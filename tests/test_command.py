@@ -62,11 +62,12 @@ async def test_async_set_hvac_mode(mock_set_hvac_mode, gree_climate_device):
     await gree_climate_device.async_set_hvac_mode(hvac_mode=HVACMode.COOL)
     mock_set_hvac_mode.assert_called_once_with(HVACMode.COOL)
 
-@patch("custom_components.gree.climate.GreeClimate.SendStateToAc")
-async def test_async_set_fan_mode(mock_send_state, gree_climate_device: GreeClimate):
-    """Test setting the fan mode."""
-    # TODO: Implement this test
-    pass
+@pytest.mark.asyncio
+@patch("custom_components.gree.climate.GreeClimate.set_fan_mode")
+async def test_async_set_fan_mode(mock_set_fan_mode, gree_climate_device: GreeClimate):
+    """Test setting the fan mode calls the synchronous method."""
+    await gree_climate_device.async_set_fan_mode(fan_mode=FAN_MEDIUM)
+    mock_set_fan_mode.assert_called_once_with(FAN_MEDIUM)
 
 @patch("custom_components.gree.climate.GreeClimate.SendStateToAc")
 async def test_async_set_swing_mode(mock_send_state, gree_climate_device: GreeClimate):
