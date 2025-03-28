@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
+import socket # For potential timeout exception
 
 from homeassistant.core import HomeAssistant
 from homeassistant.const import STATE_ON, STATE_OFF
@@ -79,10 +80,31 @@ async def test_update_success_full(mock_get_values, gree_climate_device: GreeCli
     # ... (Add back other state assertions as needed for the full test)
     assert gree_climate_device.current_temperature is None
 
-async def test_update_timeout(gree_climate_device: GreeClimate):
+@patch("custom_components.gree.climate.GreeClimate.GreeGetValues")
+async def test_update_timeout(mock_get_values, gree_climate_device: GreeClimate, mock_hass: HomeAssistant):
     """Test state update when device communication times out."""
-    # TODO: Implement this test
-    pass
+    # Simulate communication error
+    mock_get_values.side_effect = Exception("Simulated connection error")
+
+    # Ensure device starts online and feature checks are skipped
+    gree_climate_device._device_online = True
+    gree_climate_device.available = True # Explicitly set available to True
+    gree_climate_device._has_temp_sensor = False
+    gree_climate_device._has_anti_direct_blow = False
+    gree_climate_device._has_light_sensor = False
+    gree_climate_device._online_attempts = 0 # Reset attempts
+    gree_climate_device._max_online_attempts = 1 # Make it fail after one attempt
+    # Ensure key exists so update() calls SyncState directly
+    gree_climate_device._encryption_key = b"testkey123456789"
+    gree_climate_device.CIPHER = MagicMock()
+
+    # Call update - expecting it to catch the exception
+    await mock_hass.async_add_executor_job(gree_climate_device.update)
+
+    # Assertions
+    mock_get_values.assert_called_once_with(gree_climate_device._optionsToFetch)
+    assert gree_climate_device.available is False
+    assert gree_climate_device._device_online is False
 
 async def test_update_invalid_response(gree_climate_device: GreeClimate):
     """Test state update when device returns invalid/malformed data."""
