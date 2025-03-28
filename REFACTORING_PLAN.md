@@ -18,7 +18,7 @@
     - [x] **Step 0.1.4:** Install Test Dependencies (`pytest`, `pytest-asyncio`, `homeassistant`, `pycryptodome`). (Stop after this step for review/commit.)
     - [x] **Step 0.1.5:** Create `tests/` Directory. (Stop after this step for review/commit.)
     - [x] **Step 0.1.6:** Add `pytest.ini`. (Stop after this step for review/commit.)
-    - [ ] **Step 0.1.7:** Create/Update `.gitignore`. (Stop after this step for review/commit.)
+    - [x] **Step 0.1.7:** Create/Update `.gitignore`. (Stop after this step for review/commit.)
 - [x] **Step 0.2: Create Basic Test File Structure.** (Stop after this step for review/commit.)
     - [x] **Step 0.2.1:** Create initial `tests/test_climate.py`.
     - [x] **Step 0.2.2:** Add global mocks for `socket`, `Crypto`.
@@ -46,30 +46,30 @@
     - [x] **Step 0.3.3: Implement `test_update_timeout`.** (Stop after this step for review/commit.)
     - [x] **Step 0.3.4: Implement `test_update_invalid_response`.** (Stop after this step for review/commit.)
     - [x] **Step 0.3.5: Implement `test_update_sets_availability`.** (Stop after this step for review/commit.)
-- [ ] **Step 0.4: Implement and Fix `GreeClimate` Command Method Tests.**
-    - [ ] **Step 0.4.1: Fix `mock_hass` fixture for command tests.**
+- [x] **Step 0.4: Implement and Fix `GreeClimate` Command Method Tests.**
+    - [x] **Step 0.4.1: Fix `mock_hass` fixture for command tests.**
         - [x] Add mock `hass.loop.call_soon_threadsafe` in `conftest.py`. (Stop after this step for review/commit.)
-    - [ ] **Step 0.4.2: Finalize `test_async_turn_on`.**
+    - [x] **Step 0.4.2: Finalize `test_async_turn_on`.**
         - [x] Implement initial logic.
         - [x] Verify test passes (after Step 0.4.1 fix). (Stop after this step for review/commit.)
-    - [ ] **Step 0.4.3: Finalize `test_async_turn_off`.**
+    - [x] **Step 0.4.3: Finalize `test_async_turn_off`.**
         - [x] Implement initial logic.
         - [x] Verify test passes (after Step 0.4.1 fix). (Stop after this step for review/commit.)
     - [x] **Step 0.4.4: Implement `test_async_set_temperature`.** (Stop after this step for review/commit.)
     - [x] **Step 0.4.5: Implement `test_async_set_hvac_mode`.** (Stop after this step for review/commit.)
     - [x] **Step 0.4.6: Implement `test_async_set_fan_mode`.** (Stop after this step for review/commit.)
-    - [ ] **Step 0.4.7: Implement `test_async_set_swing_mode`.** (Stop after this step for review/commit.)
-- [ ] **Step 0.5: Implement and Fix Other Foundational Tests.**
-    - [ ] **Step 0.5.1: Finalize `test_properties_before_update`.**
+    - [x] **Step 0.4.7: Implement `test_async_set_swing_mode`.** (Stop after this step for review/commit.)
+- [x] **Step 0.5: Implement and Fix Other Foundational Tests.**
+    - [x] **Step 0.5.1: Finalize `test_properties_before_update`.**
         - [x] Implement initial logic.
         - [x] Correct `hvac_mode` assertion and `HVACMode` import. (Stop after this step for review/commit.)
-        - [ ] Verify test passes. (Stop after this step for review/commit.)
-    - [ ] **Step 0.5.2: Finalize `test_init_minimal_config`.**
+        - [x] Verify test passes. (Stop after this step for review/commit.)
+    - [x] **Step 0.5.2: Finalize `test_init_minimal_config`.**
         - [x] Implement initial logic.
-        - [ ] Verify test passes. (Stop after this step for review/commit.)
-    - [ ] **Step 0.5.3: Finalize `test_init_with_optional_entities`.**
+        - [x] Verify test passes. (Stop after this step for review/commit.)
+    - [x] **Step 0.5.3: Finalize `test_init_with_optional_entities`.**
         - [x] Implement initial logic (stub).
-        - [ ] Add TODO comment or basic implementation if feasible now. (Stop after this step for review/commit.)
+        - [x] Add TODO comment or basic implementation if feasible now. (Stop after this step for review/commit.)
 
 **Phase 1: Introduce the Communication API Class**
 
