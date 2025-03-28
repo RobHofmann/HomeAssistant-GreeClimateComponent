@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 
 from homeassistant.core import HomeAssistant
+from homeassistant.const import UnitOfTemperature
 
 # Assuming climate.py is in custom_components/gree relative to the root
 # Adjust the import path if your structure is different
@@ -41,9 +42,28 @@ async def mock_hass() -> HomeAssistant:
     # Configure the mock to use the side effect
     hass.async_add_executor_job = AsyncMock(side_effect=executor_job_side_effect)
 
-    # Mock the loop and call_soon_threadsafe needed by schedule_update_ha_state
+    # --- Mock call_soon_threadsafe to execute the callback --- 
+    def call_soon_threadsafe_side_effect(callback, *args):
+        # Directly call the callback function with its arguments
+        # Note: This simplification assumes the callback is thread-safe 
+        # or that thread-safety isn't critical for these specific tests.
+        callback(*args)
+
+    # Mock the loop and call_soon_threadsafe needed by command methods
     hass.loop = MagicMock()
-    hass.loop.call_soon_threadsafe = MagicMock()
+    hass.loop.call_soon_threadsafe = MagicMock(side_effect=call_soon_threadsafe_side_effect)
+
+    # Mock hass.config.units.temperature_unit needed by state update
+    hass.config = MagicMock()
+    hass.config.units = MagicMock()
+    hass.config.units.temperature_unit = UnitOfTemperature.CELSIUS
+
+    # Mock hass.data needed by state update - simplify to empty dict
+    hass.data = {}
+
+    # Mock hass.states needed by state update
+    hass.states = MagicMock()
+    hass.states.async_set_internal = AsyncMock()
 
     # Add other hass methods/attributes if the component uses them
     return hass

@@ -51,10 +51,10 @@
         - [x] Add mock `hass.loop.call_soon_threadsafe` in `conftest.py`. (Stop after this step for review/commit.)
     - [ ] **Step 0.4.2: Finalize `test_async_turn_on`.**
         - [x] Implement initial logic.
-        - [ ] Verify test passes (after Step 0.4.1 fix). (Stop after this step for review/commit.)
+        - [x] Verify test passes (after Step 0.4.1 fix). (Stop after this step for review/commit.)
     - [ ] **Step 0.4.3: Finalize `test_async_turn_off`.**
         - [x] Implement initial logic.
-        - [ ] Verify test passes (after Step 0.4.1 fix). (Stop after this step for review/commit.)
+        - [x] Verify test passes (after Step 0.4.1 fix). (Stop after this step for review/commit.)
     - [ ] **Step 0.4.4: Implement `test_async_set_temperature`.** (Stop after this step for review/commit.)
     - [ ] **Step 0.4.5: Implement `test_async_set_hvac_mode`.** (Stop after this step for review/commit.)
     - [ ] **Step 0.4.6: Implement `test_async_set_fan_mode`.** (Stop after this step for review/commit.)
