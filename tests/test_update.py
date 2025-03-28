@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 import socket # For potential timeout exception
+import logging
 
 from homeassistant.core import HomeAssistant
 from homeassistant.const import STATE_ON, STATE_OFF
@@ -106,10 +107,35 @@ async def test_update_timeout(mock_get_values, gree_climate_device: GreeClimate,
     assert gree_climate_device.available is False
     assert gree_climate_device._device_online is False
 
-async def test_update_invalid_response(gree_climate_device: GreeClimate):
+@patch("custom_components.gree.climate.GreeClimate.GreeGetValues")
+async def test_update_invalid_response(mock_get_values, gree_climate_device: GreeClimate, mock_hass: HomeAssistant, caplog):
     """Test state update when device returns invalid/malformed data."""
-    # TODO: Implement this test
-    pass
+    # Simulate an invalid response (list too short)
+    invalid_response = [1, 2, 3]
+    mock_get_values.return_value = invalid_response
+    expected_options_len = len(gree_climate_device._optionsToFetch)
+
+    # Store initial state for comparison
+    initial_ac_options = gree_climate_device._acOptions.copy()
+
+    # Ensure device starts online, has key, and feature checks are skipped
+    gree_climate_device._device_online = True
+    gree_climate_device.available = True
+    gree_climate_device._has_temp_sensor = False
+    gree_climate_device._has_anti_direct_blow = False
+    gree_climate_device._has_light_sensor = False
+    gree_climate_device._encryption_key = b"testkey123456789"
+    gree_climate_device.CIPHER = MagicMock()
+
+    # Call update
+    await mock_hass.async_add_executor_job(gree_climate_device.update)
+
+    # Assertions
+    mock_get_values.assert_called_once_with(gree_climate_device._optionsToFetch)
+    assert gree_climate_device.available is True # Communication succeeded, parsing failed
+    assert gree_climate_device._acOptions == initial_ac_options # State should not change
+    # Check for the specific error log message
+    assert f"Error setting acOptions, expected {expected_options_len} values, received {len(invalid_response)}" in caplog.text
 
 async def test_update_sets_availability(gree_climate_device: GreeClimate):
     """Test that update correctly sets the 'available' property on success/failure."""

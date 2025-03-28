@@ -44,7 +44,7 @@
         - [x] Mark as `xfail` due to known source code issue. (Stop after this step for review/commit.)
         - [x] Verify test is marked `XFAIL` in output. (Stop after this step for review/commit.)
     - [x] **Step 0.3.3: Implement `test_update_timeout`.** (Stop after this step for review/commit.)
-    - [ ] **Step 0.3.4: Implement `test_update_invalid_response`.** (Stop after this step for review/commit.)
+    - [x] **Step 0.3.4: Implement `test_update_invalid_response`.** (Stop after this step for review/commit.)
     - [ ] **Step 0.3.5: Implement `test_update_sets_availability`.** (Stop after this step for review/commit.)
 - [ ] **Step 0.4: Implement and Fix `GreeClimate` Command Method Tests.**
     - [ ] **Step 0.4.1: Fix `mock_hass` fixture for command tests.**
