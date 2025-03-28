@@ -4,6 +4,13 @@ from unittest.mock import patch, MagicMock, AsyncMock
 from homeassistant.core import HomeAssistant
 from custom_components.gree.climate import GreeClimate
 from homeassistant.components.climate import HVACMode
+from homeassistant.components.climate.const import (
+    HVACAction,
+    ClimateEntityFeature,
+    ATTR_HVAC_MODE,
+    FAN_AUTO, FAN_HIGH, FAN_LOW, FAN_MEDIUM,
+    SWING_BOTH, SWING_HORIZONTAL, SWING_OFF, SWING_VERTICAL
+)
 # Add other necessary imports like HVACMode, specific temperatures, etc.
 
 # Fixtures (mock_hass, gree_climate_device) are automatically discovered from conftest.py
@@ -48,11 +55,12 @@ async def test_async_set_temperature(mock_set_temperature, gree_climate_device: 
     # Assuming signature is similar: set_temperature(self, *, temperature: float | None = None, ...)
     mock_set_temperature.assert_called_once_with(temperature=test_temp)
 
-@patch("custom_components.gree.climate.GreeClimate.SendStateToAc")
-async def test_async_set_hvac_mode(mock_send_state, gree_climate_device: GreeClimate):
-    """Test setting the HVAC mode."""
-    # TODO: Implement this test
-    pass
+@pytest.mark.asyncio
+@patch("custom_components.gree.climate.GreeClimate.set_hvac_mode")
+async def test_async_set_hvac_mode(mock_set_hvac_mode, gree_climate_device):
+    """Test setting HVAC mode calls the synchronous method."""
+    await gree_climate_device.async_set_hvac_mode(hvac_mode=HVACMode.COOL)
+    mock_set_hvac_mode.assert_called_once_with(HVACMode.COOL)
 
 @patch("custom_components.gree.climate.GreeClimate.SendStateToAc")
 async def test_async_set_fan_mode(mock_send_state, gree_climate_device: GreeClimate):

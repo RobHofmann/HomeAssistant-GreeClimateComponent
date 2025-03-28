@@ -56,7 +56,7 @@
         - [x] Implement initial logic.
         - [x] Verify test passes (after Step 0.4.1 fix). (Stop after this step for review/commit.)
     - [x] **Step 0.4.4: Implement `test_async_set_temperature`.** (Stop after this step for review/commit.)
-    - [ ] **Step 0.4.5: Implement `test_async_set_hvac_mode`.** (Stop after this step for review/commit.)
+    - [x] **Step 0.4.5: Implement `test_async_set_hvac_mode`.** (Stop after this step for review/commit.)
     - [ ] **Step 0.4.6: Implement `test_async_set_fan_mode`.** (Stop after this step for review/commit.)
     - [ ] **Step 0.4.7: Implement `test_async_set_swing_mode`.** (Stop after this step for review/commit.)
 - [ ] **Step 0.5: Implement and Fix Other Foundational Tests.**
