@@ -36,11 +36,17 @@ async def test_async_turn_off(mock_turn_off, gree_climate_device: GreeClimate):
     mock_turn_off.assert_called_once()
     # TODO: Verify the exact expected call (e.g., with Pow=0)
 
-@patch("custom_components.gree.climate.GreeClimate.SendStateToAc")
-async def test_async_set_temperature(mock_send_state, gree_climate_device: GreeClimate):
+@patch("custom_components.gree.climate.GreeClimate.set_temperature") # Patch synchronous method
+async def test_async_set_temperature(mock_set_temperature, gree_climate_device: GreeClimate):
     """Test setting the target temperature."""
-    # TODO: Implement this test (Set initial temp, call set_temperature, assert SendStateToAc)
-    pass
+    test_temp = 24.0
+    
+    # Call the async service method
+    await gree_climate_device.async_set_temperature(temperature=test_temp)
+    
+    # Assert the synchronous method was called via executor
+    # Assuming signature is similar: set_temperature(self, *, temperature: float | None = None, ...)
+    mock_set_temperature.assert_called_once_with(temperature=test_temp)
 
 @patch("custom_components.gree.climate.GreeClimate.SendStateToAc")
 async def test_async_set_hvac_mode(mock_send_state, gree_climate_device: GreeClimate):
