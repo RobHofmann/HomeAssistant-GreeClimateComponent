@@ -1,10 +1,8 @@
 import pytest
 from unittest.mock import patch, MagicMock
-import socket # For potential timeout exception
-import logging
 
 from homeassistant.core import HomeAssistant
-from homeassistant.const import STATE_ON, STATE_OFF
+from homeassistant.const import STATE_ON
 from homeassistant.components.climate import HVACMode
 
 from custom_components.gree.climate import (

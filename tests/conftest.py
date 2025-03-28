@@ -8,7 +8,7 @@ from homeassistant.const import UnitOfTemperature
 # Adjust the import path if your structure is different
 from custom_components.gree.climate import (
     GreeClimate,
-    DEFAULT_NAME, DEFAULT_PORT, DEFAULT_TIMEOUT, DEFAULT_TARGET_TEMP_STEP,
+    DEFAULT_PORT, DEFAULT_TIMEOUT, DEFAULT_TARGET_TEMP_STEP,
     HVAC_MODES, FAN_MODES, SWING_MODES, PRESET_MODES
 )
 

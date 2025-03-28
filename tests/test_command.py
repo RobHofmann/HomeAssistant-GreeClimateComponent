@@ -1,15 +1,11 @@
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch
 
-from homeassistant.core import HomeAssistant
 from custom_components.gree.climate import GreeClimate
 from homeassistant.components.climate import HVACMode
 from homeassistant.components.climate.const import (
-    HVACAction,
-    ClimateEntityFeature,
-    ATTR_HVAC_MODE,
-    FAN_AUTO, FAN_HIGH, FAN_LOW, FAN_MEDIUM,
-    SWING_BOTH, SWING_HORIZONTAL, SWING_OFF, SWING_VERTICAL
+    FAN_MEDIUM,
+    SWING_VERTICAL
 )
 # Add other necessary imports like HVACMode, specific temperatures, etc.
 

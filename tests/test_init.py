@@ -1,5 +1,3 @@
-import pytest
-from unittest.mock import MagicMock
 
 from homeassistant.core import HomeAssistant
 from custom_components.gree.climate import GreeClimate

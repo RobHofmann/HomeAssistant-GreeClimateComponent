@@ -1,6 +1,4 @@
-import pytest
 
-from homeassistant.core import HomeAssistant
 from custom_components.gree.climate import GreeClimate
 from homeassistant.components.climate import HVACMode
 
