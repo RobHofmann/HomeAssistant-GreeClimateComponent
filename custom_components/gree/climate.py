@@ -107,7 +107,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_AUTO_LIGHT): cv.entity_id,
     vol.Optional(CONF_TARGET_TEMP): cv.entity_id,
     vol.Optional(CONF_ENCRYPTION_VERSION, default=1): cv.positive_int,
-    vol.Optional(CONF_HORIZONTAL_SWING, default=False): cv.boolean,
+    vol.Optional(CONF_HORIZONTAL_SWING, default=False): cv.entity_id,
     vol.Optional(CONF_ANTI_DIRECT_BLOW): cv.entity_id,
     vol.Optional(CONF_DISABLE_AVAILABLE_CHECK, default=False): cv.boolean,
     vol.Optional(CONF_MAX_ONLINE_ATTEMPTS, default=3): cv.positive_int,
