@@ -590,11 +590,25 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('HA fan mode set according to HVAC state to: ' + str(self._fan_mode))
 
     def UpdateHACurrentTemperature(self):
-        if not self._temp_sensor_entity_id:
-            if self._has_temp_sensor:
-                temp = self._acOptions['TemSen'] if self._acOptions['TemSen'] <= TEMP_OFFSET else self._acOptions['TemSen'] - TEMP_OFFSET
-                self._current_temperature = self.hass.config.units.temperature(float(temp), self._unit_of_measurement)
-                _LOGGER.info('HA current temperature set with device built-in temperature sensor state : ' + str(self._current_temperature))
+        # pick up the remote’s unit flag
+        unit_flag = int(self._acOptions.get('TemUn', 0))
+        raw = float(self._acOptions['SetTem'])
+
+        if unit_flag == 1:
+            # AC is in “Fahrenheit mode” → raw is actually in °C, so convert
+            self._target_temperature = raw * 9.0/5.0 + 32.0
+            self._unit_of_measurement = '°F'
+        else:
+            # AC in “Celsius mode”
+            self._target_temperature = raw
+            self._unit_of_measurement = '°C'
+
+        _LOGGER.info(
+            'HA target temperature set using TemUn=%s → %s%s',
+            unit_flag,
+            round(self._target_temperature,1),
+            self._unit_of_measurement
+        )
 
     def UpdateHAStateToCurrentACState(self):
         self.UpdateHATargetTemperature()
@@ -681,10 +695,24 @@ class GreeClimate(ClimateEntity):
                     self._online_attempts = 0
             # Set latest status from device
             self._acOptions = self.SetAcOptions(self._acOptions, optionsToFetch, currentValues)
+            # Dynamic temperature unit detection based on TemUn
+            unit_code = self._acOptions.get('TemUn', 0)
+            if unit_code == 1:
+                self._unit_of_measurement = '°F'
+            else:
+                self._unit_of_measurement = '°C'
+            _LOGGER.info('Using TemUn=%s → display unit %s', unit_code, self._unit_of_measurement)
 
             # Overwrite status with our choices
             if not(acOptions == {}):
                 self._acOptions = self.SetAcOptions(self._acOptions, acOptions)
+            # Dynamic temperature unit detection based on TemUn
+            unit_code = self._acOptions.get('TemUn', 0)
+            if unit_code == 1:
+                self._unit_of_measurement = '°F'
+            else:
+                self._unit_of_measurement = '°C'
+            _LOGGER.info('Using TemUn=%s → display unit %s', unit_code, self._unit_of_measurement)
 
             # Initialize the receivedJsonPayload variable (for return)
             receivedJsonPayload = ''
