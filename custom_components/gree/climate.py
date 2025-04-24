@@ -706,13 +706,6 @@ class GreeClimate(ClimateEntity):
             # Overwrite status with our choices
             if not(acOptions == {}):
                 self._acOptions = self.SetAcOptions(self._acOptions, acOptions)
-            # Dynamic temperature unit detection based on TemUn
-            unit_code = self._acOptions.get('TemUn', 0)
-            if unit_code == 1:
-                self._unit_of_measurement = '°F'
-            else:
-                self._unit_of_measurement = '°C'
-            _LOGGER.info('Using TemUn=%s → display unit %s', unit_code, self._unit_of_measurement)
 
             # Initialize the receivedJsonPayload variable (for return)
             receivedJsonPayload = ''
