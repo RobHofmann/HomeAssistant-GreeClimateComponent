@@ -614,7 +614,7 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info(
             f"HA current temperature set via TemSen={raw} → {temp:.1f}{unit}"
         )
-        
+
     def UpdateTargetTemperature(self):
         # pick up the remote’s unit flag
         unit_flag = int(self._acOptions.get('TemUn', 0))
@@ -644,9 +644,9 @@ class GreeClimate(ClimateEntity):
         if self._horizontal_swing:
             self.UpdateHACurrentPresetMode()
         self.UpdateHAFanMode()
-        self.UpdateTargetTemperature()
         if not self._temp_sensor_entity_id:
             self.UpdateHAAmbientTemperature()
+        self.UpdateTargetTemperature()
         
 
     def SyncState(self, acOptions = {}):
