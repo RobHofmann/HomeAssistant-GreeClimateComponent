@@ -652,7 +652,7 @@ class GreeClimate(ClimateEntity):
     def SyncState(self, acOptions = {}):
         #Fetch current settings from HVAC
         _LOGGER.info('Starting SyncState')
-
+        # Attempt to get the device ambient temp when temp_sensor in climate.yaml is not set 
         if not self._temp_sensor_entity_id:
             if self._has_temp_sensor is None:
                 _LOGGER.info('Attempt to check whether device has an built-in temperature sensor')
