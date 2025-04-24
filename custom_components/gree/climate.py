@@ -614,6 +614,26 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info(
             f"HA current temperature set via TemSen={raw} → {temp:.1f}{unit}"
         )
+    def UpdateTargetTemperature(self):
+        # pick up the remote’s unit flag
+        unit_flag = int(self._acOptions.get('TemUn', 0))
+        raw = float(self._acOptions['SetTem'])
+
+        if unit_flag == 1:
+            # AC is in “Fahrenheit mode” → raw is actually in °C, so convert
+            self._target_temperature = raw * 9.0/5.0 + 32.0
+            self._unit_of_measurement = '°F'
+        else:
+            # AC in “Celsius mode”
+            self._target_temperature = raw
+            self._unit_of_measurement = '°C'
+
+        _LOGGER.info(
+            'HA target temperature set using TemUn=%s → %s%s',
+            unit_flag,
+            round(self._target_temperature,1),
+            self._unit_of_measurement
+        )
 
     def UpdateHAStateToCurrentACState(self):
         self.UpdateHATargetTemperature()
