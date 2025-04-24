@@ -561,32 +561,6 @@ class GreeClimate(ClimateEntity):
                         self.hass.states.async_set(self._anti_direct_blow_entity_id, self._current_anti_direct_blow, attr)
             _LOGGER.info('HA anti direct blow option set according to HVAC state to: ' + str(self._current_anti_direct_blow))
 
-    def UpdateHAAmbientTemperature(self):
-        raw = self._acOptions.get('TemSen')
-        try:
-            raw = float(raw)
-        except (TypeError, ValueError):
-            _LOGGER.debug("Skipping TemSen update; invalid raw value: %s", raw)
-            return
-    
-        # Gree reports TemSen = actual°C + 40
-        temp_c = raw - TEMP_OFFSET
-    
-        # If TemUn == 1, convert to °F; otherwise stay in °C
-        if int(self._acOptions.get('TemUn', 0)):
-            temp = temp_c * 9.0/5.0 + 32.0
-            unit = '°F'
-        else:
-            temp = temp_c
-            unit = '°C'
-    
-        self._current_temperature = temp
-        self._unit_of_measurement = unit
-    
-        _LOGGER.info(
-            f"HA current temperature set via TemSen={raw} → {temp:.1f}{unit}"
-        )
-    
     def UpdateHAHvacMode(self):
         # Sync current HVAC operation mode to HA
         if (self._acOptions['Pow'] == 0):
@@ -615,6 +589,32 @@ class GreeClimate(ClimateEntity):
             self._fan_mode = self._fan_modes[int(self._acOptions['WdSpd'])]
         _LOGGER.info('HA fan mode set according to HVAC state to: ' + str(self._fan_mode))
 
+    def UpdateHAAmbientTemperature(self):
+        raw = self._acOptions.get('TemSen')
+        try:
+            raw = float(raw)
+        except (TypeError, ValueError):
+            _LOGGER.debug("Skipping TemSen update; invalid raw value: %s", raw)
+            return
+    
+        # Gree reports TemSen = actual°C + 40
+        temp_c = raw - TEMP_OFFSET
+    
+        # If TemUn == 1, convert to °F; otherwise stay in °C
+        if int(self._acOptions.get('TemUn', 0)):
+            temp = temp_c * 9.0/5.0 + 32.0
+            unit = '°F'
+        else:
+            temp = temp_c
+            unit = '°C'
+    
+        self._current_temperature = temp
+        self._unit_of_measurement = unit
+    
+        _LOGGER.info(
+            f"HA current temperature set via TemSen={raw} → {temp:.1f}{unit}"
+        )
+        
     def UpdateTargetTemperature(self):
         # pick up the remote’s unit flag
         unit_flag = int(self._acOptions.get('TemUn', 0))
@@ -734,13 +734,6 @@ class GreeClimate(ClimateEntity):
             # Overwrite status with our choices
             if not(acOptions == {}):
                 self._acOptions = self.SetAcOptions(self._acOptions, acOptions)
-            # Dynamic temperature unit detection based on TemUn
-            unit_code = self._acOptions.get('TemUn', 0)
-            if unit_code == 1:
-                self._unit_of_measurement = '°F'
-            else:
-                self._unit_of_measurement = '°C'
-            _LOGGER.info('Using TemUn=%s → display unit %s', unit_code, self._unit_of_measurement)
 
             # Initialize the receivedJsonPayload variable (for return)
             receivedJsonPayload = ''
