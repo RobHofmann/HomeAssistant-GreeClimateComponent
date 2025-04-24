@@ -589,25 +589,30 @@ class GreeClimate(ClimateEntity):
             self._fan_mode = self._fan_modes[int(self._acOptions['WdSpd'])]
         _LOGGER.info('HA fan mode set according to HVAC state to: ' + str(self._fan_mode))
 
-    def UpdateHACurrentTemperature(self):
-        # pick up the remote’s unit flag
-        unit_flag = int(self._acOptions.get('TemUn', 0))
-        raw = float(self._acOptions['SetTem'])
-
-        if unit_flag == 1:
-            # AC is in “Fahrenheit mode” → raw is actually in °C, so convert
-            self._target_temperature = raw * 9.0/5.0 + 32.0
-            self._unit_of_measurement = '°F'
+    def UpdateHAAmbientTemperature(self):
+        raw = self._acOptions.get('TemSen')
+        try:
+            raw = float(raw)
+        except (TypeError, ValueError):
+            _LOGGER.debug("Skipping TemSen update; invalid raw value: %s", raw)
+            return
+    
+        # Gree reports TemSen = actual°C + 40
+        temp_c = raw - TEMP_OFFSET
+    
+        # If TemUn == 1, convert to °F; otherwise stay in °C
+        if int(self._acOptions.get('TemUn', 0)):
+            temp = temp_c * 9.0/5.0 + 32.0
+            unit = '°F'
         else:
-            # AC in “Celsius mode”
-            self._target_temperature = raw
-            self._unit_of_measurement = '°C'
-
+            temp = temp_c
+            unit = '°C'
+    
+        self._current_temperature = temp
+        self._unit_of_measurement = unit
+    
         _LOGGER.info(
-            'HA target temperature set using TemUn=%s → %s%s',
-            unit_flag,
-            round(self._target_temperature,1),
-            self._unit_of_measurement
+            f"HA current temperature set via TemSen={raw} → {temp:.1f}{unit}"
         )
 
     def UpdateHAStateToCurrentACState(self):
