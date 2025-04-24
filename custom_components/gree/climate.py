@@ -614,6 +614,7 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info(
             f"HA current temperature set via TemSen={raw} → {temp:.1f}{unit}"
         )
+        
     def UpdateTargetTemperature(self):
         # pick up the remote’s unit flag
         unit_flag = int(self._acOptions.get('TemUn', 0))
@@ -651,7 +652,7 @@ class GreeClimate(ClimateEntity):
     def SyncState(self, acOptions = {}):
         #Fetch current settings from HVAC
         _LOGGER.info('Starting SyncState')
-
+        # Attempt to get the device ambient temp when temp_sensor in climate.yaml is not set 
         if not self._temp_sensor_entity_id:
             if self._has_temp_sensor is None:
                 _LOGGER.info('Attempt to check whether device has an built-in temperature sensor')
@@ -766,17 +767,37 @@ class GreeClimate(ClimateEntity):
         
     @callback
     def _async_update_current_temp(self, state):
-        _LOGGER.info('Thermostat updated with changed temp_sensor state | ' + str(state.state))
-        unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
+        _LOGGER.info('Thermostat external sensor update | %s', state.state)
+        raw = state.state
+        if not self.represents_float(raw):
+            _LOGGER.debug('Temp sensor state "%s" is not numeric. Ignoring.', raw)
+            return
+
         try:
-            _state = state.state
-            _LOGGER.info('Current state temp_sensor: ' + _state)
-            if self.represents_float(_state):
-                self._current_temperature = self.hass.config.units.temperature(
-                    float(_state), unit)
-                _LOGGER.info('Current temp: ' + str(self._current_temperature))
+            val = float(raw)
         except ValueError as ex:
-            _LOGGER.error('Unable to update from temp_sensor: %s' % ex)
+            _LOGGER.error('Unable to parse temp_sensor state: %s', ex)
+            return
+
+        # What unit the sensor is reporting (°C or °F)
+        sensor_unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
+
+        # Convert into the climate entity's unit (self.temperature_unit)
+        # so that it always matches the user's HA settings.
+        self._current_temperature = self.hass.config.units.temperature(
+            val, sensor_unit
+        )
+        # Make sure the climate entity reports its own unit
+        self._unit_of_measurement = self.temperature_unit
+
+        _LOGGER.info(
+            'External sensor %s%s → converted to %s%s',
+            val,
+            sensor_unit or '',
+            self._current_temperature,
+            self._unit_of_measurement
+        )
+
 
     def represents_float(self, s):
         _LOGGER.info('temp_sensor state represents_float |' + str(s))
@@ -1374,3 +1395,4 @@ class GreeClimate(ClimateEntity):
     async def async_added_to_hass(self):
         _LOGGER.info('Gree climate device added to hass()')
         self.update()
+
