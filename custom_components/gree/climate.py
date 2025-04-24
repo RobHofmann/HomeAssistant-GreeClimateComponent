@@ -643,7 +643,9 @@ class GreeClimate(ClimateEntity):
         if self._horizontal_swing:
             self.UpdateHACurrentPresetMode()
         self.UpdateHAFanMode()
-        self.UpdateHACurrentTemperature()
+        if not self._temp_sensor_entity_id:
+            self.UpdateHAAmbientTemperature()
+        self.UpdateTargetTemperature()
         
 
     def SyncState(self, acOptions = {}):
