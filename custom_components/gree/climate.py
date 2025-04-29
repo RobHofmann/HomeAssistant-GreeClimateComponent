@@ -170,7 +170,6 @@ class GreeClimate(ClimateEntity):
         self._disable_available_check = disable_available_check
 
         self._target_temperature = None
-        self._tem_rec = 0
         self._target_temperature_step = target_temp_step
 
         self._unit_of_measurement = '°C'
@@ -1177,12 +1176,6 @@ class GreeClimate(ClimateEntity):
         # Return the temperature we try to reach.
         return self._target_temperature
     
-    @property 
-    def tem_rec(self):
-        _LOGGER.info('tem_rec(): ' + str(self.tem_rec))
-        # Return the temperature we try to reach.
-        return self._tem_rec
-        
     @property
     def target_temperature_step(self):
         _LOGGER.info('target_temperature_step(): ' + str(self._target_temperature_step))
@@ -1268,10 +1261,10 @@ class GreeClimate(ClimateEntity):
                 # TempRec TemSet Mapping for setting Fahrenheit
                 # TemSet = round((desired_temp_f - 32.0) * 5.0 / 9.0)
                 # TemRec = (int) ((((desired_temp_f - 32.0) * 5.0 / 9.0) - TemSet) > 0)
-                self._tem_rec = 1 if (raw_c - int(round(raw_c)) ) > 0 else 0
-                self.SyncState({ 'SetTem': int(round(raw_c)), 'TemRec': self._tem_rec })
+                tem_rec = 1 if (raw_c - int(round(raw_c)) ) > 0 else 0
+                self.SyncState({ 'SetTem': int(round(raw_c)), 'TemRec': tem_rec })
                 _LOGGER.debug('method set_temperature SetTem=' + str(int(round(raw_c))) )
-                _LOGGER.debug('method set_temperature TemRec=' + str(self._tem_rec) )
+                _LOGGER.debug('method set_temperature TemRec=' + str(tem_rec) )
                 self.schedule_update_ha_state()
                 
 
