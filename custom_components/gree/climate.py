@@ -72,7 +72,7 @@ MIN_TEMP = 16
 MAX_TEMP = 30
 
 # update() interval
-SCAN_INTERVAL = timedelta(seconds=10)
+SCAN_INTERVAL = timedelta(seconds=60)
 
 TEMP_OFFSET  = 40
 
