@@ -72,7 +72,7 @@ MIN_TEMP = 16
 MAX_TEMP = 30
 
 # update() interval
-SCAN_INTERVAL = timedelta(seconds=60)
+SCAN_INTERVAL = timedelta(seconds=10)
 
 TEMP_OFFSET  = 40
 
@@ -170,6 +170,7 @@ class GreeClimate(ClimateEntity):
         self._disable_available_check = disable_available_check
 
         self._target_temperature = None
+        self._tem_rec = 0
         self._target_temperature_step = target_temp_step
         self._native_unit_of_measurement = '°C'
         self._unit_of_measurement = '°C'
@@ -240,7 +241,7 @@ class GreeClimate(ClimateEntity):
         self._optionsToFetch = ["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt","SlpMod"]
 
         if temp_sensor_entity_id:
-            _LOGGER.info('Setting up temperature sensor: ' + str(temp_sensor_entity_id))
+            _LOGGER.info('Setting up remote temperature sensor: ' + str(temp_sensor_entity_id))
             async_track_state_change_event(hass, temp_sensor_entity_id, self._async_temp_sensor_changed)
                 
         if lights_entity_id:
@@ -442,6 +443,7 @@ class GreeClimate(ClimateEntity):
                     attr = target_temp_state.attributes
                     if self._target_temperature in range(MIN_TEMP, MAX_TEMP+1):
                         self.hass.states.async_set(self._target_temp_entity_id, float(self._target_temperature), attr)
+                        
             _LOGGER.info('HA target temp set according to HVAC state to: ' + str(self._acOptions['SetTem']))
 
     def UpdateHAOptions(self):
@@ -594,13 +596,9 @@ class GreeClimate(ClimateEntity):
         if not self._temp_sensor_entity_id:
             if self._has_temp_sensor:          
                 temp = self._acOptions['TemSen'] if self._acOptions['TemSen'] <= TEMP_OFFSET else self._acOptions['TemSen'] - TEMP_OFFSET
-                if int(self._acOptions.get('TemUn', 0)):
-                    self._unit_of_measurement = '°F'
-                else:
-                    self._unit_of_measurement = '°C'
-                self._current_temperature = self.hass.config.units.temperature(float(temp), self._unit_of_measurement)
-                _LOGGER.info('HA current temperature set with device built-in temperature sensor state : ' + str(self._current_temperature))
-
+                self._current_temperature = float(temp) 
+                _LOGGER.debug('method UpdateHACurrentTemperature: HA current temperature set with device built-in temperature sensor state : ' + str(self._current_temperature))
+                
     def UpdateHAStateToCurrentACState(self):
         self.UpdateHATargetTemperature()
         self.UpdateHAOptions()
@@ -723,17 +721,26 @@ class GreeClimate(ClimateEntity):
         
     @callback
     def _async_update_current_temp(self, state):
-        _LOGGER.info('Thermostat updated with changed temp_sensor state | ' + str(state.state))
+        _LOGGER.debug('method _async_update_current_temp Thermostat updated with changed temp_sensor state | ' + str(state.state))
+        # Set unit = unit of measurement in the climate entity
         unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
+        _LOGGER.debug('method _async_update_current_temp Unit updated with changed temp_sensor state | ' + str(state.state))
         try:
-            _state = state.state
-            _LOGGER.info('Current state temp_sensor: ' + _state)
+            _state = state.state            
             if self.represents_float(_state):
-                self._current_temperature = self.hass.config.units.temperature(
-                    float(_state), unit)
-                _LOGGER.info('Current temp: ' + str(self._current_temperature))
+                # Native unit of measurement for Tosot / Gree units is Celsius
+                # If the HA system is configured for Fahrenheit, convert to Celsius for accurate reading
+                if unit != self._native_unit_of_measurement:
+                    _LOGGER.debug('method _async_update_current_temp Converting temperature from %s to %s' % (unit, self._native_unit_of_measurement))
+                    self._current_temperature = (float(_state) - 32) * 5 / 9 
+                    _LOGGER.debug('method _async_update_current_temp set ambient temp to: ' + str(self._current_temperature))
+                else:
+                    _LOGGER.debug('method _async_update_current_temp no conversion needed, temp is %s' % (unit))
+                    self._current_temperature = float(_state)
+
+                _LOGGER.debug('Ambient Current temp: ' + str(self._current_temperature))
         except ValueError as ex:
-            _LOGGER.error('Unable to update from temp_sensor: %s' % ex)
+            _LOGGER.error('method _async_update_current_temp Unable to update from temp_sensor: %s' % ex)
 
     def represents_float(self, s):
         _LOGGER.info('temp_sensor state represents_float |' + str(s))
@@ -1169,6 +1176,12 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('target_temperature(): ' + str(self._target_temperature))
         # Return the temperature we try to reach.
         return self._target_temperature
+    
+    @property 
+    def tem_rec(self):
+        _LOGGER.info('tem_rec(): ' + str(self.tem_rec))
+        # Return the temperature we try to reach.
+        return self._tem_rec
         
     @property
     def target_temperature_step(self):
@@ -1243,15 +1256,24 @@ class GreeClimate(ClimateEntity):
         return self._unique_id
 
     def set_temperature(self, **kwargs):
-        _LOGGER.info('set_temperature(): ' + str(kwargs.get(ATTR_TEMPERATURE)))
+        _LOGGER.debug('method set_temperature(): ATTR_TEMPERATURE value ' + str(kwargs.get(ATTR_TEMPERATURE)))
         # Set new target temperatures.
         if kwargs.get(ATTR_TEMPERATURE) is not None:
             # do nothing if temperature is none
             if not (self._acOptions['Pow'] == 0):
                 # do nothing if HVAC is switched off
-                _LOGGER.info('SyncState with SetTem=' + str(kwargs.get(ATTR_TEMPERATURE)))
-                self.SyncState({ 'SetTem': int(kwargs.get(ATTR_TEMPERATURE))})
+                raw_c = kwargs.get(ATTR_TEMPERATURE)
+                # Set Fahrenheit temperature correctly 
+                # See -> https://github.com/tomikaa87/gree-remote?tab=readme-ov-file
+                # TempRec TemSet Mapping for setting Fahrenheit
+                # TemSet = round((desired_temp_f - 32.0) * 5.0 / 9.0)
+                # TemRec = (int) ((((desired_temp_f - 32.0) * 5.0 / 9.0) - TemSet) > 0)
+                self._tem_rec = 1 if (raw_c - int(round(raw_c)) ) > 0 else 0
+                self.SyncState({ 'SetTem': int(round(raw_c)), 'TemRec': self._tem_rec })
+                _LOGGER.debug('method set_temperature SetTem=' + str(int(round(raw_c))) )
+                _LOGGER.debug('method set_temperature TemRec=' + str(self._tem_rec) )
                 self.schedule_update_ha_state()
+                
 
     def set_swing_mode(self, swing_mode):
         _LOGGER.info('Set swing mode(): ' + str(swing_mode))
