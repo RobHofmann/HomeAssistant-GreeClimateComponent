@@ -172,7 +172,7 @@ class GreeClimate(ClimateEntity):
         self._target_temperature = None
         self._tem_rec = 0
         self._target_temperature_step = target_temp_step
-        self._native_unit_of_measurement = '°C'
+
         self._unit_of_measurement = '°C'
 
         self._hvac_modes = hvac_modes
@@ -730,8 +730,8 @@ class GreeClimate(ClimateEntity):
             if self.represents_float(_state):
                 # Native unit of measurement for Tosot / Gree units is Celsius
                 # If the HA system is configured for Fahrenheit, convert to Celsius for accurate reading
-                if unit != self._native_unit_of_measurement:
-                    _LOGGER.debug('method _async_update_current_temp Converting temperature from %s to %s' % (unit, self._native_unit_of_measurement))
+                if unit != self._unit_of_measurement:
+                    _LOGGER.debug('method _async_update_current_temp Converting temperature from %s to %s' % (unit, self._unit_of_measurement))
                     self._current_temperature = (float(_state) - 32) * 5 / 9 
                     _LOGGER.debug('method _async_update_current_temp set ambient temp to: ' + str(self._current_temperature))
                 else:
@@ -1149,9 +1149,9 @@ class GreeClimate(ClimateEntity):
 
     @property
     def temperature_unit(self):
-        _LOGGER.info('temperature_unit(): ' + str(self._native_unit_of_measurement))
+        _LOGGER.info('temperature_unit(): ' + str(self._unit_of_measurement))
         # Return the unit of measurement.
-        return self._native_unit_of_measurement
+        return self._unit_of_measurement
 
     @property
     def current_temperature(self):
