@@ -77,8 +77,6 @@ MAX_TEMP_F = 86
 # update() interval
 SCAN_INTERVAL = timedelta(seconds=60)
 
-TEMP_OFFSET  = -40
-
 # fixed values in gree mode lists
 HVAC_MODES = [HVACMode.AUTO, HVACMode.COOL, HVACMode.DRY, HVACMode.FAN_ONLY, HVACMode.HEAT, HVACMode.OFF]
 
@@ -176,6 +174,7 @@ class GreeClimate(ClimateEntity):
         self._target_temperature_step = target_temp_step
         # Device uses a combination of Celsius + a set bit for Fahrenheit, so the integration needs to be aware of the units.
         self._unit_of_measurement = hass.config.units.temperature_unit
+        self._temsen_temperature_offset = -40 # Default of -40. Only change if firmware version > 4.0
         _LOGGER.info("Unit of measurement: %s", self._unit_of_measurement)
 
         self._hvac_modes = hvac_modes
@@ -239,6 +238,22 @@ class GreeClimate(ClimateEntity):
             self._uid = uid
         else:
             self._uid = 0
+
+        # Temperature offset for TemSen. Should be -40 for all versions < 4.0
+        self._sw_version = self.GetDeviceVersion()
+
+        try:
+            major = int(self._sw_version.lstrip("Vv").split(".")[0])
+            if major >= 4:
+                _LOGGER.info("Firmware version > 4.X. TemSen temperature offset set to 0.")
+                self._temsen_temperature_offset = 0
+            else:
+                _LOGGER.info("Firmware version < 4.X. TemSen temperature offset set to -40.")
+                self._temsen_temperature_offset = -40
+        except (ValueError, AttributeError):
+            _LOGGER.warning("Could not parse firmware version %s. Setting TemSen temperature offset to -40", ver_str)
+            self._temsen_temperature_offset = -40
+
         
         self._acOptions = { 'Pow': None, 'Mod': None, 'SetTem': None, 'WdSpd': None, 'Air': None, 'Blo': None, 'Health': None, 'SwhSlp': None, 'Lig': None, 'SwingLfRig': None, 'SwUpDn': None, 'Quiet': None, 'Tur': None, 'StHt': None, 'TemUn': None, 'HeatCoolType': None, 'TemRec': None, 'SvSt': None, 'SlpMod': None }
         self._optionsToFetch = ["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt","SlpMod"]
@@ -336,6 +351,44 @@ class GreeClimate(ClimateEntity):
         replacedPack = decodedPack.replace('\x0f', '').replace(decodedPack[decodedPack.rindex('}')+1:], '')
         loadedJsonPack = simplejson.loads(replacedPack)  
         return loadedJsonPack
+
+    def GetDeviceVersion(self):
+        """
+        Query the indoor unit for its firmware string (e.g. 'V4.00').
+        Returns None on timeout or error.
+        """
+        _LOGGER.info("Retrieving HVAC firmware version")
+
+        GENERIC_GREE_DEVICE_KEY = b"a3K8Bx%2r8Y7#xDh"
+        cipher = AES.new(GENERIC_GREE_DEVICE_KEY, AES.MODE_ECB)
+
+        scan_payload = '{"t":"scan"}'  # same as the phone app sends
+
+        # FetchResult will try to verify a GCM tag if encryption_version == 2.
+        # Temporarily force version 1, then restore the real value.
+        real_enc_ver = self.encryption_version
+        self.encryption_version = 1
+        try:
+            dev_json = self.FetchResult(
+                cipher,
+                self._ip_addr,  # **unicast**, not broadcast
+                self._port,
+                self._timeout,
+                scan_payload,
+            )
+        except Exception as exc:  # socket.timeout, JSON error, …
+            _LOGGER.warning("Could not obtain firmware version: %s", exc)
+            return None
+        finally:
+            self.encryption_version = real_enc_ver  # put things back
+
+        if dev_json.get("mac", "").lower() == self._mac_addr:
+            ver = dev_json.get("ver")
+            _LOGGER.info("Detected Gree firmware version: %s", ver)
+            return ver
+
+        _LOGGER.warning("Scan reply came from a different MAC – ignoring")
+        return None
 
     def GetDeviceKey(self):
         _LOGGER.info('Retrieving HVAC encryption key')
@@ -612,8 +665,14 @@ class GreeClimate(ClimateEntity):
         if not self._temp_sensor_entity_id:
             if self._has_temp_sensor:          
 
-                temp_c = self._acOptions['TemSen'] + TEMP_OFFSET # Get the temperature from the device
+                _LOGGER.debug("method UpdateHACurrentTemperature: TemSen: " + str(self._acOptions['TemSen']))
+
+                # For firmware versions < 4.0, the temperature is in Celsius + offset of 40C
+                temp_c = self._acOptions['TemSen'] + self._temsen_temperature_offset # temsen_temperature_offset is -40 for all firmware versions < 4.0
                 temp_f = self.gree_c_to_f(SetTem=temp_c, TemRec=0) # Convert to Fahrenheit using TemRec bit
+
+                _LOGGER.debug("method UpdateHACurrentTemperature: temp_c = " + str(temp_c))
+                _LOGGER.debug("method UpdateHACurrentTemperature: temp_f =" + str(temp_f))
 
                 if (self._unit_of_measurement == "°C"):
                     self._current_temperature = temp_c
@@ -645,7 +704,7 @@ class GreeClimate(ClimateEntity):
                 try:
                     temp_sensor = self.GreeGetValues(["TemSen"])
                 except:
-                    _LOGGER.info('Could not determine whether device has an built-in temperature sensor. Retrying at next update()')
+                    _LOGGER.info('Could not determine whether device has a built-in temperature sensor. Retrying at next update()')
                 else:
                     if temp_sensor:
                         self._has_temp_sensor = True
@@ -749,7 +808,7 @@ class GreeClimate(ClimateEntity):
         _LOGGER.debug('method _async_update_current_temp Thermostat updated with changed temp_sensor state | ' + str(state.state))
         # Set unit = unit of measurement in the climate entity
         unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
-        _LOGGER.debug('method _async_update_current_temp Unit updated with changed temp_sensor state | ' + str(unit))
+        _LOGGER.debug('method _async_update_current_temp Unit updated with changed temp_sensor unit | ' + str(unit))
         try:
             _state = state.state            
             if self.represents_float(_state):
@@ -1122,7 +1181,7 @@ class GreeClimate(ClimateEntity):
     def _async_update_current_target_temp(self, state):
 
         if not self.represents_float(state.state):
-            _LOGGER.error('Unable to update from target_temp_entity!')
+            _LOGGER.error('Unable to update from target_temp_entity! State is: %s' % state.state)
             return
 
         s = int(float(state.state))
