@@ -251,7 +251,7 @@ class GreeClimate(ClimateEntity):
                 _LOGGER.info("Firmware version < 4.X. TemSen temperature offset set to -40.")
                 self._temsen_temperature_offset = -40
         except (ValueError, AttributeError):
-            _LOGGER.warning("Could not parse firmware version %s. Setting TemSen temperature offset to -40", ver_str)
+            _LOGGER.warning("Could not parse firmware version %s. Setting TemSen temperature offset to -40", self._sw_version)
             self._temsen_temperature_offset = -40
 
         
@@ -329,6 +329,7 @@ class GreeClimate(ClimateEntity):
             self._auto_xfan = False   
 
     # Pad helper method to help us get the right string for encrypting
+
     def Pad(self, s):
         aesBlockSize = 16
         return s + (aesBlockSize - len(s) % aesBlockSize) * chr(aesBlockSize - len(s) % aesBlockSize)            
@@ -1490,3 +1491,74 @@ class GreeClimate(ClimateEntity):
         int_fahrenheit = round((min_fahrenheit + max_fahrenheit) / 2.0)
 
         return int_fahrenheit
+
+    class TempOffsetResolver:
+        """
+        Detect (once) whether this sensor reports temperatures in °C
+        or in (°C + 40).  After the decision is locked-in, every call
+        returns the corrected °C value.
+
+        Only two running values are stored (min & max raw), so memory
+        use is constant no matter how often the sensor updates.
+        """
+
+        def __init__(self,
+                     indoor_min: float = -10.0,   # coldest plausible indoor °C
+                     indoor_max: float = 37.0,    # hottest plausible indoor °C
+                     offset:     float = 40.0,    # device’s fixed offset
+                     margin:     float = 2.0):    # tolerance before “impossible”):
+            self._lo_lim      = indoor_min - margin
+            self._hi_lim      = indoor_max + margin
+            self._offset      = offset
+
+            self._min_raw: float | None = None
+            self._max_raw: float | None = None
+            self._has_offset: bool | None = None   # undecided until True/False
+
+        def __call__(self, raw: float) -> float:
+            # ---- fast certainty checks ----------------------------------------
+            if raw < 0:  # negative → impossible with +40 °C offset
+                self._has_offset = False
+                return raw  # already correct
+
+            if self._has_offset is True:
+                return raw - self._offset
+            if self._has_offset is False:
+                return raw
+
+            # ---- original path (still undecided) ------------------------------
+            if self._min_raw is None or raw < self._min_raw:
+                self._min_raw = raw
+            if self._max_raw is None or raw > self._max_raw:
+                self._max_raw = raw
+
+            self._evaluate()  # may lock-in decision here
+
+            return raw - self._offset if self._has_offset else raw
+
+        def _evaluate(self) -> None:
+            """
+            Compare the raw range and (raw-offset) range against the
+            plausible indoor envelope.  Whichever fits strictly better wins.
+            """
+            lo, hi = self._min_raw, self._max_raw
+
+            penalty_no  = self._penalty(lo,             hi)
+            penalty_off = self._penalty(lo - self._offset,
+                                        hi - self._offset)
+
+            if penalty_no == penalty_off:
+                return                      # still ambiguous – keep collecting data
+            self._has_offset = penalty_off < penalty_no
+
+        def _penalty(self, lo: float, hi: float) -> float:
+            """
+            Distance (°C) by which the [lo, hi] interval lies outside
+            the indoor envelope.  Zero means entirely plausible.
+            """
+            pen = 0.0
+            if lo < self._lo_lim:
+                pen += self._lo_lim - lo
+            if hi > self._hi_lim:
+                pen += hi - self._hi_lim
+            return pen
