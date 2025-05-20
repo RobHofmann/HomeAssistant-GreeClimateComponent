@@ -8,6 +8,7 @@ Tested on the following hardware:
 - Cooper & Hunter (CH-S12FTXE(WI-FI)-NG)
 - AC Pioneer Fortis Series with WI-FI module CS532AE
 - AC Gree GWH12ACC-K6DNA1D
+- AC Gree 3VIR24HP230V1AH
 - Inventor Life Pro WiFi
 - Toyotomi Izuru TRN/TRG-828ZR
 - Sinclair ASH-13BIF2
