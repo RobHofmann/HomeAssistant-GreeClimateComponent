@@ -14,6 +14,7 @@
   sleep: <input_boolean used to switch sleep on/off of your first AC>
   powersave: <input_boolean used to switch powersave on/off of your first AC>
   eightdegheat: <input_boolean used to switch 8 degree heating on/off on your first AC>
+  temp_sensor_offset: <input_boolean for temperature sensor offset in first AC room>
 
 - platform: gree
   # required settings:

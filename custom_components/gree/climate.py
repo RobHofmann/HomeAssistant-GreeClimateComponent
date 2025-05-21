@@ -62,6 +62,7 @@ CONF_ENCRYPTION_VERSION = 'encryption_version'
 CONF_DISABLE_AVAILABLE_CHECK  = 'disable_available_check'
 CONF_MAX_ONLINE_ATTEMPTS = 'max_online_attempts'
 CONF_LIGHT_SENSOR = 'light_sensor'
+CONF_TEMP_SENSOR_OFFSET = 'temp_sensor_offset'
 
 DEFAULT_PORT = 7000
 DEFAULT_TIMEOUT = 10
@@ -74,10 +75,10 @@ MAX_TEMP_C = 30
 MIN_TEMP_F = 61
 MAX_TEMP_F = 86
 
+TEMSEN_OFFSET = 40
+
 # update() interval
 SCAN_INTERVAL = timedelta(seconds=60)
-
-TEMP_OFFSET  = -40
 
 # fixed values in gree mode lists
 HVAC_MODES = [HVACMode.AUTO, HVACMode.COOL, HVACMode.DRY, HVACMode.FAN_ONLY, HVACMode.HEAT, HVACMode.OFF]
@@ -114,7 +115,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_ANTI_DIRECT_BLOW): cv.entity_id,
     vol.Optional(CONF_DISABLE_AVAILABLE_CHECK, default=False): cv.boolean,
     vol.Optional(CONF_MAX_ONLINE_ATTEMPTS, default=3): cv.positive_int,
-    vol.Optional(CONF_LIGHT_SENSOR): cv.entity_id
+    vol.Optional(CONF_LIGHT_SENSOR): cv.entity_id,
+    vol.Optional(CONF_TEMP_SENSOR_OFFSET): cv.boolean,
 })
 
 async def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
@@ -149,16 +151,17 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     encryption_version = config.get(CONF_ENCRYPTION_VERSION)
     disable_available_check = config.get(CONF_DISABLE_AVAILABLE_CHECK)
     max_online_attempts = config.get(CONF_MAX_ONLINE_ATTEMPTS)
+    temp_sensor_offset = config.get(CONF_TEMP_SENSOR_OFFSET)
     
     _LOGGER.info('Adding Gree climate device to hass')
 
     async_add_devices([
-        GreeClimate(hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, auto_xfan_entity_id, auto_light_entity_id, horizontal_swing, light_sensor_entity_id, encryption_version, disable_available_check, max_online_attempts, encryption_key, uid)
+        GreeClimate(hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, auto_xfan_entity_id, auto_light_entity_id, horizontal_swing, light_sensor_entity_id, encryption_version, disable_available_check, max_online_attempts, encryption_key, uid, temp_sensor_offset)
     ])
 
 class GreeClimate(ClimateEntity):
 
-    def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, auto_xfan_entity_id, auto_light_entity_id, horizontal_swing, light_sensor_entity_id, encryption_version, disable_available_check, max_online_attempts, encryption_key=None, uid=None):
+    def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, auto_xfan_entity_id, auto_light_entity_id, horizontal_swing, light_sensor_entity_id, encryption_version, disable_available_check, max_online_attempts, encryption_key=None, uid=None, temp_sensor_offset=None):
         _LOGGER.info('Initialize the GREE climate device')
         self.hass = hass
         self._name = name
@@ -200,6 +203,7 @@ class GreeClimate(ClimateEntity):
         self._light_sensor_entity_id = light_sensor_entity_id
         self._auto_xfan_entity_id = auto_xfan_entity_id
         self._auto_light_entity_id = auto_light_entity_id
+        self._temp_sensor_offset = temp_sensor_offset
 
         self._horizontal_swing = horizontal_swing
         self._has_temp_sensor = None
@@ -239,6 +243,7 @@ class GreeClimate(ClimateEntity):
             self._uid = uid
         else:
             self._uid = 0
+
         
         self._acOptions = { 'Pow': None, 'Mod': None, 'SetTem': None, 'WdSpd': None, 'Air': None, 'Blo': None, 'Health': None, 'SwhSlp': None, 'Lig': None, 'SwingLfRig': None, 'SwUpDn': None, 'Quiet': None, 'Tur': None, 'StHt': None, 'TemUn': None, 'HeatCoolType': None, 'TemRec': None, 'SvSt': None, 'SlpMod': None }
         self._optionsToFetch = ["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt","SlpMod"]
@@ -311,9 +316,13 @@ class GreeClimate(ClimateEntity):
                 self._auto_xfan = False
             async_track_state_change_event(hass, auto_xfan_entity_id, self._async_auto_xfan_entity_state_changed)
         else:
-            self._auto_xfan = False   
+            self._auto_xfan = False
+
+        # helper method to determine TemSen offset
+        self._process_temp_sensor = self.TempOffsetResolver()
 
     # Pad helper method to help us get the right string for encrypting
+
     def Pad(self, s):
         aesBlockSize = 16
         return s + (aesBlockSize - len(s) % aesBlockSize) * chr(aesBlockSize - len(s) % aesBlockSize)            
@@ -612,7 +621,23 @@ class GreeClimate(ClimateEntity):
         if not self._temp_sensor_entity_id:
             if self._has_temp_sensor:          
 
-                temp_c = self._acOptions['TemSen'] + TEMP_OFFSET # Get the temperature from the device
+                _LOGGER.debug("method UpdateHACurrentTemperature: TemSen: " + str(self._acOptions['TemSen']))
+
+                if self._temp_sensor_offset is None:  # user hasn't chosen an offset
+                    # User hasn't set automaticaly, so try to determine the offset
+                    temp_c = self._process_temp_sensor(self._acOptions['TemSen'])
+                    _LOGGER.debug("method UpdateHACurrentTemperature: User has not chosen an offset, using process_temp_sensor() to"
+                                  " automatically determine offset.")
+                else:
+                    # User set
+                    if self._temp_sensor_offset is True:
+                        temp_c = self._acOptions['TemSen'] - TEMSEN_OFFSET
+
+                    elif self._temp_sensor_offset is False:
+                        temp_c = self._acOptions['TemSen']
+
+                    _LOGGER.debug(f"method UpdateHACurrentTemperature: User has chosen an offset ({self._temp_sensor_offset})")
+
                 temp_f = self.gree_c_to_f(SetTem=temp_c, TemRec=0) # Convert to Fahrenheit using TemRec bit
 
                 if (self._unit_of_measurement == "°C"):
@@ -645,7 +670,7 @@ class GreeClimate(ClimateEntity):
                 try:
                     temp_sensor = self.GreeGetValues(["TemSen"])
                 except:
-                    _LOGGER.info('Could not determine whether device has an built-in temperature sensor. Retrying at next update()')
+                    _LOGGER.info('Could not determine whether device has a built-in temperature sensor. Retrying at next update()')
                 else:
                     if temp_sensor:
                         self._has_temp_sensor = True
@@ -749,7 +774,7 @@ class GreeClimate(ClimateEntity):
         _LOGGER.debug('method _async_update_current_temp Thermostat updated with changed temp_sensor state | ' + str(state.state))
         # Set unit = unit of measurement in the climate entity
         unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
-        _LOGGER.debug('method _async_update_current_temp Unit updated with changed temp_sensor state | ' + str(unit))
+        _LOGGER.debug('method _async_update_current_temp Unit updated with changed temp_sensor unit | ' + str(unit))
         try:
             _state = state.state            
             if self.represents_float(_state):
@@ -1122,7 +1147,7 @@ class GreeClimate(ClimateEntity):
     def _async_update_current_target_temp(self, state):
 
         if not self.represents_float(state.state):
-            _LOGGER.error('Unable to update from target_temp_entity!')
+            _LOGGER.error('Unable to update from target_temp_entity! State is: %s' % state.state)
             return
 
         s = int(float(state.state))
@@ -1409,7 +1434,7 @@ class GreeClimate(ClimateEntity):
 
         return SetTem, TemRec
 
-    def gree_c_to_f(sefl,SetTem, TemRec):
+    def gree_c_to_f(self,SetTem, TemRec):
         # Convert SetTem back to the minimum and maximum Fahrenheit before rounding
         # We consider the worst case scenario: SetTem could be the result of rounding from any value in a range
         # If TemRec is 1, it indicates the value was closer to the upper range of the rounding
@@ -1431,3 +1456,78 @@ class GreeClimate(ClimateEntity):
         int_fahrenheit = round((min_fahrenheit + max_fahrenheit) / 2.0)
 
         return int_fahrenheit
+
+    class TempOffsetResolver:
+        """
+        Detect whether this sensor reports temperatures in °C
+        or in (°C + 40).  Continues to check, and bases decision
+        on historical min and max raw values, since there are extreme
+        cases which would result in a switch. Two running values are
+        stored (min & max raw).
+
+        Note: This could be simplified by just using 40C as a max point
+        for the unoffset case and a min point for the offset case. But
+        this doesn't account for the marginal cases around 40C as well.
+
+        Example:
+
+        if raw < 40:
+            return raw
+        else:
+            return raw - 40
+
+        """
+
+
+        def __init__(self,
+                     indoor_min: float = -15.0,  # coldest plausible indoor °C
+                     indoor_max: float = 40.0,  # hottest plausible indoor °C
+                     offset:     float = TEMSEN_OFFSET,  # device's fixed offset
+                     margin:     float = 2.0):  # tolerance before "impossible":
+            self._lo_lim      = indoor_min - margin
+            self._hi_lim      = indoor_max + margin
+            self._offset      = offset
+
+            self._min_raw: float | None = None
+            self._max_raw: float | None = None
+            self._has_offset: bool | None = None   # undecided until True/False
+
+        def __call__(self, raw: float) -> float:
+
+            # ---- original path (still undecided) ------------------------------
+            if self._min_raw is None or raw < self._min_raw:
+                self._min_raw = raw
+            if self._max_raw is None or raw > self._max_raw:
+                self._max_raw = raw
+
+            self._evaluate()  # evaluate every time, so it can change it's mind as needed
+
+            return raw - self._offset if self._has_offset else raw
+
+        def _evaluate(self) -> None:
+            """
+            Compare the raw range and (raw-offset) range against the
+            plausible indoor envelope.  Whichever fits strictly better wins.
+            """
+            lo, hi = self._min_raw, self._max_raw
+
+            penalty_no  = self._penalty(lo,             hi)
+            penalty_off = self._penalty(lo - self._offset,
+                                        hi - self._offset)
+
+            if penalty_no == penalty_off:
+                return # still ambiguous – keep collecting data
+
+            self._has_offset = penalty_off < penalty_no
+
+        def _penalty(self, lo: float, hi: float) -> float:
+            """
+            Distance (°C) by which the [lo, hi] interval lies outside
+            the indoor envelope.  Zero means entirely plausible.
+            """
+            pen = 0.0
+            if lo < self._lo_lim:
+                pen += self._lo_lim - lo
+            if hi > self._hi_lim:
+                pen += hi - self._hi_lim
+            return pen
