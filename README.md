@@ -8,6 +8,7 @@ Tested on the following hardware:
 - Cooper & Hunter (CH-S12FTXE(WI-FI)-NG)
 - AC Pioneer Fortis Series with WI-FI module CS532AE
 - AC Gree GWH12ACC-K6DNA1D
+- AC Gree 3VIR24HP230V1AH
 - Inventor Life Pro WiFi
 - Toyotomi Izuru TRN/TRG-828ZR
 - Sinclair ASH-13BIF2
@@ -64,11 +65,12 @@ This component is added to HACS default repository list.
      target_temp: <OPTIONAL: input_number used to set the temperature of your first AC>
      auto_xfan: <OPTIONAL: input_boolean: this feature will always turn on xFan in cool and dry mode to avoid mold & rust created from potential water buildup in the AC>
      auto_light: <OPTIONAL: input_boolean: this feature will always turn light on when power on and turn light light off when power off automatically>
-     horizontal_swing: <OPTIONAL: boolean (true/false); this feature will enable horizontal swing on devices that have this functionality. This feature replaces presets in the UI
+     horizontal_swing: <OPTIONAL: boolean (true/false); this feature will enable horizontal swing on devices that have this functionality. This feature replaces presets in the UI>
      anti_direct_blow: <OPTIONAL: input_boolean used to switch Anti Direct Blow feature on devices devices that have this functionality. Until next release, it should be set only when device   has this feature. For example: input_boolean.first_ac_anti_direct_blow>
-     light_sensor: <OPTIONAL: input_boolean this feature will enable built-in light sensor. 
-     max_online_attempts: <OPTIONAL: integer specifying number of attempts to connect to the device before it goes into the unavailable state
-     disable_available_check: <OPTIONAL: boolean (true/false): if set to true device is always available in Home Assistant, useful for automation, device never goes into an unavailable state
+     light_sensor: <OPTIONAL: input_boolean this feature will enable built-in light sensor.>
+     max_online_attempts: <OPTIONAL: integer specifying number of attempts to connect to the device before it goes into the unavailable state>
+     disable_available_check: <OPTIONAL: boolean (true/false): if set to true device is always available in Home Assistant, useful for automation, device never goes into an unavailable state>
+     temp_sensor_offset: <OPTIONAL: boolean (true/false): if set to true, the temperature sensor in the device will be offset by -40C when displayed in HA. If set to false, no offset will be applied. If not set, the script will try to determine the offset automatically.>
 
    - platform: gree
      name: Second AC
