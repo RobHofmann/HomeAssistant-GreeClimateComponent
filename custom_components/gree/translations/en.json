@@ -1,0 +1,81 @@
+{
+  "config": {
+    "title": "Gree Climate",
+    "description": "Configure your Gree air conditioner",
+    "data": {
+      "name": "Name",
+      "host": "IP Address",
+      "port": "Port",
+      "mac": "MAC Address",
+      "timeout": "Timeout",
+      "target_temp_step": "Temperature Step",
+      "temp_sensor": "Temperature Sensor",
+      "lights": "Lights Entity",
+      "xfan": "X-Fan Entity",
+      "health": "Health Entity",
+      "powersave": "Power Save Entity",
+      "sleep": "Sleep Entity",
+      "eightdegheat": "8°C Heat Entity",
+      "air": "Air Entity",
+      "target_temp": "Target Temperature Entity",
+      "horizontal_swing": "Horizontal Swing",
+      "anti_direct_blow": "Anti Direct Blow Entity",
+      "light_sensor": "Light Sensor Entity",
+      "encryption_key": "Encryption Key",
+      "uid": "UID",
+      "auto_xfan": "Auto X-Fan Entity",
+      "auto_light": "Auto Light Entity",
+      "encryption_version": "Encryption Version",
+      "disable_available_check": "Disable Available Check",
+      "max_online_attempts": "Max Online Attempts",
+      "temp_sensor_offset": "Temperature Sensor Offset"
+    }
+  },
+  "entity": {
+    "climate": {
+      "gree": {
+        "state_attributes": {
+          "fan_mode": {
+            "state": {
+              "auto": "Auto",
+              "low": "Low",
+              "medium-low": "Medium-Low",
+              "medium": "Medium",
+              "medium-high": "Medium-High",
+              "high": "High",
+              "turbo": "Turbo",
+              "quiet": "Quiet"
+            }
+          },
+          "swing_mode": {
+            "state": {
+              "default": "Default",
+              "swing_full": "Swing in full range",
+              "fixed_upmost": "Fixed in the upmost position",
+              "fixed_middle_up": "Fixed in the middle-up position",
+              "fixed_middle": "Fixed in the middle position",
+              "fixed_middle_low": "Fixed in the middle-low position",
+              "fixed_lowest": "Fixed in the lowest position",
+              "swing_downmost": "Swing in the downmost region",
+              "swing_middle_low": "Swing in the middle-low region",
+              "swing_middle": "Swing in the middle region",
+              "swing_middle_up": "Swing in the middle-up region",
+              "swing_upmost": "Swing in the upmost region"
+            }
+          },
+          "preset_mode": {
+            "state": {
+              "default": "Default",
+              "full_swing": "Full swing",
+              "fixed_leftmost": "Fixed in the leftmost position",
+              "fixed_middle_left": "Fixed in the middle-left position",
+              "fixed_middle": "Fixed in the middle position",
+              "fixed_middle_right": "Fixed in the middle-right position",
+              "fixed_rightmost": "Fixed in the rightmost position"
+            }
+          }
+        }
+      }
+    }
+  }
+}
