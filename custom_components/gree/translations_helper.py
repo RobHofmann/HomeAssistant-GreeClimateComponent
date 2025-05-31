@@ -2,6 +2,7 @@
 import logging
 import json
 import os
+import aiofiles
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,24 +22,25 @@ DEFAULT_NAMES = {
     'en': 'Gree Climate'
 }
 
-def load_translations_from_json(language):
-    """Load translations from JSON files (for UI modes)."""
+async def load_translations_from_json(language):
+    """Load translations from JSON files (for UI modes) - async version."""
     try:
         # Get the directory where this file is located
         current_dir = os.path.dirname(__file__)
         json_file = os.path.join(current_dir, 'translations', f'{language}.json')
 
         if os.path.exists(json_file):
-            with open(json_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+            async with aiofiles.open(json_file, 'r', encoding='utf-8') as f:
+                content = await f.read()
+                data = json.loads(content)
                 return data.get('entity', {}).get('climate', {}).get('gree', {}).get('state_attributes', {})
     except Exception as e:
         _LOGGER.debug(f"Could not load translations from {json_file}: {e}")
 
     return {}
 
-def get_translated_modes(hass, mode_type, keys, fallback, language=None):
-    """Get translated mode names based on Home Assistant language."""
+async def get_translated_modes(hass, mode_type, keys, fallback, language=None):
+    """Get translated mode names based on Home Assistant language - async version."""
     try:
         # Use provided language or get the current language from Home Assistant
         if language:
@@ -51,7 +53,7 @@ def get_translated_modes(hass, mode_type, keys, fallback, language=None):
             _LOGGER.info(f"Available hass.config attributes: {dir(hass.config)}")
 
         # Load translations from JSON files
-        translations = load_translations_from_json(detected_language)
+        translations = await load_translations_from_json(detected_language)
 
         if mode_type in translations and 'state' in translations[mode_type]:
             mode_translations = translations[mode_type]['state']
@@ -106,5 +108,3 @@ def get_translated_name(hass, language='en'):
     except Exception as e:
         _LOGGER.error(f"Error getting translated name: {e}")
         return DEFAULT_NAMES['en']
-
-# Remove unused function

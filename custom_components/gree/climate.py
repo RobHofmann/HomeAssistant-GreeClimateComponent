@@ -159,9 +159,9 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     hvac_modes = HVAC_MODES
 
     # Get translated modes based on Home Assistant language or manual setting
-    fan_modes = get_translated_modes(hass, 'fan_mode', FAN_MODE_KEYS, FAN_MODES_EN, language)
-    swing_modes = get_translated_modes(hass, 'swing_mode', SWING_MODE_KEYS, SWING_MODES_EN, language)
-    preset_modes = get_translated_modes(hass, 'preset_mode', PRESET_MODE_KEYS, PRESET_MODES_EN, language)
+    fan_modes = await get_translated_modes(hass, 'fan_mode', FAN_MODE_KEYS, FAN_MODES_EN, language)
+    swing_modes = await get_translated_modes(hass, 'swing_mode', SWING_MODE_KEYS, SWING_MODES_EN, language)
+    preset_modes = await get_translated_modes(hass, 'preset_mode', PRESET_MODE_KEYS, PRESET_MODES_EN, language)
     encryption_key = config.get(CONF_ENCRYPTION_KEY)
     uid = config.get(CONF_UID)
     auto_xfan_entity_id = config.get(CONF_AUTO_XFAN)
