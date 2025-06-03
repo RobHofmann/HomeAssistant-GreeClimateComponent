@@ -33,7 +33,7 @@ Tested on Home Assistant 2024.5.4.
  - https://github.com/tomikaa87/gree-remote
  - https://github.com/vpnmaster/homeassistant-custom-components
  - https://developers.home-assistant.io/
- 
+
 ## HACS
 This component is added to HACS default repository list.
 
@@ -71,6 +71,7 @@ This component is added to HACS default repository list.
      max_online_attempts: <OPTIONAL: integer specifying number of attempts to connect to the device before it goes into the unavailable state>
      disable_available_check: <OPTIONAL: boolean (true/false): if set to true device is always available in Home Assistant, useful for automation, device never goes into an unavailable state>
      temp_sensor_offset: <OPTIONAL: boolean (true/false): if set to true, the temperature sensor in the device will be offset by -40C when displayed in HA. If set to false, no offset will be applied. If not set, the script will try to determine the offset automatically.>
+     language: en  # OPTIONAL: Set to 'ru' for Russian, 'en' for English (default)
 
    - platform: gree
      name: Second AC
@@ -81,13 +82,13 @@ This component is added to HACS default repository list.
    ```
 
 3. In your configuration.yaml add the following:
-  
+
    ```yaml
    climate: !include climate.yaml
    ```
 
 4. OPTIONAL: Add info logging to this component (to see if/how it works)
-  
+
    ```yaml
    logger:
      default: error
@@ -96,10 +97,10 @@ This component is added to HACS default repository list.
        custom_components.gree.climate: debug
    ```
 
-5. OPTIONAL: Provide encryption key if you have it or feel like extracting it. 
+5. OPTIONAL: Provide encryption key if you have it or feel like extracting it.
 
    One way is to pull the sqlite db from android device like described here:
-  
+
    https://stackoverflow.com/questions/9997976/android-pulling-sqlite-database-android-device
 
    ```
@@ -107,7 +108,7 @@ This component is added to HACS default repository list.
    dd if=data.ab bs=1 skip=24 | python -c "import zlib,sys;sys.stdout.write(zlib.decompress(sys.stdin.read()))" | tar -xvf -
    sqlite3 data.ab 'select privateKey from db_device_20170503;' # but table name can differ a little bit.
    ```
-   
+
    Write it down in climate.yaml `encryption_key: <key>`.
 
 6. OPTIONAL: Provide the `uid` parameter (can be sniffed) NOTE: This is not needed for all devices
