@@ -5,6 +5,7 @@ from __future__ import annotations
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.core import callback
 from homeassistant.const import (
     CONF_HOST,
     CONF_MAC,
@@ -76,7 +77,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle configuration via YAML import."""
         return await self.async_step_user(import_data)
 
-    async def async_get_options_flow(self, config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
         return OptionsFlowHandler(config_entry)
 
 
