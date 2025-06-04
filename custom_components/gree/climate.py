@@ -29,6 +29,8 @@ from homeassistant.const import (
 
 from homeassistant.core import Event, EventStateChangedData, callback
 from homeassistant.helpers.event import async_track_state_change_event
+
+from .const import DOMAIN
 from Crypto.Cipher import AES
 from .translations_helper import (
     get_translated_modes,
@@ -132,7 +134,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_LANGUAGE): cv.string,
 })
 
-async def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
+async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     _LOGGER.info('Setting up Gree climate platform')
 
     # Get language preference
@@ -176,7 +178,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
 
     _LOGGER.info('Adding Gree climate device to hass')
 
-    async_add_devices([
+    async_add_entities([
         GreeClimate(
             hass,
             name,
@@ -214,10 +216,10 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     ])
 
 
-async def async_setup_entry(hass, entry, async_add_devices):
+async def async_setup_entry(hass, entry, async_add_entities):
     """Set up Gree climate from a config entry."""
     config = {**entry.data, **entry.options}
-    await async_setup_platform(hass, config, async_add_devices)
+    await async_setup_platform(hass, config, async_add_entities)
 
 
 async def async_unload_entry(hass, entry):
@@ -234,7 +236,7 @@ class GreeClimate(ClimateEntity):
         self._port = port
         self._mac_addr = mac_addr.decode('utf-8').lower()
         self._timeout = timeout
-        self._unique_id = 'climate.gree_' + mac_addr.decode('utf-8').lower()
+        self._unique_id = 'gree_' + mac_addr.decode('utf-8').lower()
         self._device_online = None
         self._online_attempts = 0
         self._max_online_attempts = max_online_attempts
@@ -1392,6 +1394,16 @@ class GreeClimate(ClimateEntity):
     def unique_id(self):
         # Return unique_id
         return self._unique_id
+
+    @property
+    def device_info(self):
+        """Return device information for this entity."""
+        return {
+            "identifiers": {(DOMAIN, self._mac_addr)},
+            "name": self._name,
+            "manufacturer": "Gree",
+            "model": "Air Conditioner",
+        }
 
     def set_temperature(self, **kwargs):
         _LOGGER.info('set_temperature(): ' + str(kwargs.get(ATTR_TEMPERATURE)) + str(self._unit_of_measurement))
