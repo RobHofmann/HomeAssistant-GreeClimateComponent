@@ -109,7 +109,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 ): vol.Coerce(float),
                 vol.Optional(
                     CONF_TEMP_SENSOR, default=options.get(CONF_TEMP_SENSOR)
-                ): vol.Any(None, str),
+                ): vol.Any(
+                    None,
+                    selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="sensor")
+                    ),
+                ),
                 vol.Optional(CONF_LIGHTS, default=options.get(CONF_LIGHTS)): vol.Any(
                     None,
                     selector.EntitySelector(
@@ -158,7 +163,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 ),
                 vol.Optional(
                     CONF_TARGET_TEMP, default=options.get(CONF_TARGET_TEMP)
-                ): vol.Any(None, str),
+                ): vol.Any(
+                    None,
+                    selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="input_number")
+                    ),
+                ),
                 vol.Optional(
                     CONF_AUTO_XFAN, default=options.get(CONF_AUTO_XFAN)
                 ): vol.Any(
