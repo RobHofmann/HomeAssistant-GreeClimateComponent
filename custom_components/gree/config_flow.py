@@ -102,44 +102,44 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 ): vol.Coerce(float),
                 vol.Optional(
                     CONF_TEMP_SENSOR, default=options.get(CONF_TEMP_SENSOR)
-                ): vol.Any(str, None),
+                ): vol.Any(None, str),
                 vol.Optional(CONF_LIGHTS, default=options.get(CONF_LIGHTS)): vol.Any(
-                    str, None
+                    None, str
                 ),
                 vol.Optional(CONF_XFAN, default=options.get(CONF_XFAN)): vol.Any(
-                    str, None
+                    None, str
                 ),
                 vol.Optional(CONF_HEALTH, default=options.get(CONF_HEALTH)): vol.Any(
-                    str, None
+                    None, str
                 ),
                 vol.Optional(
                     CONF_POWERSAVE, default=options.get(CONF_POWERSAVE)
-                ): vol.Any(str, None),
+                ): vol.Any(None, str),
                 vol.Optional(CONF_SLEEP, default=options.get(CONF_SLEEP)): vol.Any(
-                    str, None
+                    None, str
                 ),
                 vol.Optional(
                     CONF_EIGHTDEGHEAT, default=options.get(CONF_EIGHTDEGHEAT)
-                ): vol.Any(str, None),
+                ): vol.Any(None, str),
                 vol.Optional(CONF_AIR, default=options.get(CONF_AIR)): vol.Any(
-                    str, None
+                    None, str
                 ),
                 vol.Optional(
                     CONF_TARGET_TEMP, default=options.get(CONF_TARGET_TEMP)
-                ): vol.Any(str, None),
+                ): vol.Any(None, str),
                 vol.Optional(
                     CONF_AUTO_XFAN, default=options.get(CONF_AUTO_XFAN)
-                ): vol.Any(str, None),
+                ): vol.Any(None, str),
                 vol.Optional(
                     CONF_AUTO_LIGHT, default=options.get(CONF_AUTO_LIGHT)
-                ): vol.Any(str, None),
+                ): vol.Any(None, str),
                 vol.Optional(
                     CONF_HORIZONTAL_SWING,
                     default=options.get(CONF_HORIZONTAL_SWING, False),
                 ): bool,
                 vol.Optional(
                     CONF_ANTI_DIRECT_BLOW, default=options.get(CONF_ANTI_DIRECT_BLOW)
-                ): vol.Any(str, None),
+                ): vol.Any(None, str),
                 vol.Optional(
                     CONF_DISABLE_AVAILABLE_CHECK,
                     default=options.get(CONF_DISABLE_AVAILABLE_CHECK, False),
@@ -150,13 +150,13 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 ): int,
                 vol.Optional(
                     CONF_LIGHT_SENSOR, default=options.get(CONF_LIGHT_SENSOR)
-                ): vol.Any(str, None),
+                ): vol.Any(None, str),
                 vol.Optional(
                     CONF_TEMP_SENSOR_OFFSET,
                     default=options.get(CONF_TEMP_SENSOR_OFFSET),
-                ): vol.Any(bool, None),
+                ): vol.Any(None, bool),
                 vol.Optional(CONF_LANGUAGE, default=options.get(CONF_LANGUAGE)): vol.Any(
-                    str, None
+                    None, str
                 ),
             }
         )
