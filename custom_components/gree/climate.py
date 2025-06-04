@@ -177,8 +177,52 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     _LOGGER.info('Adding Gree climate device to hass')
 
     async_add_devices([
-        GreeClimate(hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, auto_xfan_entity_id, auto_light_entity_id, horizontal_swing, light_sensor_entity_id, encryption_version, disable_available_check, max_online_attempts, encryption_key, uid, temp_sensor_offset, language)
+        GreeClimate(
+            hass,
+            name,
+            ip_addr,
+            port,
+            mac_addr,
+            timeout,
+            target_temp_step,
+            temp_sensor_entity_id,
+            lights_entity_id,
+            xfan_entity_id,
+            health_entity_id,
+            powersave_entity_id,
+            sleep_entity_id,
+            eightdegheat_entity_id,
+            air_entity_id,
+            target_temp_entity_id,
+            anti_direct_blow_entity_id,
+            hvac_modes,
+            fan_modes,
+            swing_modes,
+            preset_modes,
+            auto_xfan_entity_id,
+            auto_light_entity_id,
+            horizontal_swing,
+            light_sensor_entity_id,
+            encryption_version,
+            disable_available_check,
+            max_online_attempts,
+            encryption_key,
+            uid,
+            temp_sensor_offset,
+            language,
+        )
     ])
+
+
+async def async_setup_entry(hass, entry, async_add_devices):
+    """Set up Gree climate from a config entry."""
+    config = {**entry.data, **entry.options}
+    await async_setup_platform(hass, config, async_add_devices)
+
+
+async def async_unload_entry(hass, entry):
+    """Unload a config entry."""
+    return True
 
 class GreeClimate(ClimateEntity):
 

@@ -1,0 +1,2 @@
+DOMAIN = "gree"
+PLATFORMS = ["climate"]
