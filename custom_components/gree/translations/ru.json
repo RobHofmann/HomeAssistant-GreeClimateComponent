@@ -2,6 +2,20 @@
   "config": {
     "title": "Gree Климат",
     "description": "Настройка вашего кондиционера Gree",
+    "step": {
+      "user": {
+        "data": {
+          "name": "Название",
+          "host": "IP-адрес",
+          "port": "Порт",
+          "mac": "MAC-адрес",
+          "timeout": "Таймаут",
+          "encryption_key": "Ключ шифрования",
+          "uid": "UID",
+          "encryption_version": "Версия шифрования"
+        }
+      }
+    },
     "data": {
       "name": "Название",
       "host": "IP-адрес",
@@ -29,6 +43,34 @@
       "disable_available_check": "Отключить проверку доступности",
       "max_online_attempts": "Максимум попыток подключения",
       "temp_sensor_offset": "Смещение датчика температуры"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Настройки Gree Климат",
+        "data": {
+          "target_temp_step": "Шаг температуры",
+          "temp_sensor": "Датчик температуры",
+          "lights": "Объект освещения",
+          "xfan": "Объект X-Fan",
+          "health": "Объект здоровья",
+          "powersave": "Объект энергосбережения",
+          "sleep": "Объект сна",
+          "eightdegheat": "Объект нагрева 8°C",
+          "air": "Объект воздуха",
+          "target_temp": "Объект целевой температуры",
+          "auto_xfan": "Объект авто X-Fan",
+          "auto_light": "Объект авто освещения",
+          "horizontal_swing": "Горизонтальные жалюзи",
+          "anti_direct_blow": "Объект защиты от прямого потока",
+          "disable_available_check": "Отключить проверку доступности",
+          "max_online_attempts": "Максимум попыток подключения",
+          "light_sensor": "Объект датчика света",
+          "temp_sensor_offset": "Смещение датчика температуры",
+          "language": "Язык"
+        }
+      }
     }
   },
   "entity": {

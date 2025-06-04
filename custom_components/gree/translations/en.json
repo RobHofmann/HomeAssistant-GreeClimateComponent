@@ -2,6 +2,20 @@
   "config": {
     "title": "Gree Climate",
     "description": "Configure your Gree air conditioner",
+    "step": {
+      "user": {
+        "data": {
+          "name": "Name",
+          "host": "IP Address",
+          "port": "Port",
+          "mac": "MAC Address",
+          "timeout": "Timeout",
+          "encryption_key": "Encryption Key",
+          "uid": "UID",
+          "encryption_version": "Encryption Version"
+        }
+      }
+    },
     "data": {
       "name": "Name",
       "host": "IP Address",
@@ -29,6 +43,34 @@
       "disable_available_check": "Disable Available Check",
       "max_online_attempts": "Max Online Attempts",
       "temp_sensor_offset": "Temperature Sensor Offset"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Gree Climate Options",
+        "data": {
+          "target_temp_step": "Temperature Step",
+          "temp_sensor": "Temperature Sensor",
+          "lights": "Lights Entity",
+          "xfan": "X-Fan Entity",
+          "health": "Health Entity",
+          "powersave": "Power Save Entity",
+          "sleep": "Sleep Entity",
+          "eightdegheat": "8°C Heat Entity",
+          "air": "Air Entity",
+          "target_temp": "Target Temperature Entity",
+          "auto_xfan": "Auto X-Fan Entity",
+          "auto_light": "Auto Light Entity",
+          "horizontal_swing": "Horizontal Swing",
+          "anti_direct_blow": "Anti Direct Blow Entity",
+          "disable_available_check": "Disable Available Check",
+          "max_online_attempts": "Max Online Attempts",
+          "light_sensor": "Light Sensor Entity",
+          "temp_sensor_offset": "Temperature Sensor Offset",
+          "language": "Language"
+        }
+      }
     }
   },
   "entity": {

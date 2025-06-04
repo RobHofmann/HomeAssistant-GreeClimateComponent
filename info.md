@@ -1,8 +1,11 @@
 # Custom Gree climate integration. Controls AC's supporting the Gree protocol.
 
-## Component configuration
+## UI Configuration
+You can add the integration from the Home Assistant UI.
+Navigate to **Settings** > **Devices & Services** and search for **Gree Climate**.
 
-To configure this component, add the following configuration to your configuration.yaml (replacing the placeholders).
+## Component configuration
+To configure this component manually, add the following configuration to your configuration.yaml (replacing the placeholders).
 
 ```
  climate:

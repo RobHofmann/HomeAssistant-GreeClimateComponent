@@ -4,6 +4,12 @@
   "version": "2.16.0",
   "documentation": "https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent",
   "dependencies": [],
-  "codeowners": ["@robhofmann"],
-  "requirements": ["pycryptodome", "aiofiles"]
+  "codeowners": [
+    "@robhofmann"
+  ],
+  "requirements": [
+    "pycryptodome",
+    "aiofiles"
+  ],
+  "config_flow": true
 }
