@@ -61,13 +61,22 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input: dict | None = None) -> FlowResult:
         """Handle the initial step with autodiscovery."""
+        if user_input is None:
+            _LOGGER.info("Starting Gree device discovery for config flow")
 
         if user_input is not None:
             selection = user_input.get("device")
             if selection is None or selection == "manual":
+                _LOGGER.info("User opted for manual configuration")
                 return await self.async_step_manual()
 
             device = self._devices[int(selection)]
+            _LOGGER.info(
+                "User selected discovered device %s (%s) at %s",
+                device.name,
+                device.mac,
+                device.ip,
+            )
             self._data.update(
                 {
                     CONF_HOST: device.ip,
@@ -80,8 +89,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         self._devices = await self._async_discover()
 
+        _LOGGER.info("Discovery finished with %d device(s) found", len(self._devices))
+
         if len(self._devices) == 1:
             dev = self._devices[0]
+            _LOGGER.info(
+                "Exactly one device discovered: %s (%s) at %s",
+                dev.name,
+                dev.mac,
+                dev.ip,
+            )
             self._data.update(
                 {
                     CONF_HOST: dev.ip,
@@ -111,12 +128,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_show_form(step_id="user", data_schema=schema)
 
         # no devices found -> manual
+        _LOGGER.info("No devices discovered, showing manual configuration form")
         return await self.async_step_manual()
 
     async def _async_discover(self):
+        _LOGGER.info("Scanning network for Gree devices ...")
         discovery = Discovery()
         try:
             devices = await discovery.scan(wait_for=2)
+            for d in devices:
+                _LOGGER.info("Discovered %s (%s) at %s", d.name, d.mac, d.ip)
         except Exception as err:
             _LOGGER.warning("Device discovery failed: %s", err)
             devices = []
@@ -127,6 +148,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Manual entry of host information."""
         if user_input is not None:
             self._data.update(user_input)
+            _LOGGER.info("Creating entry for %s", user_input.get(CONF_NAME))
             return self.async_create_entry(
                 title=user_input.get(CONF_NAME) or "Gree Climate", data=self._data
             )
@@ -152,6 +174,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ): int,
             }
         )
+        _LOGGER.info("Showing manual configuration form")
         return self.async_show_form(step_id="manual", data_schema=data_schema)
 
     async def async_step_import(self, import_data: dict) -> FlowResult:
