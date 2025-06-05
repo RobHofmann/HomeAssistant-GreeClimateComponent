@@ -855,7 +855,7 @@ class GreeClimate(ClimateEntity):
             _LOGGER.error('method _async_update_current_temp: Unable to update from temp_sensor: %s' % ex)
 
     def represents_float(self, s):
-        _LOGGER.dbug('temp_sensor state represents_float |' + str(s))
+        _LOGGER.debug('temp_sensor state represents_float |' + str(s))
         try:
             float(s)
             return True
