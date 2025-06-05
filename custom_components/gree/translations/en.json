@@ -42,7 +42,8 @@
       "encryption_version": "Encryption Version",
       "disable_available_check": "Disable Available Check",
       "max_online_attempts": "Max Online Attempts",
-      "temp_sensor_offset": "Temperature Sensor Offset"
+      "temp_sensor_offset": "Temperature Sensor Offset",
+      "beeper": "Beeper Entity"
     }
   },
   "options": {
@@ -68,6 +69,7 @@
           "max_online_attempts": "Max Online Attempts",
           "light_sensor": "Light Sensor Entity",
           "temp_sensor_offset": "Temperature Sensor Offset",
+          "beeper": "Beeper Entity",
           "language": "Language"
         }
       }
