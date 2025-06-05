@@ -70,6 +70,7 @@ CONF_ENCRYPTION_VERSION = 'encryption_version'
 CONF_DISABLE_AVAILABLE_CHECK  = 'disable_available_check'
 CONF_MAX_ONLINE_ATTEMPTS = 'max_online_attempts'
 CONF_LIGHT_SENSOR = 'light_sensor'
+CONF_BEEPER_ENTITY_ID = 'beeper_entity_id'
 CONF_TEMP_SENSOR_OFFSET = 'temp_sensor_offset'
 CONF_LANGUAGE = 'language'
 
@@ -125,6 +126,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_DISABLE_AVAILABLE_CHECK, default=False): cv.boolean,
     vol.Optional(CONF_MAX_ONLINE_ATTEMPTS, default=3): cv.positive_int,
     vol.Optional(CONF_LIGHT_SENSOR): cv.entity_id,
+    vol.Optional(CONF_BEEPER_ENTITY_ID): cv.entity_id,
     vol.Optional(CONF_TEMP_SENSOR_OFFSET): cv.boolean,
     vol.Optional(CONF_LANGUAGE): cv.string,
 })
@@ -170,6 +172,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     encryption_version = config.get(CONF_ENCRYPTION_VERSION)
     disable_available_check = config.get(CONF_DISABLE_AVAILABLE_CHECK)
     max_online_attempts = config.get(CONF_MAX_ONLINE_ATTEMPTS)
+    beeper_entity_id = config.get(CONF_BEEPER_ENTITY_ID)
     temp_sensor_offset = config.get(CONF_TEMP_SENSOR_OFFSET)
 
     _LOGGER.info('Adding Gree climate device to hass')
@@ -206,6 +209,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
             max_online_attempts,
             encryption_key,
             uid,
+            beeper_entity_id,
             temp_sensor_offset,
             language,
         )
@@ -224,7 +228,7 @@ async def async_unload_entry(hass, entry):
 
 class GreeClimate(ClimateEntity):
 
-    def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, auto_xfan_entity_id, auto_light_entity_id, horizontal_swing, light_sensor_entity_id, encryption_version, disable_available_check, max_online_attempts, encryption_key=None, uid=None, temp_sensor_offset=None, language=None):
+    def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, auto_xfan_entity_id, auto_light_entity_id, horizontal_swing, light_sensor_entity_id, encryption_version, disable_available_check, max_online_attempts, encryption_key=None, uid=None, beeper_entity_id=None, temp_sensor_offset=None, language=None):
         _LOGGER.info('Initialize the GREE climate device')
         self.hass = hass
         self._name = name
@@ -387,6 +391,19 @@ class GreeClimate(ClimateEntity):
         # helper method to determine TemSen offset
         self._process_temp_sensor = self.TempOffsetResolver()
 
+        self._beeper_entity_id = beeper_entity_id
+        self._current_beeper_enabled = True # Default to beeper ON (silent mode OFF)
+
+        if self._beeper_entity_id:
+            _LOGGER.info('Setting up beeper control entity: ' + str(self._beeper_entity_id))
+            initial_beeper_state = self.hass.states.get(self._beeper_entity_id)
+            if initial_beeper_state and initial_beeper_state.state == STATE_ON:
+                self._current_beeper_enabled = True 
+            
+            async_track_state_change_event(
+                hass, self._beeper_entity_id, self._async_beeper_entity_state_changed
+            )
+
     # Pad helper method to help us get the right string for encrypting
 
     def Pad(self, s):
@@ -491,6 +508,13 @@ class GreeClimate(ClimateEntity):
     def SendStateToAc(self, timeout):
         opt = '"Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt","SlpMod"'
         p = '{Pow},{Mod},{SetTem},{WdSpd},{Air},{Blo},{Health},{SwhSlp},{Lig},{SwingLfRig},{SwUpDn},{Quiet},{Tur},{StHt},{TemUn},{HeatCoolType},{TemRec},{SvSt},{SlpMod}'.format(**self._acOptions)
+
+        buzzer_command_value = 0 if self._current_beeper_enabled else 1
+
+        opt += ',"Buzzer_ON_OFF"'
+        p += ',' + str(buzzer_command_value)
+        _LOGGER.debug(f"Sending with Buzzer_ON_OFF={buzzer_command_value} (Silent mode HA toggle is ON: {self._current_beeper_enabled})")
+
         if self._has_anti_direct_blow:
             opt += ',"AntiDirectBlow"'
             p += ',' + str(self._acOptions['AntiDirectBlow'])
@@ -854,7 +878,7 @@ class GreeClimate(ClimateEntity):
             _LOGGER.error('method _async_update_current_temp: Unable to update from temp_sensor: %s' % ex)
 
     def represents_float(self, s):
-        _LOGGER.dbug('temp_sensor state represents_float |' + str(s))
+        _LOGGER.debug('temp_sensor state represents_float |' + str(s))
         try:
             float(s)
             return True
@@ -1239,6 +1263,24 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('method _async_update_current_target_temp: Set Temp to ' + str(s) + str(unit)
                      + ' ->  SyncState with SetTem=' + str(SetTem) + ', SyncState with TemRec=' + str(TemRec))
 
+    @callback
+    async def _async_beeper_entity_state_changed(self, event: Event[EventStateChangedData]) -> None:
+        entity_id = event.data["entity_id"]
+        old_state = event.data["old_state"]
+        new_state = event.data["new_state"]
+        _LOGGER.info(f'Beeper entity {entity_id} state changed from '
+                    f'{(str(old_state.state) if hasattr(old_state,"state") else "None")} '
+                    f'to {str(new_state.state)}')
+        
+        if new_state is None:
+            return
+
+        if new_state.state == STATE_ON:
+            self._current_beeper_enabled = True # Silent mode ON
+            _LOGGER.info('Silent mode enabled (beeper will be turned off with commands).')
+        else: # STATE_OFF or other
+            self._current_beeper_enabled = False # Silent mode OFF
+            _LOGGER.info('Silent mode disabled (beeper will be turned on with commands).')
 
 
     @property
