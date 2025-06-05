@@ -43,6 +43,7 @@ from .climate import (
     CONF_LIGHT_SENSOR,
     CONF_TEMP_SENSOR_OFFSET,
     CONF_LANGUAGE,
+    CONF_BEEPER
 )
 
 
@@ -207,6 +208,14 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 ): int,
                 vol.Optional(
                     CONF_LIGHT_SENSOR, default=options.get(CONF_LIGHT_SENSOR)
+                ): vol.Any(
+                    None,
+                    selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="input_boolean")
+                    ),
+                ),
+                vol.Optional(
+                    CONF_BEEPER, default=options.get(CONF_BEEPER)
                 ): vol.Any(
                     None,
                     selector.EntitySelector(

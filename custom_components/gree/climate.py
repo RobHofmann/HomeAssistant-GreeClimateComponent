@@ -70,7 +70,7 @@ CONF_ENCRYPTION_VERSION = 'encryption_version'
 CONF_DISABLE_AVAILABLE_CHECK  = 'disable_available_check'
 CONF_MAX_ONLINE_ATTEMPTS = 'max_online_attempts'
 CONF_LIGHT_SENSOR = 'light_sensor'
-CONF_BEEPER_ENTITY_ID = 'beeper_entity_id'
+CONF_BEEPER = 'beeper'
 CONF_TEMP_SENSOR_OFFSET = 'temp_sensor_offset'
 CONF_LANGUAGE = 'language'
 
@@ -126,7 +126,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_DISABLE_AVAILABLE_CHECK, default=False): cv.boolean,
     vol.Optional(CONF_MAX_ONLINE_ATTEMPTS, default=3): cv.positive_int,
     vol.Optional(CONF_LIGHT_SENSOR): cv.entity_id,
-    vol.Optional(CONF_BEEPER_ENTITY_ID): cv.entity_id,
+    vol.Optional(CONF_BEEPER): cv.entity_id,
     vol.Optional(CONF_TEMP_SENSOR_OFFSET): cv.boolean,
     vol.Optional(CONF_LANGUAGE): cv.string,
 })
@@ -172,7 +172,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     encryption_version = config.get(CONF_ENCRYPTION_VERSION)
     disable_available_check = config.get(CONF_DISABLE_AVAILABLE_CHECK)
     max_online_attempts = config.get(CONF_MAX_ONLINE_ATTEMPTS)
-    beeper_entity_id = config.get(CONF_BEEPER_ENTITY_ID)
+    beeper_entity_id = config.get(CONF_BEEPER)
     temp_sensor_offset = config.get(CONF_TEMP_SENSOR_OFFSET)
 
     _LOGGER.info('Adding Gree climate device to hass')
