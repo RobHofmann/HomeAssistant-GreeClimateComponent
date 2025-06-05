@@ -31,15 +31,12 @@ from homeassistant.core import Event, EventStateChangedData, callback
 from homeassistant.helpers.event import async_track_state_change_event
 from Crypto.Cipher import AES
 from .translations_helper import (
-    get_translated_modes,
+    get_all_translated_modes,
     get_translated_name,
     get_mode_key_by_index,
     FAN_MODE_KEYS,
     SWING_MODE_KEYS,
-    PRESET_MODE_KEYS,
-    FAN_MODES_EN,
-    SWING_MODES_EN,
-    PRESET_MODES_EN
+    PRESET_MODE_KEYS
 )
 try: import simplejson
 except ImportError: import json as simplejson
@@ -92,7 +89,7 @@ TEMSEN_OFFSET = 40
 # update() interval
 SCAN_INTERVAL = timedelta(seconds=60)
 
-# fixed values in gree mode lists
+# HVAC modes - these come from Home Assistant and are standard
 HVAC_MODES = [HVACMode.AUTO, HVACMode.COOL, HVACMode.DRY, HVACMode.FAN_ONLY, HVACMode.HEAT, HVACMode.OFF]
 
 FAN_MODES = ['Auto', 'Low', 'Medium-Low', 'Medium', 'Medium-High', 'High', 'Turbo', 'Quiet']
@@ -158,10 +155,11 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     target_temp_entity_id = config.get(CONF_TARGET_TEMP)
     hvac_modes = HVAC_MODES
 
-    # Get translated modes based on Home Assistant language or manual setting
-    fan_modes = await get_translated_modes(hass, 'fan_mode', FAN_MODE_KEYS, FAN_MODES_EN, language)
-    swing_modes = await get_translated_modes(hass, 'swing_mode', SWING_MODE_KEYS, SWING_MODES_EN, language)
-    preset_modes = await get_translated_modes(hass, 'preset_mode', PRESET_MODE_KEYS, PRESET_MODES_EN, language)
+    # Get all translated modes at once
+    translated_modes = get_all_translated_modes(hass, language)
+    fan_modes = translated_modes['fan_mode']
+    swing_modes = translated_modes['swing_mode']
+    preset_modes = translated_modes['preset_mode']
     encryption_key = config.get(CONF_ENCRYPTION_KEY)
     uid = config.get(CONF_UID)
     auto_xfan_entity_id = config.get(CONF_AUTO_XFAN)
