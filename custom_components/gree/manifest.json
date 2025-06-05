@@ -9,7 +9,8 @@
   ],
   "requirements": [
     "pycryptodome",
-    "aiofiles"
+    "aiofiles",
+    "greeclimate>=2.1.0"
   ],
   "config_flow": true
 }

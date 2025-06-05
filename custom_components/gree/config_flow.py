@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import voluptuous as vol
 
 from homeassistant import config_entries
@@ -16,6 +17,9 @@ from homeassistant.const import (
 )
 from homeassistant.data_entry_flow import FlowResult
 
+from greeclimate.discovery import Discovery
+
+_LOGGER = logging.getLogger(__name__)
 from .const import DOMAIN
 from .climate import (
     DEFAULT_PORT,
@@ -53,9 +57,74 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         self._data: dict[str, any] = {}
+        self._devices = []
 
     async def async_step_user(self, user_input: dict | None = None) -> FlowResult:
-        """Handle the initial step."""
+        """Handle the initial step with autodiscovery."""
+
+        if user_input is not None:
+            selection = user_input.get("device")
+            if selection is None or selection == "manual":
+                return await self.async_step_manual()
+
+            device = self._devices[int(selection)]
+            self._data.update(
+                {
+                    CONF_HOST: device.ip,
+                    CONF_PORT: device.port,
+                    CONF_MAC: device.mac,
+                    CONF_NAME: device.name,
+                }
+            )
+            return await self.async_step_manual()
+
+        self._devices = await self._async_discover()
+
+        if len(self._devices) == 1:
+            dev = self._devices[0]
+            self._data.update(
+                {
+                    CONF_HOST: dev.ip,
+                    CONF_PORT: dev.port,
+                    CONF_MAC: dev.mac,
+                    CONF_NAME: dev.name,
+                }
+            )
+            return await self.async_step_manual()
+
+        if self._devices:
+            options = [
+                {
+                    "label": f"{dev.name} ({dev.ip})",
+                    "value": str(idx),
+                }
+                for idx, dev in enumerate(self._devices)
+            ]
+            options.append({"label": "Manual configuration", "value": "manual"})
+            schema = vol.Schema(
+                {
+                    vol.Required("device"): selector.SelectSelector(
+                        selector.SelectSelectorConfig(options=options)
+                    )
+                }
+            )
+            return self.async_show_form(step_id="user", data_schema=schema)
+
+        # no devices found -> manual
+        return await self.async_step_manual()
+
+    async def _async_discover(self):
+        discovery = Discovery()
+        try:
+            devices = await discovery.scan(wait_for=2)
+        except Exception as err:
+            _LOGGER.warning("Device discovery failed: %s", err)
+            devices = []
+        discovery.close()
+        return devices
+
+    async def async_step_manual(self, user_input: dict | None = None) -> FlowResult:
+        """Manual entry of host information."""
         if user_input is not None:
             self._data.update(user_input)
             return self.async_create_entry(
@@ -64,21 +133,30 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         data_schema = vol.Schema(
             {
-                vol.Required(CONF_HOST): str,
-                vol.Required(CONF_MAC): str,
-                vol.Required(CONF_PORT, default=DEFAULT_PORT): int,
-                vol.Optional(CONF_NAME): str,
-                vol.Optional(CONF_TIMEOUT, default=DEFAULT_TIMEOUT): int,
-                vol.Optional(CONF_ENCRYPTION_KEY): str,
-                vol.Optional(CONF_UID): int,
-                vol.Optional(CONF_ENCRYPTION_VERSION, default=1): int,
+                vol.Required(CONF_HOST, default=self._data.get(CONF_HOST, "")): str,
+                vol.Required(CONF_MAC, default=self._data.get(CONF_MAC, "")): str,
+                vol.Required(
+                    CONF_PORT, default=self._data.get(CONF_PORT, DEFAULT_PORT)
+                ): int,
+                vol.Optional(CONF_NAME, default=self._data.get(CONF_NAME, "")): str,
+                vol.Optional(
+                    CONF_TIMEOUT, default=self._data.get(CONF_TIMEOUT, DEFAULT_TIMEOUT)
+                ): int,
+                vol.Optional(
+                    CONF_ENCRYPTION_KEY, default=self._data.get(CONF_ENCRYPTION_KEY)
+                ): str,
+                vol.Optional(CONF_UID, default=self._data.get(CONF_UID)): int,
+                vol.Optional(
+                    CONF_ENCRYPTION_VERSION,
+                    default=self._data.get(CONF_ENCRYPTION_VERSION, 1),
+                ): int,
             }
         )
-        return self.async_show_form(step_id="user", data_schema=data_schema)
+        return self.async_show_form(step_id="manual", data_schema=data_schema)
 
     async def async_step_import(self, import_data: dict) -> FlowResult:
         """Handle configuration via YAML import."""
-        return await self.async_step_user(import_data)
+        return await self.async_step_manual(import_data)
 
     @staticmethod
     @callback

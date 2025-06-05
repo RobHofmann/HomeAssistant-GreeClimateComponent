@@ -40,7 +40,7 @@ This component is added to HACS default repository list.
 ## UI Configuration
 The integration can be added from the Home Assistant UI.
 1. Navigate to **Settings** > **Devices & Services** and click **Add Integration**.
-2. Search for **Gree Climate** and fill in the host, port and MAC address.
+2. Search for **Gree Climate**. The setup will scan the network for compatible units and lets you select one from the list or enter the details manually.
 3. After setup you can open the integration options to configure additional parameters.
 
 ## Custom Component Installation
