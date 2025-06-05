@@ -514,7 +514,7 @@ class GreeClimate(ClimateEntity):
             self._target_temperature = 8
             _LOGGER.info('HA target temp set according to HVAC state to 8℃ since 8℃ heating mode is active')
         else:
-            temp_c = self._acOptions['SetTem']  # "SetTem" is always in C units
+            temp_c = self.decode_temp_c(SetTem=self._acOptions['SetTem'], TemRec=self._acOptions['TemRec']) # takes care of 1/2 degrees
             temp_f = self.gree_c_to_f(SetTem=self._acOptions['SetTem'], TemRec=self._acOptions['TemRec'])
 
             if (self._unit_of_measurement == "°C"):
@@ -533,9 +533,10 @@ class GreeClimate(ClimateEntity):
                     attr = target_temp_state.attributes
                     self.hass.states.async_set(self._target_temp_entity_id, float(self._target_temperature), attr)
 
-            _LOGGER.info('UpdateHATargetTemperature: HA target temp set according to HVAC state to: ' + str(self._target_temperature) + str(self._unit_of_measurement))
-            _LOGGER.debug('UpdateHATargetTemperature: Device commands: SetTem: ' + str(
-                self._acOptions['SetTem']) + ", TemRec: " + str(self._acOptions['TemRec']))
+            _LOGGER.info(
+                f"UpdateHATargetTemperature: HA target temp set to: {self._target_temperature} {self._unit_of_measurement}. "
+                f"Device commands: SetTem: {self._acOptions['SetTem']}, TemRec: {self._acOptions['TemRec']}"
+            )
 
     def UpdateHAOptions(self):
         # Sync HA with retreived HVAC options
@@ -1226,8 +1227,7 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('method _async_update_current_target_temp: target_temp_entity state unit | ' + str(unit))
 
         if (unit == "°C"):
-            SetTem = s
-            TemRec = 0
+            SetTem, TemRec = self.encode_temp_c(T=s) # takes care of 1/2 degrees
         elif (unit == "°F"):
             SetTem, TemRec = self.gree_f_to_c(desired_temp_f=s)
         else:
@@ -1392,26 +1392,25 @@ class GreeClimate(ClimateEntity):
         return self._unique_id
 
     def set_temperature(self, **kwargs):
-        _LOGGER.info('set_temperature(): ' + str(kwargs.get(ATTR_TEMPERATURE)) + str(self._unit_of_measurement))
-        units = str(kwargs.get(ATTR_UNIT_OF_MEASUREMENT))
-        _LOGGER.debug('set_temperature_units: ' + str(units))
+        s = kwargs.get(ATTR_TEMPERATURE)
+
+        _LOGGER.info('set_temperature(): ' + str(s) + str(self._unit_of_measurement))
         # Set new target temperatures.
-        if kwargs.get(ATTR_TEMPERATURE) is not None:
+        if s is not None:
             # do nothing if temperature is none
             if not (self._acOptions['Pow'] == 0):
                 # do nothing if HVAC is switched off
 
                 if (self._unit_of_measurement == "°C"):
-                    SetTem = kwargs.get(ATTR_TEMPERATURE)
-                    TemRec = 0
+                    SetTem, TemRec = self.encode_temp_c(T=s) # takes care of 1/2 degrees
                 elif (self._unit_of_measurement == "°F"):
-                    SetTem, TemRec = self.gree_f_to_c(desired_temp_f=kwargs.get(ATTR_TEMPERATURE))
+                    SetTem, TemRec = self.gree_f_to_c(desired_temp_f=s)
                 else:
                     _LOGGER.error('Unable to set temperature. Units not set to °C or °F')
                     return
 
                 self.SyncState({'SetTem': int(SetTem), 'TemRec': int(TemRec)})
-                _LOGGER.debug('method set_temperature: Set Temp to ' + str(kwargs.get(ATTR_TEMPERATURE)) + str(self._unit_of_measurement)
+                _LOGGER.debug('method set_temperature: Set Temp to ' + str(s) + str(self._unit_of_measurement)
                              + ' ->  SyncState with SetTem=' + str(SetTem) + ', SyncState with TemRec=' + str(TemRec))
 
                 self.schedule_update_ha_state()
@@ -1546,6 +1545,39 @@ class GreeClimate(ClimateEntity):
         int_fahrenheit = round((min_fahrenheit + max_fahrenheit) / 2.0)
 
         return int_fahrenheit
+
+    def encode_temp_c(self,T):
+        """
+        Used for encoding 1/2 degree Celsius values.
+        Encode any floating‐point temperature T into:
+          ‣ temp_int: the integer (°C) portion of the nearest 0.0/0.5 step,
+          ‣ half_bit: 1 if the nearest step has a “.5”, else 0.
+
+        This “finds the closest multiple of 0.5” to T, then:
+          n = round(T * 2)
+          temp_int = n >> 1      (i.e. floor(n/2))
+          half_bit = n & 1       (1 if it’s an odd half‐step)
+        """
+        # 1) Compute “twice T” and round to nearest integer:
+        #    math.floor(T * 2 + 0.5) is equivalent to rounding ties upward.
+        n = int(round(T * 2))
+
+        # 2) The low bit of n says “.5” (odd) versus “.0” (even):
+        TemRec = n & 1
+
+        # 3) Shifting right by 1 gives floor(n/2), i.e. the integer °C of that nearest half‐step:
+        SetTem = n >> 1
+
+        return SetTem, TemRec
+
+    def decode_temp_c(self,SetTem: int, TemRec: int) -> float:
+        """
+        Given:
+          SetTem = the “rounded‐down” integer (⌊T⌋ or for negatives, floor(T))
+          TemRec = 0 or 1, where 1 means “there was a 0.5”
+        Returns the original temperature as a float.
+        """
+        return SetTem + (0.5 if TemRec else 0.0)
 
     class TempOffsetResolver:
         """
