@@ -1,0 +1,125 @@
+{
+  "config": {
+    "title": "Gree Climate",
+    "description": "Konfiguriere deine Gree Klimaanlage",
+    "step": {
+      "user": {
+        "data": {
+          "name": "Name",
+          "host": "IP-Adresse",
+          "port": "Port",
+          "mac": "MAC-Adresse",
+          "timeout": "Zeitüberschreitung",
+          "encryption_key": "Verschlüsselungs-Key",
+          "uid": "UID",
+          "encryption_version": "Verschlüsselungsversion"
+        }
+      }
+    },
+    "data": {
+      "name": "Name",
+      "host": "IP-Adresse",
+      "port": "Port",
+      "mac": "MAC-Adresse",
+      "timeout": "Zeitüberschreitung",
+      "target_temp_step": "Temperaturstufe",
+      "temp_sensor": "Temperatursensor",
+      "lights": "Licht-Entität",
+      "xfan": "X-Fan-Entität",
+      "health": "Gesundheits-Entität",
+      "powersave": "Energiespar-Entität",
+      "sleep": "Schlaf-Entität",
+      "eightdegheat": "8°C Heiz-Entität",
+      "air": "Luft-Entität",
+      "target_temp": "Zieltemperatur-Entität",
+      "horizontal_swing": "Horizontale Schwenkung",
+      "anti_direct_blow": "Anti-Direktblas-Entität",
+      "light_sensor": "Lichtsensor-Entität",
+      "encryption_key": "Verschlüsselungs-Key",
+      "uid": "UID",
+      "auto_xfan": "Auto X-Fan-Entität",
+      "auto_light": "Auto-Licht-Entität",
+      "encryption_version": "Verschlüsselungsversion",
+      "disable_available_check": "Verfügbarkeitsprüfung deaktivieren",
+      "max_online_attempts": "Max. Online-Versuche",
+      "temp_sensor_offset": "Temperatursensor-Abweichung",
+      "beeper": "Piepser-Entität"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Gree Climate Optionen",
+        "data": {
+          "target_temp_step": "Temperaturstufe",
+          "temp_sensor": "Temperatursensor",
+          "lights": "Licht-Entität",
+          "xfan": "X-Fan-Entität",
+          "health": "Gesundheits-Entität",
+          "powersave": "Energiespar-Entität",
+          "sleep": "Schlaf-Entität",
+          "eightdegheat": "8°C Heiz-Entität",
+          "air": "Luft-Entität",
+          "target_temp": "Zieltemperatur-Entität",
+          "auto_xfan": "Auto X-Fan-Entität",
+          "auto_light": "Auto-Licht-Entität",
+          "horizontal_swing": "Horizontale Schwenkung",
+          "anti_direct_blow": "Anti-Direktblas-Entität",
+          "disable_available_check": "Verfügbarkeitsprüfung deaktivieren",
+          "max_online_attempts": "Max. Online-Versuche",
+          "light_sensor": "Lichtsensor-Entität",
+          "temp_sensor_offset": "Temperatursensor-Abweichung",
+          "beeper": "Piepser-Entität",
+          "language": "Sprache"
+        }
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "gree": {
+        "state_attributes": {
+          "fan_mode": {
+            "state": {
+              "auto": "Auto",
+              "low": "Niedrig",
+              "medium-low": "Mittel-Niedrig",
+              "medium": "Mittel",
+              "medium-high": "Mittel-Hoch",
+              "high": "Hoch",
+              "turbo": "Turbo",
+              "quiet": "Leise"
+            }
+          },
+          "swing_mode": {
+            "state": {
+              "default": "Standard",
+              "swing_full": "Schwenken im vollen Bereich",
+              "fixed_upmost": "Fixiert in oberster Position",
+              "fixed_middle_up": "Fixiert in mittlerer oberer Position",
+              "fixed_middle": "Fixiert in mittlerer Position",
+              "fixed_middle_low": "Fixiert in mittlerer unterer Position",
+              "fixed_lowest": "Fixiert in unterster Position",
+              "swing_downmost": "Schwenken im untersten Bereich",
+              "swing_middle_low": "Schwenken im mittleren unteren Bereich",
+              "swing_middle": "Schwenken im mittleren Bereich",
+              "swing_middle_up": "Schwenken im mittleren oberen Bereich",
+              "swing_upmost": "Schwenken im obersten Bereich"
+            }
+          },
+          "preset_mode": {
+            "state": {
+              "default": "Standard",
+              "full_swing": "Vollschwenkung",
+              "fixed_leftmost": "Fixiert in linkester Position",
+              "fixed_middle_left": "Fixiert in mittlerer linker Position",
+              "fixed_middle": "Fixiert in mittlerer Position",
+              "fixed_middle_right": "Fixiert in mittlerer rechter Position",
+              "fixed_rightmost": "Fixiert in rechtester Position"
+            }
+          }
+        }
+      }
+    }
+  }
+}
