@@ -94,7 +94,7 @@
           "swing_mode": {
             "state": {
               "default": "ברירת מחדל",
-              "swing_full": "נדנוד בטווח מלא",
+              "swing_full": "נדנוד אנכי בטווח מלא",
               "fixed_upmost": "קבוע בחלק העליון",
               "fixed_middle_up": "קבוע בחלק האמצעי-עליון",
               "fixed_middle": "קבוע בחלק האמצעי",
@@ -110,7 +110,7 @@
           "preset_mode": {
             "state": {
               "default": "ברירת מחדל",
-              "full_swing": "נדנוד מלא",
+              "full_swing": "נדנוד אופקי מלא",
               "fixed_leftmost": "קבוע בחלק השמאלי ביותר",
               "fixed_middle_left": "קבוע בחלק האמצעי-שמאלי",
               "fixed_middle": "קבוע בחלק האמצעי",
