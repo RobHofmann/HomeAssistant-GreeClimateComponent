@@ -1,0 +1,125 @@
+{
+  "config": {
+    "title": "מיזוג Gree",
+    "description": "הגדר את המזגן שלך מסוג Gree",
+    "step": {
+      "user": {
+        "data": {
+          "name": "שם",
+          "host": "כתובת IP",
+          "port": "פורט",
+          "mac": "כתובת MAC",
+          "timeout": "זמן קצוב לנסיון התקשרות",
+          "encryption_key": "מפתח הצפנה",
+          "uid": "UID",
+          "encryption_version": "גרסת הצפנה"
+        }
+      }
+    },
+    "data": {
+      "name": "שם",
+      "host": "כתובת IP",
+      "port": "פורט",
+      "mac": "כתובת MAC",
+      "timeout": "זמן קצוב לנסיון התקשרות",
+      "target_temp_step": "מרווח צעד טמפרטורת יעד",
+      "temp_sensor": "חיישן טמפרטורה",
+      "lights": "ישות תאורת מזגן",
+      "xfan": "ישות X-Fan",
+      "health": "ישות מצב בריאות",
+      "powersave": "ישות מצב חסכון בחשמל",
+      "sleep": "ישות מצב שינה",
+      "eightdegheat": "ישות מצב חימום ל-8°C",
+      "air": "ישות מצב זרימת אוויר",
+      "target_temp": "ישות טמפרטורת יעד",
+      "horizontal_swing": "נדנוד אופקי",
+      "anti_direct_blow": "ישות מניעת נשיבה ישירה",
+      "light_sensor": "ישות חיישן אור",
+      "encryption_key": "מפתח הצפנה",
+      "uid": "UID",
+      "auto_xfan": "ישות X-Fan אוטומטי",
+      "auto_light": "ישות תאורה אוטומטית",
+      "encryption_version": "גרסת הצפנה",
+      "disable_available_check": "נטרול בדיקת זמינות",
+      "max_online_attempts": "מספר ניסיונות התחברות מרבי",
+      "temp_sensor_offset": "היסט חיישן טמפרטורה",
+      "beeper": "ישות ביפר"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "אפשרויות מיזוג Gree",
+        "data": {
+          "target_temp_step": "מרווח צעד טמפרטורת יעד",
+          "temp_sensor": "חיישן טמפרטורה",
+          "lights": "ישות אורות",
+          "xfan": "ישות X-Fan",
+          "health": "ישות בריאות",
+          "powersave": "ישות חסכון בחשמל",
+          "sleep": "ישות שינה",
+          "eightdegheat": "ישות חימום ל-8°C",
+          "air": "ישות זרימת אוויר",
+          "target_temp": "ישות טמפרטורה מבוקשת",
+          "auto_xfan": "ישות X-Fan אוטומטי",
+          "auto_light": "ישות אור אוטומטי",
+          "horizontal_swing": "נדנוד אופקי",
+          "anti_direct_blow": "ישות מניעת נשיפה ישירה",
+          "disable_available_check": "נטרול בדיקת זמינות",
+          "max_online_attempts": "מספר ניסיונות התחברות מרבי",
+          "light_sensor": "ישות חיישן אור",
+          "temp_sensor_offset": "היסט חיישן טמפרטורה",
+          "beeper": "ישות זמזם",
+          "language": "שפה"
+        }
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "gree": {
+        "state_attributes": {
+          "fan_mode": {
+            "state": {
+              "auto": "אוטומטי",
+              "low": "נמוך",
+              "medium-low": "בינוני-נמוך",
+              "medium": "בינוני",
+              "medium-high": "בינוני-גבוה",
+              "high": "גבוה",
+              "turbo": "טורבו",
+              "quiet": "שקט"
+            }
+          },
+          "swing_mode": {
+            "state": {
+              "default": "ברירת מחדל",
+              "swing_full": "נדנוד בטווח מלא",
+              "fixed_upmost": "קבוע בחלק העליון",
+              "fixed_middle_up": "קבוע בחלק האמצעי-עליון",
+              "fixed_middle": "קבוע בחלק האמצעי",
+              "fixed_middle_low": "קבוע בחלק האמצעי-תחתון",
+              "fixed_lowest": "קבוע בחלק התחתון",
+              "swing_downmost": "נדנוד בחלק התחתון ביותר",
+              "swing_middle_low": "נדנוד בחלק האמצעי-תחתון",
+              "swing_middle": "נדנוד בחלק האמצעי",
+              "swing_middle_up": "נדנוד אמצעי-עליון",
+              "swing_upmost": "נדנוד בחלק העליון"
+            }
+          },
+          "preset_mode": {
+            "state": {
+              "default": "ברירת מחדל",
+              "full_swing": "נדנוד מלא",
+              "fixed_leftmost": "קבוע בחלק השמאלי ביותר",
+              "fixed_middle_left": "קבוע בחלק האמצעי-שמאלי",
+              "fixed_middle": "קבוע בחלק האמצעי",
+              "fixed_middle_right": "קבוע בחלק האמצעי-ימני",
+              "fixed_rightmost": "קבוע בחלק הימני ביותר"
+            }
+          }
+        }
+      }
+    }
+  }
+}
