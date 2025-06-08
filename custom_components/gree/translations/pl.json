@@ -1,0 +1,123 @@
+{
+  "config": {
+    "title": "Gree Climate",
+    "description": "Skonfiguruj swoją klimatyzację Gree",
+    "step": {
+      "user": {
+        "data": {
+          "name": "Nazwa",
+          "host": "Adres IP",
+          "port": "Port",
+          "mac": "Adres MAC",
+          "timeout": "Limit czasu",
+          "encryption_key": "Klucz szyfrowania",
+          "uid": "UID",
+          "encryption_version": "Wersja szyfrowania"
+        }
+      }
+    },
+    "data": {
+      "name": "Nazwa",
+      "host": "Adres IP",
+      "port": "Port",
+      "mac": "Adres MAC",
+      "timeout": "Limit czasu",
+      "target_temp_step": "Krok zmiany temperatury",
+      "temp_sensor": "Czujnik temperatury",
+      "lights": "Encja sterowania wyświetlaczem",
+      "xfan": "Encja trybu X-Fan",
+      "health": "Encja trybu Health",
+      "powersave": "Encja trybu Oszczędzanie energii",
+      "sleep": "Encja trybu Sen",
+      "eightdegheat": "Encja trybu Grzanie do 8°C",
+      "air": "Encja trybu Air",
+      "target_temp": "Encja docelowej temperatury",
+      "horizontal_swing": "Poziomy ruch żaluzji",
+      "anti_direct_blow": "Encja trybu Antybezpośredniego nawiewu",
+      "light_sensor": "Encja czujnika światła",
+      "encryption_key": "Klucz szyfrowania",
+      "uid": "UID",
+      "auto_xfan": "Encja automatycznego włączania trybu X-Fan",
+      "auto_light": "Encja automatycznego wł/wył. wyświetlacza",
+      "encryption_version": "Wersja szyfrowania",
+      "disable_available_check": "Wyłącz sprawdzanie dostępności",
+      "max_online_attempts": "Maksymalna liczba prób połączenia",
+      "temp_sensor_offset": "Offset czujnika temperatury"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opcje Gree Climate",
+        "data": {
+          "target_temp_step": "Krok zmiany temperatury",
+          "temp_sensor": "Czujnik temperatury",
+          "lights": "Encja sterowania wyświetlaczem",
+          "xfan": "Encja trybu X-Fan",
+          "health": "Encja trybu Health",
+          "powersave": "Encja trybu Oszczędzanie energii",
+          "sleep": "Encja trybu Sen",
+          "eightdegheat": "Encja trybu Grzanie do 8°C",
+          "air": "Encja trybu Air",
+          "target_temp": "Encja docelowej temperatury",
+          "auto_xfan": "Encja automatycznego włączania trybu X-Fan",
+          "auto_light": "Encja automatycznego wł/wył. wyświetlacza",
+          "horizontal_swing": "Poziomy ruch żaluzji",
+          "anti_direct_blow": "Encja trybu Antybezpośredniego nawiewu",
+          "disable_available_check": "Wyłącz sprawdzanie dostępności",
+          "max_online_attempts": "Maksymalna liczba prób połączenia",
+          "light_sensor": "Encja czujnika światła",
+          "temp_sensor_offset": "Offset czujnika temperatury",
+          "language": "Język"
+        }
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "gree": {
+        "state_attributes": {
+          "fan_mode": {
+            "state": {
+              "auto": "Auto",
+              "low": "Niski",
+              "medium-low": "Średnio-niski",
+              "medium": "Średni",
+              "medium-high": "Średnio-wysoki",
+              "high": "Wysoki",
+              "turbo": "Turbo",
+              "quiet": "Cichy"
+            }
+          },
+          "swing_mode": {
+            "state": {
+              "default": "Domyślny",
+              "swing_full": "Ruch w pełnym zakresie",
+              "fixed_upmost": "Stała najwyższa pozycja",
+              "fixed_middle_up": "Stała środkowo-górna pozycja",
+              "fixed_middle": "Stała środkowa pozycja",
+              "fixed_middle_low": "Stała środkowo-dolna pozycja",
+              "fixed_lowest": "Stała najniższa pozycja",
+              "swing_downmost": "Ruch w najniższym zakresie",
+              "swing_middle_low": "Ruch w środkowo-dolnym zakresie",
+              "swing_middle": "Ruch w środkowym zakresie",
+              "swing_middle_up": "Ruch w środkowo-górnym zakresie",
+              "swing_upmost": "Ruch w najwyższym zakresie"
+            }
+          },
+          "preset_mode": {
+            "state": {
+              "default": "Domyślny",
+              "full_swing": "Ruch w pełnym zakresie",
+              "fixed_leftmost": "Stała skrajnie lewa pozycja",
+              "fixed_middle_left": "Stała środkowo-lewa pozycja",
+              "fixed_middle": "Stała środkowa pozycja",
+              "fixed_middle_right": "Stała środkowo-prawa pozycja",
+              "fixed_rightmost": "Stała skrajnie prawa pozycja"
+            }
+          }
+        }
+      }
+    }
+  }
+}

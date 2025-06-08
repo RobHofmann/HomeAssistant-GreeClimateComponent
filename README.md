@@ -37,6 +37,12 @@ Tested on Home Assistant 2024.5.4.
 ## HACS
 This component is added to HACS default repository list.
 
+## UI Configuration
+The integration can be added from the Home Assistant UI.
+1. Navigate to **Settings** > **Devices & Services** and click **Add Integration**.
+2. Search for **Gree Climate** and fill in the host, port and MAC address.
+3. After setup you can open the integration options to configure additional parameters.
+
 ## Custom Component Installation
 !!! PLEASE NOTE !!!: Skip step 1 if you are using HACS.
 
@@ -71,7 +77,7 @@ This component is added to HACS default repository list.
      max_online_attempts: <OPTIONAL: integer specifying number of attempts to connect to the device before it goes into the unavailable state>
      disable_available_check: <OPTIONAL: boolean (true/false): if set to true device is always available in Home Assistant, useful for automation, device never goes into an unavailable state>
      temp_sensor_offset: <OPTIONAL: boolean (true/false): if set to true, the temperature sensor in the device will be offset by -40C when displayed in HA. If set to false, no offset will be applied. If not set, the script will try to determine the offset automatically.>
-     language: en  # OPTIONAL: Set to 'ru' for Russian, 'en' for English (default)
+     language: en  # OPTIONAL: Set to 'ru' for Russian, 'en' for English (default), 'pl' for Polish
 
    - platform: gree
      name: Second AC
