@@ -1,81 +1,125 @@
 {
-    "config": {
-        "title": "Gree Climate",
-        "description": "Configurează aparatul tău de aer condiționat Gree",
+  "config": {
+    "title": "Gree Climate",
+    "description": "Configurează aparatul tău de aer condiționat Gree",
+    "step": {
+      "user": {
         "data": {
-            "name": "Nume",
-            "host": "Adresă IP",
-            "port": "Port",
-            "mac": "Adresă MAC",
-            "timeout": "Timp de așteptare",
-            "target_temp_step": "Increment temperatură",
-            "temp_sensor": "Senzor temperatură",
-            "lights": "Entitate Lumini",
-            "xfan": "Entitate X-Fan",
-            "health": "Entitate Sănătate",
-            "powersave": "Entitate Economisire Energie",
-            "sleep": "Entitate Somn",
-            "eightdegheat": "Entitate Încălzire la 8°C",
-            "air": "Entitate Aer",
-            "target_temp": "Entitate Temperatură Țintă",
-            "horizontal_swing": "Baleiaj Orizontal",
-            "anti_direct_blow": "Entitate Anti Suflu Direct",
-            "light_sensor": "Entitate Senzor de Lumină",
-            "encryption_key": "Cheie Criptare",
-            "uid": "UID",
-            "auto_xfan": "Entitate X-Fan Automat",
-            "auto_light": "Entitate Lumină Automată",
-            "encryption_version": "Versiune Criptare",
-            "disable_available_check": "Dezactivează Verificarea Disponibilității",
-            "max_online_attempts": "Încercări Maxime de Conectare",
-            "temp_sensor_offset": "Compensare Senzor Temperatură"
+          "name": "Nume",
+          "host": "Adresă IP",
+          "port": "Port",
+          "mac": "Adresă MAC",
+          "timeout": "Timp de așteptare",
+          "encryption_key": "Cheie Criptare",
+          "uid": "UID",
+          "encryption_version": "Versiune Criptare"
         }
+      }
     },
-    "entity": {
-        "climate": {
-            "gree": {
-                "state_attributes": {
-                    "fan_mode": {
-                        "state": {
-                            "auto": "Automat",
-                            "low": "Scăzut",
-                            "medium-low": "Mediu-Scăzut",
-                            "medium": "Mediu",
-                            "medium-high": "Mediu-Ridicat",
-                            "high": "Ridicat",
-                            "turbo": "Turbo",
-                            "quiet": "Silențios"
-                        }
-                    },
-                    "swing_mode": {
-                        "state": {
-                            "default": "Implicit",
-                            "swing_full": "Baleiaj pe întreaga gamă",
-                            "fixed_upmost": "Fixat în poziția cea mai de sus",
-                            "fixed_middle_up": "Fixat în poziția mijloc-sus",
-                            "fixed_middle": "Fixat în poziția de mijloc",
-                            "fixed_middle_low": "Fixat în poziția mijloc-jos",
-                            "fixed_lowest": "Fixat în poziția cea mai de jos",
-                            "swing_downmost": "Baleiaj în regiunea cea mai de jos",
-                            "swing_middle_low": "Baleiaj în regiunea mijloc-jos",
-                            "swing_middle": "Baleiaj în regiunea de mijloc",
-                            "swing_middle_up": "Baleiaj în regiunea mijloc-sus",
-                            "swing_upmost": "Baleiaj în regiunea cea mai de sus"
-                        }
-                    },
-                    "preset_mode": {
-                        "state": {
-                            "default": "Implicit",
-                            "full_swing": "Baleiaj complet",
-                            "fixed_leftmost": "Fixat în poziția cea mai din stânga",
-                            "fixed_middle_left": "Fixat în poziția mijloc-stânga",
-                            "fixed_middle": "Fixat în poziția de mijloc",
-                            "fixed_middle_right": "Fixat în poziția mijloc-dreapta",
-                            "fixed_rightmost": "Fixat în poziția cea mai din dreapta"
-                        }
-                    }
-                }
-            }
-        }
+    "data": {
+      "name": "Nume",
+      "host": "Adresă IP",
+      "port": "Port",
+      "mac": "Adresă MAC",
+      "timeout": "Timp de așteptare",
+      "target_temp_step": "Pas Temperatură",
+      "temp_sensor": "Senzor Temperatură",
+      "lights": "Entitate Lumini",
+      "xfan": "Entitate X-Fan",
+      "health": "Entitate Sănătate",
+      "powersave": "Entitate Economisire Energie",
+      "sleep": "Entitate Somn",
+      "eightdegheat": "Entitate Încălzire la 8°C",
+      "air": "Entitate Aer",
+      "target_temp": "Entitate Temperatură Țintă",
+      "horizontal_swing": "Baleiaj Orizontal",
+      "anti_direct_blow": "Entitate Anti Suflu Direct",
+      "light_sensor": "Entitate Senzor de Lumină",
+      "encryption_key": "Cheie Criptare",
+      "uid": "UID",
+      "auto_xfan": "Entitate X-Fan Automat",
+      "auto_light": "Entitate Lumină Automată",
+      "encryption_version": "Versiune Criptare",
+      "disable_available_check": "Dezactivează Verificarea Disponibilității",
+      "max_online_attempts": "Încercări Maxime de Conectare",
+      "temp_sensor_offset": "Compensare Senzor Temperatură",
+      "beeper": "Entitate Sonerie"
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opțiuni Gree Climate",
+        "data": {
+          "target_temp_step": "Pas Temperatură",
+          "temp_sensor": "Senzor Temperatură",
+          "lights": "Entitate Lumini",
+          "xfan": "Entitate X-Fan",
+          "health": "Entitate Sănătate",
+          "powersave": "Entitate Economisire Energie",
+          "sleep": "Entitate Somn",
+          "eightdegheat": "Entitate Încălzire la 8°C",
+          "air": "Entitate Aer",
+          "target_temp": "Entitate Temperatură Țintă",
+          "auto_xfan": "Entitate X-Fan Automat",
+          "auto_light": "Entitate Lumină Automată",
+          "horizontal_swing": "Baleiaj Orizontal",
+          "anti_direct_blow": "Entitate Anti Suflu Direct",
+          "disable_available_check": "Dezactivează Verificarea Disponibilității",
+          "max_online_attempts": "Încercări Maxime de Conectare",
+          "light_sensor": "Entitate Senzor de Lumină",
+          "temp_sensor_offset": "Compensare Senzor Temperatură",
+          "beeper": "Entitate Sonerie",
+          "language": "Limbă"
+        }
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "gree": {
+        "state_attributes": {
+          "fan_mode": {
+            "state": {
+              "auto": "Automat",
+              "low": "Scăzut",
+              "medium-low": "Mediu-Scăzut",
+              "medium": "Mediu",
+              "medium-high": "Mediu-Ridicat",
+              "high": "Ridicat",
+              "turbo": "Turbo",
+              "quiet": "Silențios"
+            }
+          },
+          "swing_mode": {
+            "state": {
+              "default": "Implicit",
+              "swing_full": "Baleiaj pe întreaga gamă",
+              "fixed_upmost": "Fixat în poziția cea mai de sus",
+              "fixed_middle_up": "Fixat în poziția mijloc-sus",
+              "fixed_middle": "Fixat în poziția de mijloc",
+              "fixed_middle_low": "Fixat în poziția mijloc-jos",
+              "fixed_lowest": "Fixat în poziția cea mai de jos",
+              "swing_downmost": "Baleiaj în regiunea cea mai de jos",
+              "swing_middle_low": "Baleiaj în regiunea mijloc-jos",
+              "swing_middle": "Baleiaj în regiunea de mijloc",
+              "swing_middle_up": "Baleiaj în regiunea mijloc-sus",
+              "swing_upmost": "Baleiaj în regiunea cea mai de sus"
+            }
+          },
+          "preset_mode": {
+            "state": {
+              "default": "Implicit",
+              "full_swing": "Baleiaj complet",
+              "fixed_leftmost": "Fixat în poziția cea mai din stânga",
+              "fixed_middle_left": "Fixat în poziția mijloc-stânga",
+              "fixed_middle": "Fixat în poziția de mijloc",
+              "fixed_middle_right": "Fixat în poziția mijloc-dreapta",
+              "fixed_rightmost": "Fixat în poziția cea mai din dreapta"
+            }
+          }
+        }
+      }
+    }
+  }
 }
