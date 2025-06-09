@@ -78,7 +78,7 @@ The integration can be added from the Home Assistant UI.
      max_online_attempts: <OPTIONAL: integer specifying number of attempts to connect to the device before it goes into the unavailable state>
      disable_available_check: <OPTIONAL: boolean (true/false): if set to true device is always available in Home Assistant, useful for automation, device never goes into an unavailable state>
      temp_sensor_offset: <OPTIONAL: boolean (true/false): if set to true, the temperature sensor in the device will be offset by -40C when displayed in HA. If set to false, no offset will be applied. If not set, the script will try to determine the offset automatically>
-     language: en  <OPTIONAL: Set to 'en' for English (default), 'ru' for Russian, 'pl' for Polish, 'de' for German, 'hu' for Hungarian, 'he' for Hebrew, 'ro' for Romanian>
+     language: en  <OPTIONAL: Set to 'en' for English (default), 'ru' for Russian, 'pl' for Polish, 'de' for German, 'hu' for Hungarian, 'he' for Hebrew, 'ro' for Romanian, 'it' for Italian>
      beeper: <OPTIONAL: input_boolean if set to false, the beeper will be disables and all commands will be silent. For example: input_boolean.first_ac_beeper>
 
    - platform: gree
