@@ -4,24 +4,25 @@
 Custom Gree climate component written in Python3 for Home Assistant. Controls AC's supporting the Gree protocol.
 
 Tested on the following hardware:
-- Innova HVAC
-- Cooper & Hunter (CH-S12FTXE(WI-FI)-NG)
 - AC Pioneer Fortis Series with WI-FI module CS532AE
 - AC Gree GWH12ACC-K6DNA1D
 - AC Gree 3VIR24HP230V1AH
-- Inventor Life Pro WiFi
-- Toyotomi Izuru TRN/TRG-828ZR
-- Sinclair ASH-13BIF2
-- Sinclair ASH-12BIV
-- TOSOT BORA-GWH09AAB
-- CASCADE BORA-CWH09AAB
-- EWT S-090 GDI-HRFN1, EWT S-120 GDI-HRFN1 (WI-FI module CS532AEH)
-- Tadiran Alpha Expert Inverter
-- Copmax Air-Air Heatpump GWH12QC-K6DNA5F 3.5kW
 - Bulex vivair multisplit units; 20-080MC4NO outdoor unit, 20-025 NWI (2,5 kW) indoor unit, 20-035 NWI (3,5 kW) indoor unit
+- CASCADE BORA-CWH09AAB
+- Cooper & Hunter (CH-S12FTXE(WI-FI)-NG)
+- Copmax Air-Air Heatpump GWH12QC-K6DNA5F 3.5kW
+- EWT S-090 GDI-HRFN1, EWT S-120 GDI-HRFN1 (WI-FI module CS532AEH)
+- Innova HVAC
+- Inventor Life Pro WiFi
 - Kinghome "Pular" - KW12HQ25SDI (Requires encryption_version=2)
+- Sinclair ASH-12BIV
+- Sinclair ASH-13BIF2
+- Sinclair SIH-09BITW
+- Tadiran Alpha Expert Inverter
+- TOSOT BORA-GWH09AAB
+- Toyotomi Izuru TRN/TRG-828ZR
 
-Tested on Home Assistant 2024.5.4.
+Tested on Home Assistant 2025.5.3.
 
 **If you are experiencing issues please be sure to provide details about your device, Home Assistant version and what exactly went wrong.**
 
