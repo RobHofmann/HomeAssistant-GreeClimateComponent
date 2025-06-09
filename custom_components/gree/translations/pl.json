@@ -21,7 +21,7 @@
       "host": "Adres IP",
       "port": "Port",
       "mac": "Adres MAC",
-      "timeout": "Limit czasu",
+      "timeout": "Limit czasu odpowiedzi",
       "target_temp_step": "Krok zmiany temperatury",
       "temp_sensor": "Czujnik temperatury",
       "lights": "Encja sterowania wyświetlaczem",
@@ -42,7 +42,8 @@
       "encryption_version": "Wersja szyfrowania",
       "disable_available_check": "Wyłącz sprawdzanie dostępności",
       "max_online_attempts": "Maksymalna liczba prób połączenia",
-      "temp_sensor_offset": "Offset czujnika temperatury"
+      "temp_sensor_offset": "Offset czujnika temperatury",
+      "beeper": "Encja sygnału dźwiękowego"
     }
   },
   "options": {
@@ -68,6 +69,7 @@
           "max_online_attempts": "Maksymalna liczba prób połączenia",
           "light_sensor": "Encja czujnika światła",
           "temp_sensor_offset": "Offset czujnika temperatury",
+          "beeper": "Encja sygnału dźwiękowego",
           "language": "Język"
         }
       }
