@@ -1,0 +1,125 @@
+{
+  "config": {
+    "title": "Climatizzatore Gree",
+    "description": "Configura il tuo climatizzatore Gree",
+    "step": {
+      "user": {
+        "data": {
+          "name": "Nome",
+          "host": "Indirizzo IP",
+          "port": "Porta",
+          "mac": "Indirizzo MAC",
+          "timeout": "Timeout",
+          "encryption_key": "Chiave di cifratura",
+          "uid": "UID",
+          "encryption_version": "Versione cifratura"
+        }
+      }
+    },
+    "data": {
+      "name": "Nome",
+      "host": "Indirizzo IP",
+      "port": "Porta",
+      "mac": "Indirizzo MAC",
+      "timeout": "Timeout",
+      "target_temp_step": "Incremento di temperatura",
+      "temp_sensor": "Sensore temperatura",
+      "lights": "Entità luci",
+      "xfan": "Entità X-Fan",
+      "health": "Entità salute",
+      "powersave": "Entità risparmio energetico",
+      "sleep": "Entità modalità sonno",
+      "eightdegheat": "Entità riscaldamento 8°C",
+      "air": "Entità aria",
+      "target_temp": "Entità temperatura desiderata",
+      "horizontal_swing": "Oscillazione orizzontale",
+      "anti_direct_blow": "Entità anti-flusso diretto",
+      "light_sensor": "Entità sensore luminosità",
+      "encryption_key": "Chiave di cifratura",
+      "uid": "UID",
+      "auto_xfan": "Entità X-Fan automatico",
+      "auto_light": "Entità luci automatiche",
+      "encryption_version": "Versione cifratura",
+      "disable_available_check": "Disabilita verifica disponibilità",
+      "max_online_attempts": "Numero massimo tentativi online",
+      "temp_sensor_offset": "Compensazione sensore temperatura",
+      "beeper": "Entità segnale acustico"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opzioni climatizzatore Gree",
+        "data": {
+          "target_temp_step": "Incremento di temperatura",
+          "temp_sensor": "Sensore temperatura",
+          "lights": "Entità luci",
+          "xfan": "Entità X-Fan",
+          "health": "Entità salute",
+          "powersave": "Entità risparmio energetico",
+          "sleep": "Entità modalità sleep",
+          "eightdegheat": "Entità riscaldamento 8°C",
+          "air": "Entità aria",
+          "target_temp": "Entità temperatura desiderata",
+          "auto_xfan": "Entità X-Fan automatico",
+          "auto_light": "Entità luci automatiche",
+          "horizontal_swing": "Oscillazione orizzontale",
+          "anti_direct_blow": "Entità anti-flusso diretto",
+          "disable_available_check": "Disabilita verifica disponibilità",
+          "max_online_attempts": "Numero massimo tentativi online",
+          "light_sensor": "Entità sensore luminosità",
+          "temp_sensor_offset": "Compensazione sensore temperatura",
+          "beeper": "Entità segnale acustico",
+          "language": "Lingua"
+        }
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "gree": {
+        "state_attributes": {
+          "fan_mode": {
+            "state": {
+              "auto": "Automatico",
+              "low": "Basso",
+              "medium-low": "Medio-Basso",
+              "medium": "Medio",
+              "medium-high": "Medio-Alto",
+              "high": "Alto",
+              "turbo": "Turbo",
+              "quiet": "Silenzioso"
+            }
+          },
+          "swing_mode": {
+            "state": {
+              "default": "Predefinito",
+              "swing_full": "Oscillazione completa",
+              "fixed_upmost": "Fisso in alto",
+              "fixed_middle_up": "Fisso medio-alto",
+              "fixed_middle": "Fisso centrale",
+              "fixed_middle_low": "Fisso medio-basso",
+              "fixed_lowest": "Fisso in basso",
+              "swing_downmost": "Oscillazione in basso",
+              "swing_middle_low": "Oscillazione medio-bassa",
+              "swing_middle": "Oscillazione centrale",
+              "swing_middle_up": "Oscillazione medio-alta",
+              "swing_upmost": "Oscillazione in alto"
+            }
+          },
+          "preset_mode": {
+            "state": {
+              "default": "Predefinito",
+              "full_swing": "Oscillazione completa",
+              "fixed_leftmost": "Fisso tutto a sinistra",
+              "fixed_middle_left": "Fisso medio-sinistra",
+              "fixed_middle": "Fisso centrale",
+              "fixed_middle_right": "Fisso medio-destra",
+              "fixed_rightmost": "Fisso tutto a destra"
+            }
+          }
+        }
+      }
+    }
+  }
+}

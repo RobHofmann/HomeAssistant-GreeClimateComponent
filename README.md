@@ -4,24 +4,25 @@
 Custom Gree climate component written in Python3 for Home Assistant. Controls AC's supporting the Gree protocol.
 
 Tested on the following hardware:
-- Innova HVAC
-- Cooper & Hunter (CH-S12FTXE(WI-FI)-NG)
 - AC Pioneer Fortis Series with WI-FI module CS532AE
 - AC Gree GWH12ACC-K6DNA1D
 - AC Gree 3VIR24HP230V1AH
-- Inventor Life Pro WiFi
-- Toyotomi Izuru TRN/TRG-828ZR
-- Sinclair ASH-13BIF2
-- Sinclair ASH-12BIV
-- TOSOT BORA-GWH09AAB
-- CASCADE BORA-CWH09AAB
-- EWT S-090 GDI-HRFN1, EWT S-120 GDI-HRFN1 (WI-FI module CS532AEH)
-- Tadiran Alpha Expert Inverter
-- Copmax Air-Air Heatpump GWH12QC-K6DNA5F 3.5kW
 - Bulex vivair multisplit units; 20-080MC4NO outdoor unit, 20-025 NWI (2,5 kW) indoor unit, 20-035 NWI (3,5 kW) indoor unit
+- CASCADE BORA-CWH09AAB
+- Cooper & Hunter (CH-S12FTXE(WI-FI)-NG)
+- Copmax Air-Air Heatpump GWH12QC-K6DNA5F 3.5kW
+- EWT S-090 GDI-HRFN1, EWT S-120 GDI-HRFN1 (WI-FI module CS532AEH)
+- Innova HVAC
+- Inventor Life Pro WiFi
 - Kinghome "Pular" - KW12HQ25SDI (Requires encryption_version=2)
+- Sinclair ASH-12BIV
+- Sinclair ASH-13BIF2
+- Sinclair SIH-09BITW
+- Tadiran Alpha Expert Inverter
+- TOSOT BORA-GWH09AAB
+- Toyotomi Izuru TRN/TRG-828ZR
 
-Tested on Home Assistant 2024.5.4.
+Tested on Home Assistant 2025.5.3.
 
 **If you are experiencing issues please be sure to provide details about your device, Home Assistant version and what exactly went wrong.**
 
@@ -36,6 +37,12 @@ Tested on Home Assistant 2024.5.4.
 
 ## HACS
 This component is added to HACS default repository list.
+
+## UI Configuration
+The integration can be added from the Home Assistant UI.
+1. Navigate to **Settings** > **Devices & Services** and click **Add Integration**.
+2. Search for **Gree Climate** and fill in the host, port and MAC address.
+3. After setup you can open the integration options to configure additional parameters.
 
 ## Custom Component Installation
 !!! PLEASE NOTE !!!: Skip step 1 if you are using HACS.
@@ -70,8 +77,9 @@ This component is added to HACS default repository list.
      light_sensor: <OPTIONAL: input_boolean this feature will enable built-in light sensor.>
      max_online_attempts: <OPTIONAL: integer specifying number of attempts to connect to the device before it goes into the unavailable state>
      disable_available_check: <OPTIONAL: boolean (true/false): if set to true device is always available in Home Assistant, useful for automation, device never goes into an unavailable state>
-     temp_sensor_offset: <OPTIONAL: boolean (true/false): if set to true, the temperature sensor in the device will be offset by -40C when displayed in HA. If set to false, no offset will be applied. If not set, the script will try to determine the offset automatically.>
-     language: en  # OPTIONAL: Set to 'ru' for Russian, 'en' for English (default)
+     temp_sensor_offset: <OPTIONAL: boolean (true/false): if set to true, the temperature sensor in the device will be offset by -40C when displayed in HA. If set to false, no offset will be applied. If not set, the script will try to determine the offset automatically>
+     language: en  <OPTIONAL: Set to 'en' for English (default), 'ru' for Russian, 'pl' for Polish, 'de' for German, 'hu' for Hungarian, 'he' for Hebrew, 'ro' for Romanian, 'it' for Italian>
+     beeper: <OPTIONAL: input_boolean if set to false, the beeper will be disables and all commands will be silent. For example: input_boolean.first_ac_beeper>
 
    - platform: gree
      name: Second AC

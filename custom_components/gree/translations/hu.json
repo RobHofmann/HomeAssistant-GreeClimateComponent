@@ -1,0 +1,125 @@
+{
+  "config": {
+    "title": "Gree Klíma",
+    "description": "Állítsd be a Gree klímaberendezést",
+    "step": {
+      "user": {
+        "data": {
+          "name": "Név",
+          "host": "IP cím",
+          "port": "Port",
+          "mac": "MAC cím",
+          "timeout": "Időtúllépés",
+          "encryption_key": "Titkosítási kulcs",
+          "uid": "UID",
+          "encryption_version": "Titkosítási verzió"
+        }
+      }
+    },
+    "data": {
+      "name": "Név",
+      "host": "IP cím",
+      "port": "Port",
+      "mac": "MAC cím",
+      "timeout": "Időtúllépés",
+      "target_temp_step": "Hőmérséklet lépésköz",
+      "temp_sensor": "Hőmérséklet érzékelő",
+      "lights": "Világítás entitás",
+      "xfan": "X-Fan entitás",
+      "health": "Egészség entitás",
+      "powersave": "Energiatakarékos mód entitás",
+      "sleep": "Alvó mód entitás",
+      "eightdegheat": "8°C fűtés entitás",
+      "air": "Légáramlás entitás",
+      "target_temp": "Célhőmérséklet entitás",
+      "horizontal_swing": "Vízszintes legyezés",
+      "anti_direct_blow": "Közvetlen fújás elleni entitás",
+      "light_sensor": "Fényérzékelő entitás",
+      "encryption_key": "Titkosítási kulcs",
+      "uid": "UID",
+      "auto_xfan": "Automatikus X-Fan entitás",
+      "auto_light": "Automatikus fény entitás",
+      "encryption_version": "Titkosítási verzió",
+      "disable_available_check": "Elérhetőség ellenőrzésének tiltása",
+      "max_online_attempts": "Maximális online próbálkozások száma",
+      "temp_sensor_offset": "Hőmérséklet érzékelő eltérés",
+      "beeper": "Hangjelző entitás"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Gree Klíma Beállítások",
+        "data": {
+          "target_temp_step": "Hőmérséklet lépésköz",
+          "temp_sensor": "Hőmérséklet érzékelő",
+          "lights": "Világítás entitás",
+          "xfan": "X-Fan entitás",
+          "health": "Egészség entitás",
+          "powersave": "Energiatakarékos mód entitás",
+          "sleep": "Alvó mód entitás",
+          "eightdegheat": "8°C fűtés entitás",
+          "air": "Légáramlás entitás",
+          "target_temp": "Célhőmérséklet entitás",
+          "auto_xfan": "Automatikus X-Fan entitás",
+          "auto_light": "Automatikus fény entitás",
+          "horizontal_swing": "Vízszintes legyezés",
+          "anti_direct_blow": "Közvetlen fújás elleni entitás",
+          "disable_available_check": "Elérhetőség ellenőrzésének tiltása",
+          "max_online_attempts": "Maximális online próbálkozások száma",
+          "light_sensor": "Fényérzékelő entitás",
+          "temp_sensor_offset": "Hőmérséklet érzékelő eltérés",
+          "beeper": "Hangjelző entitás",
+          "language": "Nyelv"
+        }
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "gree": {
+        "state_attributes": {
+          "fan_mode": {
+            "state": {
+              "auto": "Automatikus",
+              "low": "Alacsony",
+              "medium-low": "Közepesen alacsony",
+              "medium": "Közepes",
+              "medium-high": "Közepesen magas",
+              "high": "Magas",
+              "turbo": "Turbó",
+              "quiet": "Csendes"
+            }
+          },
+          "swing_mode": {
+            "state": {
+              "default": "Alapértelmezett",
+              "swing_full": "Teljes legyezés",
+              "fixed_upmost": "Rögzítve a legfelső pozícióban",
+              "fixed_middle_up": "Rögzítve a közép-felső pozícióban",
+              "fixed_middle": "Rögzítve középen",
+              "fixed_middle_low": "Rögzítve a közép-alsó pozícióban",
+              "fixed_lowest": "Rögzítve a legalacsonyabb pozícióban",
+              "swing_downmost": "Legyezés a legalacsonyabb régióban",
+              "swing_middle_low": "Legyezés a közép-alsó régióban",
+              "swing_middle": "Legyezés a középső régióban",
+              "swing_middle_up": "Legyezés a közép-felső régióban",
+              "swing_upmost": "Legyezés a legfelső régióban"
+            }
+          },
+          "preset_mode": {
+            "state": {
+              "default": "Alapértelmezett",
+              "full_swing": "Teljes legyezés",
+              "fixed_leftmost": "Rögzítve a baloldali pozícióban",
+              "fixed_middle_left": "Rögzítve a közép-balos pozícióban",
+              "fixed_middle": "Rögzítve középen",
+              "fixed_middle_right": "Rögzítve a közép-jobbos pozícióban",
+              "fixed_rightmost": "Rögzítve a jobboldali pozícióban"
+            }
+          }
+        }
+      }
+    }
+  }
+}

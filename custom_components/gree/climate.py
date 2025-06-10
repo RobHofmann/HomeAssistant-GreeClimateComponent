@@ -70,6 +70,7 @@ CONF_ENCRYPTION_VERSION = 'encryption_version'
 CONF_DISABLE_AVAILABLE_CHECK  = 'disable_available_check'
 CONF_MAX_ONLINE_ATTEMPTS = 'max_online_attempts'
 CONF_LIGHT_SENSOR = 'light_sensor'
+CONF_BEEPER = 'beeper'
 CONF_TEMP_SENSOR_OFFSET = 'temp_sensor_offset'
 CONF_LANGUAGE = 'language'
 
@@ -125,6 +126,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_DISABLE_AVAILABLE_CHECK, default=False): cv.boolean,
     vol.Optional(CONF_MAX_ONLINE_ATTEMPTS, default=3): cv.positive_int,
     vol.Optional(CONF_LIGHT_SENSOR): cv.entity_id,
+    vol.Optional(CONF_BEEPER): cv.entity_id,
     vol.Optional(CONF_TEMP_SENSOR_OFFSET): cv.boolean,
     vol.Optional(CONF_LANGUAGE): cv.string,
 })
@@ -170,17 +172,63 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     encryption_version = config.get(CONF_ENCRYPTION_VERSION)
     disable_available_check = config.get(CONF_DISABLE_AVAILABLE_CHECK)
     max_online_attempts = config.get(CONF_MAX_ONLINE_ATTEMPTS)
+    beeper_entity_id = config.get(CONF_BEEPER)
     temp_sensor_offset = config.get(CONF_TEMP_SENSOR_OFFSET)
 
     _LOGGER.info('Adding Gree climate device to hass')
 
     async_add_devices([
-        GreeClimate(hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, auto_xfan_entity_id, auto_light_entity_id, horizontal_swing, light_sensor_entity_id, encryption_version, disable_available_check, max_online_attempts, encryption_key, uid, temp_sensor_offset, language)
+        GreeClimate(
+            hass,
+            name,
+            ip_addr,
+            port,
+            mac_addr,
+            timeout,
+            target_temp_step,
+            temp_sensor_entity_id,
+            lights_entity_id,
+            xfan_entity_id,
+            health_entity_id,
+            powersave_entity_id,
+            sleep_entity_id,
+            eightdegheat_entity_id,
+            air_entity_id,
+            target_temp_entity_id,
+            anti_direct_blow_entity_id,
+            hvac_modes,
+            fan_modes,
+            swing_modes,
+            preset_modes,
+            auto_xfan_entity_id,
+            auto_light_entity_id,
+            horizontal_swing,
+            light_sensor_entity_id,
+            encryption_version,
+            disable_available_check,
+            max_online_attempts,
+            encryption_key,
+            uid,
+            beeper_entity_id,
+            temp_sensor_offset,
+            language,
+        )
     ])
+
+
+async def async_setup_entry(hass, entry, async_add_devices):
+    """Set up Gree climate from a config entry."""
+    config = {**entry.data, **entry.options}
+    await async_setup_platform(hass, config, async_add_devices)
+
+
+async def async_unload_entry(hass, entry):
+    """Unload a config entry."""
+    return True
 
 class GreeClimate(ClimateEntity):
 
-    def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, auto_xfan_entity_id, auto_light_entity_id, horizontal_swing, light_sensor_entity_id, encryption_version, disable_available_check, max_online_attempts, encryption_key=None, uid=None, temp_sensor_offset=None, language=None):
+    def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, preset_modes, auto_xfan_entity_id, auto_light_entity_id, horizontal_swing, light_sensor_entity_id, encryption_version, disable_available_check, max_online_attempts, encryption_key=None, uid=None, beeper_entity_id=None, temp_sensor_offset=None, language=None):
         _LOGGER.info('Initialize the GREE climate device')
         self.hass = hass
         self._name = name
@@ -343,6 +391,19 @@ class GreeClimate(ClimateEntity):
         # helper method to determine TemSen offset
         self._process_temp_sensor = self.TempOffsetResolver()
 
+        self._beeper_entity_id = beeper_entity_id
+        self._current_beeper_enabled = True # Default to beeper ON (silent mode OFF)
+
+        if self._beeper_entity_id:
+            _LOGGER.info('Setting up beeper control entity: ' + str(self._beeper_entity_id))
+            initial_beeper_state = self.hass.states.get(self._beeper_entity_id)
+            if initial_beeper_state and initial_beeper_state.state == STATE_ON:
+                self._current_beeper_enabled = True 
+            
+            async_track_state_change_event(
+                hass, self._beeper_entity_id, self._async_beeper_entity_state_changed
+            )
+
     # Pad helper method to help us get the right string for encrypting
 
     def Pad(self, s):
@@ -350,7 +411,7 @@ class GreeClimate(ClimateEntity):
         return s + (aesBlockSize - len(s) % aesBlockSize) * chr(aesBlockSize - len(s) % aesBlockSize)
 
     def FetchResult(self, cipher, ip_addr, port, timeout, json):
-        _LOGGER.info('Fetching(%s, %s, %s, %s)' % (ip_addr, port, timeout, json))
+        _LOGGER.debug('Fetching(%s, %s, %s, %s)' % (ip_addr, port, timeout, json))
         clientSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         clientSock.settimeout(timeout)
         clientSock.sendto(bytes(json, "utf-8"), (ip_addr, port))
@@ -431,22 +492,29 @@ class GreeClimate(ClimateEntity):
 
     def SetAcOptions(self, acOptions, newOptionsToOverride, optionValuesToOverride = None):
         if not (optionValuesToOverride is None):
-            _LOGGER.info('Setting acOptions with retrieved HVAC values')
+            _LOGGER.debug('Setting acOptions with retrieved HVAC values')
             for key in newOptionsToOverride:
-                _LOGGER.info('Setting %s: %s' % (key, optionValuesToOverride[newOptionsToOverride.index(key)]))
+                _LOGGER.debug('Setting %s: %s' % (key, optionValuesToOverride[newOptionsToOverride.index(key)]))
                 acOptions[key] = optionValuesToOverride[newOptionsToOverride.index(key)]
-            _LOGGER.info('Done setting acOptions')
+            _LOGGER.debug('Done setting acOptions')
         else:
-            _LOGGER.info('Overwriting acOptions with new settings')
+            _LOGGER.debug('Overwriting acOptions with new settings')
             for key, value in newOptionsToOverride.items():
-                _LOGGER.info('Overwriting %s: %s' % (key, value))
+                _LOGGER.debug('Overwriting %s: %s' % (key, value))
                 acOptions[key] = value
-            _LOGGER.info('Done overwriting acOptions')
+            _LOGGER.debug('Done overwriting acOptions')
         return acOptions
 
     def SendStateToAc(self, timeout):
         opt = '"Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt","SlpMod"'
         p = '{Pow},{Mod},{SetTem},{WdSpd},{Air},{Blo},{Health},{SwhSlp},{Lig},{SwingLfRig},{SwUpDn},{Quiet},{Tur},{StHt},{TemUn},{HeatCoolType},{TemRec},{SvSt},{SlpMod}'.format(**self._acOptions)
+
+        buzzer_command_value = 0 if self._current_beeper_enabled else 1
+
+        opt += ',"Buzzer_ON_OFF"'
+        p += ',' + str(buzzer_command_value)
+        _LOGGER.debug(f"Sending with Buzzer_ON_OFF={buzzer_command_value} (Silent mode HA toggle is ON: {self._current_beeper_enabled})")
+
         if self._has_anti_direct_blow:
             opt += ',"AntiDirectBlow"'
             p += ',' + str(self._acOptions['AntiDirectBlow'])
@@ -462,7 +530,7 @@ class GreeClimate(ClimateEntity):
             sentJsonPayload = '{"cid":"app","i":0,"pack":"' + pack + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid":{}'.format(self._uid) + ',"tag":"' + tag +'"}'
             cipher = self.GetGCMCipher(self._encryption_key)
         receivedJsonPayload = self.FetchResult(cipher, self._ip_addr, self._port, timeout, sentJsonPayload)
-        _LOGGER.info('Done sending state to HVAC: ' + str(receivedJsonPayload))
+        _LOGGER.debug('Done sending state to HVAC: ' + str(receivedJsonPayload))
 
     def UpdateHATargetTemperature(self):
         # Sync set temperature to HA. If 8℃ heating is active we set the temp in HA to 8℃ so that it shows the same as the AC display.
@@ -470,7 +538,7 @@ class GreeClimate(ClimateEntity):
             self._target_temperature = 8
             _LOGGER.info('HA target temp set according to HVAC state to 8℃ since 8℃ heating mode is active')
         else:
-            temp_c = self._acOptions['SetTem']  # "SetTem" is always in C units
+            temp_c = self.decode_temp_c(SetTem=self._acOptions['SetTem'], TemRec=self._acOptions['TemRec']) # takes care of 1/2 degrees
             temp_f = self.gree_c_to_f(SetTem=self._acOptions['SetTem'], TemRec=self._acOptions['TemRec'])
 
             if (self._unit_of_measurement == "°C"):
@@ -489,9 +557,10 @@ class GreeClimate(ClimateEntity):
                     attr = target_temp_state.attributes
                     self.hass.states.async_set(self._target_temp_entity_id, float(self._target_temperature), attr)
 
-            _LOGGER.info('UpdateHATargetTemperature: HA target temp set according to HVAC state to: ' + str(self._target_temperature) + str(self._unit_of_measurement))
-            _LOGGER.info('UpdateHATargetTemperature: Device commands: SetTem: ' + str(
-                self._acOptions['SetTem']) + ", TemRec: " + str(self._acOptions['TemRec']))
+            _LOGGER.info(
+                f"UpdateHATargetTemperature: HA target temp set to: {self._target_temperature} {self._unit_of_measurement}. "
+                f"Device commands: SetTem: {self._acOptions['SetTem']}, TemRec: {self._acOptions['TemRec']}"
+            )
 
     def UpdateHAOptions(self):
         # Sync HA with retreived HVAC options
@@ -510,7 +579,7 @@ class GreeClimate(ClimateEntity):
                 attr = lights_state.attributes
                 if self._current_lights in (STATE_ON, STATE_OFF):
                     self.hass.states.async_set(self._lights_entity_id, self._current_lights, attr)
-        _LOGGER.info('HA lights option set according to HVAC state to: ' + str(self._current_lights))
+        _LOGGER.debug('HA lights option set according to HVAC state to: ' + str(self._current_lights))
         # Sync current HVAC xfan option to HA
         if (self._acOptions['Blo'] == 1):
             self._current_xfan = STATE_ON
@@ -524,7 +593,7 @@ class GreeClimate(ClimateEntity):
                 attr = xfan_state.attributes
                 if self._current_xfan in (STATE_ON, STATE_OFF):
                     self.hass.states.async_set(self._xfan_entity_id, self._current_xfan, attr)
-        _LOGGER.info('HA xfan option set according to HVAC state to: ' + str(self._current_xfan))
+        _LOGGER.debug('HA xfan option set according to HVAC state to: ' + str(self._current_xfan))
         # Sync current HVAC health option to HA
         if (self._acOptions['Health'] == 1):
             self._current_health = STATE_ON
@@ -538,7 +607,7 @@ class GreeClimate(ClimateEntity):
                 attr = health_state.attributes
                 if self._current_health in (STATE_ON, STATE_OFF):
                     self.hass.states.async_set(self._health_entity_id, self._current_health, attr)
-        _LOGGER.info('HA health option set according to HVAC state to: ' + str(self._current_health))
+        _LOGGER.debug('HA health option set according to HVAC state to: ' + str(self._current_health))
         # Sync current HVAC powersave option to HA
         if (self._acOptions['SvSt'] == 1):
             self._current_powersave = STATE_ON
@@ -552,7 +621,7 @@ class GreeClimate(ClimateEntity):
                 attr = powersave_state.attributes
                 if self._current_powersave in (STATE_ON, STATE_OFF):
                     self.hass.states.async_set(self._powersave_entity_id, self._current_powersave, attr)
-        _LOGGER.info('HA powersave option set according to HVAC state to: ' + str(self._current_powersave))
+        _LOGGER.debug('HA powersave option set according to HVAC state to: ' + str(self._current_powersave))
         # Sync current HVAC sleep option to HA
         if (self._acOptions['SwhSlp'] == 1) and (self._acOptions['SlpMod'] == 1):
             self._current_sleep = STATE_ON
@@ -566,7 +635,7 @@ class GreeClimate(ClimateEntity):
                 attr = sleep_state.attributes
                 if self._current_sleep in (STATE_ON, STATE_OFF):
                     self.hass.states.async_set(self._sleep_entity_id, self._current_sleep, attr)
-        _LOGGER.info('HA sleep option set according to HVAC state to: ' + str(self._current_sleep))
+        _LOGGER.debug('HA sleep option set according to HVAC state to: ' + str(self._current_sleep))
         # Sync current HVAC 8℃ heat option to HA
         if (self._acOptions['StHt'] == 1):
             self._current_eightdegheat = STATE_ON
@@ -580,7 +649,7 @@ class GreeClimate(ClimateEntity):
                 attr = eightdegheat_state.attributes
                 if self._current_eightdegheat in (STATE_ON, STATE_OFF):
                     self.hass.states.async_set(self._eightdegheat_entity_id, self._current_eightdegheat, attr)
-        _LOGGER.info('HA 8℃ heat option set according to HVAC state to: ' + str(self._current_eightdegheat))
+        _LOGGER.debug('HA 8℃ heat option set according to HVAC state to: ' + str(self._current_eightdegheat))
         # Sync current HVAC air option to HA
         if (self._acOptions['Air'] == 1):
             self._current_air = STATE_ON
@@ -594,7 +663,7 @@ class GreeClimate(ClimateEntity):
                 attr = air_state.attributes
                 if self._current_air in (STATE_ON, STATE_OFF):
                     self.hass.states.async_set(self._air_entity_id, self._current_air, attr)
-        _LOGGER.info('HA air option set according to HVAC state to: ' + str(self._current_air))
+        _LOGGER.debug('HA air option set according to HVAC state to: ' + str(self._current_air))
         # Sync current HVAC anti direct blow option to HA
         if self._has_anti_direct_blow:
             if (self._acOptions['AntiDirectBlow'] == 1):
@@ -609,7 +678,7 @@ class GreeClimate(ClimateEntity):
                     attr = adb_state.attributes
                     if self._current_anti_direct_blow in (STATE_ON, STATE_OFF):
                         self.hass.states.async_set(self._anti_direct_blow_entity_id, self._current_anti_direct_blow, attr)
-            _LOGGER.info('HA anti direct blow option set according to HVAC state to: ' + str(self._current_anti_direct_blow))
+            _LOGGER.debug('HA anti direct blow option set according to HVAC state to: ' + str(self._current_anti_direct_blow))
 
     def UpdateHAHvacMode(self):
         # Sync current HVAC operation mode to HA
@@ -617,17 +686,17 @@ class GreeClimate(ClimateEntity):
             self._hvac_mode = HVACMode.OFF
         else:
             self._hvac_mode = self._hvac_modes[self._acOptions['Mod']]
-        _LOGGER.info('HA operation mode set according to HVAC state to: ' + str(self._hvac_mode))
+        _LOGGER.debug('HA operation mode set according to HVAC state to: ' + str(self._hvac_mode))
 
     def UpdateHACurrentSwingMode(self):
         # Sync current HVAC Swing mode state to HA
         self._swing_mode = self._swing_modes[self._acOptions['SwUpDn']]
-        _LOGGER.info('HA swing mode set according to HVAC state to: ' + str(self._swing_mode))
+        _LOGGER.debug('HA swing mode set according to HVAC state to: ' + str(self._swing_mode))
 
     def UpdateHACurrentPresetMode(self):
         # Sync current HVAC preset mode state to HA
         self._preset_mode = self._preset_modes[self._acOptions['SwingLfRig']]
-        _LOGGER.info('HA preset mode set according to HVAC state to: ' + str(self._preset_mode))
+        _LOGGER.debug('HA preset mode set according to HVAC state to: ' + str(self._preset_mode))
 
     def UpdateHAFanMode(self):
         # Sync current HVAC Fan mode state to HA
@@ -641,7 +710,7 @@ class GreeClimate(ClimateEntity):
             self._fan_mode = self._fan_modes[quiet_index]
         else:
             self._fan_mode = self._fan_modes[int(self._acOptions['WdSpd'])]
-        _LOGGER.info('HA fan mode set according to HVAC state to: ' + str(self._fan_mode))
+        _LOGGER.debug('HA fan mode set according to HVAC state to: ' + str(self._fan_mode))
 
     def UpdateHACurrentTemperature(self):
         if not self._temp_sensor_entity_id:
@@ -688,58 +757,58 @@ class GreeClimate(ClimateEntity):
 
     def SyncState(self, acOptions = {}):
         #Fetch current settings from HVAC
-        _LOGGER.info('Starting SyncState')
+        _LOGGER.debug('Starting SyncState')
 
         if not self._temp_sensor_entity_id:
             if self._has_temp_sensor is None:
-                _LOGGER.info('Attempt to check whether device has an built-in temperature sensor')
+                _LOGGER.debug('Attempt to check whether device has an built-in temperature sensor')
                 try:
                     temp_sensor = self.GreeGetValues(["TemSen"])
                 except:
-                    _LOGGER.info('Could not determine whether device has a built-in temperature sensor. Retrying at next update()')
+                    _LOGGER.debug('Could not determine whether device has an built-in temperature sensor. Retrying at next update()')
                 else:
                     if temp_sensor:
                         self._has_temp_sensor = True
                         self._acOptions.update({'TemSen': None})
                         self._optionsToFetch.append("TemSen")
-                        _LOGGER.info('Device has an built-in temperature sensor')
+                        _LOGGER.debug('Device has an built-in temperature sensor')
                     else:
                         self._has_temp_sensor = False
-                        _LOGGER.info('Device has no built-in temperature sensor')
+                        _LOGGER.debug('Device has no built-in temperature sensor')
 
         if self._anti_direct_blow_entity_id:
             if self._has_anti_direct_blow is None:
-                _LOGGER.info('Attempt to check whether device has an anti direct blow feature')
+                _LOGGER.debug('Attempt to check whether device has an anti direct blow feature')
                 try:
                     anti_direct_blow = self.GreeGetValues(["AntiDirectBlow"])
                 except:
-                    _LOGGER.info('Could not determine whether device has an anti direct blow feature. Retrying at next update()')
+                    _LOGGER.debug('Could not determine whether device has an anti direct blow feature. Retrying at next update()')
                 else:
                     if anti_direct_blow:
                         self._has_anti_direct_blow = True
                         self._acOptions.update({'AntiDirectBlow': None})
                         self._optionsToFetch.append("AntiDirectBlow")
-                        _LOGGER.info('Device has an anti direct blow feature')
+                        _LOGGER.debug('Device has an anti direct blow feature')
                     else:
                         self._has_anti_direct_blow = False
-                        _LOGGER.info('Device has no anti direct blow feature')
+                        _LOGGER.debug('Device has no anti direct blow feature')
 
         if self._light_sensor_entity_id:
             if self._has_light_sensor is None:
-                _LOGGER.info('Attempt to check whether device has an built-in light sensor')
+                _LOGGER.debug('Attempt to check whether device has an built-in light sensor')
                 try:
                     light_sensor = self.GreeGetValues(["LigSen"])
                 except:
-                    _LOGGER.info('Could not determine whether device has an built-in light sensor. Retrying at next update()')
+                    _LOGGER.debug('Could not determine whether device has an built-in light sensor. Retrying at next update()')
                 else:
                     if light_sensor:
                         self._has_light_sensor = True
                         self._acOptions.update({'LigSen': None})
                         self._optionsToFetch.append("LigSen")
-                        _LOGGER.info('Device has an built-in light sensor')
+                        _LOGGER.debug('Device has an built-in light sensor')
                     else:
                         self._has_light_sensor = False
-                        _LOGGER.info('Device has no built-in light sensor')
+                        _LOGGER.debug('Device has no built-in light sensor')
 
         optionsToFetch = self._optionsToFetch
 
@@ -780,7 +849,7 @@ class GreeClimate(ClimateEntity):
             # Update HA state to current HVAC state
             self.UpdateHAStateToCurrentACState()
 
-            _LOGGER.info('Finished SyncState')
+            _LOGGER.debug('Finished SyncState')
             return receivedJsonPayload
 
     async def _async_temp_sensor_changed(self, event: Event[EventStateChangedData]) -> None:
@@ -810,7 +879,7 @@ class GreeClimate(ClimateEntity):
             _LOGGER.error('method _async_update_current_temp: Unable to update from temp_sensor: %s' % ex)
 
     def represents_float(self, s):
-        _LOGGER.info('temp_sensor state represents_float |' + str(s))
+        _LOGGER.debug('temp_sensor state represents_float |' + str(s))
         try:
             float(s)
             return True
@@ -824,7 +893,7 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('lights_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
             return
-        if new_state.state is "off" and (old_state is None or old_state.state is None):
+        if new_state.state == "off" and (old_state is None or old_state.state is None):
             _LOGGER.info('lights_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
             return
         if new_state.state is self._current_lights:
@@ -851,10 +920,10 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('xfan_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
             return
-        if new_state.state is "off" and (old_state is None or old_state.state is None):
+        if new_state.state == "off" and (old_state is None or old_state.state is None):
             _LOGGER.info('xfan_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
             return
-        if new_state.state is self._current_xfan:
+        if new_state.state == self._current_xfan:
             # do nothing if state change is triggered due to Sync with HVAC
             return
         if not self._hvac_mode in (HVACMode.COOL, HVACMode.DRY):
@@ -882,7 +951,7 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('health_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
             return
-        if new_state.state is "off" and (old_state is None or old_state.state is None):
+        if new_state.state == "off" and (old_state is None or old_state.state is None):
             _LOGGER.info('health_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
             return
         if new_state.state is self._current_health:
@@ -909,7 +978,7 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('powersave_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
             return
-        if new_state.state is "off" and (old_state is None or old_state.state is None):
+        if new_state.state == "off" and (old_state is None or old_state.state is None):
             _LOGGER.info('powersave_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
             return
         if new_state.state is self._current_powersave:
@@ -947,7 +1016,7 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('sleep_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
             return
-        if new_state.state is "off" and (old_state is None or old_state.state is None):
+        if new_state.state == "off" and (old_state is None or old_state.state is None):
             _LOGGER.info('sleep_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
             return
         if new_state.state is self._current_sleep:
@@ -978,10 +1047,10 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('eightdegheat_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
             return
-        if new_state.state is "off" and (old_state is None or old_state.state is None):
+        if new_state.state == "off" and (old_state is None or old_state.state is None):
             _LOGGER.info('eightdegheat_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
             return
-        if new_state.state is self._current_eightdegheat:
+        if new_state.state == self._current_eightdegheat:
             # do nothing if state change is triggered due to Sync with HVAC
             return
         if not self._hvac_mode in (HVACMode.HEAT):
@@ -1009,7 +1078,7 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('air_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
             return
-        if new_state.state is "off" and (old_state is None or old_state.state is None):
+        if new_state.state == "off" and (old_state is None or old_state.state is None):
             _LOGGER.info('air_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
             return
         if new_state.state is self._current_air:
@@ -1037,10 +1106,10 @@ class GreeClimate(ClimateEntity):
             _LOGGER.info('anti_direct_blow_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
             if new_state is None:
                 return
-            if new_state.state is "off" and (old_state is None or old_state.state is None):
+            if new_state.state == "off" and (old_state is None or old_state.state is None):
                 _LOGGER.info('anti_direct_blow_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
                 return
-            if new_state.state is self._current_anti_direct_blow:
+            if new_state.state == self._current_anti_direct_blow:
                 # do nothing if state change is triggered due to Sync with HVAC
                 return
             self._async_update_current_anti_direct_blow(new_state)
@@ -1064,7 +1133,7 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('light_sensor_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
             return
-        if new_state.state is "off" and (old_state is None or old_state.state is None):
+        if new_state.state == "off" and (old_state is None or old_state.state is None):
             _LOGGER.info('light_sensor_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
             return
         if new_state.state is self._enable_light_sensor:
@@ -1093,7 +1162,7 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('auto_light_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
             return
-        if new_state.state is "off" and (old_state is None or old_state.state is None):
+        if new_state.state == "off" and (old_state is None or old_state.state is None):
             _LOGGER.info('auto_light_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
             return
         if not hasattr(self, "_auto_light"):
@@ -1127,7 +1196,7 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('auto_xfan_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
             return
-        if new_state.state is "off" and (old_state is None or old_state.state is None):
+        if new_state.state == "off" and (old_state is None or old_state.state is None):
             _LOGGER.info('auto_xfan_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
             return
         if not hasattr(self, "_auto_xfan"):
@@ -1158,7 +1227,7 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('target_temp_entity state changed | ' + str(entity_id) + ' from ' + (str(old_state.state) if hasattr(old_state,'state') else "None") + ' to ' + str(new_state.state))
         if new_state is None:
             return
-        if new_state.state is "off" and (old_state is None or old_state.state is None):
+        if new_state.state == "off" and (old_state is None or old_state.state is None):
             _LOGGER.info('target_temp_entity state changed to off, but old state is None. Ignoring to avoid beeps.')
             return
         # check if new_state.state is a number
@@ -1182,8 +1251,7 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('method _async_update_current_target_temp: target_temp_entity state unit | ' + str(unit))
 
         if (unit == "°C"):
-            SetTem = s
-            TemRec = 0
+            SetTem, TemRec = self.encode_temp_c(T=s) # takes care of 1/2 degrees
         elif (unit == "°F"):
             SetTem, TemRec = self.gree_f_to_c(desired_temp_f=s)
         else:
@@ -1195,11 +1263,29 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info('method _async_update_current_target_temp: Set Temp to ' + str(s) + str(unit)
                      + ' ->  SyncState with SetTem=' + str(SetTem) + ', SyncState with TemRec=' + str(TemRec))
 
+    @callback
+    async def _async_beeper_entity_state_changed(self, event: Event[EventStateChangedData]) -> None:
+        entity_id = event.data["entity_id"]
+        old_state = event.data["old_state"]
+        new_state = event.data["new_state"]
+        _LOGGER.info(f'Beeper entity {entity_id} state changed from '
+                    f'{(str(old_state.state) if hasattr(old_state,"state") else "None")} '
+                    f'to {str(new_state.state)}')
+        
+        if new_state is None:
+            return
+
+        if new_state.state == STATE_ON:
+            self._current_beeper_enabled = True # Silent mode ON
+            _LOGGER.info('Silent mode enabled (beeper will be turned off with commands).')
+        else: # STATE_OFF or other
+            self._current_beeper_enabled = False # Silent mode OFF
+            _LOGGER.info('Silent mode disabled (beeper will be turned on with commands).')
 
 
     @property
     def should_poll(self):
-        _LOGGER.info('should_poll()')
+        _LOGGER.debug('should_poll()')
         # Return the polling state.
         return True
 
@@ -1216,7 +1302,7 @@ class GreeClimate(ClimateEntity):
                 return False
 
     def update(self):
-        _LOGGER.info('update()')
+        _LOGGER.debug('update()')
         if not self._encryption_key:
             if self.encryption_version == 1:
                 if self.GetDeviceKey():
@@ -1231,19 +1317,19 @@ class GreeClimate(ClimateEntity):
 
     @property
     def name(self):
-        _LOGGER.info('name(): ' + str(self._name))
+        _LOGGER.debug('name(): ' + str(self._name))
         # Return the name of the climate device.
         return self._name
 
     @property
     def temperature_unit(self):
-        _LOGGER.info('temperature_unit(): ' + str(self._unit_of_measurement))
+        _LOGGER.debug('temperature_unit(): ' + str(self._unit_of_measurement))
         # Return the unit of measurement.
         return self._unit_of_measurement
 
     @property
     def current_temperature(self):
-        _LOGGER.info('current_temperature(): ' + str(self._current_temperature))
+        _LOGGER.debug('current_temperature(): ' + str(self._current_temperature))
         # Return the current temperature.
         return self._current_temperature
 
@@ -1254,7 +1340,7 @@ class GreeClimate(ClimateEntity):
         else:
             MIN_TEMP = MIN_TEMP_F
 
-        _LOGGER.info('min_temp(): ' + str(MIN_TEMP))
+        _LOGGER.debug('min_temp(): ' + str(MIN_TEMP))
         # Return the minimum temperature.
         return MIN_TEMP
 
@@ -1265,44 +1351,44 @@ class GreeClimate(ClimateEntity):
         else:
             MAX_TEMP = MAX_TEMP_F
 
-        _LOGGER.info('max_temp(): ' + str(MAX_TEMP))
+        _LOGGER.debug('max_temp(): ' + str(MAX_TEMP))
         # Return the maximum temperature.
         return MAX_TEMP
 
     @property
     def target_temperature(self):
-        _LOGGER.info('target_temperature(): ' + str(self._target_temperature))
+        _LOGGER.debug('target_temperature(): ' + str(self._target_temperature))
         # Return the temperature we try to reach.
         return self._target_temperature
 
     @property
     def target_temperature_step(self):
-        _LOGGER.info('target_temperature_step(): ' + str(self._target_temperature_step))
+        _LOGGER.debug('target_temperature_step(): ' + str(self._target_temperature_step))
         # Return the supported step of target temperature.
         return self._target_temperature_step
 
     @property
     def hvac_mode(self):
-        _LOGGER.info('hvac_mode(): ' + str(self._hvac_mode))
+        _LOGGER.debug('hvac_mode(): ' + str(self._hvac_mode))
         # Return current operation mode ie. heat, cool, idle.
         return self._hvac_mode
 
     @property
     def swing_mode(self):
-        _LOGGER.info('swing_mode(): ' + str(self._swing_mode))
+        _LOGGER.debug('swing_mode(): ' + str(self._swing_mode))
         # get the current swing mode
         return self._swing_mode
 
     @property
     def swing_modes(self):
-        _LOGGER.info('swing_modes(): ' + str(self._swing_modes))
+        _LOGGER.debug('swing_modes(): ' + str(self._swing_modes))
         # get the list of available swing modes
         return self._swing_modes
 
     @property
     def preset_mode(self):
         if hasattr(self, "_horizontal_swing") and self._horizontal_swing:
-            _LOGGER.info('preset_mode(): ' + str(self._preset_mode))
+            _LOGGER.debug('preset_mode(): ' + str(self._preset_mode))
             # get the current preset mode
             return self._preset_mode
         else:
@@ -1310,25 +1396,25 @@ class GreeClimate(ClimateEntity):
 
     @property
     def preset_modes(self):
-        _LOGGER.info('preset_modes(): ' + str(self._preset_modes))
+        _LOGGER.debug('preset_modes(): ' + str(self._preset_modes))
         # get the list of available preset modes
         return self._preset_modes
 
     @property
     def hvac_modes(self):
-        _LOGGER.info('hvac_modes(): ' + str(self._hvac_modes))
+        _LOGGER.debug('hvac_modes(): ' + str(self._hvac_modes))
         # Return the list of available operation modes.
         return self._hvac_modes
 
     @property
     def fan_mode(self):
-        _LOGGER.info('fan_mode(): ' + str(self._fan_mode))
+        _LOGGER.debug('fan_mode(): ' + str(self._fan_mode))
         # Return the fan mode.
         return self._fan_mode
 
     @property
     def fan_modes(self):
-        _LOGGER.info('fan_list(): ' + str(self._fan_modes))
+        _LOGGER.debug('fan_list(): ' + str(self._fan_modes))
         # Return the list of available fan modes.
         return self._fan_modes
 
@@ -1338,7 +1424,7 @@ class GreeClimate(ClimateEntity):
             sf = SUPPORT_FLAGS | ClimateEntityFeature.PRESET_MODE
         else:
             sf = SUPPORT_FLAGS
-        _LOGGER.info('supported_features(): ' + str(sf))
+        _LOGGER.debug('supported_features(): ' + str(sf))
         # Return the list of supported features.
         return sf
 
@@ -1348,26 +1434,25 @@ class GreeClimate(ClimateEntity):
         return self._unique_id
 
     def set_temperature(self, **kwargs):
-        _LOGGER.info('set_temperature(): ' + str(kwargs.get(ATTR_TEMPERATURE)) + str(self._unit_of_measurement))
-        units = str(kwargs.get(ATTR_UNIT_OF_MEASUREMENT))
-        _LOGGER.info('set_temperature_units: ' + str(units))
+        s = kwargs.get(ATTR_TEMPERATURE)
+
+        _LOGGER.info('set_temperature(): ' + str(s) + str(self._unit_of_measurement))
         # Set new target temperatures.
-        if kwargs.get(ATTR_TEMPERATURE) is not None:
+        if s is not None:
             # do nothing if temperature is none
             if not (self._acOptions['Pow'] == 0):
                 # do nothing if HVAC is switched off
 
                 if (self._unit_of_measurement == "°C"):
-                    SetTem = kwargs.get(ATTR_TEMPERATURE)
-                    TemRec = 0
+                    SetTem, TemRec = self.encode_temp_c(T=s) # takes care of 1/2 degrees
                 elif (self._unit_of_measurement == "°F"):
-                    SetTem, TemRec = self.gree_f_to_c(desired_temp_f=kwargs.get(ATTR_TEMPERATURE))
+                    SetTem, TemRec = self.gree_f_to_c(desired_temp_f=s)
                 else:
                     _LOGGER.error('Unable to set temperature. Units not set to °C or °F')
                     return
 
                 self.SyncState({'SetTem': int(SetTem), 'TemRec': int(TemRec)})
-                _LOGGER.info('method set_temperature: Set Temp to ' + str(kwargs.get(ATTR_TEMPERATURE)) + str(self._unit_of_measurement)
+                _LOGGER.debug('method set_temperature: Set Temp to ' + str(s) + str(self._unit_of_measurement)
                              + ' ->  SyncState with SetTem=' + str(SetTem) + ', SyncState with TemRec=' + str(TemRec))
 
                 self.schedule_update_ha_state()
@@ -1502,6 +1587,39 @@ class GreeClimate(ClimateEntity):
         int_fahrenheit = round((min_fahrenheit + max_fahrenheit) / 2.0)
 
         return int_fahrenheit
+
+    def encode_temp_c(self,T):
+        """
+        Used for encoding 1/2 degree Celsius values.
+        Encode any floating‐point temperature T into:
+          ‣ temp_int: the integer (°C) portion of the nearest 0.0/0.5 step,
+          ‣ half_bit: 1 if the nearest step has a “.5”, else 0.
+
+        This “finds the closest multiple of 0.5” to T, then:
+          n = round(T * 2)
+          temp_int = n >> 1      (i.e. floor(n/2))
+          half_bit = n & 1       (1 if it’s an odd half‐step)
+        """
+        # 1) Compute “twice T” and round to nearest integer:
+        #    math.floor(T * 2 + 0.5) is equivalent to rounding ties upward.
+        n = int(round(T * 2))
+
+        # 2) The low bit of n says “.5” (odd) versus “.0” (even):
+        TemRec = n & 1
+
+        # 3) Shifting right by 1 gives floor(n/2), i.e. the integer °C of that nearest half‐step:
+        SetTem = n >> 1
+
+        return SetTem, TemRec
+
+    def decode_temp_c(self,SetTem: int, TemRec: int) -> float:
+        """
+        Given:
+          SetTem = the “rounded‐down” integer (⌊T⌋ or for negatives, floor(T))
+          TemRec = 0 or 1, where 1 means “there was a 0.5”
+        Returns the original temperature as a float.
+        """
+        return SetTem + (0.5 if TemRec else 0.0)
 
     class TempOffsetResolver:
         """
