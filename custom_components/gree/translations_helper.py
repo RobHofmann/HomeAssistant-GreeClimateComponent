@@ -10,7 +10,7 @@ FAN_MODE_KEYS = ['auto', 'low', 'medium-low', 'medium', 'medium-high', 'high', '
 SWING_MODE_KEYS = ['default', 'swing_full', 'fixed_upmost', 'fixed_middle_up', 'fixed_middle', 'fixed_middle_low', 'fixed_lowest', 'swing_downmost', 'swing_middle_low', 'swing_middle', 'swing_middle_up', 'swing_upmost']
 PRESET_MODE_KEYS = ['default', 'full_swing', 'fixed_leftmost', 'fixed_middle_left', 'fixed_middle', 'fixed_middle_right', 'fixed_rightmost']
 
-def load_translations_from_json(language):
+def _load_translations_from_json_sync(language):
     """Load translations from JSON files."""
     try:
         current_dir = os.path.dirname(__file__)
@@ -23,22 +23,26 @@ def load_translations_from_json(language):
         _LOGGER.error(f"Could not load translations from {json_file}: {e}")
     return {}
 
-def get_translations_data(hass, language=None):
+async def load_translations_from_json(hass, language):
+    """Load translations from JSON files."""
+    return await hass.async_add_executor_job(_load_translations_from_json_sync, language)
+
+async def get_translations_data(hass, language=None):
     """Get translations data with guaranteed English fallback."""
     lang = language or hass.config.language or 'en'
 
     if lang != 'en':
-        translations = load_translations_from_json(lang)
+        translations = await load_translations_from_json(hass, lang)
         if translations:
             return translations, lang
         _LOGGER.info(f"Language {lang} not found, using English")
 
-    translations = load_translations_from_json('en')
+    translations = await load_translations_from_json(hass, 'en')
     return translations, 'en'
 
-def get_all_translated_modes(hass, language=None):
+async def get_all_translated_modes(hass, language=None):
     """Get all translated modes from JSON files."""
-    translations, used_lang = get_translations_data(hass, language)
+    translations, used_lang = await get_translations_data(hass, language)
 
     state_attributes = translations.get('entity', {}).get('climate', {}).get('gree', {}).get('state_attributes', {})
 
@@ -63,9 +67,9 @@ def get_all_translated_modes(hass, language=None):
 
     return result
 
-def get_translated_name(hass, language=None):
+async def get_translated_name(hass, language=None):
     """Get translated component name."""
-    translations, used_lang = get_translations_data(hass, language)
+    translations, used_lang = await get_translations_data(hass, language)
     title = translations.get('config', {}).get('title')
     return title or 'Gree Climate'
 

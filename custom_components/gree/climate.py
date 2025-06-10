@@ -138,7 +138,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     language = config.get(CONF_LANGUAGE)
 
     # Get translated default name if no name is provided
-    default_name = get_translated_name(hass, language)
+    default_name = await get_translated_name(hass, language)
     name = config.get(CONF_NAME) or default_name
     ip_addr = config.get(CONF_HOST)
     port = config.get(CONF_PORT)
@@ -158,7 +158,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     hvac_modes = HVAC_MODES
 
     # Get all translated modes at once
-    translated_modes = get_all_translated_modes(hass, language)
+    translated_modes = await get_all_translated_modes(hass, language)
     fan_modes = translated_modes['fan_mode']
     swing_modes = translated_modes['swing_mode']
     preset_modes = translated_modes['preset_mode']
@@ -398,8 +398,8 @@ class GreeClimate(ClimateEntity):
             _LOGGER.info('Setting up beeper control entity: ' + str(self._beeper_entity_id))
             initial_beeper_state = self.hass.states.get(self._beeper_entity_id)
             if initial_beeper_state and initial_beeper_state.state == STATE_ON:
-                self._current_beeper_enabled = True 
-            
+                self._current_beeper_enabled = True
+
             async_track_state_change_event(
                 hass, self._beeper_entity_id, self._async_beeper_entity_state_changed
             )
@@ -1271,7 +1271,7 @@ class GreeClimate(ClimateEntity):
         _LOGGER.info(f'Beeper entity {entity_id} state changed from '
                     f'{(str(old_state.state) if hasattr(old_state,"state") else "None")} '
                     f'to {str(new_state.state)}')
-        
+
         if new_state is None:
             return
 
@@ -1593,18 +1593,18 @@ class GreeClimate(ClimateEntity):
         Used for encoding 1/2 degree Celsius values.
         Encode any floating‐point temperature T into:
           ‣ temp_int: the integer (°C) portion of the nearest 0.0/0.5 step,
-          ‣ half_bit: 1 if the nearest step has a “.5”, else 0.
+          ‣ half_bit: 1 if the nearest step has a ".5", else 0.
 
-        This “finds the closest multiple of 0.5” to T, then:
+        This "finds the closest multiple of 0.5" to T, then:
           n = round(T * 2)
           temp_int = n >> 1      (i.e. floor(n/2))
-          half_bit = n & 1       (1 if it’s an odd half‐step)
+          half_bit = n & 1       (1 if it's an odd half‐step)
         """
-        # 1) Compute “twice T” and round to nearest integer:
+        # 1) Compute "twice T" and round to nearest integer:
         #    math.floor(T * 2 + 0.5) is equivalent to rounding ties upward.
         n = int(round(T * 2))
 
-        # 2) The low bit of n says “.5” (odd) versus “.0” (even):
+        # 2) The low bit of n says ".5" (odd) versus ".0" (even):
         TemRec = n & 1
 
         # 3) Shifting right by 1 gives floor(n/2), i.e. the integer °C of that nearest half‐step:
@@ -1615,8 +1615,8 @@ class GreeClimate(ClimateEntity):
     def decode_temp_c(self,SetTem: int, TemRec: int) -> float:
         """
         Given:
-          SetTem = the “rounded‐down” integer (⌊T⌋ or for negatives, floor(T))
-          TemRec = 0 or 1, where 1 means “there was a 0.5”
+          SetTem = the "rounded-down" integer (⌊T⌋ or for negatives, floor(T))
+          TemRec = 0 or 1, where 1 means "there was a 0.5"
         Returns the original temperature as a float.
         """
         return SetTem + (0.5 if TemRec else 0.0)
