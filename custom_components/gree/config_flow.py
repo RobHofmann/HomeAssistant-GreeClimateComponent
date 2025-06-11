@@ -97,7 +97,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input: dict | None = None) -> FlowResult:
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            cleaned_input = {
+                key: value for key, value in user_input.items() if value not in (None, "")
+            }
+            return self.async_create_entry(title="", data=cleaned_input)
 
         options = {**self.config_entry.options}
         schema = vol.Schema(
