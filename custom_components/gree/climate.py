@@ -242,6 +242,9 @@ class GreeClimate(ClimateEntity):
         self._max_online_attempts = max_online_attempts
         self._disable_available_check = disable_available_check
 
+        # Hold callbacks to unsubscribe state change listeners
+        self._remove_listeners = []
+
         self._target_temperature = None
         self._target_temperature_step = target_temp_step
         # Device uses a combination of Celsius + a set bit for Fahrenheit, so the integration needs to be aware of the units.
@@ -320,43 +323,81 @@ class GreeClimate(ClimateEntity):
 
         if temp_sensor_entity_id:
             _LOGGER.info('Setting up remote temperature sensor: ' + str(temp_sensor_entity_id))
-            async_track_state_change_event(hass, temp_sensor_entity_id, self._async_temp_sensor_changed)
+            unsub = async_track_state_change_event(
+                hass, temp_sensor_entity_id, self._async_temp_sensor_changed
+            )
+            self._remove_listeners.append(unsub)
 
         if lights_entity_id:
             _LOGGER.info('Setting up lights entity: ' + str(lights_entity_id))
-            async_track_state_change_event(hass, lights_entity_id, self._async_lights_entity_state_changed)
+            unsub = async_track_state_change_event(
+                hass, lights_entity_id, self._async_lights_entity_state_changed
+            )
+            self._remove_listeners.append(unsub)
 
         if xfan_entity_id:
             _LOGGER.info('Setting up xfan entity: ' + str(xfan_entity_id))
-            async_track_state_change_event(hass, xfan_entity_id, self._async_xfan_entity_state_changed)
+            unsub = async_track_state_change_event(
+                hass, xfan_entity_id, self._async_xfan_entity_state_changed
+            )
+            self._remove_listeners.append(unsub)
 
         if health_entity_id:
             _LOGGER.info('Setting up health entity: ' + str(health_entity_id))
-            async_track_state_change_event(hass, health_entity_id, self._async_health_entity_state_changed)
+            unsub = async_track_state_change_event(
+                hass, health_entity_id, self._async_health_entity_state_changed
+            )
+            self._remove_listeners.append(unsub)
 
         if powersave_entity_id:
             _LOGGER.info('Setting up powersave entity: ' + str(powersave_entity_id))
-            async_track_state_change_event(hass, powersave_entity_id, self._async_powersave_entity_state_changed)
+            unsub = async_track_state_change_event(
+                hass,
+                powersave_entity_id,
+                self._async_powersave_entity_state_changed,
+            )
+            self._remove_listeners.append(unsub)
 
         if sleep_entity_id:
             _LOGGER.info('Setting up sleep entity: ' + str(sleep_entity_id))
-            async_track_state_change_event(hass, sleep_entity_id, self._async_sleep_entity_state_changed)
+            unsub = async_track_state_change_event(
+                hass, sleep_entity_id, self._async_sleep_entity_state_changed
+            )
+            self._remove_listeners.append(unsub)
 
         if eightdegheat_entity_id:
             _LOGGER.info('Setting up 8℃ heat entity: ' + str(eightdegheat_entity_id))
-            async_track_state_change_event(hass, eightdegheat_entity_id, self._async_eightdegheat_entity_state_changed)
+            unsub = async_track_state_change_event(
+                hass,
+                eightdegheat_entity_id,
+                self._async_eightdegheat_entity_state_changed,
+            )
+            self._remove_listeners.append(unsub)
 
         if air_entity_id:
             _LOGGER.info('Setting up air entity: ' + str(air_entity_id))
-            async_track_state_change_event(hass, air_entity_id, self._async_air_entity_state_changed)
+            unsub = async_track_state_change_event(
+                hass, air_entity_id, self._async_air_entity_state_changed
+            )
+            self._remove_listeners.append(unsub)
 
         if target_temp_entity_id:
             _LOGGER.info('Setting up target temp entity: ' + str(target_temp_entity_id))
-            async_track_state_change_event(hass, target_temp_entity_id, self._async_target_temp_entity_state_changed)
+            unsub = async_track_state_change_event(
+                hass,
+                target_temp_entity_id,
+                self._async_target_temp_entity_state_changed,
+            )
+            self._remove_listeners.append(unsub)
 
         if anti_direct_blow_entity_id:
             _LOGGER.info('Setting up anti direct blow entity: ' + str(anti_direct_blow_entity_id))
-            async_track_state_change_event(hass, anti_direct_blow_entity_id, self._async_anti_direct_blow_entity_state_changed)
+            unsub = async_track_state_change_event(
+                hass,
+                anti_direct_blow_entity_id,
+                self._async_anti_direct_blow_entity_state_changed,
+            )
+            self._remove_listeners.append(unsub)
 
         if light_sensor_entity_id:
             _LOGGER.info('Setting up light sensor entity: ' + str(light_sensor_entity_id))
@@ -364,7 +405,12 @@ class GreeClimate(ClimateEntity):
                 self._enable_light_sensor = True
             else:
                 self._enable_light_sensor = False
-            async_track_state_change_event(hass, light_sensor_entity_id, self._async_light_sensor_entity_state_changed)
+            unsub = async_track_state_change_event(
+                hass,
+                light_sensor_entity_id,
+                self._async_light_sensor_entity_state_changed,
+            )
+            self._remove_listeners.append(unsub)
         else:
             self._enable_light_sensor = False
 
@@ -374,7 +420,12 @@ class GreeClimate(ClimateEntity):
                 self._auto_light = True
             else:
                 self._auto_light = False
-            async_track_state_change_event(hass, auto_light_entity_id, self._async_auto_light_entity_state_changed)
+            unsub = async_track_state_change_event(
+                hass,
+                auto_light_entity_id,
+                self._async_auto_light_entity_state_changed,
+            )
+            self._remove_listeners.append(unsub)
         else:
             self._auto_light = False
 
@@ -384,7 +435,12 @@ class GreeClimate(ClimateEntity):
                 self._auto_xfan = True
             else:
                 self._auto_xfan = False
-            async_track_state_change_event(hass, auto_xfan_entity_id, self._async_auto_xfan_entity_state_changed)
+            unsub = async_track_state_change_event(
+                hass,
+                auto_xfan_entity_id,
+                self._async_auto_xfan_entity_state_changed,
+            )
+            self._remove_listeners.append(unsub)
         else:
             self._auto_xfan = False
 
@@ -400,9 +456,10 @@ class GreeClimate(ClimateEntity):
             if initial_beeper_state and initial_beeper_state.state == STATE_ON:
                 self._current_beeper_enabled = True
 
-            async_track_state_change_event(
+            unsub = async_track_state_change_event(
                 hass, self._beeper_entity_id, self._async_beeper_entity_state_changed
             )
+            self._remove_listeners.append(unsub)
 
     # Pad helper method to help us get the right string for encrypting
 
@@ -1555,6 +1612,14 @@ class GreeClimate(ClimateEntity):
     async def async_added_to_hass(self):
         _LOGGER.info('Gree climate device added to hass()')
         self.update()
+
+    async def async_will_remove_from_hass(self):
+        """Clean up listeners when entity is removed."""
+        _LOGGER.debug("Removing GreeClimate listeners")
+        for unsub in self._remove_listeners:
+            unsub()
+            _LOGGER.debug("Unsubscribed %s", unsub)
+        self._remove_listeners.clear()
 
 
     def gree_f_to_c(self, desired_temp_f):
