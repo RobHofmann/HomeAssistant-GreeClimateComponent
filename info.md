@@ -3,6 +3,7 @@
 ## UI Configuration
 You can add the integration from the Home Assistant UI.
 Navigate to **Settings** > **Devices & Services** and search for **Gree Climate**.
+The setup will scan your network for compatible units and let you select one from the list or add it manually.
 
 ## Component configuration
 To configure this component manually, add the following configuration to your configuration.yaml (replacing the placeholders).
