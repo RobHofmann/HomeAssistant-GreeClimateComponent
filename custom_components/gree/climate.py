@@ -74,6 +74,30 @@ CONF_BEEPER = 'beeper'
 CONF_TEMP_SENSOR_OFFSET = 'temp_sensor_offset'
 CONF_LANGUAGE = 'language'
 
+# Keys that can be updated via the options flow
+OPTION_KEYS = {
+    CONF_TARGET_TEMP_STEP,
+    CONF_TEMP_SENSOR,
+    CONF_LIGHTS,
+    CONF_XFAN,
+    CONF_HEALTH,
+    CONF_POWERSAVE,
+    CONF_SLEEP,
+    CONF_EIGHTDEGHEAT,
+    CONF_AIR,
+    CONF_TARGET_TEMP,
+    CONF_AUTO_XFAN,
+    CONF_AUTO_LIGHT,
+    CONF_HORIZONTAL_SWING,
+    CONF_ANTI_DIRECT_BLOW,
+    CONF_DISABLE_AVAILABLE_CHECK,
+    CONF_MAX_ONLINE_ATTEMPTS,
+    CONF_LIGHT_SENSOR,
+    CONF_BEEPER,
+    CONF_TEMP_SENSOR_OFFSET,
+    CONF_LANGUAGE,
+}
+
 DEFAULT_PORT = 7000
 DEFAULT_TIMEOUT = 10
 DEFAULT_TARGET_TEMP_STEP = 1
@@ -218,7 +242,10 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
 
 async def async_setup_entry(hass, entry, async_add_devices):
     """Set up Gree climate from a config entry."""
-    config = {**entry.data, **entry.options}
+    config = {**entry.data}
+    for key, value in entry.options.items():
+        if key in OPTION_KEYS and value is not None:
+            config[key] = value
     await async_setup_platform(hass, config, async_add_devices)
 
 

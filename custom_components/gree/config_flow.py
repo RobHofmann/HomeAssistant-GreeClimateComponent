@@ -47,7 +47,8 @@ from .climate import (
     CONF_LIGHT_SENSOR,
     CONF_TEMP_SENSOR_OFFSET,
     CONF_LANGUAGE,
-    CONF_BEEPER
+    CONF_BEEPER,
+    OPTION_KEYS
 )
 
 
@@ -103,20 +104,23 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             _LOGGER.debug("Raw user options input: %s", user_input)
             normalized_input: dict[str, str | None] = {}
-            # Start with keys from existing options so cleared fields can be detected
-            for key in self.config_entry.options:
-                if key not in user_input:
-                    # Field was omitted; treat as cleared
+            # Only handle known option keys
+            for key in OPTION_KEYS:
+                if key in user_input:
+                    value = user_input[key]
+                    normalized_input[key] = value if value not in (None, "") else None
+                elif key in self.config_entry.options:
                     normalized_input[key] = None
-            # Apply submitted values, normalizing empty strings to None
-            for key, value in user_input.items():
-                normalized_input[key] = value if value not in (None, "") else None
             _LOGGER.debug("Normalized options to save: %s", normalized_input)
             result = self.async_create_entry(title="", data=normalized_input)
             _LOGGER.debug("Creating entry with options: %s", normalized_input)
             return result
 
-        options = {**self.config_entry.options}
+        options = {
+            key: value
+            for key, value in self.config_entry.options.items()
+            if key in OPTION_KEYS
+        }
         _LOGGER.debug("Current stored options: %s", options)
         schema = vol.Schema(
             {

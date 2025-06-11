@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN, PLATFORMS
+from .climate import OPTION_KEYS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,6 +26,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     combined_data = {**entry.data}
     for key, value in entry.options.items():
+        if key not in OPTION_KEYS:
+            _LOGGER.debug("Ignoring unexpected option key %s", key)
+            continue
         if value is None:
             combined_data.pop(key, None)
         else:
