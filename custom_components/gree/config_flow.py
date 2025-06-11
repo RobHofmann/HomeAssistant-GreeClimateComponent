@@ -127,61 +127,80 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     ),
                 ): vol.Coerce(float),
                 vol.Optional(
-                    CONF_TEMP_SENSOR, default=options.get(CONF_TEMP_SENSOR)
+                    CONF_TEMP_SENSOR,
+                    description={"suggested_value": options.get(CONF_TEMP_SENSOR)},
                 ): vol.Any(
                     None,
                     selector.EntitySelector(
                         selector.EntitySelectorConfig(domain="sensor")
                     ),
                 ),
-                vol.Optional(CONF_LIGHTS, default=options.get(CONF_LIGHTS)): vol.Any(
-                    None,
-                    selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="input_boolean")
-                    ),
-                ),
-                vol.Optional(CONF_XFAN, default=options.get(CONF_XFAN)): vol.Any(
-                    None,
-                    selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="input_boolean")
-                    ),
-                ),
-                vol.Optional(CONF_HEALTH, default=options.get(CONF_HEALTH)): vol.Any(
-                    None,
-                    selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="input_boolean")
-                    ),
-                ),
                 vol.Optional(
-                    CONF_POWERSAVE, default=options.get(CONF_POWERSAVE)
+                    CONF_LIGHTS,
+                    description={"suggested_value": options.get(CONF_LIGHTS)},
                 ): vol.Any(
                     None,
                     selector.EntitySelector(
                         selector.EntitySelectorConfig(domain="input_boolean")
                     ),
                 ),
-                vol.Optional(CONF_SLEEP, default=options.get(CONF_SLEEP)): vol.Any(
-                    None,
-                    selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="input_boolean")
-                    ),
-                ),
                 vol.Optional(
-                    CONF_EIGHTDEGHEAT, default=options.get(CONF_EIGHTDEGHEAT)
+                    CONF_XFAN,
+                    description={"suggested_value": options.get(CONF_XFAN)},
                 ): vol.Any(
                     None,
                     selector.EntitySelector(
                         selector.EntitySelectorConfig(domain="input_boolean")
                     ),
                 ),
-                vol.Optional(CONF_AIR, default=options.get(CONF_AIR)): vol.Any(
+                vol.Optional(
+                    CONF_HEALTH,
+                    description={"suggested_value": options.get(CONF_HEALTH)},
+                ): vol.Any(
                     None,
                     selector.EntitySelector(
                         selector.EntitySelectorConfig(domain="input_boolean")
                     ),
                 ),
                 vol.Optional(
-                    CONF_TARGET_TEMP, default=options.get(CONF_TARGET_TEMP)
+                    CONF_POWERSAVE,
+                    description={"suggested_value": options.get(CONF_POWERSAVE)},
+                ): vol.Any(
+                    None,
+                    selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="input_boolean")
+                    ),
+                ),
+                vol.Optional(
+                    CONF_SLEEP,
+                    description={"suggested_value": options.get(CONF_SLEEP)},
+                ): vol.Any(
+                    None,
+                    selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="input_boolean")
+                    ),
+                ),
+                vol.Optional(
+                    CONF_EIGHTDEGHEAT,
+                    description={"suggested_value": options.get(CONF_EIGHTDEGHEAT)},
+                ): vol.Any(
+                    None,
+                    selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="input_boolean")
+                    ),
+                ),
+                vol.Optional(
+                    CONF_AIR,
+                    description={"suggested_value": options.get(CONF_AIR)},
+                ): vol.Any(
+                    None,
+                    selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="input_boolean")
+                    ),
+                ),
+                vol.Optional(
+                    CONF_TARGET_TEMP,
+                    description={"suggested_value": options.get(CONF_TARGET_TEMP)},
                 ): vol.Any(
                     None,
                     selector.EntitySelector(
@@ -189,7 +208,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     ),
                 ),
                 vol.Optional(
-                    CONF_AUTO_XFAN, default=options.get(CONF_AUTO_XFAN)
+                    CONF_AUTO_XFAN,
+                    description={"suggested_value": options.get(CONF_AUTO_XFAN)},
                 ): vol.Any(
                     None,
                     selector.EntitySelector(
@@ -197,7 +217,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     ),
                 ),
                 vol.Optional(
-                    CONF_AUTO_LIGHT, default=options.get(CONF_AUTO_LIGHT)
+                    CONF_AUTO_LIGHT,
+                    description={"suggested_value": options.get(CONF_AUTO_LIGHT)},
                 ): vol.Any(
                     None,
                     selector.EntitySelector(
@@ -209,7 +230,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     default=options.get(CONF_HORIZONTAL_SWING, False),
                 ): bool,
                 vol.Optional(
-                    CONF_ANTI_DIRECT_BLOW, default=options.get(CONF_ANTI_DIRECT_BLOW)
+                    CONF_ANTI_DIRECT_BLOW,
+                    description={"suggested_value": options.get(CONF_ANTI_DIRECT_BLOW)},
                 ): vol.Any(
                     None,
                     selector.EntitySelector(
@@ -225,7 +247,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     default=options.get(CONF_MAX_ONLINE_ATTEMPTS, 3),
                 ): int,
                 vol.Optional(
-                    CONF_LIGHT_SENSOR, default=options.get(CONF_LIGHT_SENSOR)
+                    CONF_LIGHT_SENSOR,
+                    description={"suggested_value": options.get(CONF_LIGHT_SENSOR)},
                 ): vol.Any(
                     None,
                     selector.EntitySelector(
@@ -233,7 +256,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     ),
                 ),
                 vol.Optional(
-                    CONF_BEEPER, default=options.get(CONF_BEEPER)
+                    CONF_BEEPER,
+                    description={"suggested_value": options.get(CONF_BEEPER)},
                 ): vol.Any(
                     None,
                     selector.EntitySelector(
@@ -242,10 +266,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 ),
                 vol.Optional(
                     CONF_TEMP_SENSOR_OFFSET,
-                    default=options.get(CONF_TEMP_SENSOR_OFFSET),
+                    description={"suggested_value": options.get(CONF_TEMP_SENSOR_OFFSET)},
                 ): vol.Any(None, bool),
                 vol.Optional(
-                    CONF_LANGUAGE, default=options.get(CONF_LANGUAGE)
+                    CONF_LANGUAGE,
+                    description={"suggested_value": options.get(CONF_LANGUAGE)},
                 ): vol.Any(None, str),
             }
         )
