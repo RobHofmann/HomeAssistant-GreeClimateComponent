@@ -103,12 +103,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             _LOGGER.debug("Received user options input: %s", user_input)
             normalized_input: dict[str, str | None] = {}
-            # Include all known keys so cleared values override initial data
-            previous_keys = (
-                set(self.config_entry.data.keys())
-                | set(self.config_entry.options.keys())
-                | set(user_input.keys())
-            )
+            # Consider only existing option keys so data values aren't overwritten
+            previous_keys = set(self.config_entry.options.keys()) | set(user_input.keys())
             for key in previous_keys:
                 value = user_input.get(key)
                 normalized_input[key] = value if value not in (None, "") else None
