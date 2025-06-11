@@ -101,7 +101,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input: dict | None = None) -> FlowResult:
         if user_input is not None:
-            _LOGGER.debug("Received user options input: %s", user_input)
+            _LOGGER.debug("Raw user options input: %s", user_input)
             normalized_input: dict[str, str | None] = {}
             # Start with keys from existing options so cleared fields can be detected
             for key in self.config_entry.options:
@@ -112,7 +112,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             for key, value in user_input.items():
                 normalized_input[key] = value if value not in (None, "") else None
             _LOGGER.debug("Normalized options to save: %s", normalized_input)
-            return self.async_create_entry(title="", data=normalized_input)
+            result = self.async_create_entry(title="", data=normalized_input)
+            _LOGGER.debug("Creating entry with options: %s", normalized_input)
+            return result
 
         options = {**self.config_entry.options}
         _LOGGER.debug("Current stored options: %s", options)
