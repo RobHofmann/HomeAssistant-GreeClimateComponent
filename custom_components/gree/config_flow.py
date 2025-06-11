@@ -102,7 +102,13 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_init(self, user_input: dict | None = None) -> FlowResult:
         if user_input is not None:
             _LOGGER.debug("Received user options input: %s", user_input)
-            normalized_input: dict[str, str | None] = {**self.config_entry.options}
+            normalized_input: dict[str, str | None] = {}
+            # Start with keys from existing options so cleared fields can be detected
+            for key in self.config_entry.options:
+                if key not in user_input:
+                    # Field was omitted; treat as cleared
+                    normalized_input[key] = None
+            # Apply submitted values, normalizing empty strings to None
             for key, value in user_input.items():
                 normalized_input[key] = value if value not in (None, "") else None
             _LOGGER.debug("Normalized options to save: %s", normalized_input)
