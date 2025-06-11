@@ -27,7 +27,12 @@ from homeassistant.const import (
     STATE_UNKNOWN
 )
 
-from homeassistant.core import Event, EventStateChangedData, callback
+from homeassistant.core import (
+    CALLBACK_TYPE,
+    Event,
+    EventStateChangedData,
+    callback,
+)
 from homeassistant.helpers.event import async_track_state_change_event
 from Crypto.Cipher import AES
 from .translations_helper import (
@@ -299,6 +304,9 @@ class GreeClimate(ClimateEntity):
         self._auto_light_entity_id = auto_light_entity_id
         self._temp_sensor_offset = temp_sensor_offset
 
+        # Keep unsub callbacks for deregistering listeners
+        self._listeners: list[tuple[str, str, CALLBACK_TYPE]] = []
+
         self._horizontal_swing = horizontal_swing
         self._has_temp_sensor = None
         self._has_anti_direct_blow = None
@@ -346,72 +354,111 @@ class GreeClimate(ClimateEntity):
         self._optionsToFetch = ["Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt","SlpMod"]
 
         if temp_sensor_entity_id:
-            _LOGGER.info('Setting up remote temperature sensor: ' + str(temp_sensor_entity_id))
-            async_track_state_change_event(hass, temp_sensor_entity_id, self._async_temp_sensor_changed)
+            _LOGGER.info('Setting up remote temperature sensor: %s', temp_sensor_entity_id)
+            unsub = async_track_state_change_event(
+                hass, temp_sensor_entity_id, self._async_temp_sensor_changed
+            )
+            self._listeners.append(('temp_sensor', temp_sensor_entity_id, unsub))
 
         if lights_entity_id:
-            _LOGGER.info('Setting up lights entity: ' + str(lights_entity_id))
-            async_track_state_change_event(hass, lights_entity_id, self._async_lights_entity_state_changed)
+            _LOGGER.info('Setting up lights entity: %s', lights_entity_id)
+            unsub = async_track_state_change_event(
+                hass, lights_entity_id, self._async_lights_entity_state_changed
+            )
+            self._listeners.append(('lights', lights_entity_id, unsub))
 
         if xfan_entity_id:
-            _LOGGER.info('Setting up xfan entity: ' + str(xfan_entity_id))
-            async_track_state_change_event(hass, xfan_entity_id, self._async_xfan_entity_state_changed)
+            _LOGGER.info('Setting up xfan entity: %s', xfan_entity_id)
+            unsub = async_track_state_change_event(
+                hass, xfan_entity_id, self._async_xfan_entity_state_changed
+            )
+            self._listeners.append(('xfan', xfan_entity_id, unsub))
 
         if health_entity_id:
-            _LOGGER.info('Setting up health entity: ' + str(health_entity_id))
-            async_track_state_change_event(hass, health_entity_id, self._async_health_entity_state_changed)
+            _LOGGER.info('Setting up health entity: %s', health_entity_id)
+            unsub = async_track_state_change_event(
+                hass, health_entity_id, self._async_health_entity_state_changed
+            )
+            self._listeners.append(('health', health_entity_id, unsub))
 
         if powersave_entity_id:
-            _LOGGER.info('Setting up powersave entity: ' + str(powersave_entity_id))
-            async_track_state_change_event(hass, powersave_entity_id, self._async_powersave_entity_state_changed)
+            _LOGGER.info('Setting up powersave entity: %s', powersave_entity_id)
+            unsub = async_track_state_change_event(
+                hass, powersave_entity_id, self._async_powersave_entity_state_changed
+            )
+            self._listeners.append(('powersave', powersave_entity_id, unsub))
 
         if sleep_entity_id:
-            _LOGGER.info('Setting up sleep entity: ' + str(sleep_entity_id))
-            async_track_state_change_event(hass, sleep_entity_id, self._async_sleep_entity_state_changed)
+            _LOGGER.info('Setting up sleep entity: %s', sleep_entity_id)
+            unsub = async_track_state_change_event(
+                hass, sleep_entity_id, self._async_sleep_entity_state_changed
+            )
+            self._listeners.append(('sleep', sleep_entity_id, unsub))
 
         if eightdegheat_entity_id:
-            _LOGGER.info('Setting up 8℃ heat entity: ' + str(eightdegheat_entity_id))
-            async_track_state_change_event(hass, eightdegheat_entity_id, self._async_eightdegheat_entity_state_changed)
+            _LOGGER.info('Setting up 8℃ heat entity: %s', eightdegheat_entity_id)
+            unsub = async_track_state_change_event(
+                hass, eightdegheat_entity_id, self._async_eightdegheat_entity_state_changed
+            )
+            self._listeners.append(('eightdegheat', eightdegheat_entity_id, unsub))
 
         if air_entity_id:
-            _LOGGER.info('Setting up air entity: ' + str(air_entity_id))
-            async_track_state_change_event(hass, air_entity_id, self._async_air_entity_state_changed)
+            _LOGGER.info('Setting up air entity: %s', air_entity_id)
+            unsub = async_track_state_change_event(
+                hass, air_entity_id, self._async_air_entity_state_changed
+            )
+            self._listeners.append(('air', air_entity_id, unsub))
 
         if target_temp_entity_id:
-            _LOGGER.info('Setting up target temp entity: ' + str(target_temp_entity_id))
-            async_track_state_change_event(hass, target_temp_entity_id, self._async_target_temp_entity_state_changed)
+            _LOGGER.info('Setting up target temp entity: %s', target_temp_entity_id)
+            unsub = async_track_state_change_event(
+                hass, target_temp_entity_id, self._async_target_temp_entity_state_changed
+            )
+            self._listeners.append(('target_temp', target_temp_entity_id, unsub))
 
         if anti_direct_blow_entity_id:
-            _LOGGER.info('Setting up anti direct blow entity: ' + str(anti_direct_blow_entity_id))
-            async_track_state_change_event(hass, anti_direct_blow_entity_id, self._async_anti_direct_blow_entity_state_changed)
+            _LOGGER.info('Setting up anti direct blow entity: %s', anti_direct_blow_entity_id)
+            unsub = async_track_state_change_event(
+                hass, anti_direct_blow_entity_id, self._async_anti_direct_blow_entity_state_changed
+            )
+            self._listeners.append(('anti_direct_blow', anti_direct_blow_entity_id, unsub))
 
         if light_sensor_entity_id:
-            _LOGGER.info('Setting up light sensor entity: ' + str(light_sensor_entity_id))
+            _LOGGER.info('Setting up light sensor entity: %s', light_sensor_entity_id)
             if self.hass.states.get(light_sensor_entity_id) is not None and self.hass.states.get(light_sensor_entity_id).state is STATE_ON:
                 self._enable_light_sensor = True
             else:
                 self._enable_light_sensor = False
-            async_track_state_change_event(hass, light_sensor_entity_id, self._async_light_sensor_entity_state_changed)
+            unsub = async_track_state_change_event(
+                hass, light_sensor_entity_id, self._async_light_sensor_entity_state_changed
+            )
+            self._listeners.append(('light_sensor', light_sensor_entity_id, unsub))
         else:
             self._enable_light_sensor = False
 
         if auto_light_entity_id:
-            _LOGGER.info('Setting up auto light entity: ' + str(auto_light_entity_id))
+            _LOGGER.info('Setting up auto light entity: %s', auto_light_entity_id)
             if self.hass.states.get(auto_light_entity_id) is not None and self.hass.states.get(auto_light_entity_id).state is STATE_ON:
                 self._auto_light = True
             else:
                 self._auto_light = False
-            async_track_state_change_event(hass, auto_light_entity_id, self._async_auto_light_entity_state_changed)
+            unsub = async_track_state_change_event(
+                hass, auto_light_entity_id, self._async_auto_light_entity_state_changed
+            )
+            self._listeners.append(('auto_light', auto_light_entity_id, unsub))
         else:
             self._auto_light = False
 
         if auto_xfan_entity_id:
-            _LOGGER.info('Setting up auto xfan entity: ' + str(auto_xfan_entity_id))
+            _LOGGER.info('Setting up auto xfan entity: %s', auto_xfan_entity_id)
             if self.hass.states.get(auto_xfan_entity_id) is not None and self.hass.states.get(auto_xfan_entity_id).state is STATE_ON:
                 self._auto_xfan = True
             else:
                 self._auto_xfan = False
-            async_track_state_change_event(hass, auto_xfan_entity_id, self._async_auto_xfan_entity_state_changed)
+            unsub = async_track_state_change_event(
+                hass, auto_xfan_entity_id, self._async_auto_xfan_entity_state_changed
+            )
+            self._listeners.append(('auto_xfan', auto_xfan_entity_id, unsub))
         else:
             self._auto_xfan = False
 
@@ -422,14 +469,15 @@ class GreeClimate(ClimateEntity):
         self._current_beeper_enabled = True # Default to beeper ON (silent mode OFF)
 
         if self._beeper_entity_id:
-            _LOGGER.info('Setting up beeper control entity: ' + str(self._beeper_entity_id))
+            _LOGGER.info('Setting up beeper control entity: %s', self._beeper_entity_id)
             initial_beeper_state = self.hass.states.get(self._beeper_entity_id)
             if initial_beeper_state and initial_beeper_state.state == STATE_ON:
                 self._current_beeper_enabled = True
 
-            async_track_state_change_event(
+            unsub = async_track_state_change_event(
                 hass, self._beeper_entity_id, self._async_beeper_entity_state_changed
             )
+            self._listeners.append(('beeper', self._beeper_entity_id, unsub))
 
     # Pad helper method to help us get the right string for encrypting
 
@@ -1582,6 +1630,13 @@ class GreeClimate(ClimateEntity):
     async def async_added_to_hass(self):
         _LOGGER.info('Gree climate device added to hass()')
         self.update()
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Clean up when entity is removed."""
+        for name, entity_id, unsub in self._listeners:
+            _LOGGER.debug('Deregistering %s listener for %s', name, entity_id)
+            unsub()
+        self._listeners.clear()
 
 
     def gree_f_to_c(self, desired_temp_f):
