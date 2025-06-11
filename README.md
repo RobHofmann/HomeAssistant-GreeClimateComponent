@@ -44,6 +44,9 @@ The integration can be added from the Home Assistant UI.
 1. Navigate to **Settings** > **Devices & Services** and click **Add Integration**.
 2. Search for **Gree Climate** and fill in the host, port and MAC address.
 3. After setup you can open the integration options to configure additional parameters.
+4. Saving any changes in the options dialog automatically reloads the
+   integration, so new settings take effect immediately without
+   restarting Home Assistant.
 
 ## Custom Component Installation
 !!! PLEASE NOTE !!!: Skip step 1 if you are using HACS.
