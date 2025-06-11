@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import voluptuous as vol
 
 from homeassistant import config_entries
@@ -15,6 +17,8 @@ from homeassistant.const import (
     CONF_TIMEOUT,
 )
 from homeassistant.data_entry_flow import FlowResult
+
+_LOGGER = logging.getLogger(__name__)
 
 from .const import DOMAIN
 from .climate import (
@@ -97,6 +101,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input: dict | None = None) -> FlowResult:
         if user_input is not None:
+            _LOGGER.debug("Received user options input: %s", user_input)
             normalized_input: dict[str, str | None] = {}
             # Include all known keys so cleared values override initial data
             previous_keys = (
@@ -107,9 +112,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             for key in previous_keys:
                 value = user_input.get(key)
                 normalized_input[key] = value if value not in (None, "") else None
+            _LOGGER.debug("Normalized options to save: %s", normalized_input)
             return self.async_create_entry(title="", data=normalized_input)
 
         options = {**self.config_entry.options}
+        _LOGGER.debug("Current stored options: %s", options)
         schema = vol.Schema(
             {
                 vol.Optional(
