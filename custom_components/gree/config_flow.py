@@ -102,11 +102,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_init(self, user_input: dict | None = None) -> FlowResult:
         if user_input is not None:
             _LOGGER.debug("Received user options input: %s", user_input)
-            normalized_input: dict[str, str | None] = {}
-            # Consider only existing option keys so data values aren't overwritten
-            previous_keys = set(self.config_entry.options.keys()) | set(user_input.keys())
-            for key in previous_keys:
-                value = user_input.get(key)
+            normalized_input: dict[str, str | None] = {**self.config_entry.options}
+            for key, value in user_input.items():
                 normalized_input[key] = value if value not in (None, "") else None
             _LOGGER.debug("Normalized options to save: %s", normalized_input)
             return self.async_create_entry(title="", data=normalized_input)

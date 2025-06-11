@@ -25,7 +25,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     combined_data = {**entry.data}
     for key, value in entry.options.items():
-        if value is not None:
+        if value is None:
+            combined_data.pop(key, None)
+        else:
             combined_data[key] = value
     hass.data[DOMAIN][entry.entry_id] = combined_data
     _LOGGER.debug("Setting up config entry %s with data: %s", entry.entry_id, combined_data)
