@@ -21,6 +21,7 @@ Tested on the following hardware:
 - Sinclair SIH-09BITW
 - Tadiran Alpha Expert Inverter
 - TOSOT BORA-GWH09AAB
+- TOSOT TW12HXP2A1D
 - Toyotomi Izuru TRN/TRG-828ZR
 
 Tested on Home Assistant 2025.5.3.
