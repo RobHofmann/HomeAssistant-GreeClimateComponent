@@ -107,7 +107,7 @@
               "swing_upmost": "Swing in the upmost region"
             }
           },
-          "preset_mode": {
+          "swing_horizontal_mode": {
             "state": {
               "default": "Default",
               "full_swing": "Full swing",

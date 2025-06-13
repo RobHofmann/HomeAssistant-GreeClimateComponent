@@ -107,7 +107,7 @@
               "swing_upmost": "Oscillazione in alto"
             }
           },
-          "preset_mode": {
+          "swing_horizontal_mode": {
             "state": {
               "default": "Predefinito",
               "full_swing": "Oscillazione completa",

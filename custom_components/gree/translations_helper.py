@@ -8,7 +8,7 @@ _LOGGER = logging.getLogger(__name__)
 # Translation keys for modes - these define the order and available modes
 FAN_MODE_KEYS = ['auto', 'low', 'medium-low', 'medium', 'medium-high', 'high', 'turbo', 'quiet']
 SWING_MODE_KEYS = ['default', 'swing_full', 'fixed_upmost', 'fixed_middle_up', 'fixed_middle', 'fixed_middle_low', 'fixed_lowest', 'swing_downmost', 'swing_middle_low', 'swing_middle', 'swing_middle_up', 'swing_upmost']
-PRESET_MODE_KEYS = ['default', 'full_swing', 'fixed_leftmost', 'fixed_middle_left', 'fixed_middle', 'fixed_middle_right', 'fixed_rightmost']
+SWING_HORIZONTAL_MODE_KEYS = ['default', 'full_swing', 'fixed_leftmost', 'fixed_middle_left', 'fixed_middle', 'fixed_middle_right', 'fixed_rightmost']
 
 def _load_translations_from_json_sync(language):
     """Load translations from JSON files."""
@@ -49,7 +49,7 @@ async def get_all_translated_modes(hass, language=None):
     mode_configs = {
         'fan_mode': FAN_MODE_KEYS,
         'swing_mode': SWING_MODE_KEYS,
-        'preset_mode': PRESET_MODE_KEYS
+        'swing_horizontal_mode': SWING_HORIZONTAL_MODE_KEYS
     }
 
     result = {}
@@ -78,7 +78,7 @@ def get_mode_key_by_index(mode_type, index):
     mode_keys = {
         'fan_mode': FAN_MODE_KEYS,
         'swing_mode': SWING_MODE_KEYS,
-        'preset_mode': PRESET_MODE_KEYS
+        'swing_horizontal_mode': SWING_HORIZONTAL_MODE_KEYS
     }
     keys = mode_keys.get(mode_type, [])
     return keys[index] if 0 <= index < len(keys) else None
@@ -88,7 +88,7 @@ def get_mode_index_by_key(mode_type, key):
     mode_keys = {
         'fan_mode': FAN_MODE_KEYS,
         'swing_mode': SWING_MODE_KEYS,
-        'preset_mode': PRESET_MODE_KEYS
+        'swing_horizontal_mode': SWING_HORIZONTAL_MODE_KEYS
     }
     keys = mode_keys.get(mode_type, [])
     try:

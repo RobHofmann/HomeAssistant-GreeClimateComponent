@@ -107,7 +107,7 @@
               "swing_upmost": "נדנוד בחלק העליון"
             }
           },
-          "preset_mode": {
+          "swing_horizontal_mode": {
             "state": {
               "default": "ברירת מחדל",
               "full_swing": "נדנוד אופקי מלא",

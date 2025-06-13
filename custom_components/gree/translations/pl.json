@@ -107,7 +107,7 @@
               "swing_upmost": "Ruch w najwyższym zakresie"
             }
           },
-          "preset_mode": {
+          "swing_horizontal_mode": {
             "state": {
               "default": "Domyślny",
               "full_swing": "Ruch w pełnym zakresie",

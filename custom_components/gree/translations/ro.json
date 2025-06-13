@@ -107,7 +107,7 @@
               "swing_upmost": "Baleiaj în regiunea cea mai de sus"
             }
           },
-          "preset_mode": {
+          "swing_horizontal_mode": {
             "state": {
               "default": "Implicit",
               "full_swing": "Baleiaj complet",
