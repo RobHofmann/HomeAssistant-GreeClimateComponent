@@ -107,7 +107,7 @@
               "swing_upmost": "Legyezés a legfelső régióban"
             }
           },
-          "preset_mode": {
+          "swing_horizontal_mode": {
             "state": {
               "default": "Alapértelmezett",
               "full_swing": "Teljes legyezés",
