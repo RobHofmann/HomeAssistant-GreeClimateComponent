@@ -105,7 +105,7 @@
               "swing_upmost": "Качание в верхней области"
             }
           },
-          "preset_mode": {
+          "swing_horizontal_mode": {
             "state": {
               "default": "По умолчанию",
               "full_swing": "Полное качание",

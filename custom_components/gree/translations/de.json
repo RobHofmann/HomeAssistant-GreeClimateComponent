@@ -107,7 +107,7 @@
               "swing_upmost": "Schwenken im obersten Bereich"
             }
           },
-          "preset_mode": {
+          "swing_horizontal_mode": {
             "state": {
               "default": "Standard",
               "full_swing": "Vollschwenkung",
