@@ -8,6 +8,7 @@ Tested on the following hardware:
 - AC Gree GWH12ACC-K6DNA1D
 - AC Gree 3VIR24HP230V1AH
 - Argo ECOLIGHT 9000 UI WF - Split Air Conditioner Unit (Pair through EWPE Smart app, default settings in gree are fine)
+- Argo ECOLIGHT 12000 UI WiFi - Split Air Conditioner Unit (Pair through EWPE Smart app, default settings in gree are fine)
 - Bulex vivair multisplit units; 20-080MC4NO outdoor unit, 20-025 NWI (2,5 kW) indoor unit, 20-035 NWI (3,5 kW) indoor unit
 - CASCADE BORA-CWH09AAB
 - Cooper & Hunter (CH-S12FTXE(WI-FI)-NG)
