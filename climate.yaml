@@ -6,6 +6,10 @@
   # optional settings:
   port: 7000
   timeout: 10
+  hvac_modes: ['auto', 'dry', 'cool', 'fan_only', 'heat', 'off']
+  fan_modes: ['auto' ,'low', 'medium_low', 'medium', 'medium_high', 'high', 'quiet', 'turbo']
+  swing_modes: ['default', 'swing_full', 'fixed_upmost', 'fixed_middle_up', 'fixed_middle', 'fixed_middle_low', 'fixed_lowest', 'swing_downmost', 'swing_middle_low', 'swing_middle', 'swing_middle_up', 'swing_upmost']
+  swing_horizontal_modes: ['default', 'full_swing', 'fixed_leftmost', 'fixed_middle_left', 'fixed_middle', 'fixed_middle_right', 'fixed_rightmost']
   target_temp_step: 1
   temp_sensor: <temperature sensor in first AC room>
   lights: <input_boolean used to switch lights on/off of your first AC>

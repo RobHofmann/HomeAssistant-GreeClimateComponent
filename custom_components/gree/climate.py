@@ -35,14 +35,6 @@ from homeassistant.core import (
 )
 from homeassistant.helpers.event import async_track_state_change_event
 from Crypto.Cipher import AES
-from .translations_helper import (
-    get_all_translated_modes,
-    get_translated_name,
-    get_mode_key_by_index,
-    FAN_MODE_KEYS,
-    SWING_MODE_KEYS,
-    SWING_HORIZONTAL_MODE_KEYS
-)
 try: import simplejson
 except ImportError: import json as simplejson
 from datetime import timedelta
@@ -51,10 +43,9 @@ REQUIREMENTS = ['pycryptodome']
 
 _LOGGER = logging.getLogger(__name__)
 
-SUPPORT_FLAGS = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.FAN_MODE | ClimateEntityFeature.SWING_MODE | ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
+SUPPORT_FLAGS = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.FAN_MODE | ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
 
-# DEFAULT_NAME will be set dynamically based on language
-
+CONF_HVAC_MODES = "hvac_modes"
 CONF_TARGET_TEMP_STEP = 'target_temp_step'
 CONF_TEMP_SENSOR = 'temp_sensor'
 CONF_LIGHTS = 'lights'
@@ -69,7 +60,9 @@ CONF_UID = 'uid'
 CONF_AUTO_XFAN = 'auto_xfan'
 CONF_AUTO_LIGHT = 'auto_light'
 CONF_TARGET_TEMP = 'target_temp'
-CONF_HORIZONTAL_SWING = 'horizontal_swing'
+CONF_FAN_MODES = 'fan_modes'
+CONF_SWING_MODES = 'swing_modes'
+CONF_SWING_HORIZONTAL_MODES = 'swing_horizontal_modes'
 CONF_ANTI_DIRECT_BLOW = 'anti_direct_blow'
 CONF_ENCRYPTION_VERSION = 'encryption_version'
 CONF_DISABLE_AVAILABLE_CHECK  = 'disable_available_check'
@@ -77,10 +70,10 @@ CONF_MAX_ONLINE_ATTEMPTS = 'max_online_attempts'
 CONF_LIGHT_SENSOR = 'light_sensor'
 CONF_BEEPER = 'beeper'
 CONF_TEMP_SENSOR_OFFSET = 'temp_sensor_offset'
-CONF_LANGUAGE = 'language'
 
 # Keys that can be updated via the options flow
 OPTION_KEYS = {
+    CONF_HVAC_MODES,
     CONF_TARGET_TEMP_STEP,
     CONF_TEMP_SENSOR,
     CONF_LIGHTS,
@@ -93,14 +86,15 @@ OPTION_KEYS = {
     CONF_TARGET_TEMP,
     CONF_AUTO_XFAN,
     CONF_AUTO_LIGHT,
-    CONF_HORIZONTAL_SWING,
+    CONF_FAN_MODES,
+    CONF_SWING_MODES,
+    CONF_SWING_HORIZONTAL_MODES,
     CONF_ANTI_DIRECT_BLOW,
     CONF_DISABLE_AVAILABLE_CHECK,
     CONF_MAX_ONLINE_ATTEMPTS,
     CONF_LIGHT_SENSOR,
     CONF_BEEPER,
     CONF_TEMP_SENSOR_OFFSET,
-    CONF_LANGUAGE,
 }
 
 DEFAULT_PORT = 7000
@@ -120,11 +114,12 @@ TEMSEN_OFFSET = 40
 SCAN_INTERVAL = timedelta(seconds=60)
 
 # HVAC modes - these come from Home Assistant and are standard
-HVAC_MODES = [HVACMode.AUTO, HVACMode.COOL, HVACMode.DRY, HVACMode.FAN_ONLY, HVACMode.HEAT, HVACMode.OFF]
+HVAC_MODE_KEYS = ["auto", "cool", "dry", "fan_only", "heat", "heat_cool", "off"]
+DEFAULT_HVAC_MODES = [HVACMode.AUTO, HVACMode.COOL, HVACMode.DRY, HVACMode.FAN_ONLY, HVACMode.HEAT, HVACMode.HEAT_COOL, HVACMode.OFF]
 
-FAN_MODES = ['Auto', 'Low', 'Medium-Low', 'Medium', 'Medium-High', 'High', 'Turbo', 'Quiet']
-SWING_MODES = ['Default', 'Swing in full range', 'Fixed in the upmost position', 'Fixed in the middle-up position', 'Fixed in the middle position', 'Fixed in the middle-low position', 'Fixed in the lowest position', 'Swing in the downmost region', 'Swing in the middle-low region', 'Swing in the middle region', 'Swing in the middle-up region', 'Swing in the upmost region']
-SWING_H_MODES = ['Default', 'Full swing', 'Fixed in the leftmost position', 'Fixed in the middle-left position', 'Fixed in the middle postion','Fixed in the middle-right position', 'Fixed in the rightmost position']
+DEFAULT_FAN_MODES = ['auto', 'low', 'medium_low', 'medium', 'medium_high', 'high', 'turbo', 'quiet']
+DEFAULT_SWING_MODES = ['default', 'swing_full', 'fixed_upmost', 'fixed_middle_up', 'fixed_middle', 'fixed_middle_low', 'fixed_lowest', 'swing_downmost', 'swing_middle_low', 'swing_middle', 'swing_middle_up', 'swing_upmost']
+DEFAULT_SWING_HORIZONTAL_MODES = ['default', 'full_swing', 'fixed_leftmost', 'fixed_middle_left', 'fixed_middle', 'fixed_middle_right', 'fixed_rightmost']
 
 GCM_IV = b'\x54\x40\x78\x44\x49\x67\x5a\x51\x6c\x5e\x63\x13'
 GCM_ADD = b'qualcomm-test'
@@ -135,6 +130,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_PORT, default=DEFAULT_PORT): cv.positive_int,
     vol.Required(CONF_MAC): cv.string,
     vol.Optional(CONF_TIMEOUT, default=DEFAULT_TIMEOUT): cv.positive_int,
+    vol.Optional(CONF_HVAC_MODES, default=DEFAULT_HVAC_MODES): vol.All(cv.ensure_list, [vol.In(HVAC_MODE_KEYS)]),
     vol.Optional(CONF_TARGET_TEMP_STEP, default=DEFAULT_TARGET_TEMP_STEP): vol.Coerce(float),
     vol.Optional(CONF_TEMP_SENSOR): cv.entity_id,
     vol.Optional(CONF_LIGHTS): cv.entity_id,
@@ -150,25 +146,21 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_AUTO_LIGHT): cv.entity_id,
     vol.Optional(CONF_TARGET_TEMP): cv.entity_id,
     vol.Optional(CONF_ENCRYPTION_VERSION, default=1): cv.positive_int,
-    vol.Optional(CONF_HORIZONTAL_SWING, default=False): cv.boolean,
+    vol.Optional(CONF_FAN_MODES, default=DEFAULT_FAN_MODES): cv.ensure_list,
+    vol.Optional(CONF_SWING_MODES, default=DEFAULT_SWING_MODES): cv.ensure_list,
+    vol.Optional(CONF_SWING_HORIZONTAL_MODES, default=DEFAULT_SWING_HORIZONTAL_MODES): cv.ensure_list,
     vol.Optional(CONF_ANTI_DIRECT_BLOW): cv.entity_id,
     vol.Optional(CONF_DISABLE_AVAILABLE_CHECK, default=False): cv.boolean,
     vol.Optional(CONF_MAX_ONLINE_ATTEMPTS, default=3): cv.positive_int,
     vol.Optional(CONF_LIGHT_SENSOR): cv.entity_id,
     vol.Optional(CONF_BEEPER): cv.entity_id,
     vol.Optional(CONF_TEMP_SENSOR_OFFSET): cv.boolean,
-    vol.Optional(CONF_LANGUAGE): cv.string,
 })
 
 async def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     _LOGGER.info('Setting up Gree climate platform')
 
-    # Get language preference
-    language = config.get(CONF_LANGUAGE)
-
-    # Get translated default name if no name is provided
-    default_name = await get_translated_name(hass, language)
-    name = config.get(CONF_NAME) or default_name
+    name = config.get(CONF_NAME)
     ip_addr = config.get(CONF_HOST)
     port = config.get(CONF_PORT)
     mac_addr = config.get(CONF_MAC).encode().replace(b':', b'')
@@ -184,18 +176,17 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     eightdegheat_entity_id = config.get(CONF_EIGHTDEGHEAT)
     air_entity_id = config.get(CONF_AIR)
     target_temp_entity_id = config.get(CONF_TARGET_TEMP)
-    hvac_modes = HVAC_MODES
 
-    # Get all translated modes at once
-    translated_modes = await get_all_translated_modes(hass, language)
-    fan_modes = translated_modes['fan_mode']
-    swing_modes = translated_modes['swing_mode']
-    swing_horizontal_modes = translated_modes['swing_horizontal_mode']
+
+    hvac_modes = [getattr(HVACMode, key.upper()) for key in HVAC_MODE_KEYS]
+
+    fan_modes = config.get(CONF_FAN_MODES)
+    swing_modes = config.get(CONF_SWING_MODES)
+    swing_horizontal_modes = config.get(CONF_SWING_HORIZONTAL_MODES)
     encryption_key = config.get(CONF_ENCRYPTION_KEY)
     uid = config.get(CONF_UID)
     auto_xfan_entity_id = config.get(CONF_AUTO_XFAN)
     auto_light_entity_id = config.get(CONF_AUTO_LIGHT)
-    horizontal_swing = config.get(CONF_HORIZONTAL_SWING)
     anti_direct_blow_entity_id = config.get(CONF_ANTI_DIRECT_BLOW)
     light_sensor_entity_id = config.get(CONF_LIGHT_SENSOR)
     encryption_version = config.get(CONF_ENCRYPTION_VERSION)
@@ -231,7 +222,6 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
             swing_horizontal_modes,
             auto_xfan_entity_id,
             auto_light_entity_id,
-            horizontal_swing,
             light_sensor_entity_id,
             encryption_version,
             disable_available_check,
@@ -240,7 +230,6 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
             uid,
             beeper_entity_id,
             temp_sensor_offset,
-            language,
         )
     ])
 
@@ -260,7 +249,10 @@ async def async_unload_entry(hass, entry):
 
 class GreeClimate(ClimateEntity):
 
-    def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, swing_horizontal_modes, auto_xfan_entity_id, auto_light_entity_id, horizontal_swing, light_sensor_entity_id, encryption_version, disable_available_check, max_online_attempts, encryption_key=None, uid=None, beeper_entity_id=None, temp_sensor_offset=None, language=None):
+    # Language is retrieved from translation key
+    _attr_translation_key = "gree"
+
+    def __init__(self, hass, name, ip_addr, port, mac_addr, timeout, target_temp_step, temp_sensor_entity_id, lights_entity_id, xfan_entity_id, health_entity_id, powersave_entity_id, sleep_entity_id, eightdegheat_entity_id, air_entity_id, target_temp_entity_id, anti_direct_blow_entity_id, hvac_modes, fan_modes, swing_modes, swing_horizontal_modes, auto_xfan_entity_id, auto_light_entity_id, light_sensor_entity_id, encryption_version, disable_available_check, max_online_attempts, encryption_key=None, uid=None, beeper_entity_id=None, temp_sensor_offset=None):
         _LOGGER.info('Initialize the GREE climate device')
         self.hass = hass
         self._name = name
@@ -307,13 +299,9 @@ class GreeClimate(ClimateEntity):
         # Keep unsub callbacks for deregistering listeners
         self._listeners: list[tuple[str, str, CALLBACK_TYPE]] = []
 
-        self._horizontal_swing = horizontal_swing
         self._has_temp_sensor = None
         self._has_anti_direct_blow = None
         self._has_light_sensor = None
-
-        # Store the language preference
-        self._language = language
 
         self._current_temperature = None
         self._current_lights = None
@@ -768,20 +756,18 @@ class GreeClimate(ClimateEntity):
         self._swing_mode = self._swing_modes[self._acOptions['SwUpDn']]
         _LOGGER.debug('HA swing mode set according to HVAC state to: ' + str(self._swing_mode))
 
-    def UpdateHACurrentPresetMode(self):
-        # Sync current HVAC preset mode state to HA
+    def UpdateHACurrentSwingHorizontalMode(self):
+        # Sync current HVAC Horizontal Swing mode state to HA
         self._swing_horizontal_mode = self._swing_horizontal_modes[self._acOptions['SwingLfRig']]
-        _LOGGER.debug('HA preset mode set according to HVAC state to: ' + str(self._swing_horizontal_mode))
+        _LOGGER.debug('HA horizontal swing mode set according to HVAC state to: ' + str(self._swing_horizontal_mode))
 
     def UpdateHAFanMode(self):
         # Sync current HVAC Fan mode state to HA
         if (int(self._acOptions['Tur']) == 1):
-            # Find Turbo mode in current language
-            turbo_index = FAN_MODE_KEYS.index('turbo')
+            turbo_index = self._fan_modes.index('turbo')
             self._fan_mode = self._fan_modes[turbo_index]
         elif (int(self._acOptions['Quiet']) >= 1):
-            # Find Quiet mode in current language
-            quiet_index = FAN_MODE_KEYS.index('quiet')
+            quiet_index = self._fan_modes.index('quiet')
             self._fan_mode = self._fan_modes[quiet_index]
         else:
             self._fan_mode = self._fan_modes[int(self._acOptions['WdSpd'])]
@@ -823,9 +809,10 @@ class GreeClimate(ClimateEntity):
         self.UpdateHATargetTemperature()
         self.UpdateHAOptions()
         self.UpdateHAHvacMode()
-        self.UpdateHACurrentSwingMode()
-        if self._horizontal_swing:
-            self.UpdateHACurrentPresetMode()
+        if self._swing_modes:
+            self.UpdateHACurrentSwingMode()
+        if self._swing_horizontal_modes:
+            self.UpdateHACurrentSwingHorizontalMode()
         self.UpdateHAFanMode()
         self.UpdateHACurrentTemperature()
 
@@ -1450,9 +1437,12 @@ class GreeClimate(ClimateEntity):
 
     @property
     def swing_mode(self):
-        _LOGGER.debug('swing_mode(): ' + str(self._swing_mode))
-        # get the current swing mode
-        return self._swing_mode
+        if self._swing_modes:
+            _LOGGER.debug('swing_mode(): ' + str(self._swing_mode))
+            # get the current swing mode
+            return self._swing_mode
+        else:
+            return None
 
     @property
     def swing_modes(self):
@@ -1462,7 +1452,7 @@ class GreeClimate(ClimateEntity):
 
     @property
     def swing_horizontal_mode(self):
-        if hasattr(self, "_horizontal_swing") and self._horizontal_swing:
+        if self._swing_horizontal_modes:
             _LOGGER.debug('swing_horizontal_mode(): ' + str(self._swing_horizontal_mode))
             # get the current preset mode
             return self._swing_horizontal_mode
@@ -1495,10 +1485,11 @@ class GreeClimate(ClimateEntity):
 
     @property
     def supported_features(self):
-        if hasattr(self, "_horizontal_swing") and self._horizontal_swing:
-            sf = SUPPORT_FLAGS | ClimateEntityFeature.SWING_HORIZONTAL_MODE
-        else:
-            sf = SUPPORT_FLAGS
+        sf = SUPPORT_FLAGS
+        if self._swing_modes:
+            sf = sf | ClimateEntityFeature.SWING_MODE
+        if self._swing_horizontal_modes:
+            sf = sf | ClimateEntityFeature.SWING_HORIZONTAL_MODE
         _LOGGER.debug('supported_features(): ' + str(sf))
         # Return the list of supported features.
         return sf
@@ -1564,14 +1555,13 @@ class GreeClimate(ClimateEntity):
         if not (self._acOptions['Pow'] == 0):
             try:
                 fan_index = self._fan_modes.index(fan)
-                fan_key = get_mode_key_by_index('fan_mode', fan_index)
 
                 # Check if this is turbo mode
-                if fan_key == 'turbo':
+                if fan == 'turbo':
                     _LOGGER.info('Enabling turbo mode')
                     self.SyncState({'Tur': 1, 'Quiet': 0})
                 # Check if this is quiet mode
-                elif fan_key == 'quiet':
+                elif fan == 'quiet':
                     _LOGGER.info('Enabling quiet mode')
                     self.SyncState({'Tur': 0, 'Quiet': 1})
                 else:
