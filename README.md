@@ -74,46 +74,46 @@ The integration can be added from the Home Assistant UI.
    ```
    You can configure additional parameters from the table below to fit the features that your AC supports.
 
-| Parameter | Description | Value | Required | Default |
-| --------- | ----------- | ------ | -------- | ------- |
-| `name` | Name | `string` (e.g., `First AC`) | `false` | `Gree Climate` |
-| `host` | IP Address of AC | `string` (e.g., `192.168.1.101`) | `true` | |
-| `port` | Port number to connect to the device | `integer` (e.g., `7000`) | `false` | `7000` |
-| `mac` | MAC address of the device | `string` (e.g., `20fabb123456`) <br> **NOTE: Format can be XX:XX:XX:XX:XX:XX, XX-XX-XX-XX-XX-XX or xxxxxxxxxxxx depending on your model** | `true` | 
-| `encryption_key` | Custom encryption key | `string` (e.g., `A1B2C3D4E5F6`) | `false` | *(auto-fetched if empty)* |
-| `encryption_version` | Encryption version | `integer` (e.g., `2`) | `false` | `1` | |
-| `hvac_modes` | Standard Home Assistant HVAC Modes to enable | `list[str]` (e.g. `["auto", "cool", "dry", "fan_only", "off"]`) | `false` | `["auto", "cool", "dry", "fan_only", "heat", "heat_cool", "off"]` |
-| `fan_modes` | Fan modes | `list[str]` (e.g. `["auto", "low", "medium", "high"]`) | `false` | `['auto', 'low', 'medium_low', 'medium', 'medium_high', 'high', 'turbo', 'quiet']` |
-| `swing_modes` | Fan vertical swing modes | `list[str]` (e.g. `['default', 'swing_full']`) <br> **NOTE: Pass empty list (`[]`) to disable vertical swing** | `false` | `['default', 'swing_full', 'fixed_upmost', 'fixed_middle_up', 'fixed_middle', 'fixed_middle_low', 'fixed_lowest', 'swing_downmost', 'swing_middle_low', 'swing_middle', 'swing_middle_up', 'swing_upmost']` |
-| `swing_horizontal_modes` | Fan horizontal swing modes | `list[str]` (e.g. `['default', 'full_swing']`) <br> **NOTE: Pass empty list (`[]`) to disable horizontal swing** | `false` | `['default', 'full_swing', 'fixed_leftmost', 'fixed_middle_left', 'fixed_middle', 'fixed_middle_right', 'fixed_rightmost']` |
-| `target_temp_step` | Temperature adjustment step | `integer` (e.g., `1`) | `false` | `1` |
-| `uid` | Device identifier | `string` (e.g., `AC_UNIT_123`) | `false` | |
-| `temp_sensor` | External temp sensor entity ID | `entity_id` (e.g., `sensor.bedroom_temperature`) | `false` | |
-| `lights` | AC lights mode toggle | `input_boolean` (e.g., `input_boolean.first_ac_lights`) | `false` | |
-| `xfan` | xFan mode toggle | `input_boolean` (e.g., `input_boolean.first_ac_xfan`) | `false` | |
-| `health` | Health option toggle | `input_boolean` (e.g., `input_boolean.first_ac_health`) | `false` | |
-| `sleep` | Sleep mode toggle | `input_boolean` (e.g., `input_boolean.first_ac_sleep`) | `false` | |
-| `powersave` | Powersave mode toggle | `input_boolean` (e.g., `input_boolean.first_ac_powersave`) | `false` | |
-| `eightdegheat` | 8°C heating mode toggle | `input_boolean` (e.g., `input_boolean.first_ac_eightdegheat`) | `false` | |
-| `air` | Air/scavenging toggle | `input_boolean` (e.g., `input_boolean.first_ac_air`) | `false` | |
-| `target_temp` | External temperature control | `input_number` (e.g., `input_number.bedroom_temp_target`) | `false` | |
-| `auto_xfan` | Auto xFan in cool/dry mode | `input_boolean` (e.g., `input_boolean.auto_xfan`) | `false` | |
-| `auto_light` | Auto control for AC light | `input_boolean` (e.g., `input_boolean.auto_light`) | `false` | |
-| `anti_direct_blow` | Anti Direct Blow feature toggle | `input_boolean` (e.g., `input_boolean.anti_direct_blow`) | `false` | |
-| `light_sensor` | Enable built-in light sensor | `input_boolean` (e.g., `input_boolean.enable_light_sensor`) | `false` | |
-| `max_online_attempts` | Retry limit before marking unavailable | `integer` (e.g., `5`) | `false` | `3` |
-| `disable_available_check` | Keep AC always available in HA | `boolean` (e.g., `true`) | `false` | `false` |
-| `temp_sensor_offset` | Display offset for temp sensor | `boolean` (e.g., `true`) | `false` | *(auto-detected if not set)* |
-| `beeper` | Toggle beeping sounds | `input_boolean` (e.g., `input_boolean.first_ac_beeper`) | `false` | |
+   | Parameter | Description | Value | Required | Default |
+   | --------- | ----------- | ------ | -------- | ------- |
+   | `name` | Name | `string` (e.g., `First AC`) | `false` | `Gree Climate` |
+   | `host` | IP Address of AC | `string` (e.g., `192.168.1.101`) | `true` | |
+   | `port` | Port number to connect to the device | `integer` (e.g., `7000`) | `false` | `7000` |
+   | `mac` | MAC address of the device | `string` (e.g., `20fabb123456`) <br> **NOTE: Format can be XX:XX:XX:XX:XX:XX, XX-XX-XX-XX-XX-XX or xxxxxxxxxxxx depending on your model** | `true` | 
+   | `encryption_key` | Custom encryption key | `string` (e.g., `A1B2C3D4E5F6`) | `false` | *(auto-fetched if empty)* |
+   | `encryption_version` | Encryption version | `integer` (e.g., `2`) | `false` | `1` | |
+   | `hvac_modes` | Standard Home Assistant HVAC Modes to enable | `list[str]` (e.g. `["auto", "cool", "dry", "fan_only", "off"]`) | `false` | `["auto", "cool", "dry", "fan_only", "heat", "heat_cool", "off"]` |
+   | `fan_modes` | Fan modes | `list[str]` (e.g. `["auto", "low", "medium", "high"]`) | `false` | `['auto', 'low', 'medium_low', 'medium', 'medium_high', 'high', 'turbo', 'quiet']` |
+   | `swing_modes` | Fan vertical swing modes | `list[str]` (e.g. `['default', 'swing_full']`) <br> **NOTE: Pass empty list (`[]`) to disable vertical swing** | `false` | `['default', 'swing_full', 'fixed_upmost', 'fixed_middle_up', 'fixed_middle', 'fixed_middle_low', 'fixed_lowest', 'swing_downmost', 'swing_middle_low', 'swing_middle', 'swing_middle_up', 'swing_upmost']` |
+   | `swing_horizontal_modes` | Fan horizontal swing modes | `list[str]` (e.g. `['default', 'full_swing']`) <br> **NOTE: Pass empty list (`[]`) to disable horizontal swing** | `false` | `['default', 'full_swing', 'fixed_leftmost', 'fixed_middle_left', 'fixed_middle', 'fixed_middle_right', 'fixed_rightmost']` |
+   | `target_temp_step` | Temperature adjustment step | `integer` (e.g., `1`) | `false` | `1` |
+   | `uid` | Device identifier | `string` (e.g., `AC_UNIT_123`) | `false` | |
+   | `temp_sensor` | External temp sensor entity ID | `entity_id` (e.g., `sensor.bedroom_temperature`) | `false` | |
+   | `lights` | AC lights mode toggle | `input_boolean` (e.g., `input_boolean.first_ac_lights`) | `false` | |
+   | `xfan` | xFan mode toggle | `input_boolean` (e.g., `input_boolean.first_ac_xfan`) | `false` | |
+   | `health` | Health option toggle | `input_boolean` (e.g., `input_boolean.first_ac_health`) | `false` | |
+   | `sleep` | Sleep mode toggle | `input_boolean` (e.g., `input_boolean.first_ac_sleep`) | `false` | |
+   | `powersave` | Powersave mode toggle | `input_boolean` (e.g., `input_boolean.first_ac_powersave`) | `false` | |
+   | `eightdegheat` | 8°C heating mode toggle | `input_boolean` (e.g., `input_boolean.first_ac_eightdegheat`) | `false` | |
+   | `air` | Air/scavenging toggle | `input_boolean` (e.g., `input_boolean.first_ac_air`) | `false` | |
+   | `target_temp` | External temperature control | `input_number` (e.g., `input_number.bedroom_temp_target`) | `false` | |
+   | `auto_xfan` | Auto xFan in cool/dry mode | `input_boolean` (e.g., `input_boolean.auto_xfan`) | `false` | |
+   | `auto_light` | Auto control for AC light | `input_boolean` (e.g., `input_boolean.auto_light`) | `false` | |
+   | `anti_direct_blow` | Anti Direct Blow feature toggle | `input_boolean` (e.g., `input_boolean.anti_direct_blow`) | `false` | |
+   | `light_sensor` | Enable built-in light sensor | `input_boolean` (e.g., `input_boolean.enable_light_sensor`) | `false` | |
+   | `max_online_attempts` | Retry limit before marking unavailable | `integer` (e.g., `5`) | `false` | `3` |
+   | `disable_available_check` | Keep AC always available in HA | `boolean` (e.g., `true`) | `false` | `false` |
+   | `temp_sensor_offset` | Display offset for temp sensor | `boolean` (e.g., `true`) | `false` | *(auto-detected if not set)* |
+   | `beeper` | Toggle beeping sounds | `input_boolean` (e.g., `input_boolean.first_ac_beeper`) | `false` | |
 
 
-1. In your configuration.yaml add the following:
+3. In your configuration.yaml add the following:
 
    ```yaml
    climate: !include climate.yaml
    ```
 
-2. OPTIONAL: Add info logging to this component (to see if/how it works)
+4. OPTIONAL: Add info logging to this component (to see if/how it works)
 
    ```yaml
    logger:
@@ -123,7 +123,7 @@ The integration can be added from the Home Assistant UI.
        custom_components.gree.climate: debug
    ```
 
-3. OPTIONAL: Provide encryption key if you have it or feel like extracting it.
+5. OPTIONAL: Provide encryption key if you have it or feel like extracting it.
 
    One way is to pull the sqlite db from android device like described here:
 
@@ -137,11 +137,11 @@ The integration can be added from the Home Assistant UI.
 
    Write it down in climate.yaml `encryption_key: <key>`.
 
-4. OPTIONAL: Provide the `uid` parameter (can be sniffed) NOTE: This is not needed for all devices
+6. OPTIONAL: Provide the `uid` parameter (can be sniffed) NOTE: This is not needed for all devices
 
-5. OPTIONAL: Provide input_boolean's to set lights, xfan, sleep and powersave mode on/off.
+7. OPTIONAL: Provide input_boolean's to set lights, xfan, sleep and powersave mode on/off.
 
-6. OPTIONAL: You can set custom icons by modifying the icon translation file `icons.json`. Refer to this documentation: https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/icon-translations/
+8. OPTIONAL: You can set custom icons by modifying the icon translation file `icons.json`. Refer to this documentation: https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/icon-translations/
 
 ## Optional Features
 NOTE: Your AC has to support these features for it to be used.
