@@ -114,11 +114,10 @@ TEMSEN_OFFSET = 40
 SCAN_INTERVAL = timedelta(seconds=60)
 
 # HVAC modes - these come from Home Assistant and are standard
-HVAC_MODE_KEYS = ["auto", "cool", "dry", "fan_only", "heat", "heat_cool", "off"]
-DEFAULT_HVAC_MODES = [HVACMode.AUTO, HVACMode.COOL, HVACMode.DRY, HVACMode.FAN_ONLY, HVACMode.HEAT, HVACMode.HEAT_COOL, HVACMode.OFF]
+DEFAULT_HVAC_MODES = ["auto", "cool", "dry", "fan_only", "heat", "heat_cool", "off"] 
 
-DEFAULT_FAN_MODES = ['auto', 'low', 'medium_low', 'medium', 'medium_high', 'high', 'turbo', 'quiet']
-DEFAULT_SWING_MODES = ['default', 'swing_full', 'fixed_upmost', 'fixed_middle_up', 'fixed_middle', 'fixed_middle_low', 'fixed_lowest', 'swing_downmost', 'swing_middle_low', 'swing_middle', 'swing_middle_up', 'swing_upmost']
+DEFAULT_FAN_MODES = ['auto', 'low', 'medium_low', 'medium', 'medium_high', 'high', 'turbo', 'quiet'] 
+DEFAULT_SWING_MODES = ['default', 'swing_full', 'fixed_upmost', 'fixed_middle_up', 'fixed_middle', 'fixed_middle_low', 'fixed_lowest', 'swing_downmost', 'swing_middle_low', 'swing_middle', 'swing_middle_up', 'swing_upmost'] 
 DEFAULT_SWING_HORIZONTAL_MODES = ['default', 'full_swing', 'fixed_leftmost', 'fixed_middle_left', 'fixed_middle', 'fixed_middle_right', 'fixed_rightmost']
 
 GCM_IV = b'\x54\x40\x78\x44\x49\x67\x5a\x51\x6c\x5e\x63\x13'
@@ -130,7 +129,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_PORT, default=DEFAULT_PORT): cv.positive_int,
     vol.Required(CONF_MAC): cv.string,
     vol.Optional(CONF_TIMEOUT, default=DEFAULT_TIMEOUT): cv.positive_int,
-    vol.Optional(CONF_HVAC_MODES, default=DEFAULT_HVAC_MODES): vol.All(cv.ensure_list, [vol.In(HVAC_MODE_KEYS)]),
+    vol.Optional(CONF_HVAC_MODES, default=DEFAULT_HVAC_MODES): cv.ensure_list,
     vol.Optional(CONF_TARGET_TEMP_STEP, default=DEFAULT_TARGET_TEMP_STEP): vol.Coerce(float),
     vol.Optional(CONF_TEMP_SENSOR): cv.entity_id,
     vol.Optional(CONF_LIGHTS): cv.entity_id,
@@ -176,7 +175,6 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     eightdegheat_entity_id = config.get(CONF_EIGHTDEGHEAT)
     air_entity_id = config.get(CONF_AIR)
     target_temp_entity_id = config.get(CONF_TARGET_TEMP)
-
 
     hvac_modes = [getattr(HVACMode, key.upper()) for key in config.get(CONF_HVAC_MODES)]
 

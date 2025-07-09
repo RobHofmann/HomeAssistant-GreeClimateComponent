@@ -22,6 +22,10 @@
       "port": "Port",
       "mac": "MAC Address",
       "timeout": "Timeout",
+      "hvac_modes" : "HVAC Modes",
+      "fan_modes" : "Fan Modes",
+      "swing_modes" : "Vertical Swing Modes",
+      "swing_horizontal_modes" : "Horizontal Swing Modes",
       "target_temp_step": "Temperature Step",
       "temp_sensor": "Temperature Sensor",
       "lights": "Lights Entity",
@@ -32,7 +36,6 @@
       "eightdegheat": "8°C Heat Entity",
       "air": "Air Entity",
       "target_temp": "Target Temperature Entity",
-      "horizontal_swing": "Horizontal Swing",
       "anti_direct_blow": "Anti Direct Blow Entity",
       "light_sensor": "Light Sensor Entity",
       "encryption_key": "Encryption Key",
@@ -51,6 +54,10 @@
       "init": {
         "title": "Gree Climate Options",
         "data": {
+          "hvac_modes" : "HVAC Modes",
+          "fan_modes" : "Fan Modes",
+          "swing_modes" : "Vertical Swing Modes",
+          "swing_horizontal_modes" : "Horizontal Swing Modes",
           "target_temp_step": "Temperature Step",
           "temp_sensor": "Temperature Sensor",
           "lights": "Lights Entity",
@@ -63,14 +70,12 @@
           "target_temp": "Target Temperature Entity",
           "auto_xfan": "Auto X-Fan Entity",
           "auto_light": "Auto Light Entity",
-          "horizontal_swing": "Horizontal Swing",
           "anti_direct_blow": "Anti Direct Blow Entity",
           "disable_available_check": "Disable Available Check",
           "max_online_attempts": "Max Online Attempts",
           "light_sensor": "Light Sensor Entity",
           "temp_sensor_offset": "Temperature Sensor Offset",
-          "beeper": "Beeper Entity",
-          "language": "Language"
+          "beeper": "Beeper Entity"
         }
       }
     }
@@ -83,9 +88,9 @@
             "state": {
               "auto": "Auto",
               "low": "Low",
-              "medium-low": "Medium-Low",
+              "medium_low": "Medium-Low",
               "medium": "Medium",
-              "medium-high": "Medium-High",
+              "medium_high": "Medium-High",
               "high": "High",
               "turbo": "Turbo",
               "quiet": "Quiet"
