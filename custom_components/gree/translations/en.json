@@ -80,6 +80,58 @@
       }
     }
   },
+  "selector": {
+    "hvac_modes": {
+      "options": {
+        "auto": "Auto",
+        "cool": "Cool",
+        "dry": "Dry",
+        "fan_only": "Fan only",
+        "heat": "Heat",
+        "heat_cool": "Heat/Cool",
+        "off": "Off"
+      }
+    },
+    "fan_modes": {
+      "options": {
+        "auto": "Auto",
+        "low": "Low",
+        "medium_low": "Medium-Low",
+        "medium": "Medium",
+        "medium_high": "Medium-High",
+        "high": "High",
+        "turbo": "Turbo",
+        "quiet": "Quiet"
+      }
+    },
+    "swing_modes": {
+      "options": {
+        "default": "Default",
+        "swing_full": "Swing in full range",
+        "fixed_upmost": "Fixed in the upmost position",
+        "fixed_middle_up": "Fixed in the middle-up position",
+        "fixed_middle": "Fixed in the middle position",
+        "fixed_middle_low": "Fixed in the middle-low position",
+        "fixed_lowest": "Fixed in the lowest position",
+        "swing_downmost": "Swing in the downmost region",
+        "swing_middle_low": "Swing in the middle-low region",
+        "swing_middle": "Swing in the middle region",
+        "swing_middle_up": "Swing in the middle-up region",
+        "swing_upmost": "Swing in the upmost region"
+      }
+    },
+    "swing_horizontal_modes": {
+      "options": {
+        "default": "Default",
+        "full_swing": "Full swing",
+        "fixed_leftmost": "Fixed in the leftmost position",
+        "fixed_middle_left": "Fixed in the middle-left position",
+        "fixed_middle": "Fixed in the middle position",
+        "fixed_middle_right": "Fixed in the middle-right position",
+        "fixed_rightmost": "Fixed in the rightmost position"
+      }
+    }
+  },
   "entity": {
     "climate": {
       "gree": {
