@@ -1,7 +1,7 @@
 {
   "config": {
-    "title": "Gree Climate",
-    "description": "Konfiguriere deine Gree Klimaanlage",
+    "title": "Gree Klima",
+    "description": "Konfigurieren Sie Ihre Gree Klimaanlage",
     "step": {
       "user": {
         "data": {
@@ -10,7 +10,7 @@
           "port": "Port",
           "mac": "MAC-Adresse",
           "timeout": "Zeitüberschreitung",
-          "encryption_key": "Verschlüsselungs-Key",
+          "encryption_key": "Verschlüsselungsschlüssel",
           "uid": "UID",
           "encryption_version": "Verschlüsselungsversion"
         }
@@ -22,7 +22,11 @@
       "port": "Port",
       "mac": "MAC-Adresse",
       "timeout": "Zeitüberschreitung",
-      "target_temp_step": "Temperaturstufe",
+      "hvac_modes" : "HVAC-Modi",
+      "fan_modes" : "Lüftermodi",
+      "swing_modes" : "Vertikale Swing-Modi",
+      "swing_horizontal_modes" : "Horizontale Swing-Modi",
+      "target_temp_step": "Temperaturschritt",
       "temp_sensor": "Temperatursensor",
       "lights": "Licht-Entität",
       "xfan": "X-Fan-Entität",
@@ -32,26 +36,29 @@
       "eightdegheat": "8°C Heiz-Entität",
       "air": "Luft-Entität",
       "target_temp": "Zieltemperatur-Entität",
-      "horizontal_swing": "Horizontale Schwenkung",
       "anti_direct_blow": "Anti-Direktblas-Entität",
       "light_sensor": "Lichtsensor-Entität",
-      "encryption_key": "Verschlüsselungs-Key",
+      "encryption_key": "Verschlüsselungsschlüssel",
       "uid": "UID",
       "auto_xfan": "Auto X-Fan-Entität",
       "auto_light": "Auto-Licht-Entität",
       "encryption_version": "Verschlüsselungsversion",
       "disable_available_check": "Verfügbarkeitsprüfung deaktivieren",
-      "max_online_attempts": "Max. Online-Versuche",
-      "temp_sensor_offset": "Temperatursensor-Abweichung",
-      "beeper": "Piepser-Entität"
+      "max_online_attempts": "Maximale Online-Versuche",
+      "temp_sensor_offset": "Temperatursensor-Offset",
+      "beeper": "Summer-Entität"
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Gree Climate Optionen",
+        "title": "Gree Klima Optionen",
         "data": {
-          "target_temp_step": "Temperaturstufe",
+          "hvac_modes" : "HVAC-Modi",
+          "fan_modes" : "Lüftermodi",
+          "swing_modes" : "Vertikale Swing-Modi",
+          "swing_horizontal_modes" : "Horizontale Swing-Modi",
+          "target_temp_step": "Temperaturschritt",
           "temp_sensor": "Temperatursensor",
           "lights": "Licht-Entität",
           "xfan": "X-Fan-Entität",
@@ -63,15 +70,65 @@
           "target_temp": "Zieltemperatur-Entität",
           "auto_xfan": "Auto X-Fan-Entität",
           "auto_light": "Auto-Licht-Entität",
-          "horizontal_swing": "Horizontale Schwenkung",
           "anti_direct_blow": "Anti-Direktblas-Entität",
           "disable_available_check": "Verfügbarkeitsprüfung deaktivieren",
-          "max_online_attempts": "Max. Online-Versuche",
+          "max_online_attempts": "Maximale Online-Versuche",
           "light_sensor": "Lichtsensor-Entität",
-          "temp_sensor_offset": "Temperatursensor-Abweichung",
-          "beeper": "Piepser-Entität",
-          "language": "Sprache"
+          "temp_sensor_offset": "Temperatursensor-Offset",
+          "beeper": "Summer-Entität"
         }
+      }
+    }
+  },
+  "selector": {
+    "hvac_modes": {
+      "options": {
+        "auto": "Auto",
+        "cool": "Kühlen",
+        "dry": "Trocknen",
+        "fan_only": "Nur Lüfter",
+        "heat": "Heizen",
+        "heat_cool": "Heizen/Kühlen",
+        "off": "Aus"
+      }
+    },
+    "fan_modes": {
+      "options": {
+        "auto": "Auto",
+        "low": "Niedrig",
+        "medium_low": "Mittel-Niedrig",
+        "medium": "Mittel",
+        "medium_high": "Mittel-Hoch",
+        "high": "Hoch",
+        "turbo": "Turbo",
+        "quiet": "Leise"
+      }
+    },
+    "swing_modes": {
+      "options": {
+        "default": "Standard",
+        "swing_full": "Schwingen im gesamten Bereich",
+        "fixed_upmost": "Fest in der obersten Position",
+        "fixed_middle_up": "Fest in der mittleren-oben Position",
+        "fixed_middle": "Fest in der mittleren Position",
+        "fixed_middle_low": "Fest in der mittleren-unten Position",
+        "fixed_lowest": "Fest in der untersten Position",
+        "swing_downmost": "Schwingen im untersten Bereich",
+        "swing_middle_low": "Schwingen im mittleren-unten Bereich",
+        "swing_middle": "Schwingen im mittleren Bereich",
+        "swing_middle_up": "Schwingen im mittleren-oben Bereich",
+        "swing_upmost": "Schwingen im obersten Bereich"
+      }
+    },
+    "swing_horizontal_modes": {
+      "options": {
+        "default": "Standard",
+        "full_swing": "Vollständiges Schwingen",
+        "fixed_leftmost": "Fest in der linken Position",
+        "fixed_middle_left": "Fest in der mittleren-linken Position",
+        "fixed_middle": "Fest in der mittleren Position",
+        "fixed_middle_right": "Fest in der mittleren-rechten Position",
+        "fixed_rightmost": "Fest in der rechten Position"
       }
     }
   },
@@ -83,9 +140,9 @@
             "state": {
               "auto": "Auto",
               "low": "Niedrig",
-              "medium-low": "Mittel-Niedrig",
+              "medium_low": "Mittel-Niedrig",
               "medium": "Mittel",
-              "medium-high": "Mittel-Hoch",
+              "medium_high": "Mittel-Hoch",
               "high": "Hoch",
               "turbo": "Turbo",
               "quiet": "Leise"
@@ -94,28 +151,28 @@
           "swing_mode": {
             "state": {
               "default": "Standard",
-              "swing_full": "Schwenken im vollen Bereich",
-              "fixed_upmost": "Fixiert in oberster Position",
-              "fixed_middle_up": "Fixiert in mittlerer oberer Position",
-              "fixed_middle": "Fixiert in mittlerer Position",
-              "fixed_middle_low": "Fixiert in mittlerer unterer Position",
-              "fixed_lowest": "Fixiert in unterster Position",
-              "swing_downmost": "Schwenken im untersten Bereich",
-              "swing_middle_low": "Schwenken im mittleren unteren Bereich",
-              "swing_middle": "Schwenken im mittleren Bereich",
-              "swing_middle_up": "Schwenken im mittleren oberen Bereich",
-              "swing_upmost": "Schwenken im obersten Bereich"
+              "swing_full": "Schwingen im gesamten Bereich",
+              "fixed_upmost": "Fest in der obersten Position",
+              "fixed_middle_up": "Fest in der mittleren-oben Position",
+              "fixed_middle": "Fest in der mittleren Position",
+              "fixed_middle_low": "Fest in der mittleren-unten Position",
+              "fixed_lowest": "Fest in der untersten Position",
+              "swing_downmost": "Schwingen im untersten Bereich",
+              "swing_middle_low": "Schwingen im mittleren-unten Bereich",
+              "swing_middle": "Schwingen im mittleren Bereich",
+              "swing_middle_up": "Schwingen im mittleren-oben Bereich",
+              "swing_upmost": "Schwingen im obersten Bereich"
             }
           },
           "swing_horizontal_mode": {
             "state": {
               "default": "Standard",
-              "full_swing": "Vollschwenkung",
-              "fixed_leftmost": "Fixiert in linkester Position",
-              "fixed_middle_left": "Fixiert in mittlerer linker Position",
-              "fixed_middle": "Fixiert in mittlerer Position",
-              "fixed_middle_right": "Fixiert in mittlerer rechter Position",
-              "fixed_rightmost": "Fixiert in rechtester Position"
+              "full_swing": "Vollständiges Schwingen",
+              "fixed_leftmost": "Fest in der linken Position",
+              "fixed_middle_left": "Fest in der mittleren-linken Position",
+              "fixed_middle": "Fest in der mittleren Position",
+              "fixed_middle_right": "Fest in der mittleren-rechten Position",
+              "fixed_rightmost": "Fest in der rechten Position"
             }
           }
         }

@@ -1,14 +1,14 @@
 {
   "config": {
     "title": "Gree Klíma",
-    "description": "Állítsd be a Gree klímaberendezést",
+    "description": "Állítsa be a Gree légkondicionálóját",
     "step": {
       "user": {
         "data": {
           "name": "Név",
-          "host": "IP cím",
+          "host": "IP-cím",
           "port": "Port",
-          "mac": "MAC cím",
+          "mac": "MAC-cím",
           "timeout": "Időtúllépés",
           "encryption_key": "Titkosítási kulcs",
           "uid": "UID",
@@ -18,21 +18,24 @@
     },
     "data": {
       "name": "Név",
-      "host": "IP cím",
+      "host": "IP-cím",
       "port": "Port",
-      "mac": "MAC cím",
+      "mac": "MAC-cím",
       "timeout": "Időtúllépés",
-      "target_temp_step": "Hőmérséklet lépésköz",
+      "hvac_modes" : "HVAC módok",
+      "fan_modes" : "Ventilátor módok",
+      "swing_modes" : "Függőleges lengési módok",
+      "swing_horizontal_modes" : "Vízszintes lengési módok",
+      "target_temp_step": "Hőmérséklet lépés",
       "temp_sensor": "Hőmérséklet érzékelő",
-      "lights": "Világítás entitás",
+      "lights": "Fény entitás",
       "xfan": "X-Fan entitás",
       "health": "Egészség entitás",
-      "powersave": "Energiatakarékos mód entitás",
-      "sleep": "Alvó mód entitás",
-      "eightdegheat": "8°C fűtés entitás",
-      "air": "Légáramlás entitás",
+      "powersave": "Energiatakarékos entitás",
+      "sleep": "Alvó entitás",
+      "eightdegheat": "8°C Fűtés entitás",
+      "air": "Levegő entitás",
       "target_temp": "Célhőmérséklet entitás",
-      "horizontal_swing": "Vízszintes legyezés",
       "anti_direct_blow": "Közvetlen fújás elleni entitás",
       "light_sensor": "Fényérzékelő entitás",
       "encryption_key": "Titkosítási kulcs",
@@ -40,10 +43,10 @@
       "auto_xfan": "Automatikus X-Fan entitás",
       "auto_light": "Automatikus fény entitás",
       "encryption_version": "Titkosítási verzió",
-      "disable_available_check": "Elérhetőség ellenőrzésének tiltása",
-      "max_online_attempts": "Maximális online próbálkozások száma",
-      "temp_sensor_offset": "Hőmérséklet érzékelő eltérés",
-      "beeper": "Hangjelző entitás"
+      "disable_available_check": "Elérhetőség ellenőrzésének letiltása",
+      "max_online_attempts": "Maximális online próbálkozások",
+      "temp_sensor_offset": "Hőmérséklet érzékelő eltolás",
+      "beeper": "Csipogó entitás"
     }
   },
   "options": {
@@ -51,27 +54,81 @@
       "init": {
         "title": "Gree Klíma Beállítások",
         "data": {
-          "target_temp_step": "Hőmérséklet lépésköz",
+          "hvac_modes" : "HVAC módok",
+          "fan_modes" : "Ventilátor módok",
+          "swing_modes" : "Függőleges lengési módok",
+          "swing_horizontal_modes" : "Vízszintes lengési módok",
+          "target_temp_step": "Hőmérséklet lépés",
           "temp_sensor": "Hőmérséklet érzékelő",
-          "lights": "Világítás entitás",
+          "lights": "Fény entitás",
           "xfan": "X-Fan entitás",
           "health": "Egészség entitás",
-          "powersave": "Energiatakarékos mód entitás",
-          "sleep": "Alvó mód entitás",
-          "eightdegheat": "8°C fűtés entitás",
-          "air": "Légáramlás entitás",
+          "powersave": "Energiatakarékos entitás",
+          "sleep": "Alvó entitás",
+          "eightdegheat": "8°C Fűtés entitás",
+          "air": "Levegő entitás",
           "target_temp": "Célhőmérséklet entitás",
           "auto_xfan": "Automatikus X-Fan entitás",
           "auto_light": "Automatikus fény entitás",
-          "horizontal_swing": "Vízszintes legyezés",
           "anti_direct_blow": "Közvetlen fújás elleni entitás",
-          "disable_available_check": "Elérhetőség ellenőrzésének tiltása",
-          "max_online_attempts": "Maximális online próbálkozások száma",
+          "disable_available_check": "Elérhetőség ellenőrzésének letiltása",
+          "max_online_attempts": "Maximális online próbálkozások",
           "light_sensor": "Fényérzékelő entitás",
-          "temp_sensor_offset": "Hőmérséklet érzékelő eltérés",
-          "beeper": "Hangjelző entitás",
-          "language": "Nyelv"
+          "temp_sensor_offset": "Hőmérséklet érzékelő eltolás",
+          "beeper": "Csipogó entitás"
         }
+      }
+    }
+  },
+  "selector": {
+    "hvac_modes": {
+      "options": {
+        "auto": "Auto",
+        "cool": "Hűtés",
+        "dry": "Szárítás",
+        "fan_only": "Csak ventilátor",
+        "heat": "Fűtés",
+        "heat_cool": "Fűtés/Hűtés",
+        "off": "Ki"
+      }
+    },
+    "fan_modes": {
+      "options": {
+        "auto": "Auto",
+        "low": "Alacsony",
+        "medium_low": "Közepesen alacsony",
+        "medium": "Közepes",
+        "medium_high": "Közepesen magas",
+        "high": "Magas",
+        "turbo": "Turbó",
+        "quiet": "Csendes"
+      }
+    },
+    "swing_modes": {
+      "options": {
+        "default": "Alapértelmezett",
+        "swing_full": "Lengés teljes tartományban",
+        "fixed_upmost": "Rögzített legfelső pozíció",
+        "fixed_middle_up": "Rögzített közép-felső pozíció",
+        "fixed_middle": "Rögzített középső pozíció",
+        "fixed_middle_low": "Rögzített közép-alsó pozíció",
+        "fixed_lowest": "Rögzített legalsó pozíció",
+        "swing_downmost": "Lengés a legalsó régióban",
+        "swing_middle_low": "Lengés a közép-alsó régióban",
+        "swing_middle": "Lengés a középső régióban",
+        "swing_middle_up": "Lengés a közép-felső régióban",
+        "swing_upmost": "Lengés a legfelső régióban"
+      }
+    },
+    "swing_horizontal_modes": {
+      "options": {
+        "default": "Alapértelmezett",
+        "full_swing": "Teljes lengés",
+        "fixed_leftmost": "Rögzített bal szélső pozíció",
+        "fixed_middle_left": "Rögzített közép-bal pozíció",
+        "fixed_middle": "Rögzített középső pozíció",
+        "fixed_middle_right": "Rögzített közép-jobb pozíció",
+        "fixed_rightmost": "Rögzített jobb szélső pozíció"
       }
     }
   },
@@ -81,11 +138,11 @@
         "state_attributes": {
           "fan_mode": {
             "state": {
-              "auto": "Automatikus",
+              "auto": "Auto",
               "low": "Alacsony",
-              "medium-low": "Közepesen alacsony",
+              "medium_low": "Közepesen alacsony",
               "medium": "Közepes",
-              "medium-high": "Közepesen magas",
+              "medium_high": "Közepesen magas",
               "high": "Magas",
               "turbo": "Turbó",
               "quiet": "Csendes"
@@ -94,28 +151,28 @@
           "swing_mode": {
             "state": {
               "default": "Alapértelmezett",
-              "swing_full": "Teljes legyezés",
-              "fixed_upmost": "Rögzítve a legfelső pozícióban",
-              "fixed_middle_up": "Rögzítve a közép-felső pozícióban",
-              "fixed_middle": "Rögzítve középen",
-              "fixed_middle_low": "Rögzítve a közép-alsó pozícióban",
-              "fixed_lowest": "Rögzítve a legalacsonyabb pozícióban",
-              "swing_downmost": "Legyezés a legalacsonyabb régióban",
-              "swing_middle_low": "Legyezés a közép-alsó régióban",
-              "swing_middle": "Legyezés a középső régióban",
-              "swing_middle_up": "Legyezés a közép-felső régióban",
-              "swing_upmost": "Legyezés a legfelső régióban"
+              "swing_full": "Lengés teljes tartományban",
+              "fixed_upmost": "Rögzített legfelső pozíció",
+              "fixed_middle_up": "Rögzített közép-felső pozíció",
+              "fixed_middle": "Rögzített középső pozíció",
+              "fixed_middle_low": "Rögzített közép-alsó pozíció",
+              "fixed_lowest": "Rögzített legalsó pozíció",
+              "swing_downmost": "Lengés a legalsó régióban",
+              "swing_middle_low": "Lengés a közép-alsó régióban",
+              "swing_middle": "Lengés a középső régióban",
+              "swing_middle_up": "Lengés a közép-felső régióban",
+              "swing_upmost": "Lengés a legfelső régióban"
             }
           },
           "swing_horizontal_mode": {
             "state": {
               "default": "Alapértelmezett",
-              "full_swing": "Teljes legyezés",
-              "fixed_leftmost": "Rögzítve a baloldali pozícióban",
-              "fixed_middle_left": "Rögzítve a közép-balos pozícióban",
-              "fixed_middle": "Rögzítve középen",
-              "fixed_middle_right": "Rögzítve a közép-jobbos pozícióban",
-              "fixed_rightmost": "Rögzítve a jobboldali pozícióban"
+              "full_swing": "Teljes lengés",
+              "fixed_leftmost": "Rögzített bal szélső pozíció",
+              "fixed_middle_left": "Rögzített közép-bal pozíció",
+              "fixed_middle": "Rögzített középső pozíció",
+              "fixed_middle_right": "Rögzített közép-jobb pozíció",
+              "fixed_rightmost": "Rögzített jobb szélső pozíció"
             }
           }
         }
