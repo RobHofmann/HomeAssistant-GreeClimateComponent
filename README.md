@@ -17,6 +17,8 @@ Tested on the following hardware:
 - Innova HVAC
 - Inventor Life Pro WiFi
 - Kinghome "Pular" - KW12HQ25SDI (Requires encryption_version=2)
+- Kolin KAG-100WCINV
+- Kolin KAG-145WCINV
 - Saunier Duval VivAir Lite SDHB1-025SNWI (Requires encryption_version=2)
 - Saunier Duval VivAir Lite SDHB1-035SNWI (Requires encryption_version=2)
 - Sinclair ASH-12BIV
@@ -27,7 +29,7 @@ Tested on the following hardware:
 - TOSOT TW12HXP2A1D
 - Toyotomi Izuru TRN/TRG-828ZR
 
-Tested on Home Assistant 2025.5.3.
+Tested on Home Assistant 2025.6.3 
 
 **If you are experiencing issues please be sure to provide details about your device, Home Assistant version and what exactly went wrong.**
 
@@ -57,45 +59,55 @@ The integration can be added from the Home Assistant UI.
 
 1. Copy the custom_components folder to your own hassio /config folder.
 
-2. In the root of your /config folder, create a file called climate.yaml
+2. In the root of your /config folder, create a file called climate.yaml.
 
    ```yaml
    - platform: gree
      name: First AC
-     host: <ip of your first AC>
+     host: 192.168.1.101
      port: 7000
-     mac: '<mac address of your first AC. NOTE: Format can be XX:XX:XX:XX:XX:XX, XX-XX-XX-XX-XX-XX or xxxxxxxxxxxx depending on your model>'
-     target_temp_step: 1
-     encryption_key: <OPTIONAL: custom encryption key. Integration will try to get key from device if empty>
-     encryption_version: <OPTIONAL: should be set to 2 for V1.21>
-     uid: <some kind of device identifier. NOTE: for some devices this is optional>
-     temp_sensor: <entity id of the EXTERNAL temperature sensor. For example: sensor.bedroom_temperature>
-     lights: <OPTIONAL: input_boolean to switch AC lights mode on/off. For example: input_boolean.first_ac_lights>
-     xfan: <OPTIONAL: input_boolean to switch AC xfan mode on/off. For example: input_boolean.first_ac_xfan>
-     health: <OPTIONAL: input_boolean used to switch the Health option on/off of your first AC. For example: input_boolean.first_ac_health>
-     sleep: <OPTIONAL: input_boolean to switch AC sleep mode on/off. For example: input_boolean.first_ac_sleep>
-     powersave: <OPTIONAL: input_boolean to switch AC powersave mode on/off. For example: input_boolean.first_ac_powersave>
-     eightdegheat: <OPTIONAL: input_boolean used to switch 8 degree heating on/off on your first AC>
-     air: <OPTIONAL: input_boolean used to switch air/scavenging on/off on your first AC>
-     target_temp: <OPTIONAL: input_number used to set the temperature of your first AC>
-     auto_xfan: <OPTIONAL: input_boolean: this feature will always turn on xFan in cool and dry mode to avoid mold & rust created from potential water buildup in the AC>
-     auto_light: <OPTIONAL: input_boolean: this feature will always turn light on when power on and turn light light off when power off automatically>
-     horizontal_swing: <OPTIONAL: boolean (true/false); this feature will enable horizontal swing on devices that have this functionality. This feature replaces presets in the UI>
-     anti_direct_blow: <OPTIONAL: input_boolean used to switch Anti Direct Blow feature on devices devices that have this functionality. Until next release, it should be set only when device   has this feature. For example: input_boolean.first_ac_anti_direct_blow>
-     light_sensor: <OPTIONAL: input_boolean this feature will enable built-in light sensor.>
-     max_online_attempts: <OPTIONAL: integer specifying number of attempts to connect to the device before it goes into the unavailable state>
-     disable_available_check: <OPTIONAL: boolean (true/false): if set to true device is always available in Home Assistant, useful for automation, device never goes into an unavailable state>
-     temp_sensor_offset: <OPTIONAL: boolean (true/false): if set to true, the temperature sensor in the device will be offset by -40C when displayed in HA. If set to false, no offset will be applied. If not set, the script will try to determine the offset automatically>
-     language: en  <OPTIONAL: Set to 'en' for English (default), 'ru' for Russian, 'pl' for Polish, 'de' for German, 'hu' for Hungarian, 'he' for Hebrew, 'ro' for Romanian, 'it' for Italian>
-     beeper: <OPTIONAL: input_boolean if set to false, the beeper will be disables and all commands will be silent. For example: input_boolean.first_ac_beeper>
+     mac: 20fabb123456
 
    - platform: gree
      name: Second AC
-     host: <ip of your second AC>
+     host: 192.168.1.102
      port: 7000
-     mac: '<mac address of your second AC. NOTE: Format can be XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX depending on your model>'
-     target_temp_step: 1
+     mac: 20fabb123423
    ```
+   You can configure additional parameters from the table below to fit the features that your AC supports.
+
+   | Parameter | Description | Value | Required | Default |
+   | --------- | ----------- | ------ | -------- | ------- |
+   | `name` | Name | `string` (e.g., `First AC`) | `false` | `Gree Climate` |
+   | `host` | IP Address of AC | `string` (e.g., `192.168.1.101`) | `true` | |
+   | `port` | Port number to connect to the device | `integer` (e.g., `7000`) | `false` | `7000` |
+   | `mac` | MAC address of the device | `string` (e.g., `20fabb123456`) <br> **NOTE: Format can be XX:XX:XX:XX:XX:XX, XX-XX-XX-XX-XX-XX or xxxxxxxxxxxx depending on your model** | `true` | 
+   | `encryption_key` | Custom encryption key | `string` (e.g., `A1B2C3D4E5F6`) | `false` | *(auto-fetched if empty)* |
+   | `encryption_version` | Encryption version | `integer` (e.g., `2`) | `false` | `1` | |
+   | `hvac_modes` | Standard Home Assistant HVAC Modes to enable | `list[string]` (e.g. `["auto", "cool", "dry", "fan_only", "off"]`) | `false` | `["auto", "cool", "dry", "fan_only", "heat", "heat_cool", "off"]` |
+   | `fan_modes` | Fan modes | `list[string]` (e.g. `["auto", "low", "medium", "high"]`) | `false` | `["auto", "low", "medium_low", "medium", "medium_high", "high", "turbo", "quiet"]` |
+   | `swing_modes` | Fan vertical swing modes | `list[string]` (e.g. `["default", "swing_full"]`) <br> **NOTE: Pass empty list (`[]`) to disable vertical swing** | `false` | `["default", "swing_full", "fixed_upmost", "fixed_middle_up", "fixed_middle", "fixed_middle_low", "fixed_lowest", "swing_downmost", "swing_middle_low", "swing_middle", "swing_middle_up", "swing_upmost"]` |
+   | `swing_horizontal_modes` | Fan horizontal swing modes | `list[string]` (e.g. `["default", "full_swing"]`) <br> **NOTE: Pass empty list (`[]`) to disable horizontal swing** | `false` | `["default", "full_swing", "fixed_leftmost", "fixed_middle_left", "fixed_middle", "fixed_middle_right", "fixed_rightmost"]` |
+   | `target_temp_step` | Temperature adjustment step | `integer` (e.g., `1`) | `false` | `1` |
+   | `uid` | Device identifier | `string` (e.g., `AC_UNIT_123`) | `false` | |
+   | `temp_sensor` | External temp sensor entity ID | `entity_id` (e.g., `sensor.bedroom_temperature`) | `false` | |
+   | `lights` | AC lights mode toggle | `input_boolean` (e.g., `input_boolean.first_ac_lights`) | `false` | |
+   | `xfan` | xFan mode toggle | `input_boolean` (e.g., `input_boolean.first_ac_xfan`) | `false` | |
+   | `health` | Health option toggle | `input_boolean` (e.g., `input_boolean.first_ac_health`) | `false` | |
+   | `sleep` | Sleep mode toggle | `input_boolean` (e.g., `input_boolean.first_ac_sleep`) | `false` | |
+   | `powersave` | Powersave mode toggle | `input_boolean` (e.g., `input_boolean.first_ac_powersave`) | `false` | |
+   | `eightdegheat` | 8°C heating mode toggle | `input_boolean` (e.g., `input_boolean.first_ac_eightdegheat`) | `false` | |
+   | `air` | Air/scavenging toggle | `input_boolean` (e.g., `input_boolean.first_ac_air`) | `false` | |
+   | `target_temp` | External temperature control | `input_number` (e.g., `input_number.bedroom_temp_target`) | `false` | |
+   | `auto_xfan` | Auto xFan in cool/dry mode | `input_boolean` (e.g., `input_boolean.auto_xfan`) | `false` | |
+   | `auto_light` | Auto control for AC light | `input_boolean` (e.g., `input_boolean.auto_light`) | `false` | |
+   | `anti_direct_blow` | Anti Direct Blow feature toggle | `input_boolean` (e.g., `input_boolean.anti_direct_blow`) | `false` | |
+   | `light_sensor` | Enable built-in light sensor | `input_boolean` (e.g., `input_boolean.enable_light_sensor`) | `false` | |
+   | `max_online_attempts` | Retry limit before marking unavailable | `integer` (e.g., `5`) | `false` | `3` |
+   | `disable_available_check` | Keep AC always available in HA | `boolean` (e.g., `true`) | `false` | `false` |
+   | `temp_sensor_offset` | Display offset for temp sensor | `boolean` (e.g., `true`) | `false` | *(auto-detected if not set)* |
+   | `beeper` | Toggle beeping sounds | `input_boolean` (e.g., `input_boolean.first_ac_beeper`) | `false` | |
+
 
 3. In your configuration.yaml add the following:
 
@@ -129,7 +141,9 @@ The integration can be added from the Home Assistant UI.
 
 6. OPTIONAL: Provide the `uid` parameter (can be sniffed) NOTE: This is not needed for all devices
 
-7. OPTIONAL: Provice input_boolean's to set lights, xfan, sleep and powersave mode on/off.
+7. OPTIONAL: Provide input_boolean's to set lights, xfan, sleep and powersave mode on/off.
+
+8. OPTIONAL: You can set custom icons by modifying the icon translation file `icons.json`. Refer to this documentation: https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/icon-translations/
 
 ## Optional Features
 NOTE: Your AC has to support these features for it to be used.

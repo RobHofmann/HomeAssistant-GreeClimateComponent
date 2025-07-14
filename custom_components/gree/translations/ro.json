@@ -1,7 +1,7 @@
 {
   "config": {
-    "title": "Gree Climate",
-    "description": "Configurează aparatul tău de aer condiționat Gree",
+    "title": "Climatizare Gree",
+    "description": "Configurează aparatul de aer condiționat Gree",
     "step": {
       "user": {
         "data": {
@@ -10,9 +10,9 @@
           "port": "Port",
           "mac": "Adresă MAC",
           "timeout": "Timp de așteptare",
-          "encryption_key": "Cheie Criptare",
+          "encryption_key": "Cheie de criptare",
           "uid": "UID",
-          "encryption_version": "Versiune Criptare"
+          "encryption_version": "Versiune criptare"
         }
       }
     },
@@ -22,56 +22,113 @@
       "port": "Port",
       "mac": "Adresă MAC",
       "timeout": "Timp de așteptare",
-      "target_temp_step": "Pas Temperatură",
-      "temp_sensor": "Senzor Temperatură",
-      "lights": "Entitate Lumini",
+      "hvac_modes" : "Moduri HVAC",
+      "fan_modes" : "Moduri ventilator",
+      "swing_modes" : "Moduri balansare verticală",
+      "swing_horizontal_modes" : "Moduri balansare orizontală",
+      "target_temp_step": "Pas temperatură",
+      "temp_sensor": "Senzor temperatură",
+      "lights": "Entitate lumini",
       "xfan": "Entitate X-Fan",
-      "health": "Entitate Sănătate",
-      "powersave": "Entitate Economisire Energie",
-      "sleep": "Entitate Somn",
-      "eightdegheat": "Entitate Încălzire la 8°C",
-      "air": "Entitate Aer",
-      "target_temp": "Entitate Temperatură Țintă",
-      "horizontal_swing": "Baleiaj Orizontal",
-      "anti_direct_blow": "Entitate Anti Suflu Direct",
-      "light_sensor": "Entitate Senzor de Lumină",
-      "encryption_key": "Cheie Criptare",
+      "health": "Entitate sănătate",
+      "powersave": "Entitate economisire energie",
+      "sleep": "Entitate somn",
+      "eightdegheat": "Entitate încălzire 8°C",
+      "air": "Entitate aer",
+      "target_temp": "Entitate temperatură țintă",
+      "anti_direct_blow": "Entitate anti-suflare directă",
+      "light_sensor": "Entitate senzor lumină",
+      "encryption_key": "Cheie de criptare",
       "uid": "UID",
-      "auto_xfan": "Entitate X-Fan Automat",
-      "auto_light": "Entitate Lumină Automată",
-      "encryption_version": "Versiune Criptare",
-      "disable_available_check": "Dezactivează Verificarea Disponibilității",
-      "max_online_attempts": "Încercări Maxime de Conectare",
-      "temp_sensor_offset": "Compensare Senzor Temperatură",
-      "beeper": "Entitate Sonerie"
+      "auto_xfan": "Entitate X-Fan automată",
+      "auto_light": "Entitate lumină automată",
+      "encryption_version": "Versiune criptare",
+      "disable_available_check": "Dezactivează verificarea disponibilității",
+      "max_online_attempts": "Număr maxim de încercări online",
+      "temp_sensor_offset": "Offset senzor temperatură",
+      "beeper": "Entitate sonerie"
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Opțiuni Gree Climate",
+        "title": "Opțiuni Climatizare Gree",
         "data": {
-          "target_temp_step": "Pas Temperatură",
-          "temp_sensor": "Senzor Temperatură",
-          "lights": "Entitate Lumini",
+          "hvac_modes" : "Moduri HVAC",
+          "fan_modes" : "Moduri ventilator",
+          "swing_modes" : "Moduri balansare verticală",
+          "swing_horizontal_modes" : "Moduri balansare orizontală",
+          "target_temp_step": "Pas temperatură",
+          "temp_sensor": "Senzor temperatură",
+          "lights": "Entitate lumini",
           "xfan": "Entitate X-Fan",
-          "health": "Entitate Sănătate",
-          "powersave": "Entitate Economisire Energie",
-          "sleep": "Entitate Somn",
-          "eightdegheat": "Entitate Încălzire la 8°C",
-          "air": "Entitate Aer",
-          "target_temp": "Entitate Temperatură Țintă",
-          "auto_xfan": "Entitate X-Fan Automat",
-          "auto_light": "Entitate Lumină Automată",
-          "horizontal_swing": "Baleiaj Orizontal",
-          "anti_direct_blow": "Entitate Anti Suflu Direct",
-          "disable_available_check": "Dezactivează Verificarea Disponibilității",
-          "max_online_attempts": "Încercări Maxime de Conectare",
-          "light_sensor": "Entitate Senzor de Lumină",
-          "temp_sensor_offset": "Compensare Senzor Temperatură",
-          "beeper": "Entitate Sonerie",
-          "language": "Limbă"
+          "health": "Entitate sănătate",
+          "powersave": "Entitate economisire energie",
+          "sleep": "Entitate somn",
+          "eightdegheat": "Entitate încălzire 8°C",
+          "air": "Entitate aer",
+          "target_temp": "Entitate temperatură țintă",
+          "auto_xfan": "Entitate X-Fan automată",
+          "auto_light": "Entitate lumină automată",
+          "anti_direct_blow": "Entitate anti-suflare directă",
+          "disable_available_check": "Dezactivează verificarea disponibilității",
+          "max_online_attempts": "Număr maxim de încercări online",
+          "light_sensor": "Entitate senzor lumină",
+          "temp_sensor_offset": "Offset senzor temperatură",
+          "beeper": "Entitate sonerie"
         }
+      }
+    }
+  },
+  "selector": {
+    "hvac_modes": {
+      "options": {
+        "auto": "Auto",
+        "cool": "Răcire",
+        "dry": "Uscare",
+        "fan_only": "Doar ventilator",
+        "heat": "Încălzire",
+        "heat_cool": "Încălzire/Răcire",
+        "off": "Oprit"
+      }
+    },
+    "fan_modes": {
+      "options": {
+        "auto": "Auto",
+        "low": "Scăzut",
+        "medium_low": "Mediu-scăzut",
+        "medium": "Mediu",
+        "medium_high": "Mediu-ridicat",
+        "high": "Ridicat",
+        "turbo": "Turbo",
+        "quiet": "Silențios"
+      }
+    },
+    "swing_modes": {
+      "options": {
+        "default": "Implicit",
+        "swing_full": "Balansare pe toată gama",
+        "fixed_upmost": "Fixat în poziția cea mai sus",
+        "fixed_middle_up": "Fixat în poziția mijloc-sus",
+        "fixed_middle": "Fixat în poziția de mijloc",
+        "fixed_middle_low": "Fixat în poziția mijloc-jos",
+        "fixed_lowest": "Fixat în poziția cea mai jos",
+        "swing_downmost": "Balansare în regiunea cea mai de jos",
+        "swing_middle_low": "Balansare în regiunea mijloc-jos",
+        "swing_middle": "Balansare în regiunea de mijloc",
+        "swing_middle_up": "Balansare în regiunea mijloc-sus",
+        "swing_upmost": "Balansare în regiunea cea mai sus"
+      }
+    },
+    "swing_horizontal_modes": {
+      "options": {
+        "default": "Implicit",
+        "full_swing": "Balansare completă",
+        "fixed_leftmost": "Fixat în poziția cea mai la stânga",
+        "fixed_middle_left": "Fixat în poziția mijloc-stânga",
+        "fixed_middle": "Fixat în poziția de mijloc",
+        "fixed_middle_right": "Fixat în poziția mijloc-dreapta",
+        "fixed_rightmost": "Fixat în poziția cea mai la dreapta"
       }
     }
   },
@@ -81,11 +138,11 @@
         "state_attributes": {
           "fan_mode": {
             "state": {
-              "auto": "Automat",
+              "auto": "Auto",
               "low": "Scăzut",
-              "medium-low": "Mediu-Scăzut",
+              "medium_low": "Mediu-scăzut",
               "medium": "Mediu",
-              "medium-high": "Mediu-Ridicat",
+              "medium_high": "Mediu-ridicat",
               "high": "Ridicat",
               "turbo": "Turbo",
               "quiet": "Silențios"
@@ -94,28 +151,28 @@
           "swing_mode": {
             "state": {
               "default": "Implicit",
-              "swing_full": "Baleiaj pe întreaga gamă",
-              "fixed_upmost": "Fixat în poziția cea mai de sus",
+              "swing_full": "Balansare pe toată gama",
+              "fixed_upmost": "Fixat în poziția cea mai sus",
               "fixed_middle_up": "Fixat în poziția mijloc-sus",
               "fixed_middle": "Fixat în poziția de mijloc",
               "fixed_middle_low": "Fixat în poziția mijloc-jos",
-              "fixed_lowest": "Fixat în poziția cea mai de jos",
-              "swing_downmost": "Baleiaj în regiunea cea mai de jos",
-              "swing_middle_low": "Baleiaj în regiunea mijloc-jos",
-              "swing_middle": "Baleiaj în regiunea de mijloc",
-              "swing_middle_up": "Baleiaj în regiunea mijloc-sus",
-              "swing_upmost": "Baleiaj în regiunea cea mai de sus"
+              "fixed_lowest": "Fixat în poziția cea mai jos",
+              "swing_downmost": "Balansare în regiunea cea mai de jos",
+              "swing_middle_low": "Balansare în regiunea mijloc-jos",
+              "swing_middle": "Balansare în regiunea de mijloc",
+              "swing_middle_up": "Balansare în regiunea mijloc-sus",
+              "swing_upmost": "Balansare în regiunea cea mai sus"
             }
           },
           "swing_horizontal_mode": {
             "state": {
               "default": "Implicit",
-              "full_swing": "Baleiaj complet",
-              "fixed_leftmost": "Fixat în poziția cea mai din stânga",
+              "full_swing": "Balansare completă",
+              "fixed_leftmost": "Fixat în poziția cea mai la stânga",
               "fixed_middle_left": "Fixat în poziția mijloc-stânga",
               "fixed_middle": "Fixat în poziția de mijloc",
               "fixed_middle_right": "Fixat în poziția mijloc-dreapta",
-              "fixed_rightmost": "Fixat în poziția cea mai din dreapta"
+              "fixed_rightmost": "Fixat în poziția cea mai la dreapta"
             }
           }
         }

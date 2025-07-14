@@ -24,7 +24,12 @@ from .const import DOMAIN
 from .climate import (
     DEFAULT_PORT,
     DEFAULT_TIMEOUT,
+    DEFAULT_HVAC_MODES,
     DEFAULT_TARGET_TEMP_STEP,
+    DEFAULT_FAN_MODES,
+    DEFAULT_SWING_MODES,
+    DEFAULT_SWING_HORIZONTAL_MODES,
+    CONF_HVAC_MODES,
     CONF_TARGET_TEMP_STEP,
     CONF_TEMP_SENSOR,
     CONF_LIGHTS,
@@ -38,15 +43,16 @@ from .climate import (
     CONF_UID,
     CONF_AUTO_XFAN,
     CONF_AUTO_LIGHT,
+    CONF_FAN_MODES,
+    CONF_SWING_MODES,
+    CONF_SWING_HORIZONTAL_MODES,
     CONF_TARGET_TEMP,
-    CONF_HORIZONTAL_SWING,
     CONF_ANTI_DIRECT_BLOW,
     CONF_ENCRYPTION_VERSION,
     CONF_DISABLE_AVAILABLE_CHECK,
     CONF_MAX_ONLINE_ATTEMPTS,
     CONF_LIGHT_SENSOR,
     CONF_TEMP_SENSOR_OFFSET,
-    CONF_LANGUAGE,
     CONF_BEEPER,
     OPTION_KEYS
 )
@@ -124,6 +130,25 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         _LOGGER.debug("Current stored options: %s", options)
         schema = vol.Schema(
             {
+                vol.Optional(
+                    CONF_HVAC_MODES,
+                    description={"suggested_value": options.get(
+                        CONF_HVAC_MODES, DEFAULT_HVAC_MODES
+                    )},
+                    default=options.get(
+                        CONF_HVAC_MODES, DEFAULT_HVAC_MODES
+                    ),
+                ): vol.Any(
+                    None,
+                    selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=DEFAULT_HVAC_MODES,
+                            multiple=True,
+                            custom_value=True,
+                            translation_key=CONF_HVAC_MODES
+                        )
+                    )
+                ),
                 vol.Optional(
                     CONF_TARGET_TEMP_STEP,
                     default=options.get(
@@ -230,9 +255,62 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     ),
                 ),
                 vol.Optional(
-                    CONF_HORIZONTAL_SWING,
-                    default=options.get(CONF_HORIZONTAL_SWING, False),
-                ): bool,
+                    CONF_FAN_MODES,
+                    description={"suggested_value": options.get(
+                        CONF_FAN_MODES, DEFAULT_FAN_MODES
+                    )},
+                    default=options.get(
+                        CONF_FAN_MODES, DEFAULT_FAN_MODES
+                    ),
+                ): vol.Any(
+                    None,
+                    selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=DEFAULT_FAN_MODES,
+                            multiple=True,
+                            custom_value=True,
+                            translation_key=CONF_FAN_MODES
+                        )
+                    )
+                ),
+                vol.Optional(
+                    CONF_SWING_MODES,
+                    description={"suggested_value": options.get(
+                        CONF_SWING_MODES, DEFAULT_SWING_MODES
+                    )},
+                    default=options.get(
+                        CONF_SWING_MODES, DEFAULT_SWING_MODES
+                    ),
+                ): vol.Any(
+                    None,
+                    selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=DEFAULT_SWING_MODES,
+                            multiple=True,
+                            custom_value=True,
+                            translation_key=CONF_SWING_MODES
+                        )
+                    )
+                ),
+                vol.Optional(
+                    CONF_SWING_HORIZONTAL_MODES,
+                    description={"suggested_value": options.get(
+                        CONF_SWING_HORIZONTAL_MODES, DEFAULT_SWING_HORIZONTAL_MODES
+                    )},
+                    default=options.get(
+                        CONF_SWING_HORIZONTAL_MODES, DEFAULT_SWING_HORIZONTAL_MODES
+                    ),
+                ): vol.Any(
+                    None,
+                    selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=DEFAULT_SWING_HORIZONTAL_MODES,
+                            multiple=True,
+                            custom_value=True,
+                            translation_key=CONF_SWING_HORIZONTAL_MODES
+                        )
+                    )
+                ),
                 vol.Optional(
                     CONF_ANTI_DIRECT_BLOW,
                     description={"suggested_value": options.get(CONF_ANTI_DIRECT_BLOW)},
@@ -272,10 +350,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_TEMP_SENSOR_OFFSET,
                     description={"suggested_value": options.get(CONF_TEMP_SENSOR_OFFSET)},
                 ): vol.Any(None, bool),
-                vol.Optional(
-                    CONF_LANGUAGE,
-                    description={"suggested_value": options.get(CONF_LANGUAGE)},
-                ): vol.Any(None, str),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)
