@@ -123,7 +123,7 @@
     "swing_horizontal_modes": {
       "options": {
         "default": "Alapértelmezett",
-        "full_swing": "Teljes lengés",
+        "swing_full": "Teljes lengés",
         "fixed_leftmost": "Rögzített bal szélső pozíció",
         "fixed_middle_left": "Rögzített közép-bal pozíció",
         "fixed_middle": "Rögzített középső pozíció",
@@ -167,7 +167,7 @@
           "swing_horizontal_mode": {
             "state": {
               "default": "Alapértelmezett",
-              "full_swing": "Teljes lengés",
+              "swing_full": "Teljes lengés",
               "fixed_leftmost": "Rögzített bal szélső pozíció",
               "fixed_middle_left": "Rögzített közép-bal pozíció",
               "fixed_middle": "Rögzített középső pozíció",

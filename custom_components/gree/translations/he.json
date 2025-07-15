@@ -123,7 +123,7 @@
     "swing_horizontal_modes": {
       "options": {
         "default": "ברירת מחדל",
-        "full_swing": "נדנוד מלא",
+        "swing_full": "נדנוד מלא",
         "fixed_leftmost": "קבוע במיקום השמאלי ביותר",
         "fixed_middle_left": "קבוע במיקום אמצעי-שמאלי",
         "fixed_middle": "קבוע במיקום האמצעי",
@@ -167,7 +167,7 @@
           "swing_horizontal_mode": {
             "state": {
               "default": "ברירת מחדל",
-              "full_swing": "נדנוד מלא",
+              "swing_full": "נדנוד מלא",
               "fixed_leftmost": "קבוע במיקום השמאלי ביותר",
               "fixed_middle_left": "קבוע במיקום אמצעי-שמאלי",
               "fixed_middle": "קבוע במיקום האמצעי",

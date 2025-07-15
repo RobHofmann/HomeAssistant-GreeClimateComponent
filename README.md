@@ -87,7 +87,7 @@ The integration can be added from the Home Assistant UI.
    | `hvac_modes` | Standard Home Assistant HVAC Modes to enable | `list[string]` (e.g. `["auto", "cool", "dry", "fan_only", "off"]`) | `false` | `["auto", "cool", "dry", "fan_only", "heat", "heat_cool", "off"]` |
    | `fan_modes` | Fan modes | `list[string]` (e.g. `["auto", "low", "medium", "high"]`) | `false` | `["auto", "low", "medium_low", "medium", "medium_high", "high", "turbo", "quiet"]` |
    | `swing_modes` | Fan vertical swing modes | `list[string]` (e.g. `["default", "swing_full"]`) <br> **NOTE: Pass empty list (`[]`) to disable vertical swing** | `false` | `["default", "swing_full", "fixed_upmost", "fixed_middle_up", "fixed_middle", "fixed_middle_low", "fixed_lowest", "swing_downmost", "swing_middle_low", "swing_middle", "swing_middle_up", "swing_upmost"]` |
-   | `swing_horizontal_modes` | Fan horizontal swing modes | `list[string]` (e.g. `["default", "full_swing"]`) <br> **NOTE: Pass empty list (`[]`) to disable horizontal swing** | `false` | `["default", "full_swing", "fixed_leftmost", "fixed_middle_left", "fixed_middle", "fixed_middle_right", "fixed_rightmost"]` |
+   | `swing_horizontal_modes` | Fan horizontal swing modes | `list[string]` (e.g. `["default", "swing_full"]`) <br> **NOTE: Pass empty list (`[]`) to disable horizontal swing** | `false` | `["default", "swing_full", "fixed_leftmost", "fixed_middle_left", "fixed_middle", "fixed_middle_right", "fixed_rightmost"]` |
    | `target_temp_step` | Temperature adjustment step | `integer` (e.g., `1`) | `false` | `1` |
    | `uid` | Device identifier | `string` (e.g., `AC_UNIT_123`) | `false` | |
    | `temp_sensor` | External temp sensor entity ID | `entity_id` (e.g., `sensor.bedroom_temperature`) | `false` | |
