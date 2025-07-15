@@ -20,7 +20,7 @@
             "default": "mdi:arrow-oscillating",
             "state": {
               "default": "mdi:arrow-oscillating-off",
-              "full_swing": "mdi:arrow-oscillating"
+              "swing_full": "mdi:arrow-oscillating"
             }
           },
           "swing_mode": {

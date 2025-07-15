@@ -123,7 +123,7 @@
     "swing_horizontal_modes": {
       "options": {
         "default": "Standard",
-        "full_swing": "Vollständiges Schwingen",
+        "swing_full": "Vollständiges Schwingen",
         "fixed_leftmost": "Fest in der linken Position",
         "fixed_middle_left": "Fest in der mittleren-linken Position",
         "fixed_middle": "Fest in der mittleren Position",
@@ -167,7 +167,7 @@
           "swing_horizontal_mode": {
             "state": {
               "default": "Standard",
-              "full_swing": "Vollständiges Schwingen",
+              "swing_full": "Vollständiges Schwingen",
               "fixed_leftmost": "Fest in der linken Position",
               "fixed_middle_left": "Fest in der mittleren-linken Position",
               "fixed_middle": "Fest in der mittleren Position",

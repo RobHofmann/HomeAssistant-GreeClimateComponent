@@ -123,7 +123,7 @@
     "swing_horizontal_modes": {
       "options": {
         "default": "Predefinito",
-        "full_swing": "Oscillazione completa",
+        "swing_full": "Oscillazione completa",
         "fixed_leftmost": "Fisso in posizione più a sinistra",
         "fixed_middle_left": "Fisso in posizione medio-sinistra",
         "fixed_middle": "Fisso in posizione centrale",
@@ -167,7 +167,7 @@
           "swing_horizontal_mode": {
             "state": {
               "default": "Predefinito",
-              "full_swing": "Oscillazione completa",
+              "swing_full": "Oscillazione completa",
               "fixed_leftmost": "Fisso in posizione più a sinistra",
               "fixed_middle_left": "Fisso in posizione medio-sinistra",
               "fixed_middle": "Fisso in posizione centrale",

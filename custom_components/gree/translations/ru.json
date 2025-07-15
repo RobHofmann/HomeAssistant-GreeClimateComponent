@@ -123,7 +123,7 @@
     "swing_horizontal_modes": {
       "options": {
         "default": "По умолчанию",
-        "full_swing": "Полное качание",
+        "swing_full": "Полное качание",
         "fixed_leftmost": "Фиксировано в крайнем левом положении",
         "fixed_middle_left": "Фиксировано в среднем-левом положении",
         "fixed_middle": "Фиксировано в среднем положении",
@@ -167,7 +167,7 @@
           "swing_horizontal_mode": {
             "state": {
               "default": "По умолчанию",
-              "full_swing": "Полное качание",
+              "swing_full": "Полное качание",
               "fixed_leftmost": "Фиксировано в крайнем левом положении",
               "fixed_middle_left": "Фиксировано в среднем-левом положении",
               "fixed_middle": "Фиксировано в среднем положении",

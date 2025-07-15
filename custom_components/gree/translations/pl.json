@@ -123,7 +123,7 @@
     "swing_horizontal_modes": {
       "options": {
         "default": "Domyślny",
-        "full_swing": "Ruch w pełnym zakresie",
+        "swing_full": "Ruch w pełnym zakresie",
         "fixed_leftmost": "Stały w skrajnie lewej pozycji",
         "fixed_middle_left": "Stały w pozycji środkowo-lewej",
         "fixed_middle": "Stały w pozycji środkowej",
@@ -167,7 +167,7 @@
           "swing_horizontal_mode": {
             "state": {
               "default": "Domyślny",
-              "full_swing": "Ruch w pełnym zakresie",
+              "swing_full": "Ruch w pełnym zakresie",
               "fixed_leftmost": "Stały w skrajnie lewej pozycji",
               "fixed_middle_left": "Stały w pozycji środkowo-lewej",
               "fixed_middle": "Stały w pozycji środkowej",

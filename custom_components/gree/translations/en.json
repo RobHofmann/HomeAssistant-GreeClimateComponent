@@ -123,7 +123,7 @@
     "swing_horizontal_modes": {
       "options": {
         "default": "Default",
-        "full_swing": "Full swing",
+        "swing_full": "Full swing",
         "fixed_leftmost": "Fixed in the leftmost position",
         "fixed_middle_left": "Fixed in the middle-left position",
         "fixed_middle": "Fixed in the middle position",
@@ -167,7 +167,7 @@
           "swing_horizontal_mode": {
             "state": {
               "default": "Default",
-              "full_swing": "Full swing",
+              "swing_full": "Swing in full range",
               "fixed_leftmost": "Fixed in the leftmost position",
               "fixed_middle_left": "Fixed in the middle-left position",
               "fixed_middle": "Fixed in the middle position",
