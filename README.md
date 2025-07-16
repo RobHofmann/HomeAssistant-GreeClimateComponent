@@ -28,6 +28,7 @@ Tested on the following hardware:
 - TOSOT BORA-GWH09AAB
 - TOSOT TW12HXP2A1D
 - Toyotomi Izuru TRN/TRG-828ZR
+- Wilfa Cool9 Connected
 
 Tested on Home Assistant 2025.6.3 
 
