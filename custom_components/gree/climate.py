@@ -114,7 +114,7 @@ TEMSEN_OFFSET = 40
 SCAN_INTERVAL = timedelta(seconds=60)
 
 # HVAC modes - these come from Home Assistant and are standard
-DEFAULT_HVAC_MODES = ["auto", "cool", "dry", "fan_only", "heat", "heat_cool", "off"] 
+DEFAULT_HVAC_MODES = ["auto", "cool", "dry", "fan_only", "heat", "heat_cool", "off"]
 
 DEFAULT_FAN_MODES = ["auto", "low", "medium_low", "medium", "medium_high", "high", "turbo", "quiet"]
 DEFAULT_SWING_MODES = ["default", "swing_full", "fixed_upmost", "fixed_middle_up", "fixed_middle", "fixed_middle_low", "fixed_lowest", "swing_downmost", "swing_middle_low", "swing_middle", "swing_middle_up", "swing_upmost"]
@@ -1498,26 +1498,37 @@ class GreeClimate(ClimateEntity):
         return self._unique_id
 
     def set_temperature(self, **kwargs):
-        s = kwargs.get(ATTR_TEMPERATURE)
+        temp = kwargs.get(ATTR_TEMPERATURE)
+        hvac_mode = kwargs.get("hvac_mode")
 
-        _LOGGER.info('set_temperature(): ' + str(s) + str(self._unit_of_measurement))
+        if int(temp) == self._acOptions.get('SetTem') and (not hvac_mode or hvac_mode == self.hvac_modes[self._acOptions.get('Mod', 0)]):
+            return
+
+
+        _LOGGER.info('set_temperature(): ' + str(temp) + str(self._unit_of_measurement))
         # Set new target temperatures.
-        if s is not None:
+        if temp is not None:
             # do nothing if temperature is none
             if not (self._acOptions['Pow'] == 0):
                 # do nothing if HVAC is switched off
 
                 if (self._unit_of_measurement == "°C"):
-                    SetTem, TemRec = self.encode_temp_c(T=s) # takes care of 1/2 degrees
+                    SetTem, TemRec = self.encode_temp_c(T=temp) # takes care of 1/2 degrees
                 elif (self._unit_of_measurement == "°F"):
-                    SetTem, TemRec = self.gree_f_to_c(desired_temp_f=s)
+                    SetTem, TemRec = self.gree_f_to_c(desired_temp_f=temp)
                 else:
                     _LOGGER.error('Unable to set temperature. Units not set to °C or °F')
                     return
 
-                self.SyncState({'SetTem': int(SetTem), 'TemRec': int(TemRec)})
-                _LOGGER.debug('method set_temperature: Set Temp to ' + str(s) + str(self._unit_of_measurement)
-                             + ' ->  SyncState with SetTem=' + str(SetTem) + ', SyncState with TemRec=' + str(TemRec))
+                options = {
+                    'SetTem': int(SetTem),
+                    'TemRec': int(TemRec),
+                }
+                if hvac_mode:
+                    options.update(self.build_hvac_update_dict(hvac_mode))
+
+                self.SyncState(options)
+                _LOGGER.debug(f"SyncState update: {options}")
 
                 self.schedule_update_ha_state()
 
@@ -1571,26 +1582,31 @@ class GreeClimate(ClimateEntity):
                 _LOGGER.error(f'Unknown fan mode: {fan}')
                 return
 
-    def set_hvac_mode(self, hvac_mode):
-        _LOGGER.info('set_hvac_mode(): ' + str(hvac_mode))
-        # Set new operation mode.
+    def build_hvac_update_dict(self, hvac_mode):
         c = {}
-        if (hvac_mode == HVACMode.OFF):
+        if hvac_mode == HVACMode.OFF:
             c.update({'Pow': 0})
-            if hasattr(self, "_auto_light") and self._auto_light:
+            if getattr(self, "_auto_light", False):
                 c.update({'Lig': 0})
-                if hasattr(self, "_has_light_sensor") and self._has_light_sensor and hasattr(self, "_enable_light_sensor") and self._enable_light_sensor:
+                if getattr(self, "_has_light_sensor", False) and getattr(self, "_enable_light_sensor", False):
                     c.update({'LigSen': 1})
         else:
             c.update({'Pow': 1, 'Mod': self.hvac_modes.index(hvac_mode)})
-            if hasattr(self, "_auto_light") and self._auto_light:
+            if getattr(self, "_auto_light", False):
                 c.update({'Lig': 1})
-                if hasattr(self, "_has_light_sensor") and self._has_light_sensor and hasattr(self, "_enable_light_sensor") and self._enable_light_sensor:
+                if getattr(self, "_has_light_sensor", False) and getattr(self, "_enable_light_sensor", False):
                     c.update({'LigSen': 0})
-            if hasattr(self, "_auto_xfan") and self._auto_xfan:
-                if (hvac_mode == HVACMode.COOL) or (hvac_mode == HVACMode.DRY):
-                    c.update({'Blo': 1})
-        self.SyncState(c)
+            if getattr(self, "_auto_xfan", False) and hvac_mode in (HVACMode.COOL, HVACMode.DRY):
+                c.update({'Blo': 1})
+        return c
+
+    def set_hvac_mode(self, hvac_mode):
+        _LOGGER.info('set_hvac_mode(): ' + str(hvac_mode))
+        if hvac_mode == self.hvac_modes[self._acOptions.get("Mod", 0)]:
+            _LOGGER.debug(f"set_hvac_mode(): Skipping update, already in {hvac_mode}")
+            return
+        update = self.build_hvac_update_dict(hvac_mode)
+        self.SyncState(update)
         self.schedule_update_ha_state()
 
     def turn_on(self):
