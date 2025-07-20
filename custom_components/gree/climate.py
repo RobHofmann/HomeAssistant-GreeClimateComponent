@@ -97,7 +97,8 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     mac_addr = config.get(CONF_MAC).encode().replace(b':', b'')
     timeout = config.get(CONF_TIMEOUT)
 
-    target_temp_step = config.get(CONF_TARGET_TEMP_STEP)
+    ctts = config.get(CONF_TARGET_TEMP_STEP)
+    target_temp_step = ctts if ctts is not None else DEFAULT_TARGET_TEMP_STEP
     temp_sensor_entity_id = config.get(CONF_TEMP_SENSOR)
     lights_entity_id = config.get(CONF_LIGHTS)
     xfan_entity_id = config.get(CONF_XFAN)
@@ -109,7 +110,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     target_temp_entity_id = config.get(CONF_TARGET_TEMP)
 
     chm = config.get(CONF_HVAC_MODES)
-    hvac_modes = [getattr(HVACMode, mode.upper()) for mode in (chm if chm else DEFAULT_HVAC_MODES)]
+    hvac_modes = [getattr(HVACMode, mode.upper()) for mode in (chm if chm is not None else DEFAULT_HVAC_MODES)]
 
     fan_modes = config.get(CONF_FAN_MODES)
     swing_modes = config.get(CONF_SWING_MODES)
