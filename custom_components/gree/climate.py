@@ -112,9 +112,12 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     chm = config.get(CONF_HVAC_MODES)
     hvac_modes = [getattr(HVACMode, mode.upper()) for mode in (chm if chm is not None else DEFAULT_HVAC_MODES)]
 
-    fan_modes = config.get(CONF_FAN_MODES)
-    swing_modes = config.get(CONF_SWING_MODES)
-    swing_horizontal_modes = config.get(CONF_SWING_HORIZONTAL_MODES)
+    cfm = config.get(CONF_FAN_MODES)
+    fan_modes = cfm if cfm is not None else DEFAULT_FAN_MODES
+    csm = config.get(CONF_SWING_MODES)
+    swing_modes = csm if csm is not None else DEFAULT_SWING_MODES
+    cshm = config.get(CONF_SWING_HORIZONTAL_MODES)
+    swing_horizontal_modes = cshm if cshm is not None else DEFAULT_SWING_HORIZONTAL_MODES
     encryption_key = config.get(CONF_ENCRYPTION_KEY)
     uid = config.get(CONF_UID)
     auto_xfan_entity_id = config.get(CONF_AUTO_XFAN)
