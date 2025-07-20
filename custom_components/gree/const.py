@@ -102,7 +102,7 @@ MODES_MAPPING = {
     "swing_middle_up" : 10,
     "swing_upmost" : 11
   },
-  "SwLfRig" : {
+  "SwingLfRig" : {
     "default" : 0,
     "swing_full" : 1,
     "fixed_leftmost" : 2,

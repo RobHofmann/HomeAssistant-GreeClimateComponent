@@ -678,17 +678,23 @@ class GreeClimate(ClimateEntity):
         if (self._acOptions['Pow'] == 0):
             self._hvac_mode = HVACMode.OFF
         else:
-            self._hvac_mode = self._hvac_modes[self._acOptions['Mod']]
+            for key, value in MODES_MAPPING.get('Mod').items():
+                if value == (self._acOptions['Mod']):
+                    self._hvac_mode = key
         _LOGGER.debug('HA operation mode set according to HVAC state to: ' + str(self._hvac_mode))
 
     def UpdateHACurrentSwingMode(self):
         # Sync current HVAC Swing mode state to HA
-        self._swing_mode = self._swing_modes[self._acOptions['SwUpDn']]
+        for key, value in MODES_MAPPING.get('SwUpDn').items():
+            if value == (self._acOptions['SwUpDn']):
+                self._swing_mode = key
         _LOGGER.debug('HA swing mode set according to HVAC state to: ' + str(self._swing_mode))
 
     def UpdateHACurrentSwingHorizontalMode(self):
         # Sync current HVAC Horizontal Swing mode state to HA
-        self._swing_horizontal_mode = self._swing_horizontal_modes[self._acOptions['SwingLfRig']]
+        for key, value in MODES_MAPPING.get('SwingLfRig').items():
+            if value == (self._acOptions['SwingLfRig']):
+                self._swing_horizontal_mode = key
         _LOGGER.debug('HA horizontal swing mode set according to HVAC state to: ' + str(self._swing_horizontal_mode))
 
     def UpdateHAFanMode(self):
@@ -700,7 +706,9 @@ class GreeClimate(ClimateEntity):
             quiet_index = self._fan_modes.index('quiet')
             self._fan_mode = self._fan_modes[quiet_index]
         else:
-            self._fan_mode = self._fan_modes[int(self._acOptions['WdSpd'])]
+            for key, value in MODES_MAPPING.get('WdSpd').items():
+                if value == (self._acOptions['WdSpd']):
+                    self._fan_mode = key
         _LOGGER.debug('HA fan mode set according to HVAC state to: ' + str(self._fan_mode))
 
     def UpdateHACurrentTemperature(self):
@@ -1471,9 +1479,9 @@ class GreeClimate(ClimateEntity):
         if not (self._acOptions['Pow'] == 0):
             # do nothing if HVAC is switched off
             try:
-                sw_lf_rig= MODES_MAPPING.get("Mod").get(swing_horizontal_mode)
-                _LOGGER.info('SyncState with SwingLfRig=' + str(sw_lf_rig))
-                self.SyncState({'SwingLfRig': sw_lf_rig})
+                swing_lf_rig= MODES_MAPPING.get("Mod").get(swing_horizontal_mode)
+                _LOGGER.info('SyncState with SwingLfRig=' + str(swing_lf_rig))
+                self.SyncState({'SwingLfRig': swing_lf_rig})
                 self.schedule_update_ha_state()
             except ValueError:
                 _LOGGER.error(f'Unknown preset mode: {swing_horizontal_mode}')
