@@ -47,32 +47,6 @@ _LOGGER = logging.getLogger(__name__)
 
 SUPPORT_FLAGS = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.FAN_MODE | ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
 
-# Keys that can be updated via the options flow
-OPTION_KEYS = {
-    CONF_HVAC_MODES,
-    CONF_TARGET_TEMP_STEP,
-    CONF_TEMP_SENSOR,
-    CONF_LIGHTS,
-    CONF_XFAN,
-    CONF_HEALTH,
-    CONF_POWERSAVE,
-    CONF_SLEEP,
-    CONF_EIGHTDEGHEAT,
-    CONF_AIR,
-    CONF_TARGET_TEMP,
-    CONF_AUTO_XFAN,
-    CONF_AUTO_LIGHT,
-    CONF_FAN_MODES,
-    CONF_SWING_MODES,
-    CONF_SWING_HORIZONTAL_MODES,
-    CONF_ANTI_DIRECT_BLOW,
-    CONF_DISABLE_AVAILABLE_CHECK,
-    CONF_MAX_ONLINE_ATTEMPTS,
-    CONF_LIGHT_SENSOR,
-    CONF_BEEPER,
-    CONF_TEMP_SENSOR_OFFSET,
-}
-
 # from the remote control and gree app
 
 # update() interval

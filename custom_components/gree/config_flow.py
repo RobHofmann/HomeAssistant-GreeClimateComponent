@@ -20,44 +20,7 @@ from homeassistant.data_entry_flow import FlowResult
 
 _LOGGER = logging.getLogger(__name__)
 
-from .const import DOMAIN
-from .climate import (
-    DEFAULT_PORT,
-    DEFAULT_TIMEOUT,
-    DEFAULT_HVAC_MODES,
-    DEFAULT_TARGET_TEMP_STEP,
-    DEFAULT_FAN_MODES,
-    DEFAULT_SWING_MODES,
-    DEFAULT_SWING_HORIZONTAL_MODES,
-    CONF_HVAC_MODES,
-    CONF_TARGET_TEMP_STEP,
-    CONF_TEMP_SENSOR,
-    CONF_LIGHTS,
-    CONF_XFAN,
-    CONF_HEALTH,
-    CONF_POWERSAVE,
-    CONF_SLEEP,
-    CONF_EIGHTDEGHEAT,
-    CONF_AIR,
-    CONF_ENCRYPTION_KEY,
-    CONF_UID,
-    CONF_AUTO_XFAN,
-    CONF_AUTO_LIGHT,
-    CONF_FAN_MODES,
-    CONF_SWING_MODES,
-    CONF_SWING_HORIZONTAL_MODES,
-    CONF_TARGET_TEMP,
-    CONF_ANTI_DIRECT_BLOW,
-    CONF_ENCRYPTION_VERSION,
-    CONF_DISABLE_AVAILABLE_CHECK,
-    CONF_MAX_ONLINE_ATTEMPTS,
-    CONF_LIGHT_SENSOR,
-    CONF_TEMP_SENSOR_OFFSET,
-    CONF_BEEPER,
-    OPTION_KEYS
-)
-
-
+from .const import *
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Gree climate."""
 

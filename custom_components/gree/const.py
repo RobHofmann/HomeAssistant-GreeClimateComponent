@@ -46,6 +46,32 @@ DEFAULT_FAN_MODES = ["auto", "low", "medium_low", "medium", "medium_high", "high
 DEFAULT_SWING_MODES = ["default", "swing_full", "fixed_upmost", "fixed_middle_up", "fixed_middle", "fixed_middle_low", "fixed_lowest", "swing_downmost", "swing_middle_low", "swing_middle", "swing_middle_up", "swing_upmost"]
 DEFAULT_SWING_HORIZONTAL_MODES = ["default", "swing_full", "fixed_leftmost", "fixed_middle_left", "fixed_middle", "fixed_middle_right", "fixed_rightmost"]
 
+# Keys that can be updated via the options flow
+OPTION_KEYS = {
+    CONF_HVAC_MODES,
+    CONF_TARGET_TEMP_STEP,
+    CONF_TEMP_SENSOR,
+    CONF_LIGHTS,
+    CONF_XFAN,
+    CONF_HEALTH,
+    CONF_POWERSAVE,
+    CONF_SLEEP,
+    CONF_EIGHTDEGHEAT,
+    CONF_AIR,
+    CONF_TARGET_TEMP,
+    CONF_AUTO_XFAN,
+    CONF_AUTO_LIGHT,
+    CONF_FAN_MODES,
+    CONF_SWING_MODES,
+    CONF_SWING_HORIZONTAL_MODES,
+    CONF_ANTI_DIRECT_BLOW,
+    CONF_DISABLE_AVAILABLE_CHECK,
+    CONF_MAX_ONLINE_ATTEMPTS,
+    CONF_LIGHT_SENSOR,
+    CONF_BEEPER,
+    CONF_TEMP_SENSOR_OFFSET,
+}
+
 MODES_MAPPING = {
   "Mod" : {
     "auto" : 0,
