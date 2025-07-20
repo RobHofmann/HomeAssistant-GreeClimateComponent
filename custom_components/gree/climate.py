@@ -108,7 +108,8 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     air_entity_id = config.get(CONF_AIR)
     target_temp_entity_id = config.get(CONF_TARGET_TEMP)
 
-    hvac_modes = [getattr(HVACMode, key.upper()) for key in config.get(CONF_HVAC_MODES)]
+    chm = config.get(CONF_HVAC_MODES)
+    hvac_modes = [getattr(HVACMode, mode.upper()) for mode in (chm if chm else DEFAULT_HVAC_MODES)]
 
     fan_modes = config.get(CONF_FAN_MODES)
     swing_modes = config.get(CONF_SWING_MODES)
