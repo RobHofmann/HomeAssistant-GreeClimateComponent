@@ -17,8 +17,8 @@ Tested on the following hardware:
 - Innova HVAC
 - Inventor Life Pro WiFi
 - Kinghome "Pular" - KW12HQ25SDI (Requires encryption_version=2)
-- Kolin KAG-100WCINV
-- Kolin KAG-145WCINV
+- Kolin KAG-100WCINV (Requires encryption_version=2)
+- Kolin KAG-145WCINV (Requires encryption_version=2)
 - Saunier Duval VivAir Lite SDHB1-025SNWI (Requires encryption_version=2)
 - Saunier Duval VivAir Lite SDHB1-035SNWI (Requires encryption_version=2)
 - Sinclair ASH-12BIV
