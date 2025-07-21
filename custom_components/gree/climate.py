@@ -1472,7 +1472,7 @@ class GreeClimate(ClimateEntity):
         if not (self._acOptions['Pow'] == 0):
             # do nothing if HVAC is switched off
             try:
-                sw_up_dn = MODES_MAPPING.get("Mod").get(swing_mode)
+                sw_up_dn = MODES_MAPPING.get("SwUpDn").get(swing_mode)
                 _LOGGER.info('SyncState with SwUpDn=' + str(sw_up_dn))
                 self.SyncState({'SwUpDn': sw_up_dn})
                 self.schedule_update_ha_state()
@@ -1484,7 +1484,7 @@ class GreeClimate(ClimateEntity):
         if not (self._acOptions['Pow'] == 0):
             # do nothing if HVAC is switched off
             try:
-                swing_lf_rig= MODES_MAPPING.get("Mod").get(swing_horizontal_mode)
+                swing_lf_rig= MODES_MAPPING.get("SwingLfRig").get(swing_horizontal_mode)
                 _LOGGER.info('SyncState with SwingLfRig=' + str(swing_lf_rig))
                 self.SyncState({'SwingLfRig': swing_lf_rig})
                 self.schedule_update_ha_state()
