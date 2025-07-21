@@ -39,86 +39,18 @@ try: import simplejson
 except ImportError: import json as simplejson
 from datetime import timedelta
 
+from .const import *
+
 REQUIREMENTS = ['pycryptodome']
 
 _LOGGER = logging.getLogger(__name__)
 
 SUPPORT_FLAGS = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.FAN_MODE | ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
 
-CONF_HVAC_MODES = "hvac_modes"
-CONF_TARGET_TEMP_STEP = 'target_temp_step'
-CONF_TEMP_SENSOR = 'temp_sensor'
-CONF_LIGHTS = 'lights'
-CONF_XFAN = 'xfan'
-CONF_HEALTH = 'health'
-CONF_POWERSAVE = 'powersave'
-CONF_SLEEP = 'sleep'
-CONF_EIGHTDEGHEAT = 'eightdegheat'
-CONF_AIR = 'air'
-CONF_ENCRYPTION_KEY = 'encryption_key'
-CONF_UID = 'uid'
-CONF_AUTO_XFAN = 'auto_xfan'
-CONF_AUTO_LIGHT = 'auto_light'
-CONF_TARGET_TEMP = 'target_temp'
-CONF_FAN_MODES = 'fan_modes'
-CONF_SWING_MODES = 'swing_modes'
-CONF_SWING_HORIZONTAL_MODES = 'swing_horizontal_modes'
-CONF_ANTI_DIRECT_BLOW = 'anti_direct_blow'
-CONF_ENCRYPTION_VERSION = 'encryption_version'
-CONF_DISABLE_AVAILABLE_CHECK  = 'disable_available_check'
-CONF_MAX_ONLINE_ATTEMPTS = 'max_online_attempts'
-CONF_LIGHT_SENSOR = 'light_sensor'
-CONF_BEEPER = 'beeper'
-CONF_TEMP_SENSOR_OFFSET = 'temp_sensor_offset'
-
-# Keys that can be updated via the options flow
-OPTION_KEYS = {
-    CONF_HVAC_MODES,
-    CONF_TARGET_TEMP_STEP,
-    CONF_TEMP_SENSOR,
-    CONF_LIGHTS,
-    CONF_XFAN,
-    CONF_HEALTH,
-    CONF_POWERSAVE,
-    CONF_SLEEP,
-    CONF_EIGHTDEGHEAT,
-    CONF_AIR,
-    CONF_TARGET_TEMP,
-    CONF_AUTO_XFAN,
-    CONF_AUTO_LIGHT,
-    CONF_FAN_MODES,
-    CONF_SWING_MODES,
-    CONF_SWING_HORIZONTAL_MODES,
-    CONF_ANTI_DIRECT_BLOW,
-    CONF_DISABLE_AVAILABLE_CHECK,
-    CONF_MAX_ONLINE_ATTEMPTS,
-    CONF_LIGHT_SENSOR,
-    CONF_BEEPER,
-    CONF_TEMP_SENSOR_OFFSET,
-}
-
-DEFAULT_PORT = 7000
-DEFAULT_TIMEOUT = 10
-DEFAULT_TARGET_TEMP_STEP = 1
-
 # from the remote control and gree app
-MIN_TEMP_C = 16
-MAX_TEMP_C = 30
-
-MIN_TEMP_F = 61
-MAX_TEMP_F = 86
-
-TEMSEN_OFFSET = 40
 
 # update() interval
 SCAN_INTERVAL = timedelta(seconds=60)
-
-# HVAC modes - these come from Home Assistant and are standard
-DEFAULT_HVAC_MODES = ["auto", "cool", "dry", "fan_only", "heat", "heat_cool", "off"] 
-
-DEFAULT_FAN_MODES = ["auto", "low", "medium_low", "medium", "medium_high", "high", "turbo", "quiet"]
-DEFAULT_SWING_MODES = ["default", "swing_full", "fixed_upmost", "fixed_middle_up", "fixed_middle", "fixed_middle_low", "fixed_lowest", "swing_downmost", "swing_middle_low", "swing_middle", "swing_middle_up", "swing_upmost"]
-DEFAULT_SWING_HORIZONTAL_MODES = ["default", "swing_full", "fixed_leftmost", "fixed_middle_left", "fixed_middle", "fixed_middle_right", "fixed_rightmost"]
 
 GCM_IV = b'\x54\x40\x78\x44\x49\x67\x5a\x51\x6c\x5e\x63\x13'
 GCM_ADD = b'qualcomm-test'
@@ -165,7 +97,8 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     mac_addr = config.get(CONF_MAC).encode().replace(b':', b'')
     timeout = config.get(CONF_TIMEOUT)
 
-    target_temp_step = config.get(CONF_TARGET_TEMP_STEP)
+    ctts = config.get(CONF_TARGET_TEMP_STEP)
+    target_temp_step = ctts if ctts is not None else DEFAULT_TARGET_TEMP_STEP
     temp_sensor_entity_id = config.get(CONF_TEMP_SENSOR)
     lights_entity_id = config.get(CONF_LIGHTS)
     xfan_entity_id = config.get(CONF_XFAN)
@@ -176,11 +109,15 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     air_entity_id = config.get(CONF_AIR)
     target_temp_entity_id = config.get(CONF_TARGET_TEMP)
 
-    hvac_modes = [getattr(HVACMode, key.upper()) for key in config.get(CONF_HVAC_MODES)]
+    chm = config.get(CONF_HVAC_MODES)
+    hvac_modes = [getattr(HVACMode, mode.upper()) for mode in (chm if chm is not None else DEFAULT_HVAC_MODES)]
 
-    fan_modes = config.get(CONF_FAN_MODES)
-    swing_modes = config.get(CONF_SWING_MODES)
-    swing_horizontal_modes = config.get(CONF_SWING_HORIZONTAL_MODES)
+    cfm = config.get(CONF_FAN_MODES)
+    fan_modes = cfm if cfm is not None else DEFAULT_FAN_MODES
+    csm = config.get(CONF_SWING_MODES)
+    swing_modes = csm if csm is not None else DEFAULT_SWING_MODES
+    cshm = config.get(CONF_SWING_HORIZONTAL_MODES)
+    swing_horizontal_modes = cshm if cshm is not None else DEFAULT_SWING_HORIZONTAL_MODES
     encryption_key = config.get(CONF_ENCRYPTION_KEY)
     uid = config.get(CONF_UID)
     auto_xfan_entity_id = config.get(CONF_AUTO_XFAN)
@@ -270,13 +207,13 @@ class GreeClimate(ClimateEntity):
         self._unit_of_measurement = hass.config.units.temperature_unit
         _LOGGER.info("Unit of measurement: %s", self._unit_of_measurement)
 
-        self._hvac_modes = hvac_modes
+        self._hvac_modes = DEFAULT_HVAC_MODES if not CONF_HVAC_MODES else hvac_modes
         self._hvac_mode = HVACMode.OFF
-        self._fan_modes = fan_modes
+        self._fan_modes = DEFAULT_FAN_MODES if not CONF_FAN_MODES else fan_modes
         self._fan_mode = None
-        self._swing_modes = swing_modes
+        self._swing_modes = DEFAULT_SWING_MODES if not CONF_SWING_MODES else swing_modes
         self._swing_mode = None
-        self._swing_horizontal_modes = swing_horizontal_modes
+        self._swing_horizontal_modes = DEFAULT_SWING_HORIZONTAL_MODES if not CONF_SWING_HORIZONTAL_MODES else swing_horizontal_modes
         self._swing_horizontal_mode = None
 
         self._temp_sensor_entity_id = temp_sensor_entity_id
@@ -746,17 +683,23 @@ class GreeClimate(ClimateEntity):
         if (self._acOptions['Pow'] == 0):
             self._hvac_mode = HVACMode.OFF
         else:
-            self._hvac_mode = self._hvac_modes[self._acOptions['Mod']]
+            for key, value in MODES_MAPPING.get('Mod').items():
+                if value == (self._acOptions['Mod']):
+                    self._hvac_mode = key
         _LOGGER.debug('HA operation mode set according to HVAC state to: ' + str(self._hvac_mode))
 
     def UpdateHACurrentSwingMode(self):
         # Sync current HVAC Swing mode state to HA
-        self._swing_mode = self._swing_modes[self._acOptions['SwUpDn']]
+        for key, value in MODES_MAPPING.get('SwUpDn').items():
+            if value == (self._acOptions['SwUpDn']):
+                self._swing_mode = key
         _LOGGER.debug('HA swing mode set according to HVAC state to: ' + str(self._swing_mode))
 
     def UpdateHACurrentSwingHorizontalMode(self):
         # Sync current HVAC Horizontal Swing mode state to HA
-        self._swing_horizontal_mode = self._swing_horizontal_modes[self._acOptions['SwingLfRig']]
+        for key, value in MODES_MAPPING.get('SwingLfRig').items():
+            if value == (self._acOptions['SwingLfRig']):
+                self._swing_horizontal_mode = key
         _LOGGER.debug('HA horizontal swing mode set according to HVAC state to: ' + str(self._swing_horizontal_mode))
 
     def UpdateHAFanMode(self):
@@ -768,7 +711,9 @@ class GreeClimate(ClimateEntity):
             quiet_index = self._fan_modes.index('quiet')
             self._fan_mode = self._fan_modes[quiet_index]
         else:
-            self._fan_mode = self._fan_modes[int(self._acOptions['WdSpd'])]
+            for key, value in MODES_MAPPING.get('WdSpd').items():
+                if value == (self._acOptions['WdSpd']):
+                    self._fan_mode = key
         _LOGGER.debug('HA fan mode set according to HVAC state to: ' + str(self._fan_mode))
 
     def UpdateHACurrentTemperature(self):
@@ -1527,9 +1472,9 @@ class GreeClimate(ClimateEntity):
         if not (self._acOptions['Pow'] == 0):
             # do nothing if HVAC is switched off
             try:
-                swing_index = self._swing_modes.index(swing_mode)
-                _LOGGER.info('SyncState with SwUpDn=' + str(swing_index))
-                self.SyncState({'SwUpDn': swing_index})
+                sw_up_dn = MODES_MAPPING.get("SwUpDn").get(swing_mode)
+                _LOGGER.info('SyncState with SwUpDn=' + str(sw_up_dn))
+                self.SyncState({'SwUpDn': sw_up_dn})
                 self.schedule_update_ha_state()
             except ValueError:
                 _LOGGER.error(f'Unknown swing mode: {swing_mode}')
@@ -1539,9 +1484,9 @@ class GreeClimate(ClimateEntity):
         if not (self._acOptions['Pow'] == 0):
             # do nothing if HVAC is switched off
             try:
-                swing_h_index = self._swing_horizontal_modes.index(swing_horizontal_mode)
-                _LOGGER.info('SyncState with SwingLfRig=' + str(swing_h_index))
-                self.SyncState({'SwingLfRig': swing_h_index})
+                swing_lf_rig= MODES_MAPPING.get("SwingLfRig").get(swing_horizontal_mode)
+                _LOGGER.info('SyncState with SwingLfRig=' + str(swing_lf_rig))
+                self.SyncState({'SwingLfRig': swing_lf_rig})
                 self.schedule_update_ha_state()
             except ValueError:
                 _LOGGER.error(f'Unknown preset mode: {swing_horizontal_mode}')
@@ -1552,7 +1497,7 @@ class GreeClimate(ClimateEntity):
         # Set the fan mode.
         if not (self._acOptions['Pow'] == 0):
             try:
-                fan_index = self._fan_modes.index(fan)
+                wd_spd = MODES_MAPPING.get("WdSpd").get(fan)
 
                 # Check if this is turbo mode
                 if fan == 'turbo':
@@ -1563,8 +1508,8 @@ class GreeClimate(ClimateEntity):
                     _LOGGER.info('Enabling quiet mode')
                     self.SyncState({'Tur': 0, 'Quiet': 1})
                 else:
-                    _LOGGER.info('Setting normal fan mode to ' + str(fan_index))
-                    self.SyncState({'WdSpd': str(fan_index), 'Tur': 0, 'Quiet': 0})
+                    _LOGGER.info('Setting normal fan mode to ' + str(wd_spd))
+                    self.SyncState({'WdSpd': str(wd_spd), 'Tur': 0, 'Quiet': 0})
 
                 self.schedule_update_ha_state()
             except ValueError:
@@ -1582,7 +1527,8 @@ class GreeClimate(ClimateEntity):
                 if hasattr(self, "_has_light_sensor") and self._has_light_sensor and hasattr(self, "_enable_light_sensor") and self._enable_light_sensor:
                     c.update({'LigSen': 1})
         else:
-            c.update({'Pow': 1, 'Mod': self.hvac_modes.index(hvac_mode)})
+            mod = MODES_MAPPING.get("Mod").get(hvac_mode)
+            c.update({'Pow': 1, 'Mod': mod})
             if hasattr(self, "_auto_light") and self._auto_light:
                 c.update({'Lig': 1})
                 if hasattr(self, "_has_light_sensor") and self._has_light_sensor and hasattr(self, "_enable_light_sensor") and self._enable_light_sensor:
