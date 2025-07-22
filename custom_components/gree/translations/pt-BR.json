@@ -1,0 +1,181 @@
+{
+  "config": {
+    "title": "Gree Climate",
+    "description": "Configure seu ar-condicionado Gree",
+    "step": {
+      "user": {
+        "data": {
+          "name": "Nome",
+          "host": "Endereço IP",
+          "port": "Porta",
+          "mac": "Endereço MAC",
+          "timeout": "Tempo de Espera (Timeout)",
+          "encryption_key": "Chave de Criptografia",
+          "uid": "UID",
+          "encryption_version": "Versão da Criptografia"
+        }
+      }
+    },
+    "data": {
+      "name": "Nome",
+      "host": "Endereço IP",
+      "port": "Porta",
+      "mac": "Endereço MAC",
+      "timeout": "Tempo de Espera (Timeout)",
+      "hvac_modes" : "Climatização",
+      "fan_modes" : "Ventilação",
+      "swing_modes" : "Oscilação Vertical",
+      "swing_horizontal_modes" : "Oscilação Horizontal",
+      "target_temp_step": "Passo da Temperatura",
+      "temp_sensor": "Sensor de Temperatura",
+      "lights": "Entidade das Luzes",
+      "xfan": "Entidade do X-Fan",
+      "health": "Entidade do Modo Saúde",
+      "powersave": "Entidade de Economia de Energia",
+      "sleep": "Entidade do Modo Dormir",
+      "eightdegheat": "Entidade de Aquecimento 8°C",
+      "air": "Entidade do Modo Air",
+      "target_temp": "Entidade da Temperatura Alvo",
+      "anti_direct_blow": "Entidade Anti-sopro Direto",
+      "light_sensor": "Entidade do Sensor de Luz",
+      "encryption_key": "Chave de Criptografia",
+      "uid": "UID",
+      "auto_xfan": "Entidade do Auto X-Fan",
+      "auto_light": "Entidade da Luz Automática",
+      "encryption_version": "Versão da Criptografia",
+      "disable_available_check": "Desativar Verificação de Disponibilidade",
+      "max_online_attempts": "Máximo de Tentativas de Conexão",
+      "temp_sensor_offset": "Ajuste do Sensor de Temperatura",
+      "beeper": "Entidade do Beep"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opções do Gree Climate",
+        "data": {
+          "hvac_modes" : "Climatização",
+          "fan_modes" : "Ventilação",
+          "swing_modes" : "Oscilação Vertical",
+          "swing_horizontal_modes" : "Oscilação Horizontal",
+          "target_temp_step": "Passo da Temperatura",
+          "temp_sensor": "Sensor de Temperatura",
+          "lights": "Entidade das Luzes",
+          "xfan": "Entidade do X-Fan",
+          "health": "Entidade do Modo Saúde",
+          "powersave": "Entidade de Economia de Energia",
+          "sleep": "Entidade do Modo Dormir",
+          "eightdegheat": "Entidade de Aquecimento 8°C",
+          "air": "Entidade do Modo Air",
+          "target_temp": "Entidade da Temperatura Alvo",
+          "auto_xfan": "Entidade do Auto X-Fan",
+          "auto_light": "Entidade da Luz Automática",
+          "anti_direct_blow": "Entidade Anti-sopro Direto",
+          "disable_available_check": "Desativar Verificação de Disponibilidade",
+          "max_online_attempts": "Máximo de Tentativas de Conexão",
+          "light_sensor": "Entidade do Sensor de Luz",
+          "temp_sensor_offset": "Ajuste do Sensor de Temperatura",
+          "beeper": "Entidade do Beep"
+        }
+      }
+    }
+  },
+  "selector": {
+    "hvac_modes": {
+      "options": {
+        "auto": "Auto",
+        "cool": "Frio",
+        "dry": "Seco",
+        "fan_only": "Apenas Ventilar",
+        "heat": "Aquecimento",
+        "off": "Desligado"
+      }
+    },
+    "fan_modes": {
+      "options": {
+        "auto": "Auto",
+        "low": "Baixo",
+        "medium_low": "Médio-Baixo",
+        "medium": "Médio",
+        "medium_high": "Médio-Alto",
+        "high": "Alto",
+        "turbo": "Turbo",
+        "quiet": "Silencioso"
+      }
+    },
+    "swing_modes": {
+      "options": {
+        "default": "Padrão",
+        "swing_full": "Oscilação completa",
+        "fixed_upmost": "Fixo na posição mais alta",
+        "fixed_middle_up": "Fixo na posição meio-superior",
+        "fixed_middle": "Fixo na posição central",
+        "fixed_middle_low": "Fixo na posição meio-inferior",
+        "fixed_lowest": "Fixo na posição mais baixa",
+        "swing_downmost": "Oscilar na área mais baixa",
+        "swing_middle_low": "Oscilar na área meio-inferior",
+        "swing_middle": "Oscilar na área central",
+        "swing_middle_up": "Oscilar na área meio-superior",
+        "swing_upmost": "Oscilar na área mais alta"
+      }
+    },
+    "swing_horizontal_modes": {
+      "options": {
+        "default": "Padrão",
+        "swing_full": "Oscilação completa",
+        "fixed_leftmost": "Fixo na posição mais à esquerda",
+        "fixed_middle_left": "Fixo na posição meio-esquerda",
+        "fixed_middle": "Fixo na posição central",
+        "fixed_middle_right": "Fixo na posição meio-direita",
+        "fixed_rightmost": "Fixo na posição mais à direita"
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "gree": {
+        "state_attributes": {
+          "fan_mode": {
+            "state": {
+              "auto": "Auto",
+              "low": "Baixo",
+              "medium_low": "Médio-Baixo",
+              "medium": "Médio",
+              "medium_high": "Médio-Alto",
+              "high": "Alto",
+              "turbo": "Turbo",
+              "quiet": "Silencioso"
+            }
+          },
+          "swing_mode": {
+            "state": {
+              "default": "Padrão",
+              "swing_full": "Oscilação completa",
+              "fixed_upmost": "Fixo no topo",
+              "fixed_middle_up": "Fixo no meio-superior",
+              "fixed_middle": "Fixo no meio",
+              "fixed_middle_low": "Fixo no meio-inferior",
+              "fixed_lowest": "Fixo na base",
+              "swing_downmost": "Oscilar na base",
+              "swing_middle_low": "Oscilar no meio-inferior",
+              "swing_middle": "Oscilar no meio",
+              "swing_middle_up": "Oscilar no meio-superior",
+              "swing_upmost": "Oscilar no topo"
+            }
+          },
+          "swing_horizontal_mode": {
+            "state": {
+              "default": "Padrão",
+              "swing_full": "Oscilação completa",
+              "fixed_leftmost": "Fixo à esquerda",
+              "fixed_middle_left": "Fixo no meio-esquerda",
+              "fixed_middle": "Fixo no meio",
+              "fixed_middle_right": "Fixo no meio-direita",
+              "fixed_rightmost": "Fixo à direita"
+            }
+          }
+        }
+      }
+    }
+  }
+}
