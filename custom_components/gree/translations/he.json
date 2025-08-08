@@ -1,7 +1,7 @@
 {
   "config": {
     "title": "מזגן Gree",
-    "description": "הגדר את המזגן שלך של Gree",
+    "description": "הגדר את מזגן ה-Gree שלך",
     "step": {
       "user": {
         "data": {
@@ -9,7 +9,7 @@
           "host": "כתובת IP",
           "port": "פורט",
           "mac": "כתובת MAC",
-          "timeout": "פסק זמן",
+          "timeout": "זמן קצוב להתחברות",
           "encryption_key": "מפתח הצפנה",
           "uid": "UID",
           "encryption_version": "גרסת הצפנה"
@@ -166,7 +166,8 @@
           "swing_horizontal_mode": {
             "state": {
               "default": "ברירת מחדל",
-              "swing_full": "נדנוד מלא",
+              "full_swing": "נדנוד בטווח מלא",
+              "swing_full": "נדנוד בטווח מלא",
               "fixed_leftmost": "קבוע במיקום השמאלי ביותר",
               "fixed_middle_left": "קבוע במיקום אמצעי-שמאלי",
               "fixed_middle": "קבוע במיקום האמצעי",
