@@ -26,6 +26,7 @@ Tested on the following hardware:
 - Sinclair SIH-09BITW
 - Tadiran Alpha Expert Inverter
 - TOSOT BORA-GWH09AAB
+- TOSOT Aoraki Series SU-AORAKI12-230 (Requires encryption_version=2)
 - TOSOT TW12HXP2A1D
 - Toyotomi Izuru TRN/TRG-828ZR
 - Wilfa Cool9 Connected
