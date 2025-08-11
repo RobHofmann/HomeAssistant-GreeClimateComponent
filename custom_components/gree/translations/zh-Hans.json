@@ -1,0 +1,181 @@
+{
+  "config": {
+    "title": "格力空调",
+    "description": "配置您的格力空调",
+    "step": {
+      "user": {
+        "data": {
+          "name": "名称",
+          "host": "IP 地址",
+          "port": "端口",
+          "mac": "MAC 地址",
+          "timeout": "超时",
+          "encryption_key": "加密密钥",
+          "uid": "UID",
+          "encryption_version": "加密版本"
+        }
+      }
+    },
+    "data": {
+      "name": "名称",
+      "host": "IP 地址",
+      "port": "端口",
+      "mac": "MAC 地址",
+      "timeout": "超时",
+      "hvac_modes": "空调模式",
+      "fan_modes": "风速模式",
+      "swing_modes": "垂直扫风模式",
+      "swing_horizontal_modes": "水平扫风模式",
+      "target_temp_step": "温度步进",
+      "temp_sensor": "温度传感器",
+      "lights": "灯光实体",
+      "xfan": "防霉风实体",
+      "health": "健康模式实体",
+      "powersave": "节能模式实体",
+      "sleep": "睡眠模式实体",
+      "eightdegheat": "8°C 制热实体",
+      "air": "清新空气实体",
+      "target_temp": "目标温度实体",
+      "anti_direct_blow": "防直吹实体",
+      "light_sensor": "光照传感器实体",
+      "encryption_key": "加密密钥",
+      "uid": "UID",
+      "auto_xfan": "自动防霉风实体",
+      "auto_light": "自动灯光实体",
+      "encryption_version": "加密版本",
+      "disable_available_check": "禁用可用性检查",
+      "max_online_attempts": "最大在线尝试次数",
+      "temp_sensor_offset": "温度传感器偏移",
+      "beeper": "蜂鸣器实体"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "格力空调选项",
+        "data": {
+          "hvac_modes": "空调模式",
+          "fan_modes": "风速模式",
+          "swing_modes": "垂直扫风模式",
+          "swing_horizontal_modes": "水平扫风模式",
+          "target_temp_step": "温度步进",
+          "temp_sensor": "温度传感器",
+          "lights": "灯光实体",
+          "xfan": "防霉风实体",
+          "health": "健康模式实体",
+          "powersave": "节能模式实体",
+          "sleep": "睡眠模式实体",
+          "eightdegheat": "8°C 制热实体",
+          "air": "清新空气实体",
+          "target_temp": "目标温度实体",
+          "auto_xfan": "自动防霉风实体",
+          "auto_light": "自动灯光实体",
+          "anti_direct_blow": "防直吹实体",
+          "disable_available_check": "禁用可用性检查",
+          "max_online_attempts": "最大在线尝试次数",
+          "light_sensor": "光照传感器实体",
+          "temp_sensor_offset": "温度传感器偏移",
+          "beeper": "蜂鸣器实体"
+        }
+      }
+    }
+  },
+  "selector": {
+    "hvac_modes": {
+      "options": {
+        "auto": "自动",
+        "cool": "制冷",
+        "dry": "除湿",
+        "fan_only": "送风",
+        "heat": "制热",
+        "off": "关闭"
+      }
+    },
+    "fan_modes": {
+      "options": {
+        "auto": "自动",
+        "low": "低速",
+        "medium_low": "中低速",
+        "medium": "中速",
+        "medium_high": "中高速",
+        "high": "高速",
+        "turbo": "强劲",
+        "quiet": "静音"
+      }
+    },
+    "swing_modes": {
+      "options": {
+        "default": "默认",
+        "swing_full": "全范围扫风",
+        "fixed_upmost": "固定在最高位置",
+        "fixed_middle_up": "固定在中上位置",
+        "fixed_middle": "固定在中间位置",
+        "fixed_middle_low": "固定在中下位置",
+        "fixed_lowest": "固定在最低位置",
+        "swing_downmost": "在最下区域扫风",
+        "swing_middle_low": "在中下区域扫风",
+        "swing_middle": "在中间区域扫风",
+        "swing_middle_up": "在中上区域扫风",
+        "swing_upmost": "在最上区域扫风"
+      }
+    },
+    "swing_horizontal_modes": {
+      "options": {
+        "default": "默认",
+        "swing_full": "全范围扫风",
+        "fixed_leftmost": "固定在最左位置",
+        "fixed_middle_left": "固定在中左位置",
+        "fixed_middle": "固定在中间位置",
+        "fixed_middle_right": "固定在中右位置",
+        "fixed_rightmost": "固定在最右位置"
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "gree": {
+        "state_attributes": {
+          "fan_mode": {
+            "state": {
+              "auto": "自动",
+              "low": "低速",
+              "medium_low": "中低速",
+              "medium": "中速",
+              "medium_high": "中高速",
+              "high": "高速",
+              "turbo": "强劲",
+              "quiet": "静音"
+            }
+          },
+          "swing_mode": {
+            "state": {
+              "default": "默认",
+              "swing_full": "全范围扫风",
+              "fixed_upmost": "固定在最高位置",
+              "fixed_middle_up": "固定在中上位置",
+              "fixed_middle": "固定在中间位置",
+              "fixed_middle_low": "固定在中下位置",
+              "fixed_lowest": "固定在最低位置",
+              "swing_downmost": "在最下区域扫风",
+              "swing_middle_low": "在中下区域扫风",
+              "swing_middle": "在中间区域扫风",
+              "swing_middle_up": "在中上区域扫风",
+              "swing_upmost": "在最上区域扫风"
+            }
+          },
+          "swing_horizontal_mode": {
+            "state": {
+              "default": "默认",
+              "swing_full": "全范围扫风",
+              "fixed_leftmost": "固定在最左位置",
+              "fixed_middle_left": "固定在中左位置",
+              "fixed_middle": "固定在中间位置",
+              "fixed_middle_right": "固定在中右位置",
+              "fixed_rightmost": "固定在最右位置"
+            }
+          }
+        }
+      }
+    }
+  }
+}
