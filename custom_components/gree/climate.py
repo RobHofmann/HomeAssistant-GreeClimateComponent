@@ -193,7 +193,11 @@ class GreeClimate(ClimateEntity):
         self._name = name
         self._ip_addr = ip_addr
         self._port = port
-        self._mac_addr = mac_addr.decode('utf-8').lower()
+        mac_addr_str = mac_addr.decode('utf-8').lower()
+        if '@' in mac_addr_str:
+            self._sub_mac_addr, self._mac_addr = mac_addr_str.split('@', 1)
+        else:
+            self._sub_mac_addr = self._mac_addr = mac_addr_str
         self._timeout = timeout
         self._unique_id = 'climate.gree_' + mac_addr.decode('utf-8').lower()
         self._device_online = None
@@ -459,7 +463,7 @@ class GreeClimate(ClimateEntity):
         return (pack, tag)
 
     def GetDeviceKeyGCM(self):
-        _LOGGER.info('Retrieving HVAC encryption key')
+        _LOGGER.info('Retrieving HVAC GCM encryption key')
         GENERIC_GREE_DEVICE_KEY = b'{yxAHAY_Lm6pbC/<'
         plaintext = '{"cid":"' + str(self._mac_addr) + '", "mac":"' + str(self._mac_addr) + '","t":"bind","uid":0}'
         pack, tag = self.EncryptGCM(GENERIC_GREE_DEVICE_KEY, plaintext)
@@ -478,7 +482,7 @@ class GreeClimate(ClimateEntity):
             return True
 
     def GreeGetValues(self, propertyNames):
-        plaintext = '{"cols":' + simplejson.dumps(propertyNames) + ',"mac":"' + str(self._mac_addr) + '","t":"status"}'
+        plaintext = '{"cols":' + simplejson.dumps(propertyNames) + ',"mac":"' + str(self._sub_mac_addr) + '","t":"status"}'
         if self.encryption_version == 1:
             cipher = self.CIPHER
             jsonPayloadToSend = '{"cid":"app","i":0,"pack":"' + base64.b64encode(cipher.encrypt(self.Pad(plaintext).encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid":{}'.format(self._uid) + '}'
@@ -486,7 +490,9 @@ class GreeClimate(ClimateEntity):
             pack, tag = self.EncryptGCM(self._encryption_key, plaintext)
             jsonPayloadToSend = '{"cid":"app","i":0,"pack":"' + pack + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid":{}'.format(self._uid) + ',"tag" : "' + tag + '"}'
             cipher = self.GetGCMCipher(self._encryption_key)
-        return self.FetchResult(cipher, self._ip_addr, self._port, self._timeout, jsonPayloadToSend)['dat']
+        dat = self.FetchResult(cipher, self._ip_addr, self._port, self._timeout, jsonPayloadToSend)['dat']
+        return dat[0] if len(dat) == 1 else dat
+
 
     def SetAcOptions(self, acOptions, newOptionsToOverride, optionValuesToOverride = None):
         if not (optionValuesToOverride is None):
@@ -504,22 +510,30 @@ class GreeClimate(ClimateEntity):
         return acOptions
 
     def SendStateToAc(self, timeout):
-        opt = '"Pow","Mod","SetTem","WdSpd","Air","Blo","Health","SwhSlp","Lig","SwingLfRig","SwUpDn","Quiet","Tur","StHt","TemUn","HeatCoolType","TemRec","SvSt","SlpMod"'
-        p = '{Pow},{Mod},{SetTem},{WdSpd},{Air},{Blo},{Health},{SwhSlp},{Lig},{SwingLfRig},{SwUpDn},{Quiet},{Tur},{StHt},{TemUn},{HeatCoolType},{TemRec},{SvSt},{SlpMod}'.format(**self._acOptions)
+        opt_list = [
+            "Pow", "Mod", "SetTem", "WdSpd", "Air", "Blo", "Health", "SwhSlp", "Lig", "SwingLfRig",
+            "SwUpDn", "Quiet", "Tur", "StHt", "TemUn", "HeatCoolType", "TemRec", "SvSt", "SlpMod", "AntiDirectBlow", "LigSen"
+        ]
+
+        # Collect values from _acOptions
+        p_values = [self._acOptions.get(k) for k in opt_list]
+
+        # Filter out empty ones
+        filtered_opt = []
+        filtered_p = []
+        for name, val in zip(opt_list, p_values):
+            if val not in ("", None):
+                filtered_opt.append(f'"{name}"')
+                filtered_p.append(str(val))
 
         buzzer_command_value = 0 if self._current_beeper_enabled else 1
+        filtered_opt.append('"Buzzer_ON_OFF"')
+        filtered_p.append(str(buzzer_command_value))
 
-        opt += ',"Buzzer_ON_OFF"'
-        p += ',' + str(buzzer_command_value)
         _LOGGER.debug(f"Sending with Buzzer_ON_OFF={buzzer_command_value} (Silent mode HA toggle is ON: {self._current_beeper_enabled})")
 
-        if self._has_anti_direct_blow:
-            opt += ',"AntiDirectBlow"'
-            p += ',' + str(self._acOptions['AntiDirectBlow'])
-        if self._has_light_sensor:
-            opt += ',"LigSen"'
-            p += ',' + str(self._acOptions['LigSen'])
-        statePackJson = '{"opt":[' + opt + '],"p":[' + p + '],"t":"cmd"}'
+        statePackJson = '{"opt":[' + ",".join(filtered_opt) + '],"p":[' + ",".join(filtered_p) + '],"t":"cmd","mac":"' + self._sub_mac_addr + '"}'
+
         if self.encryption_version == 1:
             cipher = self.CIPHER
             sentJsonPayload = '{"cid":"app","i":0,"pack":"' + base64.b64encode(cipher.encrypt(self.Pad(statePackJson).encode("utf8"))).decode('utf-8') + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid":{}'.format(self._uid) + '}'
