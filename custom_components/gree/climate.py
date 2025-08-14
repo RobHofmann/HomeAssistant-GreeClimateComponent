@@ -546,7 +546,7 @@ class GreeClimate(ClimateEntity):
 
     def UpdateHATargetTemperature(self):
         # Sync set temperature to HA. If 8℃ heating is active we set the temp in HA to 8℃ so that it shows the same as the AC display.
-        if (int(self._acOptions['StHt']) == 1):
+        if self._acOptions['StHt'] and (int(self._acOptions['StHt']) == 1):
             self._target_temperature = 8
             _LOGGER.info('HA target temp set according to HVAC state to 8℃ since 8℃ heating mode is active')
         else:
@@ -649,9 +649,9 @@ class GreeClimate(ClimateEntity):
                     self.hass.states.async_set(self._sleep_entity_id, self._current_sleep, attr)
         _LOGGER.debug('HA sleep option set according to HVAC state to: ' + str(self._current_sleep))
         # Sync current HVAC 8℃ heat option to HA
-        if (self._acOptions['StHt'] == 1):
+        if (self._acOptions['StHt'] and self._acOptions['StHt'] == 1):
             self._current_eightdegheat = STATE_ON
-        elif (self._acOptions['StHt'] == 0):
+        elif (self._acOptions['StHt'] and self._acOptions['StHt'] == 0):
             self._current_eightdegheat = STATE_OFF
         else:
             self._current_eightdegheat = STATE_UNKNOWN
