@@ -109,7 +109,7 @@ The integration can be added from the Home Assistant UI.
    | `max_online_attempts` | Retry limit before marking unavailable | `integer` (e.g., `5`) | `false` | `3` |
    | `disable_available_check` | Keep AC always available in HA | `boolean` (e.g., `true`) | `false` | `false` |
    | `temp_sensor_offset` | Display offset for temp sensor | `boolean` (e.g., `true`) | `false` | *(auto-detected if not set)* |
-   | `beeper` | Toggle beeping sounds | `input_boolean` (e.g., `input_boolean.first_ac_beeper`) | `false` | |
+   | `beeper` | Toggle beeping sounds (AC beeper) | `input_boolean` (`ON` = AC beeps on commands, `OFF` = silent)<br>(e.g., `input_boolean.first_ac_beeper`) | `false` | |
 
 
 3. In your configuration.yaml add the following:
