@@ -393,14 +393,14 @@ class GreeClimate(ClimateEntity):
         self._process_temp_sensor = self.TempOffsetResolver()
 
         self._beeper_entity_id = beeper_entity_id
-        self._current_beeper_enabled = True # Default to beeper ON (silent mode OFF)
+        # Default: beeper enabled (not silent)
+        self._current_beeper_enabled = True
 
         if self._beeper_entity_id:
             _LOGGER.info('Setting up beeper control entity: %s', self._beeper_entity_id)
             initial_beeper_state = self.hass.states.get(self._beeper_entity_id)
-            if initial_beeper_state and initial_beeper_state.state == STATE_ON:
-                self._current_beeper_enabled = True
-
+            if initial_beeper_state:
+                self._current_beeper_enabled = initial_beeper_state.state == STATE_ON
             unsub = async_track_state_change_event(
                 hass, self._beeper_entity_id, self._async_beeper_entity_state_changed
             )
@@ -526,11 +526,11 @@ class GreeClimate(ClimateEntity):
                 filtered_opt.append(f'"{name}"')
                 filtered_p.append(str(val))
 
-        buzzer_command_value = 0 if self._current_beeper_enabled else 1
+        
+        _command_value = 0 if self._current_beeper_enabled else 1
         filtered_opt.append('"Buzzer_ON_OFF"')
         filtered_p.append(str(buzzer_command_value))
-
-        _LOGGER.debug(f"Sending with Buzzer_ON_OFF={buzzer_command_value} (Silent mode HA toggle is ON: {self._current_beeper_enabled})")
+        _LOGGER.debug(f"Sending with Buzzer_ON_OFF={buzzer_command_value} (Beeper is {'ENABLED' if self._current_beeper_enabled else 'DISABLED'})")
 
         statePackJson = '{"opt":[' + ",".join(filtered_opt) + '],"p":[' + ",".join(filtered_p) + '],"t":"cmd","mac":"' + self._sub_mac_addr + '"}'
 
@@ -1295,11 +1295,11 @@ class GreeClimate(ClimateEntity):
             return
 
         if new_state.state == STATE_ON:
-            self._current_beeper_enabled = True # Silent mode ON
-            _LOGGER.info('Silent mode enabled (beeper will be turned off with commands).')
+            self._current_beeper_enabled = True  # Beeper ON (not silent)
+            _LOGGER.info('Beeper enabled (audible).')
         else: # STATE_OFF or other
-            self._current_beeper_enabled = False # Silent mode OFF
-            _LOGGER.info('Silent mode disabled (beeper will be turned on with commands).')
+            self._current_beeper_enabled = False  # Beeper OFF (silent)
+            _LOGGER.info('Beeper disabled (silent).')
 
 
     @property
