@@ -527,7 +527,7 @@ class GreeClimate(ClimateEntity):
                 filtered_p.append(str(val))
 
         
-        _command_value = 0 if self._current_beeper_enabled else 1
+        buzzer_command_value = 0 if self._current_beeper_enabled else 1
         filtered_opt.append('"Buzzer_ON_OFF"')
         filtered_p.append(str(buzzer_command_value))
         _LOGGER.debug(f"Sending with Buzzer_ON_OFF={buzzer_command_value} (Beeper is {'ENABLED' if self._current_beeper_enabled else 'DISABLED'})")
