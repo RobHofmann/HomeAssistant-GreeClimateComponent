@@ -1,30 +1,14 @@
 DOMAIN = "gree"
-PLATFORMS = ["climate"]
 
 CONF_HVAC_MODES = "hvac_modes"
-CONF_TARGET_TEMP_STEP = 'target_temp_step'
-CONF_TEMP_SENSOR = 'temp_sensor'
-CONF_LIGHTS = 'lights'
-CONF_XFAN = 'xfan'
-CONF_HEALTH = 'health'
-CONF_POWERSAVE = 'powersave'
-CONF_SLEEP = 'sleep'
-CONF_EIGHTDEGHEAT = 'eightdegheat'
-CONF_AIR = 'air'
 CONF_ENCRYPTION_KEY = 'encryption_key'
 CONF_UID = 'uid'
-CONF_AUTO_XFAN = 'auto_xfan'
-CONF_AUTO_LIGHT = 'auto_light'
-CONF_TARGET_TEMP = 'target_temp'
 CONF_FAN_MODES = 'fan_modes'
 CONF_SWING_MODES = 'swing_modes'
 CONF_SWING_HORIZONTAL_MODES = 'swing_horizontal_modes'
-CONF_ANTI_DIRECT_BLOW = 'anti_direct_blow'
 CONF_ENCRYPTION_VERSION = 'encryption_version'
 CONF_DISABLE_AVAILABLE_CHECK  = 'disable_available_check'
 CONF_MAX_ONLINE_ATTEMPTS = 'max_online_attempts'
-CONF_LIGHT_SENSOR = 'light_sensor'
-CONF_BEEPER = 'beeper'
 CONF_TEMP_SENSOR_OFFSET = 'temp_sensor_offset'
 
 DEFAULT_PORT = 7000
@@ -49,26 +33,11 @@ DEFAULT_SWING_HORIZONTAL_MODES = ["default", "swing_full", "fixed_leftmost", "fi
 # Keys that can be updated via the options flow
 OPTION_KEYS = {
     CONF_HVAC_MODES,
-    CONF_TARGET_TEMP_STEP,
-    CONF_TEMP_SENSOR,
-    CONF_LIGHTS,
-    CONF_XFAN,
-    CONF_HEALTH,
-    CONF_POWERSAVE,
-    CONF_SLEEP,
-    CONF_EIGHTDEGHEAT,
-    CONF_AIR,
-    CONF_TARGET_TEMP,
-    CONF_AUTO_XFAN,
-    CONF_AUTO_LIGHT,
     CONF_FAN_MODES,
     CONF_SWING_MODES,
     CONF_SWING_HORIZONTAL_MODES,
-    CONF_ANTI_DIRECT_BLOW,
     CONF_DISABLE_AVAILABLE_CHECK,
     CONF_MAX_ONLINE_ATTEMPTS,
-    CONF_LIGHT_SENSOR,
-    CONF_BEEPER,
     CONF_TEMP_SENSOR_OFFSET,
 }
 

@@ -10,14 +10,6 @@
   fan_modes: ['auto' ,'low', 'medium_low', 'medium', 'medium_high', 'high', 'quiet', 'turbo']
   swing_modes: ['default', 'swing_full', 'fixed_upmost', 'fixed_middle_up', 'fixed_middle', 'fixed_middle_low', 'fixed_lowest', 'swing_downmost', 'swing_middle_low', 'swing_middle', 'swing_middle_up', 'swing_upmost']
   swing_horizontal_modes: ['default', 'swing_full', 'fixed_leftmost', 'fixed_middle_left', 'fixed_middle', 'fixed_middle_right', 'fixed_rightmost']
-  target_temp_step: 1
-  temp_sensor: <temperature sensor in first AC room>
-  lights: <input_boolean used to switch lights on/off of your first AC>
-  xfan: <input_boolean used to switch xfan on/off of your first AC>
-  health: <input_boolean used to switch the Health option on/off of your first AC>
-  sleep: <input_boolean used to switch sleep on/off of your first AC>
-  powersave: <input_boolean used to switch powersave on/off of your first AC>
-  eightdegheat: <input_boolean used to switch 8 degree heating on/off on your first AC>
   temp_sensor_offset: <input_boolean for temperature sensor offset in first AC room>
 
 - platform: gree
@@ -28,4 +20,3 @@
   # optional settings:
   port: 7000
   timeout: 10
-  target_temp_step: 1

@@ -26,27 +26,12 @@
       "fan_modes" : "Fan Modes",
       "swing_modes" : "Vertical Swing Modes",
       "swing_horizontal_modes" : "Horizontal Swing Modes",
-      "target_temp_step": "Temperature Step",
-      "temp_sensor": "Temperature Sensor",
-      "lights": "Lights Entity",
-      "xfan": "X-Fan Entity",
-      "health": "Health Entity",
-      "powersave": "Power Save Entity",
-      "sleep": "Sleep Entity",
-      "eightdegheat": "8°C Heat Entity",
-      "air": "Air Entity",
-      "target_temp": "Target Temperature Entity",
-      "anti_direct_blow": "Anti Direct Blow Entity",
-      "light_sensor": "Light Sensor Entity",
       "encryption_key": "Encryption Key",
       "uid": "UID",
-      "auto_xfan": "Auto X-Fan Entity",
-      "auto_light": "Auto Light Entity",
       "encryption_version": "Encryption Version",
       "disable_available_check": "Disable Available Check",
       "max_online_attempts": "Max Online Attempts",
-      "temp_sensor_offset": "Temperature Sensor Offset",
-      "beeper": "Beeper Entity"
+      "temp_sensor_offset": "Temperature Sensor Offset"
     }
   },
   "options": {
@@ -58,24 +43,9 @@
           "fan_modes" : "Fan Modes",
           "swing_modes" : "Vertical Swing Modes",
           "swing_horizontal_modes" : "Horizontal Swing Modes",
-          "target_temp_step": "Temperature Step",
-          "temp_sensor": "Temperature Sensor",
-          "lights": "Lights Entity",
-          "xfan": "X-Fan Entity",
-          "health": "Health Entity",
-          "powersave": "Power Save Entity",
-          "sleep": "Sleep Entity",
-          "eightdegheat": "8°C Heat Entity",
-          "air": "Air Entity",
-          "target_temp": "Target Temperature Entity",
-          "auto_xfan": "Auto X-Fan Entity",
-          "auto_light": "Auto Light Entity",
-          "anti_direct_blow": "Anti Direct Blow Entity",
           "disable_available_check": "Disable Available Check",
           "max_online_attempts": "Max Online Attempts",
-          "light_sensor": "Light Sensor Entity",
-          "temp_sensor_offset": "Temperature Sensor Offset",
-          "beeper": "Beeper Entity"
+          "temp_sensor_offset": "Temperature Sensor Offset"
         }
       }
     }
@@ -175,6 +145,68 @@
             }
           }
         }
+      }
+    },
+    "number": {
+      "target_temp_step": {
+        "name": "Temperature Step",
+        "description": "Sets the increment step for adjusting the target temperature."
+      }
+    },
+    "select": {
+      "external_temperature_sensor": {
+        "name": "External Temperature Sensor",
+        "description": "Select a temperature sensor entity to use instead of the built-in AC sensor. Choose 'None' to use the built-in sensor."
+      }
+    },
+    "switch": {
+      "xfan": {
+        "name": "X-Fan",
+        "description": "Enables or disables the X-Fan mode for extra drying when turning off."
+      },
+      "lights": {
+        "name": "Lights",
+        "description": "Controls the display lights on the air conditioner unit."
+      },
+      "health": {
+        "name": "Health",
+        "description": "Enables or disables the Health mode for air ionization and purification."
+      },
+      "powersave": {
+        "name": "Power Save",
+        "description": "Enables or disables the power saving mode for energy efficiency. Only available in cooling mode."
+      },
+      "eightdegheat": {
+        "name": "8°C Heat",
+        "description": "Enables or disables the 8°C heating mode for frost protection. Only available in heating mode."
+      },
+      "sleep": {
+        "name": "Sleep",
+        "description": "Enables or disables the sleep mode for comfortable overnight operation. Only available in cooling or heating mode."
+      },
+      "air": {
+        "name": "Air",
+        "description": "Enables or disables the fresh air circulation mode."
+      },
+      "auto_xfan": {
+        "name": "Auto X-Fan",
+        "description": "Automatically controls the X-Fan mode based on HVAC operations. When enabled, X-Fan will automatically turn on in cooling and dry modes."
+      },
+      "auto_light": {
+        "name": "Auto Light",
+        "description": "Automatically controls the display lights based on HVAC operations. When enabled, lights will turn on/off with the AC unit."
+      },
+      "anti_direct_blow": {
+        "name": "Anti Direct Blow",
+        "description": "Prevents direct air flow from blowing on people by adjusting the air deflector position."
+      },
+      "light_sensor": {
+        "name": "Light Sensor",
+        "description": "Enables or disables light sensor for automatic brightness. Requires lights to be enabled."
+      },
+      "beeper": {
+        "name": "Beeper",
+        "description": "Controls the beeper sounds from the air conditioner unit. When enabled, the unit will make sounds for button presses and status changes."
       }
     }
   }

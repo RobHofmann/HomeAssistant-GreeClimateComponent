@@ -26,27 +26,12 @@
       "fan_modes" : "Moduri ventilator",
       "swing_modes" : "Moduri balansare verticală",
       "swing_horizontal_modes" : "Moduri balansare orizontală",
-      "target_temp_step": "Pas temperatură",
-      "temp_sensor": "Senzor temperatură",
-      "lights": "Entitate lumini",
-      "xfan": "Entitate X-Fan",
-      "health": "Entitate sănătate",
-      "powersave": "Entitate economisire energie",
-      "sleep": "Entitate somn",
-      "eightdegheat": "Entitate încălzire 8°C",
-      "air": "Entitate aer",
-      "target_temp": "Entitate temperatură țintă",
-      "anti_direct_blow": "Entitate anti-suflare directă",
-      "light_sensor": "Entitate senzor lumină",
       "encryption_key": "Cheie de criptare",
       "uid": "UID",
-      "auto_xfan": "Entitate X-Fan automată",
-      "auto_light": "Entitate lumină automată",
       "encryption_version": "Versiune criptare",
       "disable_available_check": "Dezactivează verificarea disponibilității",
       "max_online_attempts": "Număr maxim de încercări online",
-      "temp_sensor_offset": "Offset senzor temperatură",
-      "beeper": "Entitate sonerie"
+      "temp_sensor_offset": "Offset senzor temperatură"
     }
   },
   "options": {
@@ -58,24 +43,9 @@
           "fan_modes" : "Moduri ventilator",
           "swing_modes" : "Moduri balansare verticală",
           "swing_horizontal_modes" : "Moduri balansare orizontală",
-          "target_temp_step": "Pas temperatură",
-          "temp_sensor": "Senzor temperatură",
-          "lights": "Entitate lumini",
-          "xfan": "Entitate X-Fan",
-          "health": "Entitate sănătate",
-          "powersave": "Entitate economisire energie",
-          "sleep": "Entitate somn",
-          "eightdegheat": "Entitate încălzire 8°C",
-          "air": "Entitate aer",
-          "target_temp": "Entitate temperatură țintă",
-          "auto_xfan": "Entitate X-Fan automată",
-          "auto_light": "Entitate lumină automată",
-          "anti_direct_blow": "Entitate anti-suflare directă",
           "disable_available_check": "Dezactivează verificarea disponibilității",
           "max_online_attempts": "Număr maxim de încercări online",
-          "light_sensor": "Entitate senzor lumină",
-          "temp_sensor_offset": "Offset senzor temperatură",
-          "beeper": "Entitate sonerie"
+          "temp_sensor_offset": "Offset senzor temperatură"
         }
       }
     }
@@ -175,6 +145,54 @@
             }
           }
         }
+      }
+    },
+    "number": {
+      "target_temp_step": {
+        "name": "Pas temperatură"
+      }
+    },
+    "select": {
+      "external_temperature_sensor": {
+        "name": "Senzor temperatură extern"
+      }
+    },
+    "switch": {
+      "xfan": {
+        "name": "X-Fan"
+      },
+      "lights": {
+        "name": "Lumini"
+      },
+      "health": {
+        "name": "Sănătate"
+      },
+      "powersave": {
+        "name": "Economisire energie"
+      },
+      "eightdegheat": {
+        "name": "Încălzire 8°C"
+      },
+      "sleep": {
+        "name": "Somn"
+      },
+      "air": {
+        "name": "Aer"
+      },
+      "auto_xfan": {
+        "name": "X-Fan automat"
+      },
+      "auto_light": {
+        "name": "Lumină automată"
+      },
+      "anti_direct_blow": {
+        "name": "Anti-suflare directă"
+      },
+      "light_sensor": {
+        "name": "Senzor lumină"
+      },
+      "beeper": {
+        "name": "Sonerie"
       }
     }
   }
