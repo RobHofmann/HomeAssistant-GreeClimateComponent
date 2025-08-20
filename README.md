@@ -31,6 +31,7 @@ Tested on the following hardware:
 - TOSOT TW12HXP2A1D
 - Toyotomi Izuru TRN/TRG-828ZR
 - Wilfa Cool9 Connected
+- Gree MC31-00/F Central Air Conditioner Remote Control Module
 
 Tested on Home Assistant 2025.6.3 
 
@@ -84,7 +85,7 @@ The integration can be added from the Home Assistant UI.
    | `name` | Name | `string` (e.g., `First AC`) | `false` | `Gree Climate` |
    | `host` | IP Address of AC | `string` (e.g., `192.168.1.101`) | `true` | |
    | `port` | Port number to connect to the device | `integer` (e.g., `7000`) | `false` | `7000` |
-   | `mac` | MAC address of the device | `string` (e.g., `20fabb123456`) <br> **NOTE: Format can be XX:XX:XX:XX:XX:XX, XX-XX-XX-XX-XX-XX or xxxxxxxxxxxx depending on your model** | `true` | 
+   | `mac` | MAC address of the device | `string` (e.g., `20fabb123456`) <br> **NOTE: Format can be XX:XX:XX:XX:XX:XX, XX-XX-XX-XX-XX-XX, xxxxxxxxxxxx or xxxxxxxxxxxx@yyyyyyyyyyyy (for VRF units) depending on your model** | `true` | 
    | `encryption_key` | Custom encryption key | `string` (e.g., `A1B2C3D4E5F6`) | `false` | *(auto-fetched if empty)* |
    | `encryption_version` | Encryption version | `integer` (e.g., `2`) | `false` | `1` | |
    | `hvac_modes` | Standard Home Assistant HVAC Modes to enable | `list[string]` (e.g. `["auto", "cool", "dry", "fan_only", "off"]`) | `false` | `["auto", "cool", "dry", "fan_only", "heat", "heat_cool", "off"]` |
