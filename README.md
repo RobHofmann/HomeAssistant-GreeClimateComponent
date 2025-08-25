@@ -22,6 +22,8 @@ Tested on the following hardware:
 - Kolin KAG-145WCINV (Requires encryption_version=2)
 - Saunier Duval VivAir Lite SDHB1-025SNWI (Requires encryption_version=2)
 - Saunier Duval VivAir Lite SDHB1-035SNWI (Requires encryption_version=2)
+- Saunier Duval VivAir SDH20-025NWI (with EWPE-module) (Requires encryption_version=2)
+- Saunier Duval VivAir SDH20-065NWI (with EWPE-module) (Requires encryption_version=2)
 - Sinclair ASH-12BIV
 - Sinclair ASH-13BIF2
 - Sinclair SIH-09BITW
