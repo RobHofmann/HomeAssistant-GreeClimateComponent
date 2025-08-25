@@ -145,8 +145,8 @@ The integration can be added from the Home Assistant UI.
 
    Write it down in climate.yaml `encryption_key: <key>`.
 
-   [!NOTE]
-   If you are getting an UTF-8  error (like: "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xda in position 1: invalid continuation byte"), see https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues/318.
+   > [!NOTE]
+   > If you are getting an UTF-8  error (like: "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xda in position 1: invalid continuation byte"), see https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues/318.
 
 7. OPTIONAL: Provide the `uid` parameter (can be sniffed) NOTE: This is not needed for all devices
 
