@@ -532,7 +532,7 @@ class GreeClimate(ClimateEntity):
         filtered_p.append(str(buzzer_command_value))
         _LOGGER.debug(f"Sending with Buzzer_ON_OFF={buzzer_command_value} (Beeper is {'ENABLED' if self._current_beeper_enabled else 'DISABLED'})")
 
-        statePackJson = '{"opt":[' + ",".join(filtered_opt) + '],"p":[' + ",".join(filtered_p) + '],"t":"cmd","mac":"' + self._sub_mac_addr + '"}'
+        statePackJson = '{"opt":[' + ",".join(filtered_opt) + '],"p":[' + ",".join(filtered_p) + '],"t":"cmd","sub":"' + self._sub_mac_addr + '"}'
 
         if self.encryption_version == 1:
             cipher = self.CIPHER
