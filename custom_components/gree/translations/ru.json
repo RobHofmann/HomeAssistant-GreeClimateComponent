@@ -26,27 +26,12 @@
       "fan_modes" : "Режимы вентилятора",
       "swing_modes" : "Режимы вертикального качания",
       "swing_horizontal_modes" : "Режимы горизонтального качания",
-      "target_temp_step": "Шаг температуры",
-      "temp_sensor": "Датчик температуры",
-      "lights": "Сущность света",
-      "xfan": "Сущность X-Fan",
-      "health": "Сущность здоровья",
-      "powersave": "Сущность энергосбережения",
-      "sleep": "Сущность сна",
-      "eightdegheat": "Сущность нагрева 8°C",
-      "air": "Сущность воздуха",
-      "target_temp": "Сущность целевой температуры",
-      "anti_direct_blow": "Сущность защиты от прямого обдува",
-      "light_sensor": "Сущность датчика света",
       "encryption_key": "Ключ шифрования",
       "uid": "UID",
-      "auto_xfan": "Сущность авто X-Fan",
-      "auto_light": "Сущность авто света",
       "encryption_version": "Версия шифрования",
       "disable_available_check": "Отключить проверку доступности",
       "max_online_attempts": "Максимум попыток онлайн",
-      "temp_sensor_offset": "Смещение датчика температуры",
-      "beeper": "Сущность зуммера"
+      "temp_sensor_offset": "Смещение датчика температуры"
     }
   },
   "options": {
@@ -58,24 +43,9 @@
           "fan_modes" : "Режимы вентилятора",
           "swing_modes" : "Режимы вертикального качания",
           "swing_horizontal_modes" : "Режимы горизонтального качания",
-          "target_temp_step": "Шаг температуры",
-          "temp_sensor": "Датчик температуры",
-          "lights": "Сущность света",
-          "xfan": "Сущность X-Fan",
-          "health": "Сущность здоровья",
-          "powersave": "Сущность энергосбережения",
-          "sleep": "Сущность сна",
-          "eightdegheat": "Сущность нагрева 8°C",
-          "air": "Сущность воздуха",
-          "target_temp": "Сущность целевой температуры",
-          "auto_xfan": "Сущность авто X-Fan",
-          "auto_light": "Сущность авто света",
-          "anti_direct_blow": "Сущность защиты от прямого обдува",
           "disable_available_check": "Отключить проверку доступности",
           "max_online_attempts": "Максимум попыток онлайн",
-          "light_sensor": "Сущность датчика света",
-          "temp_sensor_offset": "Смещение датчика температуры",
-          "beeper": "Сущность зуммера"
+          "temp_sensor_offset": "Смещение датчика температуры"
         }
       }
     }
@@ -175,6 +145,54 @@
             }
           }
         }
+      }
+    },
+    "number": {
+      "target_temp_step": {
+        "name": "Шаг температуры"
+      }
+    },
+    "select": {
+      "external_temperature_sensor": {
+        "name": "Внешний датчик температуры"
+      }
+    },
+    "switch": {
+      "xfan": {
+        "name": "X-Fan"
+      },
+      "lights": {
+        "name": "Свет"
+      },
+      "health": {
+        "name": "Здоровье"
+      },
+      "powersave": {
+        "name": "Энергосбережение"
+      },
+      "eightdegheat": {
+        "name": "Нагрев 8°C"
+      },
+      "sleep": {
+        "name": "Сон"
+      },
+      "air": {
+        "name": "Воздух"
+      },
+      "auto_xfan": {
+        "name": "Авто X-Fan"
+      },
+      "auto_light": {
+        "name": "Автоматический свет"
+      },
+      "anti_direct_blow": {
+        "name": "Защита от прямого обдува"
+      },
+      "light_sensor": {
+        "name": "Датчик света"
+      },
+      "beeper": {
+        "name": "Зуммер"
       }
     }
   }

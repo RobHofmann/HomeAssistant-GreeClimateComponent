@@ -26,27 +26,12 @@
       "fan_modes" : "Modalità ventola",
       "swing_modes" : "Modalità oscillazione verticale",
       "swing_horizontal_modes" : "Modalità oscillazione orizzontale",
-      "target_temp_step": "Passo temperatura",
-      "temp_sensor": "Sensore temperatura",
-      "lights": "Entità luci",
-      "xfan": "Entità X-Fan",
-      "health": "Entità salute",
-      "powersave": "Entità risparmio energetico",
-      "sleep": "Entità sonno",
-      "eightdegheat": "Entità riscaldamento 8°C",
-      "air": "Entità aria",
-      "target_temp": "Entità temperatura target",
-      "anti_direct_blow": "Entità anti-soffio diretto",
-      "light_sensor": "Entità sensore luce",
       "encryption_key": "Chiave di crittografia",
       "uid": "UID",
-      "auto_xfan": "Entità X-Fan automatica",
-      "auto_light": "Entità luce automatica",
       "encryption_version": "Versione crittografia",
       "disable_available_check": "Disabilita controllo disponibilità",
       "max_online_attempts": "Tentativi massimi online",
-      "temp_sensor_offset": "Offset sensore temperatura",
-      "beeper": "Entità cicalino"
+      "temp_sensor_offset": "Offset sensore temperatura"
     }
   },
   "options": {
@@ -58,24 +43,9 @@
           "fan_modes" : "Modalità ventola",
           "swing_modes" : "Modalità oscillazione verticale",
           "swing_horizontal_modes" : "Modalità oscillazione orizzontale",
-          "target_temp_step": "Passo temperatura",
-          "temp_sensor": "Sensore temperatura",
-          "lights": "Entità luci",
-          "xfan": "Entità X-Fan",
-          "health": "Entità salute",
-          "powersave": "Entità risparmio energetico",
-          "sleep": "Entità sonno",
-          "eightdegheat": "Entità riscaldamento 8°C",
-          "air": "Entità aria",
-          "target_temp": "Entità temperatura target",
-          "auto_xfan": "Entità X-Fan automatica",
-          "auto_light": "Entità luce automatica",
-          "anti_direct_blow": "Entità anti-soffio diretto",
           "disable_available_check": "Disabilita controllo disponibilità",
           "max_online_attempts": "Tentativi massimi online",
-          "light_sensor": "Entità sensore luce",
-          "temp_sensor_offset": "Offset sensore temperatura",
-          "beeper": "Entità cicalino"
+          "temp_sensor_offset": "Offset sensore temperatura"
         }
       }
     }
@@ -175,6 +145,54 @@
             }
           }
         }
+      }
+    },
+    "number": {
+      "target_temp_step": {
+        "name": "Passo temperatura"
+      }
+    },
+    "select": {
+      "external_temperature_sensor": {
+        "name": "Sensore temperatura esterno"
+      }
+    },
+    "switch": {
+      "xfan": {
+        "name": "X-Fan"
+      },
+      "lights": {
+        "name": "Luci"
+      },
+      "health": {
+        "name": "Salute"
+      },
+      "powersave": {
+        "name": "Risparmio energetico"
+      },
+      "eightdegheat": {
+        "name": "Riscaldamento 8°C"
+      },
+      "sleep": {
+        "name": "Sonno"
+      },
+      "air": {
+        "name": "Aria"
+      },
+      "auto_xfan": {
+        "name": "X-Fan automatico"
+      },
+      "auto_light": {
+        "name": "Luce automatica"
+      },
+      "anti_direct_blow": {
+        "name": "Anti-soffio diretto"
+      },
+      "light_sensor": {
+        "name": "Sensore luce"
+      },
+      "beeper": {
+        "name": "Cicalino"
       }
     }
   }

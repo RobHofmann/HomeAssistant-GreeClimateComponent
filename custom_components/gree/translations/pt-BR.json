@@ -26,27 +26,12 @@
       "fan_modes" : "Ventilação",
       "swing_modes" : "Oscilação Vertical",
       "swing_horizontal_modes" : "Oscilação Horizontal",
-      "target_temp_step": "Passo da Temperatura",
-      "temp_sensor": "Sensor de Temperatura",
-      "lights": "Entidade das Luzes",
-      "xfan": "Entidade do X-Fan",
-      "health": "Entidade do Modo Saúde",
-      "powersave": "Entidade de Economia de Energia",
-      "sleep": "Entidade do Modo Dormir",
-      "eightdegheat": "Entidade de Aquecimento 8°C",
-      "air": "Entidade do Modo Air",
-      "target_temp": "Entidade da Temperatura Alvo",
-      "anti_direct_blow": "Entidade Anti-sopro Direto",
-      "light_sensor": "Entidade do Sensor de Luz",
       "encryption_key": "Chave de Criptografia",
       "uid": "UID",
-      "auto_xfan": "Entidade do Auto X-Fan",
-      "auto_light": "Entidade da Luz Automática",
       "encryption_version": "Versão da Criptografia",
       "disable_available_check": "Desativar Verificação de Disponibilidade",
       "max_online_attempts": "Máximo de Tentativas de Conexão",
-      "temp_sensor_offset": "Ajuste do Sensor de Temperatura",
-      "beeper": "Entidade do Beep"
+      "temp_sensor_offset": "Ajuste do Sensor de Temperatura"
     }
   },
   "options": {
@@ -58,24 +43,9 @@
           "fan_modes" : "Ventilação",
           "swing_modes" : "Oscilação Vertical",
           "swing_horizontal_modes" : "Oscilação Horizontal",
-          "target_temp_step": "Passo da Temperatura",
-          "temp_sensor": "Sensor de Temperatura",
-          "lights": "Entidade das Luzes",
-          "xfan": "Entidade do X-Fan",
-          "health": "Entidade do Modo Saúde",
-          "powersave": "Entidade de Economia de Energia",
-          "sleep": "Entidade do Modo Dormir",
-          "eightdegheat": "Entidade de Aquecimento 8°C",
-          "air": "Entidade do Modo Air",
-          "target_temp": "Entidade da Temperatura Alvo",
-          "auto_xfan": "Entidade do Auto X-Fan",
-          "auto_light": "Entidade da Luz Automática",
-          "anti_direct_blow": "Entidade Anti-sopro Direto",
           "disable_available_check": "Desativar Verificação de Disponibilidade",
           "max_online_attempts": "Máximo de Tentativas de Conexão",
-          "light_sensor": "Entidade do Sensor de Luz",
-          "temp_sensor_offset": "Ajuste do Sensor de Temperatura",
-          "beeper": "Entidade do Beep"
+          "temp_sensor_offset": "Ajuste do Sensor de Temperatura"
         }
       }
     }
@@ -175,6 +145,54 @@
             }
           }
         }
+      }
+    },
+    "number": {
+      "target_temp_step": {
+        "name": "Passo da Temperatura"
+      }
+    },
+    "select": {
+      "external_temperature_sensor": {
+        "name": "Sensor de Temperatura Externo"
+      }
+    },
+    "switch": {
+      "xfan": {
+        "name": "X-Fan"
+      },
+      "lights": {
+        "name": "Luzes"
+      },
+      "health": {
+        "name": "Saúde"
+      },
+      "powersave": {
+        "name": "Economia de Energia"
+      },
+      "eightdegheat": {
+        "name": "Aquecimento 8°C"
+      },
+      "sleep": {
+        "name": "Dormir"
+      },
+      "air": {
+        "name": "Ar"
+      },
+      "auto_xfan": {
+        "name": "X-Fan Automático"
+      },
+      "auto_light": {
+        "name": "Luz Automática"
+      },
+      "anti_direct_blow": {
+        "name": "Anti-sopro Direto"
+      },
+      "light_sensor": {
+        "name": "Sensor de Luz"
+      },
+      "beeper": {
+        "name": "Beep"
       }
     }
   }

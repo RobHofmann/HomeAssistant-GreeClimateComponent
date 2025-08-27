@@ -26,27 +26,12 @@
       "fan_modes" : "Ventilátor módok",
       "swing_modes" : "Függőleges lengési módok",
       "swing_horizontal_modes" : "Vízszintes lengési módok",
-      "target_temp_step": "Hőmérséklet lépés",
-      "temp_sensor": "Hőmérséklet érzékelő",
-      "lights": "Fény entitás",
-      "xfan": "X-Fan entitás",
-      "health": "Egészség entitás",
-      "powersave": "Energiatakarékos entitás",
-      "sleep": "Alvó entitás",
-      "eightdegheat": "8°C Fűtés entitás",
-      "air": "Levegő entitás",
-      "target_temp": "Célhőmérséklet entitás",
-      "anti_direct_blow": "Közvetlen fújás elleni entitás",
-      "light_sensor": "Fényérzékelő entitás",
       "encryption_key": "Titkosítási kulcs",
       "uid": "UID",
-      "auto_xfan": "Automatikus X-Fan entitás",
-      "auto_light": "Automatikus fény entitás",
       "encryption_version": "Titkosítási verzió",
       "disable_available_check": "Elérhetőség ellenőrzésének letiltása",
       "max_online_attempts": "Maximális online próbálkozások",
-      "temp_sensor_offset": "Hőmérséklet érzékelő eltolás",
-      "beeper": "Csipogó entitás"
+      "temp_sensor_offset": "Hőmérséklet érzékelő eltolás"
     }
   },
   "options": {
@@ -58,24 +43,9 @@
           "fan_modes" : "Ventilátor módok",
           "swing_modes" : "Függőleges lengési módok",
           "swing_horizontal_modes" : "Vízszintes lengési módok",
-          "target_temp_step": "Hőmérséklet lépés",
-          "temp_sensor": "Hőmérséklet érzékelő",
-          "lights": "Fény entitás",
-          "xfan": "X-Fan entitás",
-          "health": "Egészség entitás",
-          "powersave": "Energiatakarékos entitás",
-          "sleep": "Alvó entitás",
-          "eightdegheat": "8°C Fűtés entitás",
-          "air": "Levegő entitás",
-          "target_temp": "Célhőmérséklet entitás",
-          "auto_xfan": "Automatikus X-Fan entitás",
-          "auto_light": "Automatikus fény entitás",
-          "anti_direct_blow": "Közvetlen fújás elleni entitás",
           "disable_available_check": "Elérhetőség ellenőrzésének letiltása",
           "max_online_attempts": "Maximális online próbálkozások",
-          "light_sensor": "Fényérzékelő entitás",
-          "temp_sensor_offset": "Hőmérséklet érzékelő eltolás",
-          "beeper": "Csipogó entitás"
+          "temp_sensor_offset": "Hőmérséklet érzékelő eltolás"
         }
       }
     }
@@ -175,6 +145,54 @@
             }
           }
         }
+      }
+    },
+    "number": {
+      "target_temp_step": {
+        "name": "Hőmérséklet lépés"
+      }
+    },
+    "select": {
+      "external_temperature_sensor": {
+        "name": "Külső hőmérséklet érzékelő"
+      }
+    },
+    "switch": {
+      "xfan": {
+        "name": "X-Fan"
+      },
+      "lights": {
+        "name": "Fény"
+      },
+      "health": {
+        "name": "Egészség"
+      },
+      "powersave": {
+        "name": "Energiatakarékosság"
+      },
+      "eightdegheat": {
+        "name": "8°C Fűtés"
+      },
+      "sleep": {
+        "name": "Alvás"
+      },
+      "air": {
+        "name": "Levegő"
+      },
+      "auto_xfan": {
+        "name": "Automatikus X-Fan"
+      },
+      "auto_light": {
+        "name": "Automatikus fény"
+      },
+      "anti_direct_blow": {
+        "name": "Közvetlen fújás ellen"
+      },
+      "light_sensor": {
+        "name": "Fényérzékelő"
+      },
+      "beeper": {
+        "name": "Csipogó"
       }
     }
   }

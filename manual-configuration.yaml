@@ -1,0 +1,110 @@
+# Gree Climate Integration - Manual Configuration Example
+# 
+# This file contains all possible configuration options for the Gree Climate integration
+# when using YAML configuration instead of the UI config flow.
+#
+# Copy the sections you need to your configuration.yaml file.
+
+gree:
+  # Name for the AC unit (required)
+  - name: "First AC"
+    
+    # IP Address of AC (required)
+    host: "192.168.1.101"
+    
+    # MAC address of the device (required)
+    # Format can be XX:XX:XX:XX:XX:XX, XX-XX-XX-XX-XX-XX, xxxxxxxxxxxx 
+    # or xxxxxxxxxxxx@yyyyyyyyyyyy (for VRF units) depending on your model
+    mac: "20-FA-BB-12-34-56"
+    
+    # Encryption version (optional, defaults to 1)
+    encryption_version: 1
+    
+    # Port number to connect to the device (optional, defaults to 7000)
+    # port: 7000
+    
+    # Connection timeout in seconds (optional, defaults to 10)
+    # timeout: 10
+    
+    # Custom encryption key (optional, auto-fetched if empty)
+    # If you have extracted your encryption key, you can specify it here
+    # encryption_key: "A1B2C3D4E5F6"
+    
+    # Device identifier (optional)
+    # This is not needed for all devices, can be sniffed if required
+    # uid: 123
+    
+    # Standard Home Assistant HVAC Modes to enable (optional)
+    # Default: ["auto", "cool", "dry", "fan_only", "heat", "off"]
+    # hvac_modes:
+    #   - "auto"
+    #   - "cool" 
+    #   - "dry"
+    #   - "fan_only"
+    #   - "heat"
+    #   - "off"
+    
+    # Fan modes (optional)
+    # Default: ["auto", "low", "medium_low", "medium", "medium_high", "high", "turbo", "quiet"]
+    # fan_modes:
+    #   - "auto"
+    #   - "low"
+    #   - "medium_low"
+    #   - "medium"
+    #   - "medium_high"
+    #   - "high"
+    #   - "turbo"
+    #   - "quiet"
+    
+    # Fan vertical swing modes (optional)
+    # Pass empty list ([]) to disable vertical swing
+    # Default: ["default", "swing_full", "fixed_upmost", "fixed_middle_up", "fixed_middle", "fixed_middle_low", "fixed_lowest", "swing_downmost", "swing_middle_low", "swing_middle", "swing_middle_up", "swing_upmost"]
+    # swing_modes:
+    #   - "default"
+    #   - "swing_full"
+    #   - "fixed_upmost"
+    #   - "fixed_middle_up"
+    #   - "fixed_middle"
+    #   - "fixed_middle_low"
+    #   - "fixed_lowest"
+    #   - "swing_downmost"
+    #   - "swing_middle_low"
+    #   - "swing_middle"
+    #   - "swing_middle_up"
+    #   - "swing_upmost"
+    
+    # Fan horizontal swing modes (optional)
+    # Pass empty list ([]) to disable horizontal swing
+    # Default: ["default", "swing_full", "fixed_leftmost", "fixed_middle_left", "fixed_middle", "fixed_middle_right", "fixed_rightmost"]
+    # swing_horizontal_modes:
+    #   - "default"
+    #   - "swing_full"
+    #   - "fixed_leftmost"
+    #   - "fixed_middle_left"
+    #   - "fixed_middle"
+    #   - "fixed_middle_right"
+    #   - "fixed_rightmost"
+    
+    # Retry limit before marking unavailable (optional, defaults to 3)
+    # max_online_attempts: 3
+    
+    # Keep AC always available in HA (optional, defaults to false)
+    # Disables connection checking - useful for devices that don't respond reliably
+    # disable_available_check: false
+    
+    # Display offset for temp sensor (optional, auto-detected if not set)
+    # Set to true to apply -40°C offset, false for no offset, or leave unset for auto-detection
+    # temp_sensor_offset: true
+
+# Example for multiple AC units:
+# gree:
+#   - name: "Living Room AC"
+#     host: "192.168.1.101"
+#     mac: "20-FA-BB-12-34-56"
+#     encryption_version: 2
+#   
+#   - name: "Bedroom AC" 
+#     host: "192.168.1.102"
+#     mac: "20-FA-BB-12-34-57"
+#     encryption_version: 1
+#     port: 7001
