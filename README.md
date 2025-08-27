@@ -130,6 +130,6 @@ The integration can be added from the Home Assistant UI.
 
    > If you are getting an UTF-8  error (like: "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xda in position 1: invalid continuation byte"), see https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues/318.
 
-7. OPTIONAL: Provide the `uid` parameter (can be sniffed) NOTE: This is not needed for all devices
+6. OPTIONAL: Provide the `uid` parameter (can be sniffed) NOTE: This is not needed for all devices
 
-8. OPTIONAL: You can set custom icons by modifying the icon translation file `icons.json`. Refer to this documentation: https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/icon-translations/
+7. OPTIONAL: You can set custom icons by modifying the icon translation file `icons.json`. Refer to this documentation: https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/icon-translations/
