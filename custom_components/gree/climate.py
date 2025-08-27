@@ -27,6 +27,7 @@ from homeassistant.const import (
     CONF_PORT,
     CONF_TIMEOUT,
 )
+from homeassistant.helpers.device_registry import DeviceInfo
 
 # Local imports
 from .const import (
@@ -682,6 +683,15 @@ class GreeClimate(ClimateEntity):
     def unique_id(self):
         # Return unique_id
         return self._unique_id
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device information."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._mac_addr)},
+            name=self._name,
+            manufacturer="Gree",
+        )
 
     def set_temperature(self, **kwargs):
         s = kwargs.get(ATTR_TEMPERATURE)

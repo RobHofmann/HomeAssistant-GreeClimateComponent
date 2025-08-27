@@ -68,7 +68,6 @@ class GreeEntity(Entity):
             identifiers={(DOMAIN, self._device._mac_addr)},
             name=self._device._name,
             manufacturer="Gree",
-            model="HVAC",
             connections={(CONNECTION_NETWORK_MAC, self._device._mac_addr)},
         )
 
