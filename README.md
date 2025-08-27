@@ -15,6 +15,7 @@ Tested on the following hardware:
 - Cooper & Hunter (CH-S12FTXE(WI-FI)-NG)
 - Copmax Air-Air Heatpump GWH12QC-K6DNA5F 3.5kW
 - EWT S-090 GDI-HRFN1, EWT S-120 GDI-HRFN1 (WI-FI module CS532AEH)
+- Heiwa Essentiel ZEN+ HMIS2-25P-V2 with WI-FI module GRJWB04-J (Requires encryption_version=2)
 - Innova HVAC
 - Inventor Life Pro WiFi
 - Kinghome "Pular" - KW12HQ25SDI (Requires encryption_version=2)
