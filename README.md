@@ -15,6 +15,7 @@ Tested on the following hardware:
 - Cooper & Hunter (CH-S12FTXE(WI-FI)-NG)
 - Copmax Air-Air Heatpump GWH12QC-K6DNA5F 3.5kW
 - EWT S-090 GDI-HRFN1, EWT S-120 GDI-HRFN1 (WI-FI module CS532AEH)
+- Heiwa Essentiel ZEN+ HMIS2-25P-V2 with WI-FI module GRJWB04-J (Requires encryption_version=2)
 - Innova HVAC
 - Inventor Life Pro WiFi
 - Kinghome "Pular" - KW12HQ25SDI (Requires encryption_version=2)
@@ -22,6 +23,8 @@ Tested on the following hardware:
 - Kolin KAG-145WCINV (Requires encryption_version=2)
 - Saunier Duval VivAir Lite SDHB1-025SNWI (Requires encryption_version=2)
 - Saunier Duval VivAir Lite SDHB1-035SNWI (Requires encryption_version=2)
+- Saunier Duval VivAir SDH20-025NWI (with EWPE-module) (Requires encryption_version=2)
+- Saunier Duval VivAir SDH20-065NWI (with EWPE-module) (Requires encryption_version=2)
 - Sinclair ASH-12BIV
 - Sinclair ASH-13BIF2
 - Sinclair SIH-09BITW
@@ -125,6 +128,8 @@ The integration can be added from the Home Assistant UI.
 
    Write it down in climate.yaml `encryption_key: <key>`.
 
-6. OPTIONAL: Provide the `uid` parameter (can be sniffed) NOTE: This is not needed for all devices
+   > If you are getting an UTF-8  error (like: "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xda in position 1: invalid continuation byte"), see https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues/318.
 
-7. OPTIONAL: You can set custom icons by modifying the icon translation file `icons.json`. Refer to this documentation: https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/icon-translations/
+7. OPTIONAL: Provide the `uid` parameter (can be sniffed) NOTE: This is not needed for all devices
+
+8. OPTIONAL: You can set custom icons by modifying the icon translation file `icons.json`. Refer to this documentation: https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/icon-translations/
