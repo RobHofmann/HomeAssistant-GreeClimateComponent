@@ -26,27 +26,12 @@
       "fan_modes" : "מצבי מאוורר",
       "swing_modes" : "מצבי נדנוד אנכי",
       "swing_horizontal_modes" : "מצבי נדנוד אופקי",
-      "target_temp_step": "שלב טמפרטורה",
-      "temp_sensor": "חיישן טמפרטורה",
-      "lights": "ישות אורות",
-      "xfan": "ישות X-Fan",
-      "health": "ישות בריאות",
-      "powersave": "ישות חיסכון בחשמל",
-      "sleep": "ישות שינה",
-      "eightdegheat": "ישות חימום 8°C",
-      "air": "ישות אוויר",
-      "target_temp": "ישות טמפרטורת יעד",
-      "anti_direct_blow": "ישות מניעת נשיפה ישירה",
-      "light_sensor": "ישות חיישן אור",
       "encryption_key": "מפתח הצפנה",
       "uid": "UID",
-      "auto_xfan": "ישות X-Fan אוטומטי",
-      "auto_light": "ישות אור אוטומטי",
       "encryption_version": "גרסת הצפנה",
       "disable_available_check": "השבת בדיקת זמינות",
       "max_online_attempts": "ניסיונות מקסימליים להתחברות",
-      "temp_sensor_offset": "היסט חיישן טמפרטורה",
-      "beeper": "ישות זמזם"
+      "temp_sensor_offset": "היסט חיישן טמפרטורה"
     }
   },
   "options": {
@@ -58,24 +43,9 @@
           "fan_modes" : "מצבי מאוורר",
           "swing_modes" : "מצבי נדנוד אנכי",
           "swing_horizontal_modes" : "מצבי נדנוד אופקי",
-          "target_temp_step": "שלב טמפרטורה",
-          "temp_sensor": "חיישן טמפרטורה",
-          "lights": "ישות אורות",
-          "xfan": "ישות X-Fan",
-          "health": "ישות בריאות",
-          "powersave": "ישות חיסכון בחשמל",
-          "sleep": "ישות שינה",
-          "eightdegheat": "ישות חימום 8°C",
-          "air": "ישות אוויר",
-          "target_temp": "ישות טמפרטורת יעד",
-          "auto_xfan": "ישות X-Fan אוטומטי",
-          "auto_light": "ישות אור אוטומטי",
-          "anti_direct_blow": "ישות מניעת נשיפה ישירה",
           "disable_available_check": "השבת בדיקת זמינות",
           "max_online_attempts": "ניסיונות מקסימליים להתחברות",
-          "light_sensor": "ישות חיישן אור",
-          "temp_sensor_offset": "היסט חיישן טמפרטורה",
-          "beeper": "ישות זמזם"
+          "temp_sensor_offset": "היסט חיישן טמפרטורה"
         }
       }
     }
@@ -176,6 +146,54 @@
             }
           }
         }
+      }
+    },
+    "number": {
+      "target_temp_step": {
+        "name": "שלב טמפרטורה"
+      }
+    },
+    "select": {
+      "external_temperature_sensor": {
+        "name": "חיישן טמפרטורה חיצוני"
+      }
+    },
+    "switch": {
+      "xfan": {
+        "name": "X-Fan"
+      },
+      "lights": {
+        "name": "אורות"
+      },
+      "health": {
+        "name": "בריאות"
+      },
+      "powersave": {
+        "name": "חיסכון בחשמל"
+      },
+      "eightdegheat": {
+        "name": "חימום 8°C"
+      },
+      "sleep": {
+        "name": "שינה"
+      },
+      "air": {
+        "name": "אוויר"
+      },
+      "auto_xfan": {
+        "name": "X-Fan אוטומטי"
+      },
+      "auto_light": {
+        "name": "אור אוטומטי"
+      },
+      "anti_direct_blow": {
+        "name": "מניעת נשיפה ישירה"
+      },
+      "light_sensor": {
+        "name": "חיישן אור"
+      },
+      "beeper": {
+        "name": "זמזם"
       }
     }
   }

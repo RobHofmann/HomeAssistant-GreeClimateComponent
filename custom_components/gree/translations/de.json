@@ -26,27 +26,12 @@
       "fan_modes" : "Lüftermodi",
       "swing_modes" : "Vertikale Swing-Modi",
       "swing_horizontal_modes" : "Horizontale Swing-Modi",
-      "target_temp_step": "Temperaturschritt",
-      "temp_sensor": "Temperatursensor",
-      "lights": "Licht-Entität",
-      "xfan": "X-Fan-Entität",
-      "health": "Gesundheits-Entität",
-      "powersave": "Energiespar-Entität",
-      "sleep": "Schlaf-Entität",
-      "eightdegheat": "8°C Heiz-Entität",
-      "air": "Luft-Entität",
-      "target_temp": "Zieltemperatur-Entität",
-      "anti_direct_blow": "Anti-Direktblas-Entität",
-      "light_sensor": "Lichtsensor-Entität",
       "encryption_key": "Verschlüsselungsschlüssel",
       "uid": "UID",
-      "auto_xfan": "Auto X-Fan-Entität",
-      "auto_light": "Auto-Licht-Entität",
       "encryption_version": "Verschlüsselungsversion",
       "disable_available_check": "Verfügbarkeitsprüfung deaktivieren",
       "max_online_attempts": "Maximale Online-Versuche",
-      "temp_sensor_offset": "Temperatursensor-Offset",
-      "beeper": "Summer-Entität"
+      "temp_sensor_offset": "Temperatursensor-Offset"
     }
   },
   "options": {
@@ -58,24 +43,9 @@
           "fan_modes" : "Lüftermodi",
           "swing_modes" : "Vertikale Swing-Modi",
           "swing_horizontal_modes" : "Horizontale Swing-Modi",
-          "target_temp_step": "Temperaturschritt",
-          "temp_sensor": "Temperatursensor",
-          "lights": "Licht-Entität",
-          "xfan": "X-Fan-Entität",
-          "health": "Gesundheits-Entität",
-          "powersave": "Energiespar-Entität",
-          "sleep": "Schlaf-Entität",
-          "eightdegheat": "8°C Heiz-Entität",
-          "air": "Luft-Entität",
-          "target_temp": "Zieltemperatur-Entität",
-          "auto_xfan": "Auto X-Fan-Entität",
-          "auto_light": "Auto-Licht-Entität",
-          "anti_direct_blow": "Anti-Direktblas-Entität",
           "disable_available_check": "Verfügbarkeitsprüfung deaktivieren",
           "max_online_attempts": "Maximale Online-Versuche",
-          "light_sensor": "Lichtsensor-Entität",
-          "temp_sensor_offset": "Temperatursensor-Offset",
-          "beeper": "Summer-Entität"
+          "temp_sensor_offset": "Temperatursensor-Offset"
         }
       }
     }
@@ -175,6 +145,54 @@
             }
           }
         }
+      }
+    },
+    "number": {
+      "target_temp_step": {
+        "name": "Temperaturschritt"
+      }
+    },
+    "select": {
+      "external_temperature_sensor": {
+        "name": "Externer Temperatursensor"
+      }
+    },
+    "switch": {
+      "xfan": {
+        "name": "X-Fan"
+      },
+      "lights": {
+        "name": "Licht"
+      },
+      "health": {
+        "name": "Gesundheit"
+      },
+      "powersave": {
+        "name": "Energiespar"
+      },
+      "eightdegheat": {
+        "name": "8°C Heizung"
+      },
+      "sleep": {
+        "name": "Schlaf"
+      },
+      "air": {
+        "name": "Luft"
+      },
+      "auto_xfan": {
+        "name": "Auto X-Fan"
+      },
+      "auto_light": {
+        "name": "Auto Licht"
+      },
+      "anti_direct_blow": {
+        "name": "Anti-Direktblas"
+      },
+      "light_sensor": {
+        "name": "Lichtsensor"
+      },
+      "beeper": {
+        "name": "Summer"
       }
     }
   }

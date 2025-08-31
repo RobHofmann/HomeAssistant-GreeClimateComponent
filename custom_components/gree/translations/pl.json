@@ -26,27 +26,12 @@
       "fan_modes" : "Tryby wentylatora",
       "swing_modes" : "Tryby pionowego ruchu",
       "swing_horizontal_modes" : "Tryby poziomego ruchu",
-      "target_temp_step": "Krok temperatury",
-      "temp_sensor": "Czujnik temperatury",
-      "lights": "Encja sterowania wyświetlaczem",
-      "xfan": "Encja trybu X-Fan",
-      "health": "Encja trybu Health",
-      "powersave": "Encja trybu Oszczędzania energii",
-      "sleep": "Encja trybu Sen",
-      "eightdegheat": "Encja trybu Grzanie do 8°C",
-      "air": "Encja trybu Air",
-      "target_temp": "Encja temperatury docelowej",
-      "anti_direct_blow": "Encja trybu Anty-bezpośredniego nawiewu",
-      "light_sensor": "Encja czujnika światła",
       "encryption_key": "Klucz szyfrowania",
       "uid": "UID",
-      "auto_xfan": "Encja automatycznego włączania trybu X-Fan",
-      "auto_light": "Encja automatycznego wł/wył. wyświetlacza",
       "encryption_version": "Wersja szyfrowania",
       "disable_available_check": "Wyłącz sprawdzanie dostępności",
       "max_online_attempts": "Maksymalna liczba prób połączenia",
-      "temp_sensor_offset": "Offset czujnika temperatury",
-      "beeper": "Encja sygnału dzwiękowego"
+      "temp_sensor_offset": "Offset czujnika temperatury"
     }
   },
   "options": {
@@ -58,24 +43,9 @@
           "fan_modes" : "Tryby wentylatora",
           "swing_modes" : "Tryby pionowego ruchu",
           "swing_horizontal_modes" : "Tryby poziomego ruchu",
-          "target_temp_step": "Krok temperatury",
-          "temp_sensor": "Czujnik temperatury",
-          "lights": "Encja sterowania wyświetlaczem",
-          "xfan": "Encja trybu X-Fan",
-          "health": "Encja trybu Health",
-          "powersave": "Encja trybu Oszczędzania energii",
-          "sleep": "Encja trybu Sen",
-          "eightdegheat": "Encja trybu Grzanie do 8°C",
-          "air": "Encja trybu Air",
-          "target_temp": "Encja temperatury docelowej",
-          "auto_xfan": "Encja automatycznego włączania trybu X-Fan",
-          "auto_light": "Encja automatycznego wł/wył. wyświetlacza",
-          "anti_direct_blow": "Encja trybu Anty-bezpośredniego nawiewu",
           "disable_available_check": "Wyłącz sprawdzanie dostępności",
           "max_online_attempts": "Maksymalna liczba prób połączenia",
-          "light_sensor": "Encja czujnika światła",
-          "temp_sensor_offset": "Offset czujnika temperatury",
-          "beeper": "Encja sygnału dzwiękowego"
+          "temp_sensor_offset": "Offset czujnika temperatury"
         }
       }
     }
@@ -175,6 +145,54 @@
             }
           }
         }
+      }
+    },
+    "number": {
+      "target_temp_step": {
+        "name": "Krok temperatury"
+      }
+    },
+    "select": {
+      "external_temperature_sensor": {
+        "name": "Zewnętrzny czujnik temperatury"
+      }
+    },
+    "switch": {
+      "xfan": {
+        "name": "X-Fan"
+      },
+      "lights": {
+        "name": "Sterowanie wyświetlaczem"
+      },
+      "health": {
+        "name": "Health"
+      },
+      "powersave": {
+        "name": "Oszczędzanie energii"
+      },
+      "eightdegheat": {
+        "name": "Grzanie 8°C"
+      },
+      "sleep": {
+        "name": "Sen"
+      },
+      "air": {
+        "name": "Tryb Air"
+      },
+      "auto_xfan": {
+        "name": "Automatyczny X-Fan"
+      },
+      "auto_light": {
+        "name": "Automatyczny wyświetlacz"
+      },
+      "anti_direct_blow": {
+        "name": "Anty-bezpośredni nawiew"
+      },
+      "light_sensor": {
+        "name": "Czujnik światła"
+      },
+      "beeper": {
+        "name": "Sygnał dźwiękowy"
       }
     }
   }

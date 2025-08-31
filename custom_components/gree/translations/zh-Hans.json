@@ -26,27 +26,12 @@
       "fan_modes": "风速模式",
       "swing_modes": "垂直扫风模式",
       "swing_horizontal_modes": "水平扫风模式",
-      "target_temp_step": "温度步进",
-      "temp_sensor": "温度传感器",
-      "lights": "灯光实体",
-      "xfan": "防霉风实体",
-      "health": "健康模式实体",
-      "powersave": "节能模式实体",
-      "sleep": "睡眠模式实体",
-      "eightdegheat": "8°C 制热实体",
-      "air": "清新空气实体",
-      "target_temp": "目标温度实体",
-      "anti_direct_blow": "防直吹实体",
-      "light_sensor": "光照传感器实体",
       "encryption_key": "加密密钥",
       "uid": "UID",
-      "auto_xfan": "自动防霉风实体",
-      "auto_light": "自动灯光实体",
       "encryption_version": "加密版本",
       "disable_available_check": "禁用可用性检查",
       "max_online_attempts": "最大在线尝试次数",
-      "temp_sensor_offset": "温度传感器偏移",
-      "beeper": "蜂鸣器实体"
+      "temp_sensor_offset": "温度传感器偏移"
     }
   },
   "options": {
@@ -58,24 +43,9 @@
           "fan_modes": "风速模式",
           "swing_modes": "垂直扫风模式",
           "swing_horizontal_modes": "水平扫风模式",
-          "target_temp_step": "温度步进",
-          "temp_sensor": "温度传感器",
-          "lights": "灯光实体",
-          "xfan": "防霉风实体",
-          "health": "健康模式实体",
-          "powersave": "节能模式实体",
-          "sleep": "睡眠模式实体",
-          "eightdegheat": "8°C 制热实体",
-          "air": "清新空气实体",
-          "target_temp": "目标温度实体",
-          "auto_xfan": "自动防霉风实体",
-          "auto_light": "自动灯光实体",
-          "anti_direct_blow": "防直吹实体",
           "disable_available_check": "禁用可用性检查",
           "max_online_attempts": "最大在线尝试次数",
-          "light_sensor": "光照传感器实体",
-          "temp_sensor_offset": "温度传感器偏移",
-          "beeper": "蜂鸣器实体"
+          "temp_sensor_offset": "温度传感器偏移"
         }
       }
     }
@@ -175,6 +145,54 @@
             }
           }
         }
+      }
+    },
+    "number": {
+      "target_temp_step": {
+        "name": "温度步进"
+      }
+    },
+    "select": {
+      "external_temperature_sensor": {
+        "name": "外部温度传感器"
+      }
+    },
+    "switch": {
+      "xfan": {
+        "name": "防霉风"
+      },
+      "lights": {
+        "name": "灯光"
+      },
+      "health": {
+        "name": "健康模式"
+      },
+      "powersave": {
+        "name": "节能模式"
+      },
+      "eightdegheat": {
+        "name": "8°C 制热"
+      },
+      "sleep": {
+        "name": "睡眠模式"
+      },
+      "air": {
+        "name": "清新空气"
+      },
+      "auto_xfan": {
+        "name": "自动防霉风"
+      },
+      "auto_light": {
+        "name": "自动灯光"
+      },
+      "anti_direct_blow": {
+        "name": "防直吹"
+      },
+      "light_sensor": {
+        "name": "光照传感器"
+      },
+      "beeper": {
+        "name": "蜂鸣器"
       }
     }
   }
