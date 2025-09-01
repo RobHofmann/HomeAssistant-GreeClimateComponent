@@ -92,6 +92,6 @@ If your AC unit has an outside temperature sensor, it will be automatically dete
 - **Separate sensor entity**: `sensor.your_ac_outside_temperature`
 
 ### Humidity Sensor  
-If your AC unit has a built-in humidity sensor, it will be automatically detected and exposed as:
+If your AC unit has a built-in room humidity sensor, it will be automatically detected and exposed as:
 - **Climate entity attribute**: `room_humidity` (accessible via `{{ state_attr('climate.your_ac', 'room_humidity') }}`)
-- **Separate sensor entity**: `sensor.your_ac_humidity`
+- **Separate sensor entity**: `sensor.your_ac_room_humidity`
