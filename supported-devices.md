@@ -14,6 +14,7 @@ Tested on the following hardware:
 - AC Gree 3VIR24HP230V1AH
 - Ac Gree Pulsar GWH09AGAXB-K6DNA1B (encryption version 2)
 - Gree MC31-00/F Central Air Conditioner Remote Control Module
+- AC Gree Clivia (encryption version 2)
 
 ## Kolin
 - Kolin KAG-100WCINV (encryption version 2)
