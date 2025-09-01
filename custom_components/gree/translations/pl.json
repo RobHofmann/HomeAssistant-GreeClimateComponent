@@ -1,6 +1,6 @@
 {
   "config": {
-    "title": "Gree Climate",
+    "title": "Klimatyzajca Gree",
     "description": "Skonfiguruj swój klimatyzator Gree",
     "step": {
       "user": {
@@ -37,7 +37,7 @@
   "options": {
     "step": {
       "init": {
-        "title": "Opcje Gree Climate",
+        "title": "Opcje klimatyzacji Gree",
         "data": {
           "hvac_modes" : "Tryby pracy",
           "fan_modes" : "Tryby wentylatora",
@@ -149,50 +149,64 @@
     },
     "number": {
       "target_temp_step": {
-        "name": "Krok temperatury"
+        "name": "Krok temperatury",
+        "description": "Ustawia co ile stopni ma się zmieniać docelowa temperatura."
       }
     },
     "select": {
       "external_temperature_sensor": {
-        "name": "Zewnętrzny czujnik temperatury"
+        "name": "Zewnętrzny czujnik temperatury",
+        "description": "Wybierz zewnętrzny czujnik temperatury, aby użyć go zamiast wbudowanego. Wybierz 'Brak', aby używać wbudowanego czujnika."
       }
     },
     "switch": {
       "xfan": {
-        "name": "X-Fan"
+        "name": "X-Fan",
+        "description": "Włącza lub wyłącza tryb X-Fan który osusza jednostkę wew. podczas wyłączania."
       },
       "lights": {
-        "name": "Sterowanie wyświetlaczem"
+        "name": "Wyświetlacz",
+        "description": "Włącza lub wyłącza wyświetlacz jednostki wewnętrznej."
       },
       "health": {
-        "name": "Health"
+        "name": "Jonizacja",
+        "description": "Włącza lub wyłącza tryb jonizacji i oczyszczania powietrza."
       },
       "powersave": {
-        "name": "Oszczędzanie energii"
+        "name": "Oszczędzanie energii",
+        "description": "Włącza lub wyłącza tryb oszczędzania energii. Dostępne tylko w trybie chłodzenia."
       },
       "eightdegheat": {
-        "name": "Grzanie 8°C"
+        "name": "Grzanie 8°C",
+        "description": "Włącza lub wyłącza tryb grzania 8°C zapobiegający zamarzaniu pomieszczenia. Dostępne tylko w trybie grzania."
       },
       "sleep": {
-        "name": "Sen"
+        "name": "Sen",
+        "description": "Włącza lub wyłącza tryb snu. Dostępne w trybach chłodzenia i grzania."
       },
       "air": {
-        "name": "Tryb Air"
+        "name": "Świeże powietrze",
+        "description": "Włącza lub wyłącza tryb wpuszczania swieżego powietrza z zewnątrz."
       },
       "auto_xfan": {
-        "name": "Automatyczny X-Fan"
+        "name": "Automatyczny X-Fan",
+        "description": "Automatycznie zarządza trybem X-Fan. Gdy jest włączony, X-Fan automatycznie się włączy w trybie chłodzenia i suszenia."
       },
       "auto_light": {
-        "name": "Automatyczny wyświetlacz"
+        "name": "Automatyczny wyświetlacz",
+        "description": "Automatycznie zarządza wyświetlaczem jednostki wewnętrznej. Włącza go i wyłącza razem z jednostką."
       },
       "anti_direct_blow": {
-        "name": "Anty-bezpośredni nawiew"
+        "name": "Ochrony przed bezpośrednim nawiewem",
+        "description": "Zapobiega bezpośredniemu nawiewowi powietrza na osoby przebywające w pomieszczeniu przez regulacje deflektora."
       },
       "light_sensor": {
-        "name": "Czujnik światła"
+        "name": "Czujnik światła",
+        "description": "Włącza lub wyłącza czujnik światła aby dostosować janość wyświetlacza. Wymaga włączonego wyświetlacza."
       },
       "beeper": {
-        "name": "Sygnał dźwiękowy"
+        "name": "Sygnał dźwiękowy",
+        "description": "Włącza lub wyłącza sygnał dźwiękowy przy obsłudze klimatyzatora. Kiedy jest włączony jednostka wydaje dzwięki przy każdej operacji."
       }
     }
   }
