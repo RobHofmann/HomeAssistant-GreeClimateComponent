@@ -81,3 +81,17 @@ The integration can be added from the Home Assistant UI.
 6. *(Optional)* Provide the `uid` parameter (can be sniffed). This is not needed for all devices.
 
 7. *(Optional)* You can set custom icons by modifying the icon translation file `icons.json`. Refer to this documentation: https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/icon-translations/
+
+## Additional Sensors
+
+The integration supports additional sensors if your Gree device has them:
+
+### Outside Temperature Sensor
+If your AC unit has an outside temperature sensor, it will be automatically detected and exposed as:
+- **Climate entity attribute**: `outside_temperature` (accessible via `{{ state_attr('climate.your_ac', 'outside_temperature') }}`)
+- **Separate sensor entity**: `sensor.your_ac_outside_temperature`
+
+### Humidity Sensor  
+If your AC unit has a built-in humidity sensor, it will be automatically detected and exposed as:
+- **Climate entity attribute**: `room_humidity` (accessible via `{{ state_attr('climate.your_ac', 'room_humidity') }}`)
+- **Separate sensor entity**: `sensor.your_ac_humidity`
