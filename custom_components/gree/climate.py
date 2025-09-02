@@ -164,7 +164,7 @@ class GreeClimate(ClimateEntity):
         else:
             self._sub_mac_addr = self._mac_addr = mac_addr_str
         self._timeout = timeout
-        self._unique_id = f"{DOMAIN}_{self._mac_addr}"
+        self._unique_id = f"{DOMAIN}_{self._sub_mac_addr}"
         self._device_online = None
         self._online_attempts = 0
         self._max_online_attempts = max_online_attempts
