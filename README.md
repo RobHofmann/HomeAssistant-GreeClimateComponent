@@ -13,11 +13,6 @@ Tested on Home Assistant 2025.6.3
 
  To configure HVAC wifi (without the android app): https://github.com/arthurkrupa/gree-hvac-mqtt-bridge#configuring-hvac-wifi
 
-**Sources used:**
- - https://github.com/tomikaa87/gree-remote
- - https://github.com/vpnmaster/homeassistant-custom-components
- - https://developers.home-assistant.io/
-
 ## HACS
 This component is added to HACS default repository list.
 
@@ -95,3 +90,36 @@ If your AC unit has an outside temperature sensor, it will be automatically dete
 If your AC unit has a built-in room humidity sensor, it will be automatically detected and exposed as:
 - **Climate entity attribute**: `room_humidity` (accessible via `{{ state_attr('climate.your_ac', 'room_humidity') }}`)
 - **Separate sensor entity**: `sensor.your_ac_room_humidity`
+
+## Available Switches and Controls
+
+The integration exposes various entities to configure additional features of your Gree AC unit. All entities are created by default when the integration is set up, but their availability depends on the current HVAC mode and status. Entity availability may also vary depending on your specific Gree AC model and firmware version. These controls allow you to toggle special modes and adjust settings:
+
+### Basic Control Switches
+- **X-Fan**: Enables or disables the X-Fan mode for extra drying when turning off
+- **Lights**: Controls the display lights on the air conditioner unit  
+- **Health**: Enables or disables the Health mode for air ionization and purification
+- **Beeper**: Controls the beeper sounds from the air conditioner unit. When enabled, the unit will make sounds for button presses and status changes
+
+### Energy and Comfort Switches
+- **Power Save**: Enables or disables the power saving mode for energy efficiency. Only available in cooling mode
+- **8°C Heat**: Enables or disables the 8°C heating mode for frost protection. Only available in heating mode
+- **Sleep**: Enables or disables the sleep mode for comfortable overnight operation. Only available in cooling or heating mode
+- **Air**: Enables or disables the fresh air circulation mode
+
+### Advanced Control Switches
+- **Anti Direct Blow**: Prevents direct air flow from blowing on people by adjusting the air deflector position
+- **Light Sensor**: Enables or disables light sensor for automatic brightness. Requires lights to be enabled
+
+### Configuration Controls
+- **Auto X-Fan**: Automatically controls the X-Fan mode based on HVAC operations. When enabled, X-Fan will automatically turn on in cooling and dry modes. *Note: This is an integration feature, not an actual AC unit state*
+- **Auto Light**: Automatically controls the display lights based on HVAC operations. When enabled, lights will turn on/off with the AC unit. *Note: This is an integration feature, not an actual AC unit state*
+- **Temperature Step**: Sets the increment step for adjusting the target temperature. This allows you to configure how much the temperature changes when using the up/down controls in Home Assistant
+- **External Temperature Sensor**: Select a temperature sensor entity to use instead of the built-in AC sensor. Choose 'None' to use the built-in sensor. This is useful if you have a more accurate room temperature sensor that you want the AC to use for temperature readings
+
+## Credits
+
+This project is based on the work of several contributors and projects:
+
+- [gree-remote](https://github.com/tomikaa87/gree-remote) - Gree air conditioner remote control protocol
+- [Home Assistant Developer Documentation](https://developers.home-assistant.io/) - Official development guidelines and best practices
