@@ -197,10 +197,14 @@ class GreeClimate(ClimateEntity):
         self._has_temp_sensor = None
         self._has_anti_direct_blow = None
         self._has_light_sensor = None
+        self._has_outside_temp_sensor = None
+        self._has_room_humidity_sensor = None
 
         self._current_temperature = None
         self._current_anti_direct_blow = None
         self._current_light_sensor = None
+        self._current_outside_temperature = None
+        self._current_room_humidity = None
 
         self._firstTimeRun = True
 
@@ -419,6 +423,42 @@ class GreeClimate(ClimateEntity):
 
             _LOGGER.debug("method UpdateHACurrentTemperature: HA current temperature set with device built-in temperature sensor state : " + str(self._current_temperature) + str(self._unit_of_measurement))
 
+    def UpdateHAOutsideTemperature(self):
+        # Update outside temperature from built-in AC outside temperature sensor if available
+        if self._has_outside_temp_sensor:
+            _LOGGER.debug("method UpdateHAOutsideTemperature: OutEnvTem: " + str(self._acOptions["OutEnvTem"]))
+
+            if self._temp_sensor_offset is None:  # user hasn't chosen an offset
+                # User hasn't set automatically, so try to determine the offset
+                temp_c = self._process_temp_sensor(self._acOptions["OutEnvTem"])
+                _LOGGER.debug("method UpdateHAOutsideTemperature: User has not chosen an offset, using process_temp_sensor() to automatically determine offset.")
+            else:
+                # User set
+                if self._temp_sensor_offset is True:
+                    temp_c = self._acOptions["OutEnvTem"] - TEMSEN_OFFSET
+                elif self._temp_sensor_offset is False:
+                    temp_c = self._acOptions["OutEnvTem"]
+
+                _LOGGER.debug(f"method UpdateHAOutsideTemperature: User has chosen an offset ({self._temp_sensor_offset})")
+
+            temp_f = gree_c_to_f(SetTem=temp_c, TemRec=0)  # Convert to Fahrenheit using TemRec bit
+
+            if self._unit_of_measurement == "°C":
+                self._current_outside_temperature = temp_c
+            elif self._unit_of_measurement == "°F":
+                self._current_outside_temperature = temp_f
+            else:
+                _LOGGER.error("Unknown unit of measurement for outside temperature: %s" % self._unit_of_measurement)
+
+            _LOGGER.debug("method UpdateHAOutsideTemperature: HA outside temperature set with device built-in outside temperature sensor state : " + str(self._current_outside_temperature) + str(self._unit_of_measurement))
+
+    def UpdateHARoomHumidity(self):
+        # Update room humidity from built-in AC room humidity sensor if available
+        if self._has_room_humidity_sensor:
+            _LOGGER.debug("method UpdateHARoomHumidity: DwatSen: " + str(self._acOptions["DwatSen"]))
+            self._current_room_humidity = self._acOptions["DwatSen"]
+            _LOGGER.debug("method UpdateHARoomHumidity: HA room humidity set with device built-in room humidity sensor state : " + str(self._current_room_humidity) + "%")
+
     def UpdateHAStateToCurrentACState(self):
         self.UpdateHATargetTemperature()
         self.UpdateHAHvacMode()
@@ -428,6 +468,8 @@ class GreeClimate(ClimateEntity):
             self.UpdateHACurrentSwingHorizontalMode()
         self.UpdateHAFanMode()
         self.UpdateHACurrentTemperature()
+        self.UpdateHAOutsideTemperature()
+        self.UpdateHARoomHumidity()
 
     def SyncState(self, acOptions={}):
         # Fetch current settings from HVAC
@@ -482,6 +524,40 @@ class GreeClimate(ClimateEntity):
                 else:
                     self._has_light_sensor = False
                     _LOGGER.debug("Device has no built-in light sensor")
+
+        # Check if device has outside temperature sensor
+        if self._has_outside_temp_sensor is None:
+            _LOGGER.debug("Attempt to check whether device has an outside temperature sensor")
+            try:
+                outside_temp_sensor = self.GreeGetValues(["OutEnvTem"])
+            except Exception:
+                _LOGGER.debug("Could not determine whether device has an outside temperature sensor. Retrying at next update()")
+            else:
+                if outside_temp_sensor:
+                    self._has_outside_temp_sensor = True
+                    self._acOptions.update({"OutEnvTem": None})
+                    self._optionsToFetch.append("OutEnvTem")
+                    _LOGGER.debug("Device has an outside temperature sensor")
+                else:
+                    self._has_outside_temp_sensor = False
+                    _LOGGER.debug("Device has no outside temperature sensor")
+
+        # Check if device has room humidity sensor
+        if self._has_room_humidity_sensor is None:
+            _LOGGER.debug("Attempt to check whether device has a room humidity sensor")
+            try:
+                humidity_sensor = self.GreeGetValues(["DwatSen"])
+            except Exception:
+                _LOGGER.debug("Could not determine whether device has a room humidity sensor. Retrying at next update()")
+            else:
+                if humidity_sensor:
+                    self._has_room_humidity_sensor = True
+                    self._acOptions.update({"DwatSen": None})
+                    self._optionsToFetch.append("DwatSen")
+                    _LOGGER.debug("Device has a room humidity sensor")
+                else:
+                    self._has_room_humidity_sensor = False
+                    _LOGGER.debug("Device has no room humidity sensor")
 
         optionsToFetch = self._optionsToFetch
 
@@ -692,6 +768,37 @@ class GreeClimate(ClimateEntity):
             name=self._name,
             manufacturer="Gree",
         )
+
+    @property
+    def outside_temperature(self):
+        """Return the outside temperature if available."""
+        if self._has_outside_temp_sensor:
+            _LOGGER.debug("outside_temperature(): " + str(self._current_outside_temperature))
+            return self._current_outside_temperature
+        return None
+
+    @property
+    def room_humidity(self):
+        """Return the current room humidity if available."""
+        if self._has_room_humidity_sensor:
+            _LOGGER.debug("room_humidity(): " + str(self._current_room_humidity))
+            return self._current_room_humidity
+        return None
+
+    @property
+    def extra_state_attributes(self):
+        """Return additional state attributes."""
+        attributes = {}
+
+        if self.outside_temperature is not None:
+            attributes["outside_temperature"] = self.outside_temperature
+            attributes["outside_temperature_unit"] = self._unit_of_measurement
+
+        if self.room_humidity is not None:
+            attributes["room_humidity"] = self.room_humidity
+            attributes["humidity_unit"] = "%"
+
+        return attributes if attributes else None
 
     def set_temperature(self, **kwargs):
         s = kwargs.get(ATTR_TEMPERATURE)
