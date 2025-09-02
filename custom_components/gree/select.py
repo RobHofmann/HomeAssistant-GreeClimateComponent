@@ -40,8 +40,13 @@ def get_temperature_sensor_options(hass: HomeAssistant) -> list[str]:
     # Get all entities from the registry
     for state in hass.states.async_all():
         # Look for temperature sensors
-        if state.entity_id.startswith("sensor.") and state.attributes.get("device_class") == "temperature":
-            options.append(state.entity_id)
+        if state.entity_id.startswith("sensor."):
+            # Check for explicit device_class
+            if state.attributes.get("device_class") == "temperature":
+                options.append(state.entity_id)
+            # Also check for temperature units as fallback for helpers/combined sensors
+            elif state.attributes.get("unit_of_measurement") in ["°C", "°F", "K"]:
+                options.append(state.entity_id)
 
     return options
 
