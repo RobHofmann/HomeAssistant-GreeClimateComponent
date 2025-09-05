@@ -42,6 +42,7 @@ from .const import (
     DOMAIN,
     OPTION_KEYS,
 )
+from .gree_protocol import test_connection
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -59,8 +60,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
         if user_input is not None:
             self._data.update(user_input)
-
-            from .gree_protocol import test_connection
 
             is_connection_valid = await test_connection(self._data)
             if not is_connection_valid:
