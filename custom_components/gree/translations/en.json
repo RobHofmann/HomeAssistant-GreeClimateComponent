@@ -1,5 +1,8 @@
 {
   "config": {
+    "error": {
+      "cannot_connect": "Unable to connect to the device. Please check the network connection and try again."
+    },
     "title": "Gree Climate",
     "description": "Configure your Gree air conditioner",
     "step": {
