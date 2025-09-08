@@ -207,7 +207,7 @@ class GreeSwitchEntity(GreeEntity, SwitchEntity, RestoreEntity):
             last_state = await self.async_get_last_state()
             if last_state is not None:
                 value = last_state.state == "on"
-                setattr(self._device, f"_{self.entity_description.property_key}", value)
+                await self.entity_description.set_fn(self._device, value)
                 self._attr_is_on = value
                 self._restored = True
 
