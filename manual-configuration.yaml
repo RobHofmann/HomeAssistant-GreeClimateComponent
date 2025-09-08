@@ -23,9 +23,6 @@ gree:
     # Port number to connect to the device (optional, defaults to 7000)
     # port: 7000
     
-    # Connection timeout in seconds (optional, defaults to 10)
-    # timeout: 10
-    
     # Custom encryption key (optional, auto-fetched if empty)
     # If you have extracted your encryption key, you can specify it here
     # encryption_key: "A1B2C3D4E5F6"
@@ -84,10 +81,7 @@ gree:
     #   - "fixed_middle"
     #   - "fixed_middle_right"
     #   - "fixed_rightmost"
-    
-    # Retry limit before marking unavailable (optional, defaults to 3)
-    # max_online_attempts: 3
-    
+          
     # Keep AC always available in HA (optional, defaults to false)
     # Disables connection checking - useful for devices that don't respond reliably
     # disable_available_check: false

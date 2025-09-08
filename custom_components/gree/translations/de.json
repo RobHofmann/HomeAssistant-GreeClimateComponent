@@ -9,7 +9,6 @@
           "host": "IP-Adresse",
           "port": "Port",
           "mac": "MAC-Adresse",
-          "timeout": "Zeitüberschreitung",
           "encryption_key": "Verschlüsselungsschlüssel",
           "uid": "UID",
           "encryption_version": "Verschlüsselungsversion"
@@ -21,7 +20,6 @@
       "host": "IP-Adresse",
       "port": "Port",
       "mac": "MAC-Adresse",
-      "timeout": "Zeitüberschreitung",
       "hvac_modes" : "HVAC-Modi",
       "fan_modes" : "Lüftermodi",
       "swing_modes" : "Vertikale Swing-Modi",
@@ -30,7 +28,6 @@
       "uid": "UID",
       "encryption_version": "Verschlüsselungsversion",
       "disable_available_check": "Verfügbarkeitsprüfung deaktivieren",
-      "max_online_attempts": "Maximale Online-Versuche",
       "temp_sensor_offset": "Temperatursensor-Offset"
     }
   },
@@ -44,7 +41,6 @@
           "swing_modes" : "Vertikale Swing-Modi",
           "swing_horizontal_modes" : "Horizontale Swing-Modi",
           "disable_available_check": "Verfügbarkeitsprüfung deaktivieren",
-          "max_online_attempts": "Maximale Online-Versuche",
           "temp_sensor_offset": "Temperatursensor-Offset"
         }
       }
