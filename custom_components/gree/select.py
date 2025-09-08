@@ -98,25 +98,19 @@ class GreeSelectEntity(GreeEntity, SelectEntity, RestoreEntity):
         if self.entity_description.options_fn:
             self._attr_options = self.entity_description.options_fn(self._hass)
 
+        # Restore the last selected state if available
         if self.entity_description.restore_state:
             restored = await self.async_get_last_state()
-            if restored and restored.state not in ("unknown", "unavailable"):
-                # Restore the external temperature sensor entity ID
-                if restored.state in self._attr_options:
-                    if self.entity_description.set_fn:
-                        self.entity_description.set_fn(self._device, restored.state)
-                    _LOGGER.debug("Restored %s state: %s", self.entity_id, restored.state)
-                else:
-                    _LOGGER.warning("Restored state %s not in current options, resetting to None", restored.state)
-                    if self.entity_description.set_fn:
-                        self.entity_description.set_fn(self._device, "None")
+            if restored and self.entity_description.set_fn:
+                self.entity_description.set_fn(self._device, restored.state)
+                _LOGGER.debug("Restored %s state: %s", self.entity_id, restored.state)
 
     @property
     def current_option(self) -> str:
         """Return the current selected option."""
         if self.entity_description.value_fn:
             value = self.entity_description.value_fn(self._device)
-            return value if value in self._attr_options else "None"
+            return value or "None"
         return "None"
 
     async def async_select_option(self, option: str) -> None:
