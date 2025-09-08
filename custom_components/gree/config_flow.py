@@ -15,7 +15,6 @@ from homeassistant.const import (
     CONF_MAC,
     CONF_NAME,
     CONF_PORT,
-    CONF_TIMEOUT,
 )
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
@@ -28,7 +27,6 @@ from .const import (
     CONF_ENCRYPTION_VERSION,
     CONF_FAN_MODES,
     CONF_HVAC_MODES,
-    CONF_MAX_ONLINE_ATTEMPTS,
     CONF_SWING_HORIZONTAL_MODES,
     CONF_SWING_MODES,
     CONF_TEMP_SENSOR_OFFSET,
@@ -38,7 +36,6 @@ from .const import (
     DEFAULT_PORT,
     DEFAULT_SWING_HORIZONTAL_MODES,
     DEFAULT_SWING_MODES,
-    DEFAULT_TIMEOUT,
     DOMAIN,
     OPTION_KEYS,
 )
@@ -75,7 +72,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_HOST, default=defaults.get(CONF_HOST, "")): str,
                 vol.Required(CONF_MAC, default=defaults.get(CONF_MAC, "")): str,
                 vol.Required(CONF_PORT, default=defaults.get(CONF_PORT, DEFAULT_PORT)): int,
-                vol.Optional(CONF_TIMEOUT, default=defaults.get(CONF_TIMEOUT, DEFAULT_TIMEOUT)): int,
                 vol.Optional(CONF_ENCRYPTION_KEY, default=defaults.get(CONF_ENCRYPTION_KEY, "")): str,
                 vol.Optional(CONF_UID): int,
                 vol.Optional(CONF_ENCRYPTION_VERSION, default=defaults.get(CONF_ENCRYPTION_VERSION, 1)): int,
@@ -145,10 +141,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_DISABLE_AVAILABLE_CHECK,
                     default=options.get(CONF_DISABLE_AVAILABLE_CHECK, False),
                 ): bool,
-                vol.Optional(
-                    CONF_MAX_ONLINE_ATTEMPTS,
-                    default=options.get(CONF_MAX_ONLINE_ATTEMPTS, 3),
-                ): int,
                 vol.Optional(
                     CONF_TEMP_SENSOR_OFFSET,
                     description={"suggested_value": options.get(CONF_TEMP_SENSOR_OFFSET)},

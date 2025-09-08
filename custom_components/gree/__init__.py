@@ -15,7 +15,6 @@ from homeassistant.const import (
     CONF_MAC,
     CONF_NAME,
     CONF_PORT,
-    CONF_TIMEOUT,
     Platform,
 )
 from homeassistant.core import HomeAssistant
@@ -29,7 +28,6 @@ from .const import (
     CONF_ENCRYPTION_VERSION,
     CONF_FAN_MODES,
     CONF_HVAC_MODES,
-    CONF_MAX_ONLINE_ATTEMPTS,
     CONF_SWING_HORIZONTAL_MODES,
     CONF_SWING_MODES,
     CONF_TEMP_SENSOR_OFFSET,
@@ -39,7 +37,6 @@ from .const import (
     DEFAULT_PORT,
     DEFAULT_SWING_HORIZONTAL_MODES,
     DEFAULT_SWING_MODES,
-    DEFAULT_TIMEOUT,
     DOMAIN,
     OPTION_KEYS,
 )
@@ -54,7 +51,6 @@ CLIMATE_SCHEMA = vol.Schema(
         vol.Required(CONF_HOST): cv.string,
         vol.Required(CONF_MAC): cv.string,
         vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
-        vol.Optional(CONF_TIMEOUT, default=DEFAULT_TIMEOUT): cv.positive_int,
         vol.Optional(CONF_ENCRYPTION_KEY): cv.string,
         vol.Optional(CONF_UID): cv.positive_int,
         vol.Optional(CONF_ENCRYPTION_VERSION, default=1): vol.In([1, 2]),
@@ -62,7 +58,6 @@ CLIMATE_SCHEMA = vol.Schema(
         vol.Optional(CONF_FAN_MODES, default=DEFAULT_FAN_MODES): vol.All(cv.ensure_list, [cv.string]),
         vol.Optional(CONF_SWING_MODES, default=DEFAULT_SWING_MODES): vol.All(cv.ensure_list, [cv.string]),
         vol.Optional(CONF_SWING_HORIZONTAL_MODES, default=DEFAULT_SWING_HORIZONTAL_MODES): vol.All(cv.ensure_list, [cv.string]),
-        vol.Optional(CONF_MAX_ONLINE_ATTEMPTS, default=3): cv.positive_int,
         vol.Optional(CONF_DISABLE_AVAILABLE_CHECK, default=False): cv.boolean,
         vol.Optional(CONF_TEMP_SENSOR_OFFSET): cv.boolean,
     }
