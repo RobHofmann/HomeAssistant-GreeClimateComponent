@@ -42,6 +42,7 @@ from .const import (
     DOMAIN,
     OPTION_KEYS,
 )
+from .gree_protocol import test_connection
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,23 +57,31 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input: dict | None = None) -> FlowResult:
         """Handle the initial step."""
+        errors = {}
         if user_input is not None:
             self._data.update(user_input)
-            return self.async_create_entry(title=user_input.get(CONF_NAME) or "Gree Climate", data=self._data)
 
+            is_connection_valid = await test_connection(self._data)
+            if not is_connection_valid:
+                errors["base"] = "cannot_connect"
+            else:
+                return self.async_create_entry(title=user_input[CONF_NAME], data=self._data)
+
+        # Set defaults from user_input if present, else use hardcoded defaults
+        defaults = user_input or {}
         data_schema = vol.Schema(
             {
-                vol.Required(CONF_NAME): str,
-                vol.Required(CONF_HOST): str,
-                vol.Required(CONF_MAC): str,
-                vol.Required(CONF_PORT, default=DEFAULT_PORT): int,
-                vol.Optional(CONF_TIMEOUT, default=DEFAULT_TIMEOUT): int,
-                vol.Optional(CONF_ENCRYPTION_KEY): str,
+                vol.Required(CONF_NAME, default=defaults.get(CONF_NAME, "")): str,
+                vol.Required(CONF_HOST, default=defaults.get(CONF_HOST, "")): str,
+                vol.Required(CONF_MAC, default=defaults.get(CONF_MAC, "")): str,
+                vol.Required(CONF_PORT, default=defaults.get(CONF_PORT, DEFAULT_PORT)): int,
+                vol.Optional(CONF_TIMEOUT, default=defaults.get(CONF_TIMEOUT, DEFAULT_TIMEOUT)): int,
+                vol.Optional(CONF_ENCRYPTION_KEY, default=defaults.get(CONF_ENCRYPTION_KEY, "")): str,
                 vol.Optional(CONF_UID): int,
-                vol.Optional(CONF_ENCRYPTION_VERSION, default=1): int,
+                vol.Optional(CONF_ENCRYPTION_VERSION, default=defaults.get(CONF_ENCRYPTION_VERSION, 1)): int,
             }
         )
-        return self.async_show_form(step_id="user", data_schema=data_schema)
+        return self.async_show_form(step_id="user", data_schema=data_schema, errors=errors)
 
     async def async_step_import(self, import_data: dict) -> FlowResult:
         """Handle configuration via YAML import."""

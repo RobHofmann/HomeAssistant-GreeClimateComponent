@@ -14,6 +14,15 @@ except ImportError:
     import json as simplejson
 from Crypto.Cipher import AES
 
+# Home Assistant imports
+from homeassistant.const import CONF_HOST, CONF_PORT, CONF_TIMEOUT
+
+# Local imports
+from .const import (
+    CONF_ENCRYPTION_VERSION,
+    CONF_ENCRYPTION_KEY,
+)
+
 _LOGGER = logging.getLogger(__name__)
 
 GCM_IV = b"\x54\x40\x78\x44\x49\x67\x5a\x51\x6c\x5e\x63\x13"
@@ -47,18 +56,43 @@ def FetchResult(cipher, ip_addr, port, timeout, json_data, encryption_version=1)
     return loadedJsonPack
 
 
+async def test_connection(config):
+    """Test connection to a Gree device."""
+
+    ip_addr = config[CONF_HOST]
+    port = config[CONF_PORT]
+    timeout = config[CONF_TIMEOUT]
+    encryption_version = config[CONF_ENCRYPTION_VERSION]
+    encryption_key = config[CONF_ENCRYPTION_KEY]
+
+    _LOGGER.debug("test_connection: host=%s, port=%s, timeout=%s, encryption_version=%s, encryption_key=%s", ip_addr, port, timeout, encryption_version, encryption_key)
+
+    try:
+        if encryption_version == 1:
+            key = GetDeviceKey(encryption_key, ip_addr, port, timeout)
+        else:
+            key = GetDeviceKeyGCM(encryption_key, ip_addr, port, timeout)
+        _LOGGER.debug("test_connection: Got device key: %s", key)
+        return key is not None
+    except Exception as e:
+        _LOGGER.error("Gree device at %s is unreachable: %s: %s", ip_addr, type(e).__name__, e, exc_info=True)
+        return False
+
+
 def GetDeviceKey(mac_addr, ip_addr, port, timeout):
-    _LOGGER.info("Retrieving HVAC encryption key")
+    _LOGGER.debug("Retrieving HVAC encryption key")
     cipher = AES.new(GENERIC_GREE_DEVICE_KEY.encode("utf8"), AES.MODE_ECB)
     pack = base64.b64encode(cipher.encrypt(Pad('{"mac":"' + str(mac_addr) + '","t":"bind","uid":0}').encode("utf8"))).decode("utf-8")
     jsonPayloadToSend = '{"cid": "app","i": 1,"pack": "' + pack + '","t":"pack","tcid":"' + str(mac_addr) + '","uid": 0}'
     try:
-        key = FetchResult(cipher, ip_addr, port, timeout, jsonPayloadToSend)["key"].encode("utf8")
+        result = FetchResult(cipher, ip_addr, port, timeout, jsonPayloadToSend)
+        _LOGGER.debug(f"GetDeviceKey: FetchResult: {result}")
+        key = result["key"].encode("utf8")
     except Exception:
-        _LOGGER.info("Error getting device encryption key!")
+        _LOGGER.debug("Error getting device encryption key!")
         return None
     else:
-        _LOGGER.info("Fetched device encryption key: %s" % str(key))
+        _LOGGER.debug("Fetched device encryption key: %s" % str(key))
         return key
 
 
@@ -77,15 +111,17 @@ def EncryptGCM(key, plaintext):
 
 
 def GetDeviceKeyGCM(mac_addr, ip_addr, port, timeout):
-    _LOGGER.info("Retrieving HVAC encryption key (GCM)")
+    _LOGGER.debug("Retrieving HVAC encryption key (GCM)")
     plaintext = '{"cid":"' + str(mac_addr) + '", "mac":"' + str(mac_addr) + '","t":"bind","uid":0}'
     pack, tag = EncryptGCM(GENERIC_GREE_DEVICE_KEY_GCM, plaintext)
     jsonPayloadToSend = '{"cid": "app","i": 1,"pack": "' + pack + '","t":"pack","tcid":"' + str(mac_addr) + '","uid": 0, "tag" : "' + tag + '"}'
     try:
-        key = FetchResult(GetGCMCipher(GENERIC_GREE_DEVICE_KEY_GCM), ip_addr, port, timeout, jsonPayloadToSend, encryption_version=2)["key"].encode("utf8")
+        result = FetchResult(GetGCMCipher(GENERIC_GREE_DEVICE_KEY_GCM), ip_addr, port, timeout, jsonPayloadToSend, encryption_version=2)
+        _LOGGER.debug(f"GetDeviceKeyGCM: FetchResult: {result}")
+        key = result["key"].encode("utf8")
     except Exception:
-        _LOGGER.info("Error getting device encryption key!")
+        _LOGGER.debug("Error getting device encryption key!")
         return None
     else:
-        _LOGGER.info("Fetched device encryption key: %s" % str(key))
+        _LOGGER.debug("Fetched device encryption key: %s" % str(key))
         return key
