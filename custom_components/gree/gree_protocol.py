@@ -16,7 +16,7 @@ except ImportError:
 from Crypto.Cipher import AES
 
 # Home Assistant imports
-from homeassistant.const import CONF_HOST, CONF_PORT
+from homeassistant.const import CONF_HOST, CONF_PORT, CONF_MAC
 
 # Local imports
 from .const import (
@@ -105,13 +105,17 @@ async def test_connection(config):
     encryption_version = config[CONF_ENCRYPTION_VERSION]
     encryption_key = config[CONF_ENCRYPTION_KEY]
 
-    _LOGGER.debug(f"test_connection: host={ip_addr}, port={port}, timeout=10, encryption_version={encryption_version}, encryption_key={encryption_key}")
+    mac_addr = config.get(CONF_MAC).encode().replace(b":", b"").decode("utf-8").lower()
+    if "@" in mac_addr:
+        mac_addr = mac_addr.split("@", 1)[0]
+
+    _LOGGER.debug(f"test_connection: host={ip_addr}, port={port}, mac={mac_addr}, encryption_version={encryption_version}, encryption_key={encryption_key}")
 
     try:
         if encryption_version == 1:
-            key = await GetDeviceKey(encryption_key, ip_addr, port)
+            key = await GetDeviceKey(mac_addr, ip_addr, port)
         else:
-            key = await GetDeviceKeyGCM(encryption_key, ip_addr, port)
+            key = await GetDeviceKeyGCM(mac_addr, ip_addr, port)
         _LOGGER.debug(f"test_connection: Got device key: {key}")
         return key is not None
     except Exception as e:
@@ -122,8 +126,8 @@ async def test_connection(config):
 async def GetDeviceKey(mac_addr, ip_addr, port):
     _LOGGER.debug("Retrieving HVAC encryption key")
     cipher = AES.new(GENERIC_GREE_DEVICE_KEY.encode("utf8"), AES.MODE_ECB)
-    pack = base64.b64encode(cipher.encrypt(Pad('{"mac":"' + str(mac_addr) + '","t":"bind","uid":0}').encode("utf8"))).decode("utf-8")
-    jsonPayloadToSend = '{"cid": "app","i": 1,"pack": "' + pack + '","t":"pack","tcid":"' + str(mac_addr) + '","uid": 0}'
+    pack = base64.b64encode(cipher.encrypt(Pad(f'{{"mac":"{mac_addr}","t":"bind","uid":0}}').encode("utf8"))).decode("utf-8")
+    jsonPayloadToSend = f'{{"cid": "app","i": 1,"pack": "{pack}","t":"pack","tcid":"{mac_addr}","uid": 0}}'
     try:
         result = await FetchResult(cipher, ip_addr, port, jsonPayloadToSend)
         _LOGGER.debug(f"GetDeviceKey: FetchResult: {result}")
@@ -152,9 +156,9 @@ def EncryptGCM(key, plaintext):
 
 async def GetDeviceKeyGCM(mac_addr, ip_addr, port):
     _LOGGER.debug("Retrieving HVAC encryption key (GCM)")
-    plaintext = '{"cid":"' + str(mac_addr) + '", "mac":"' + str(mac_addr) + '","t":"bind","uid":0}'
+    plaintext = f'{{"cid":"{mac_addr}", "mac":"{mac_addr}","t":"bind","uid":0}}'
     pack, tag = EncryptGCM(GENERIC_GREE_DEVICE_KEY_GCM, plaintext)
-    jsonPayloadToSend = '{"cid": "app","i": 1,"pack": "' + pack + '","t":"pack","tcid":"' + str(mac_addr) + '","uid": 0, "tag" : "' + tag + '"}'
+    jsonPayloadToSend = f'{{"cid": "app","i": 1,"pack": "{pack}","t":"pack","tcid":"{mac_addr}","uid": 0, "tag" : "{tag}"}}'
     try:
         result = await FetchResult(GetGCMCipher(GENERIC_GREE_DEVICE_KEY_GCM), ip_addr, port, jsonPayloadToSend, encryption_version=2)
         _LOGGER.debug(f"GetDeviceKeyGCM: FetchResult: {result}")
