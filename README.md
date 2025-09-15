@@ -9,9 +9,20 @@ Tested on Home Assistant 2025.6.3
 
 **If you are experiencing issues please be sure to provide details about your device, Home Assistant version and what exactly went wrong.**
 
- If your HVAC has already been configured to be controlled remotely by an android app, the encryption key might have changed.
+This integration connects directly to your HVAC devices via their IP address on the local network, unlike the official mobile app, which establish a direct connection only during initial setup and subsequently operate through Gree’s servers.
+The integration attempts to obtain the encryption key by the initial setup protocol, which has been reverse-engineered.
 
- To configure HVAC wifi (without the android app): https://github.com/arthurkrupa/gree-hvac-mqtt-bridge#configuring-hvac-wifi
+Official mobile applications:
+- [Gree+ Android App](https://play.google.com/store/apps/details?id=com.gree.greeplus)
+- [Gree+ iOS App](https://apps.apple.com/app/gree/id1167857672)
+- [EWPE Smart Android App](https://play.google.com/store/apps/details?id=com.gree.ewpesmart)
+- [EWPE Smart iOS App](https://apps.apple.com/app/ewpe-smart/id1189467454)
+
+If your HVAC device was previously set up for remote access using a mobile app, the integration may fail to retrieve the encryption key automatically.
+
+To extract encryption keys from an account on Gree’s cloud server: https://github.com/luc10/gree-api-client
+
+To configure HVAC wifi (without the mobile app): https://github.com/arthurkrupa/gree-hvac-mqtt-bridge#configuring-hvac-wifi
 
 ## HACS
 This component is added to HACS default repository list.
