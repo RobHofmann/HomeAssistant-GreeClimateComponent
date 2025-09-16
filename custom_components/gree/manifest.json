@@ -9,7 +9,8 @@
   ],
   "requirements": [
     "pycryptodome",
-    "aiofiles"
+    "aiofiles",
+    "asyncio_dgram"
   ],
   "config_flow": true
 }

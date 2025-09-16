@@ -21,13 +21,13 @@ from homeassistant.helpers.restore_state import RestoreEntity
 
 # Local imports
 from .const import DEFAULT_TARGET_TEMP_STEP
-from .entity import GreeEntity, GreeEntityDescription
+from .entity import OldGreeEntity, OldGreeEntityDescription
 
 _LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
-class GreeNumberEntityDescription(GreeEntityDescription, NumberEntityDescription):
+class GreeNumberEntityDescription(OldGreeEntityDescription, NumberEntityDescription):
     set_fn: Callable[[object, float], None] = None
     restore_state: bool = False
 
@@ -40,7 +40,9 @@ NUMBERS: tuple[GreeNumberEntityDescription, ...] = (
         native_max_value=5.0,
         native_step=0.1,
         mode=NumberMode.SLIDER,
-        value_fn=lambda device: getattr(device, "_target_temperature_step", DEFAULT_TARGET_TEMP_STEP),
+        value_fn=lambda device: getattr(
+            device, "_target_temperature_step", DEFAULT_TARGET_TEMP_STEP
+        ),
         set_fn=lambda device, value: setattr(device, "_target_temperature_step", value),
         entity_category=EntityCategory.CONFIG,
         restore_state=True,
@@ -54,10 +56,12 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Gree number entities based on a config entry."""
-    async_add_entities(GreeNumberEntity(hass, entry, description) for description in NUMBERS)
+    async_add_entities(
+        GreeNumberEntity(hass, entry, description) for description in NUMBERS
+    )
 
 
-class GreeNumberEntity(GreeEntity, NumberEntity, RestoreEntity):
+class GreeNumberEntity(OldGreeEntity, NumberEntity, RestoreEntity):
     """Defines a Gree number entity."""
 
     entity_description: GreeNumberEntityDescription
@@ -71,12 +75,23 @@ class GreeNumberEntity(GreeEntity, NumberEntity, RestoreEntity):
         await super().async_added_to_hass()
         if self.entity_description.restore_state:
             last_state = await self.async_get_last_state()
-            if last_state is not None and last_state.state not in ["unknown", "unavailable"]:
+            if last_state is not None and last_state.state not in [
+                "unknown",
+                "unavailable",
+            ]:
                 try:
                     value = float(last_state.state)
                     # Validate the value is within the entity's range
-                    if self.entity_description.native_min_value <= value <= self.entity_description.native_max_value:
-                        setattr(self._device, f"_{self.entity_description.property_key}", value)
+                    if (
+                        self.entity_description.native_min_value
+                        <= value
+                        <= self.entity_description.native_max_value
+                    ):
+                        setattr(
+                            self._device,
+                            f"_{self.entity_description.property_key}",
+                            value,
+                        )
                         self._attr_native_value = value
                         self._restored = True
                 except (ValueError, TypeError):
@@ -86,12 +101,18 @@ class GreeNumberEntity(GreeEntity, NumberEntity, RestoreEntity):
     @property
     def native_value(self):
         if self.entity_description.restore_state:
-            return getattr(self, "_attr_native_value", self.entity_description.value_fn(self._device))
+            return getattr(
+                self,
+                "_attr_native_value",
+                self.entity_description.value_fn(self._device),
+            )
         return self.entity_description.value_fn(self._device)
 
     async def async_set_native_value(self, value: float) -> None:
         if self.entity_description.set_fn:
-            await self.hass.async_add_executor_job(self.entity_description.set_fn, self._device, value)
+            await self.hass.async_add_executor_job(
+                self.entity_description.set_fn, self._device, value
+            )
         if self.entity_description.restore_state:
             self._attr_native_value = value
         self.async_write_ha_state()

@@ -9,6 +9,7 @@
           "host": "IP 地址",
           "port": "端口",
           "mac": "MAC 地址",
+          "timeout": "超时",
           "encryption_key": "加密密钥",
           "uid": "UID",
           "encryption_version": "加密版本"
@@ -20,6 +21,7 @@
       "host": "IP 地址",
       "port": "端口",
       "mac": "MAC 地址",
+      "timeout": "超时",
       "hvac_modes": "空调模式",
       "fan_modes": "风速模式",
       "swing_modes": "垂直扫风模式",
@@ -28,6 +30,7 @@
       "uid": "UID",
       "encryption_version": "加密版本",
       "disable_available_check": "禁用可用性检查",
+      "max_online_attempts": "最大在线尝试次数",
       "temp_sensor_offset": "温度传感器偏移"
     }
   },
@@ -41,6 +44,7 @@
           "swing_modes": "垂直扫风模式",
           "swing_horizontal_modes": "水平扫风模式",
           "disable_available_check": "禁用可用性检查",
+          "max_online_attempts": "最大在线尝试次数",
           "temp_sensor_offset": "温度传感器偏移"
         }
       }

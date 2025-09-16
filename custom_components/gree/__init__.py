@@ -3,45 +3,62 @@
 from __future__ import annotations
 
 # Standard library imports
+import asyncio
 import logging
 
 # Third-party imports
 import voluptuous as vol
 
-# Home Assistant imports
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_HOST,
     CONF_MAC,
     CONF_NAME,
     CONF_PORT,
+    CONF_TIMEOUT,
     Platform,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
 # Local imports
 from .const import (
+    CONF_ADVANCED,
     CONF_DISABLE_AVAILABLE_CHECK,
     CONF_ENCRYPTION_KEY,
     CONF_ENCRYPTION_VERSION,
     CONF_FAN_MODES,
     CONF_HVAC_MODES,
+    CONF_MAX_ONLINE_ATTEMPTS,
     CONF_SWING_HORIZONTAL_MODES,
     CONF_SWING_MODES,
     CONF_TEMP_SENSOR_OFFSET,
     CONF_UID,
+    DEFAULT_ENCRYPTION_VERSION,
     DEFAULT_FAN_MODES,
     DEFAULT_HVAC_MODES,
+    DEFAULT_MAX_ONLINE_ATTEMPTS,
     DEFAULT_PORT,
     DEFAULT_SWING_HORIZONTAL_MODES,
     DEFAULT_SWING_MODES,
+    DEFAULT_TIMEOUT,
     DOMAIN,
     OPTION_KEYS,
 )
 
-PLATFORMS = [Platform.CLIMATE, Platform.SWITCH, Platform.NUMBER, Platform.SELECT, Platform.SENSOR]
+# Home Assistant imports
+from .coordinator import GreeConfigEntry, GreeCoordinator
+from .gree_device import GreeDevice, GreeDeviceNotBoundError
+
+PLATFORMS = [
+    Platform.CLIMATE,
+    Platform.NUMBER,
+    Platform.SELECT,
+    Platform.SENSOR,
+    Platform.SWITCH,
+]
 _LOGGER = logging.getLogger(__name__)
 
 # YAML configuration schema
@@ -51,19 +68,31 @@ CLIMATE_SCHEMA = vol.Schema(
         vol.Required(CONF_HOST): cv.string,
         vol.Required(CONF_MAC): cv.string,
         vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
+        vol.Optional(CONF_TIMEOUT, default=DEFAULT_TIMEOUT): cv.positive_int,
         vol.Optional(CONF_ENCRYPTION_KEY): cv.string,
         vol.Optional(CONF_UID): cv.positive_int,
         vol.Optional(CONF_ENCRYPTION_VERSION, default=1): vol.In([1, 2]),
-        vol.Optional(CONF_HVAC_MODES, default=DEFAULT_HVAC_MODES): vol.All(cv.ensure_list, [cv.string]),
-        vol.Optional(CONF_FAN_MODES, default=DEFAULT_FAN_MODES): vol.All(cv.ensure_list, [cv.string]),
-        vol.Optional(CONF_SWING_MODES, default=DEFAULT_SWING_MODES): vol.All(cv.ensure_list, [cv.string]),
-        vol.Optional(CONF_SWING_HORIZONTAL_MODES, default=DEFAULT_SWING_HORIZONTAL_MODES): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional(CONF_HVAC_MODES, default=DEFAULT_HVAC_MODES): vol.All(
+            cv.ensure_list, [cv.string]
+        ),
+        vol.Optional(CONF_FAN_MODES, default=DEFAULT_FAN_MODES): vol.All(
+            cv.ensure_list, [cv.string]
+        ),
+        vol.Optional(CONF_SWING_MODES, default=DEFAULT_SWING_MODES): vol.All(
+            cv.ensure_list, [cv.string]
+        ),
+        vol.Optional(
+            CONF_SWING_HORIZONTAL_MODES, default=DEFAULT_SWING_HORIZONTAL_MODES
+        ): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional(CONF_MAX_ONLINE_ATTEMPTS, default=3): cv.positive_int,
         vol.Optional(CONF_DISABLE_AVAILABLE_CHECK, default=False): cv.boolean,
         vol.Optional(CONF_TEMP_SENSOR_OFFSET): cv.boolean,
     }
 )
 
-CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.All(cv.ensure_list, [CLIMATE_SCHEMA])}, extra=vol.ALLOW_EXTRA)
+CONFIG_SCHEMA = vol.Schema(
+    {DOMAIN: vol.All(cv.ensure_list, [CLIMATE_SCHEMA])}, extra=vol.ALLOW_EXTRA
+)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -83,11 +112,58 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool:
     """Set up Gree from a config entry."""
+
+    _LOGGER.debug("Setting up entry: %s\n%s", entry, entry.data)
+
+    conf = entry.data
+    if conf is None or conf[CONF_ADVANCED] is None:
+        _LOGGER.error("Bad config entry, this should not happen")
+        return False
+
+    host: str = conf[CONF_HOST]
+
+    new_device = GreeDevice(
+        name=conf.get(CONF_NAME, "Gree HVAC"),
+        ip_addr=host,
+        mac_addr=str(conf.get(CONF_MAC, "")).replace(":", ""),
+        port=conf[CONF_ADVANCED].get(CONF_PORT, DEFAULT_PORT),
+        encryption_version=conf[CONF_ADVANCED].get(
+            CONF_ENCRYPTION_VERSION, DEFAULT_ENCRYPTION_VERSION
+        ),
+        encryption_key=conf[CONF_ADVANCED].get(CONF_ENCRYPTION_KEY, ""),
+        uid=conf[CONF_ADVANCED].get(CONF_UID, 0),
+        max_connection_attempts=conf.get(
+            CONF_MAX_ONLINE_ATTEMPTS, DEFAULT_MAX_ONLINE_ATTEMPTS
+        ),
+    )
+
+    try:
+        async with asyncio.timeout(30):
+            await new_device.bind_device()
+        _LOGGER.debug("Bound to device %s", host)
+    except TimeoutError as err:
+        _LOGGER.debug("Conection to %s timed out", host)
+        raise ConfigEntryNotReady from err
+    except GreeDeviceNotBoundError as err:
+        _LOGGER.debug("Failed to bind to device %s", host)
+        raise ConfigEntryNotReady from err
+
+    coordinator = GreeCoordinator(hass, entry, new_device)
+
+    await coordinator.async_config_entry_first_refresh()
+
+    entry.runtime_data = coordinator
+
+    await hass.config_entries.async_forward_entry_setups(
+        entry, [Platform.SENSOR, Platform.SWITCH, Platform.CLIMATE, Platform.SELECT]
+    )
+    return True
+
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
-
+    _LOGGER.debug(entry)
     # Combine entry data with options
     combined_data = {**entry.data}
     for key, value in entry.options.items():
@@ -98,30 +174,38 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             combined_data.pop(key, None)
         else:
             combined_data[key] = value
+    _LOGGER.debug(hass.data[DOMAIN])
+    _LOGGER.debug(combined_data)
 
     # Create the Gree device instance here and store it
-    from .climate import create_gree_device
+    from .climate_old import create_gree_device
 
     device = await create_gree_device(hass, combined_data)
 
     # Store both the config data and the device instance
-    hass.data[DOMAIN][entry.entry_id] = {
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
         "config": combined_data,
         "device": device,
+        "coordinator": coordinator,
+        "gdevice": new_device,
     }
 
-    _LOGGER.debug("Setting up config entry %s with data: %s", entry.entry_id, combined_data)
+    _LOGGER.debug(
+        "Setting up config entry %s with data: %s", entry.entry_id, combined_data
+    )
     entry.async_on_unload(entry.add_update_listener(_update_listener))
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    await hass.config_entries.async_forward_entry_setups(entry, [Platform.SENSOR])
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    if unloaded:
-        _LOGGER.debug("Unloaded config entry %s", entry.entry_id)
-        hass.data[DOMAIN].pop(entry.entry_id)
+    unloaded = await hass.config_entries.async_unload_platforms(
+        entry, [Platform.SENSOR, Platform.SWITCH, Platform.CLIMATE, Platform.SELECT]
+    )
+    # if unloaded:
+    #     _LOGGER.debug("Unloaded config entry %s", entry.entry_id)
+    #     hass.data[DOMAIN].pop(entry.entry_id)
     return unloaded
 
 

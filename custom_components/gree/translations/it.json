@@ -9,6 +9,7 @@
           "host": "Indirizzo IP",
           "port": "Porta",
           "mac": "Indirizzo MAC",
+          "timeout": "Timeout",
           "encryption_key": "Chiave di crittografia",
           "uid": "UID",
           "encryption_version": "Versione crittografia"
@@ -20,6 +21,7 @@
       "host": "Indirizzo IP",
       "port": "Porta",
       "mac": "Indirizzo MAC",
+      "timeout": "Timeout",
       "hvac_modes" : "Modalità HVAC",
       "fan_modes" : "Modalità ventola",
       "swing_modes" : "Modalità oscillazione verticale",
@@ -28,6 +30,7 @@
       "uid": "UID",
       "encryption_version": "Versione crittografia",
       "disable_available_check": "Disabilita controllo disponibilità",
+      "max_online_attempts": "Tentativi massimi online",
       "temp_sensor_offset": "Offset sensore temperatura"
     }
   },
@@ -41,6 +44,7 @@
           "swing_modes" : "Modalità oscillazione verticale",
           "swing_horizontal_modes" : "Modalità oscillazione orizzontale",
           "disable_available_check": "Disabilita controllo disponibilità",
+          "max_online_attempts": "Tentativi massimi online",
           "temp_sensor_offset": "Offset sensore temperatura"
         }
       }

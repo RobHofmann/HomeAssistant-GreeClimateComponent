@@ -1,32 +1,88 @@
 {
   "entity": {
     "climate": {
-      "gree": {
+      "hvac": {
         "state_attributes": {
           "fan_mode": {
             "default": "mdi:fan",
             "state": {
-              "auto": "mdi:fan-auto",
-              "low": "mdi:fan-chevron-down",
-              "medium_low": "mdi:fan-minus",
-              "medium": "mdi:fan",
-              "medium_high": "mdi:fan-plus",
-              "high": "mdi:fan-chevron-up",
-              "turbo": "mdi:weather-windy",
-              "quiet": "mdi:sleep"
+              "Auto": "mdi:fan-auto",
+              "Low": "mdi:fan-chevron-down",
+              "MediumLow": "mdi:fan-minus",
+              "Medium": "mdi:fan",
+              "MediumHigh": "mdi:fan-plus",
+              "High": "mdi:fan-chevron-up",
+              "feat_turbo": "mdi:weather-windy",
+              "feat_quiet": "mdi:sleep"
             }
           },
           "swing_horizontal_mode": {
             "default": "mdi:arrow-oscillating",
             "state": {
-              "default": "mdi:arrow-oscillating-off",
-              "swing_full": "mdi:arrow-oscillating"
+              "Default": "mdi:arrow-oscillating-off",
+              "FulLSwing": "mdi:arrow-oscillating",
+              "Left": "mdi:arrow-left",
+              "LeftCenter": "mdi:arrow-bottom-left",
+              "Center": "mdi:arrow-down",
+              "RightCenter": "mdi:arrow-bottom-right",
+              "Right": "mdi:arrow-left"
             }
           },
           "swing_mode": {
-            "default": "mdi:arrow-up-down"
+            "default": "mdi:arrow-up-down",
+            "state": {
+              "Default": "mdi:arrow-up-down",
+              "FullSwing": "mdi:arrow-up-down",
+              "FixedUpper": "mdi:arrow-up",
+              "FixedUpperMiddle": "mdi:arrow-top-left",
+              "FixedMiddle": "mdi:arrow-left",
+              "FixedLowerMiddle": "mdi:arrow-bottom-left",
+              "FixedLower": "mdi:arrow-down",
+              "SwingLower": "mdi:arrow-up-down",
+              "SwingLowerMiddle": "mdi:arrow-up-down",
+              "SwingMiddle": "mdi:arrow-up-down",
+              "SwingUpperMiddle": "mdi:arrow-up-down",
+              "SwingUpper": "mdi:arrow-up-down"
+            }
           }
         }
+      }
+    },
+    "select": {
+      "temperature_units": {
+        "default": "mdi:thermometer-alert"
+      }
+    },
+    "switch": {
+      "feat_fresh_air": {
+        "default": "mdi:air-filter"
+      },
+      "feat_xfan": {
+        "default": "mdi:fan"
+      },
+      "feat_sleep": {
+        "default": "mdi:sleep"
+      },
+      "feat_smart_heat": {
+        "default": "mdi:thermometer-low"
+      },
+      "feat_health": {
+        "default": "mdi:shield-check"
+      },
+      "feat_anti_direct_blow": {
+        "default": "mdi:weather-windy"
+      },
+      "feat_energy_saving": {
+        "default": "mdi:leaf"
+      },
+      "feat_lights": {
+        "default": "mdi:lightbulb"
+      },
+      "feat_light_sensor": {
+        "default": "mdi:brightness-auto"
+      },
+      "beeper": {
+        "default": "mdi:volume-high"
       }
     }
   }
