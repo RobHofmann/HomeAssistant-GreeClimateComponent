@@ -7,16 +7,26 @@ import logging
 from typing import Any
 
 import voluptuous as vol
+from voluptuous.schema_builder import UNDEFINED
 
 from homeassistant import config_entries
+from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import CONF_HOST, CONF_MAC, CONF_NAME, CONF_PORT
+from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import section
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.device_registry import format_mac
-from homeassistant.helpers.selector import selector
+from homeassistant.helpers.selector import (
+    EntitySelector,
+    EntitySelectorConfig,
+    SelectSelector,
+    SelectSelectorConfig,
+)
 
 from .const import (
+    ATTR_EXTERNAL_HUMIDITY_SENSOR,
+    ATTR_EXTERNAL_TEMPERATURE_SENSOR,
     CONF_ADVANCED,
     CONF_DISABLE_AVAILABLE_CHECK,
     CONF_ENCRYPTION_KEY,
@@ -43,8 +53,6 @@ from .gree_const import DEFAULT_UID
 from .gree_device import GreeDevice
 
 _LOGGER = logging.getLogger(__name__)
-
-# C0:39:37:B1:22:80
 
 
 def build_main_schema(data: Mapping | None) -> vol.Schema | None:
@@ -99,7 +107,9 @@ def build_main_schema(data: Mapping | None) -> vol.Schema | None:
     )
 
 
-def build_device_schema(data: Mapping | None) -> vol.Schema | None:
+def build_options_schema(
+    hass: HomeAssistant, data: Mapping | None
+) -> vol.Schema | None:
     """Builds the device option schema."""
 
     return vol.Schema(
@@ -109,42 +119,36 @@ def build_device_schema(data: Mapping | None) -> vol.Schema | None:
                 default=DEFAULT_HVAC_MODES
                 if data is None
                 else data.get(CONF_HVAC_MODES, DEFAULT_HVAC_MODES),
-            ): selector(
-                {
-                    "select": {
-                        "options": DEFAULT_HVAC_MODES,
-                        "multiple": True,
-                        "translation_key": CONF_HVAC_MODES,
-                    }
-                }
+            ): SelectSelector(
+                config=SelectSelectorConfig(
+                    options=DEFAULT_HVAC_MODES,
+                    multiple=True,
+                    translation_key=CONF_HVAC_MODES,
+                )
             ),
             vol.Optional(
                 CONF_FAN_MODES,
                 default=DEFAULT_FAN_MODES
                 if data is None
                 else data.get(CONF_FAN_MODES, DEFAULT_FAN_MODES),
-            ): selector(
-                {
-                    "select": {
-                        "options": DEFAULT_FAN_MODES,
-                        "multiple": True,
-                        "translation_key": CONF_FAN_MODES,
-                    }
-                }
+            ): SelectSelector(
+                config=SelectSelectorConfig(
+                    options=DEFAULT_FAN_MODES,
+                    multiple=True,
+                    translation_key=CONF_FAN_MODES,
+                )
             ),
             vol.Optional(
                 CONF_SWING_MODES,
                 default=DEFAULT_SWING_MODES
                 if data is None
                 else data.get(CONF_SWING_MODES, DEFAULT_SWING_MODES),
-            ): selector(
-                {
-                    "select": {
-                        "options": DEFAULT_SWING_MODES,
-                        "multiple": True,
-                        "translation_key": CONF_SWING_MODES,
-                    }
-                }
+            ): SelectSelector(
+                config=SelectSelectorConfig(
+                    options=DEFAULT_SWING_MODES,
+                    multiple=True,
+                    translation_key=CONF_SWING_MODES,
+                )
             ),
             vol.Optional(
                 CONF_SWING_HORIZONTAL_MODES,
@@ -153,28 +157,24 @@ def build_device_schema(data: Mapping | None) -> vol.Schema | None:
                 else data.get(
                     CONF_SWING_HORIZONTAL_MODES, DEFAULT_SWING_HORIZONTAL_MODES
                 ),
-            ): selector(
-                {
-                    "select": {
-                        "options": DEFAULT_SWING_HORIZONTAL_MODES,
-                        "multiple": True,
-                        "translation_key": CONF_SWING_HORIZONTAL_MODES,
-                    }
-                }
+            ): SelectSelector(
+                config=SelectSelectorConfig(
+                    options=DEFAULT_SWING_HORIZONTAL_MODES,
+                    multiple=True,
+                    translation_key=CONF_SWING_HORIZONTAL_MODES,
+                )
             ),
             vol.Optional(
                 CONF_FEATURES,
                 default=DEFAULT_SUPPORTED_FEATURES
                 if data is None
                 else data.get(CONF_FEATURES, DEFAULT_SUPPORTED_FEATURES),
-            ): selector(
-                {
-                    "select": {
-                        "options": DEFAULT_SUPPORTED_FEATURES,
-                        "multiple": True,
-                        "translation_key": CONF_FEATURES,
-                    }
-                }
+            ): SelectSelector(
+                config=SelectSelectorConfig(
+                    options=DEFAULT_SUPPORTED_FEATURES,
+                    multiple=True,
+                    translation_key=CONF_FEATURES,
+                )
             ),
             vol.Optional(
                 CONF_MAX_ONLINE_ATTEMPTS,
@@ -192,6 +192,30 @@ def build_device_schema(data: Mapping | None) -> vol.Schema | None:
                 CONF_TEMP_SENSOR_OFFSET,
                 default=False if data is None else data.get(CONF_TEMP_SENSOR_OFFSET, 0),
             ): cv.boolean,
+            vol.Optional(
+                ATTR_EXTERNAL_TEMPERATURE_SENSOR,
+                default=UNDEFINED
+                if data is None
+                else data.get(ATTR_EXTERNAL_TEMPERATURE_SENSOR, UNDEFINED),
+            ): EntitySelector(
+                config=EntitySelectorConfig(
+                    multiple=False,
+                    domain="sensor",
+                    device_class=SensorDeviceClass.TEMPERATURE,
+                )
+            ),
+            vol.Optional(
+                ATTR_EXTERNAL_HUMIDITY_SENSOR,
+                default=UNDEFINED
+                if data is None
+                else data.get(ATTR_EXTERNAL_HUMIDITY_SENSOR, UNDEFINED),
+            ): EntitySelector(
+                config=EntitySelectorConfig(
+                    multiple=False,
+                    domain="sensor",
+                    device_class=SensorDeviceClass.HUMIDITY,
+                )
+            ),
         }
     )
 
@@ -267,7 +291,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="device_options",
-            data_schema=build_device_schema(user_input),
+            data_schema=build_options_schema(self.hass, user_input),
         )
 
     async def async_step_import(
@@ -292,8 +316,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="reconfigure",
-            data_schema=build_device_schema(
-                entry.data if entry.data is not None else user_input
+            data_schema=build_options_schema(
+                self.hass, entry.data if entry.data is not None else user_input
             ),
         )
 

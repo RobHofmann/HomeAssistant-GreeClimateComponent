@@ -26,7 +26,7 @@ T = TypeVar("T")  # T can be any type
 
 
 @dataclass(frozen=True, kw_only=True)
-class GreeSelectDescription(Generic[T], GreeEntityDescription, SelectEntityDescription):
+class GreeSelectDescription(GreeEntityDescription, SelectEntityDescription, Generic[T]):
     """Description of a Gree switch."""
 
     device_class = None
@@ -41,7 +41,7 @@ class GreeSelectDescription(Generic[T], GreeEntityDescription, SelectEntityDescr
     translation_placeholders = None
     unit_of_measurement = None
     options_func: Callable[[], list[str]] | None = None
-    value_func: Callable[[T], str]
+    value_func: Callable[[T], str | None]
     set_func: Callable[[T, str], None]
     updates_device: bool = True
 
@@ -102,18 +102,18 @@ class GreeSelectEntity(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ign
             self._attr_options = description.options or ["None"]
 
         self._attr_current_option = self.entity_description.value_func(self._device)
-
         _LOGGER.debug("Initialized select %s", self._attr_unique_id)
-
-    @property
-    def current_option(self) -> str:  # pyright: ignore[reportIncompatibleVariableOverride]
-        """Return the selected entity option to represent the entity state."""
-        return self.entity_description.value_func(self._device)
+        _LOGGER.debug("Options: %s", self._attr_options)
 
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         _LOGGER.debug("Updating Select Entity for %s", self._device.unique_id)
         self._attr_current_option = self.entity_description.value_func(self._device)
+
+    @property
+    def current_option(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
+        """Return the selected entity option to represent the entity state."""
+        return self.entity_description.value_func(self._device)
 
     async def async_select_option(self, option: str) -> None:
         """Change the selected option."""
@@ -152,6 +152,7 @@ class GreeSelectEntity(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ign
     async def async_added_to_hass(self):
         """Handle entity which will be added."""
         await super().async_added_to_hass()
+
         # Restore last HA state to device if applicable
         if self.restore_state:
             last_state = await self.async_get_last_state()

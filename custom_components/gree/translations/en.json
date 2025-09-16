@@ -55,7 +55,9 @@
           "features": "Device Features and Modes",
           "disable_available_check": "Disable Available Check",
           "max_online_attempts": "Max Online Attempts",
-          "temp_sensor_offset": "Temperature Sensor Offset"
+          "temp_sensor_offset": "Temperature Sensor Offset",
+          "external_temperature_sensor": "External Temperature Sensor",
+          "external_humidity_sensor": "External Humidity Sensor"
         }
       },
       "reconfigure": {
@@ -69,7 +71,9 @@
           "features": "Device Features and Modes",
           "disable_available_check": "Disable Available Check",
           "max_online_attempts": "Max Online Attempts",
-          "temp_sensor_offset": "Temperature Sensor Offset"
+          "temp_sensor_offset": "Temperature Sensor Offset",
+          "external_temperature_sensor": "External Temperature Sensor",
+          "external_humidity_sensor": "External Humidity Sensor"
         }
       }
     },

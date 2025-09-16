@@ -69,6 +69,9 @@ GATTR_FEAT_TURBO = "feat_turbo"
 
 GATTR_TEMP_UNITS = "temperature_units"
 
+ATTR_EXTERNAL_TEMPERATURE_SENSOR = "external_temperature_sensor"
+ATTR_EXTERNAL_HUMIDITY_SENSOR = "external_humidity_sensor"
+
 # HVAC modes - these come from Home Assistant and are standard
 DEFAULT_HVAC_MODES = [
     HVACMode.AUTO,

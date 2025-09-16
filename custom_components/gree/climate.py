@@ -10,8 +10,14 @@ from homeassistant.components.climate import (
     ClimateEntityFeature,
     HVACMode,
 )
-from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
-from homeassistant.core import HomeAssistant
+from homeassistant.const import (
+    ATTR_TEMPERATURE,
+    ATTR_UNIT_OF_MEASUREMENT,
+    STATE_UNAVAILABLE,
+    STATE_UNKNOWN,
+    UnitOfTemperature,
+)
+from homeassistant.core import HomeAssistant, State
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
@@ -19,6 +25,8 @@ from homeassistant.helpers.typing import UNDEFINED
 from homeassistant.util.unit_conversion import TemperatureConverter
 
 from .const import (
+    ATTR_EXTERNAL_HUMIDITY_SENSOR,
+    ATTR_EXTERNAL_TEMPERATURE_SENSOR,
     CONF_FAN_MODES,
     CONF_HVAC_MODES,
     CONF_SWING_HORIZONTAL_MODES,
@@ -119,6 +127,12 @@ async def async_setup_entry(
                 fan_modes,
                 swing_modes,
                 swing_horizontal_modes,
+                external_temperature_sensor_id=entry.data.get(
+                    ATTR_EXTERNAL_TEMPERATURE_SENSOR
+                ),
+                external_humidity_sensor_id=entry.data.get(
+                    ATTR_EXTERNAL_HUMIDITY_SENSOR
+                ),
             )
         ]
     )
@@ -136,13 +150,17 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         swing_modes: list[str],
         swing_horizontal_modes: list[str],
         restore_state: bool = True,
+        external_temperature_sensor_id: str | None = None,
+        external_humidity_sensor_id: str | None = None,
     ) -> None:
         """Initialize the Gree Climate entity."""
         super().__init__(coordinator, restore_state)
         self.entity_description = description
-
         self._attr_unique_id = f"{self._device.name}_{description.key}"
         self._attr_name = None  # Main entity
+
+        self._external_temperature_sensor = external_temperature_sensor_id
+        self._external_humidity_sensor = external_humidity_sensor_id
 
         self._attr_precision = 1
         self._attr_target_temperature_step = 1
@@ -206,7 +224,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         self._attr_temperature_unit = self.get_temp_units()
         self._attr_target_temperature = self.get_current_target_temp()
         self._attr_current_temperature = self.get_current_temp()
-        self._attr_current_humidity = self.get_current_himidty()
+        self._attr_current_humidity = self.get_current_humidty()
 
         if self._attr_supported_features & ClimateEntityFeature.TARGET_TEMPERATURE:
             self._attr_max_temp = (
@@ -220,6 +238,9 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                 if self._attr_temperature_unit == UnitOfTemperature.CELSIUS
                 else MIN_TEMP_F
             )
+
+        if self.hass:
+            self.async_write_ha_state()
 
     async def async_turn_on(self):
         """Turn on."""
@@ -463,7 +484,34 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
     def get_current_temp(self) -> float | None:
         """Returns the current temperature of the room. Accounting for units."""
 
-        # TODO: Add external sensor support
+        # Use external temperature sensor if available
+        if self._external_temperature_sensor and self.hass:
+            external_state = self.hass.states.get(self._external_temperature_sensor)
+
+            if external_state and external_state.state not in (
+                STATE_UNKNOWN,
+                STATE_UNAVAILABLE,
+            ):
+                try:
+                    unit: str = external_state.attributes.get(
+                        ATTR_UNIT_OF_MEASUREMENT, UnitOfTemperature.CELSIUS
+                    )
+                    value = float(external_state.state)
+
+                except (ValueError, TypeError) as ex:
+                    _LOGGER.error(
+                        "Unable to update from external temp sensor %s: %s",
+                        self._external_temperature_sensor,
+                        ex,
+                    )
+                else:
+                    _LOGGER.debug(
+                        "Using external temperature sensor: %s, value: %s, unit: %s",
+                        self._external_temperature_sensor,
+                        value,
+                        unit,
+                    )
+                    return self.hass.config.units.temperature(value, unit)
 
         # Gree API always return current temperature in ºC
         # so if we are dealing with ºF we convert to that first
@@ -478,16 +526,40 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                     UnitOfTemperature.FAHRENHEIT,
                 )
             return float(self._device.indoors_temperature_c)
-            # FIXME: When changing Units in HA Settings, the temp does not update
+
+        # FIXME: When changing Units in HA Settings, the temp does not update
+
         return None
 
-    def get_current_himidty(self) -> float | None:
+    def get_current_humidty(self) -> float | None:
         """Returns the current humidity of the room."""
 
-        # TODO: Add external sensor support
+        # Use external humidity sensor if available
+        if self._external_humidity_sensor and self.hass:
+            external_state = self.hass.states.get(self._external_humidity_sensor)
 
-        # Gree API always return current temperature in ºC
-        # so if we are dealing with ºF we convert to that first
+            if external_state and external_state.state not in (
+                STATE_UNKNOWN,
+                STATE_UNAVAILABLE,
+            ):
+                try:
+                    value = float(external_state.state)
+
+                except (ValueError, TypeError) as ex:
+                    _LOGGER.error(
+                        "Unable to update from humidity temp sensor %s: %s",
+                        self._external_humidity_sensor,
+                        ex,
+                    )
+                else:
+                    _LOGGER.debug(
+                        "Using external humidity sensor: %s, value: %s",
+                        self._external_humidity_sensor,
+                        value,
+                    )
+                    return value
+
+        # Gree API always return current humidity in %
         if self._device.has_humidity_sensor and self._device.humidity is not None:
             return float(self._device.humidity)
 
