@@ -4,6 +4,7 @@ import logging
 
 from attr import dataclass
 
+from .const import DEFAULT_UID
 from .gree_api import (
     FanSpeed,
     GreeProp,
@@ -15,7 +16,6 @@ from .gree_api import (
     gree_get_status,
     gree_set_status,
 )
-from .gree_const import DEFAULT_UID
 from .gree_helpers import (
     TempOffsetResolver,
     gree_get_target_temp_props_from_c,

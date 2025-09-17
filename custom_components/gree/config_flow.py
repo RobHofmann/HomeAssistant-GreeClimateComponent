@@ -46,10 +46,10 @@ from .const import (
     DEFAULT_SUPPORTED_FEATURES,
     DEFAULT_SWING_HORIZONTAL_MODES,
     DEFAULT_SWING_MODES,
+    DEFAULT_UID,
     DOMAIN,
 )
 from .coordinator import GreeConfigEntry
-from .gree_const import DEFAULT_UID
 from .gree_device import GreeDevice
 
 _LOGGER = logging.getLogger(__name__)

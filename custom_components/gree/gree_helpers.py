@@ -1,6 +1,6 @@
 """Helpers for the Gree integration."""
 
-from .gree_const import TEMSEN_OFFSET
+TEMSEN_OFFSET = 40
 
 
 class TempOffsetResolver:

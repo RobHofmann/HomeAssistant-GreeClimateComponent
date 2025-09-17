@@ -17,7 +17,7 @@ from homeassistant.const import (
     STATE_UNKNOWN,
     UnitOfTemperature,
 )
-from homeassistant.core import HomeAssistant, State
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
@@ -224,7 +224,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         self._attr_temperature_unit = self.get_temp_units()
         self._attr_target_temperature = self.get_current_target_temp()
         self._attr_current_temperature = self.get_current_temp()
-        self._attr_current_humidity = self.get_current_humidty()
+        self._attr_current_humidity = self.get_current_humidity()
 
         if self._attr_supported_features & ClimateEntityFeature.TARGET_TEMPERATURE:
             self._attr_max_temp = (
@@ -531,7 +531,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
         return None
 
-    def get_current_humidty(self) -> float | None:
+    def get_current_humidity(self) -> float | None:
         """Returns the current humidity of the room."""
 
         # Use external humidity sensor if available

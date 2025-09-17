@@ -1,4 +1,4 @@
-"""Constants."""
+"""Constants for the Gree integration."""
 
 from homeassistant.components.climate import HVACMode
 from homeassistant.const import UnitOfTemperature
@@ -10,6 +10,12 @@ from .gree_api import (
     TemperatureUnits,
     VerticalSwingMode,
 )
+
+MIN_TEMP_C = 16
+MAX_TEMP_C = 30
+
+MIN_TEMP_F = 61
+MAX_TEMP_F = 86
 
 DOMAIN = "gree"
 
@@ -28,10 +34,11 @@ CONF_TEMP_SENSOR_OFFSET = "temp_sensor_offset"
 CONF_FEATURES = "features"
 
 DEFAULT_PORT = 7000
-DEFAULT_TIMEOUT = 10
+DEFAULT_TIMEOUT = 30
 DEFAULT_TARGET_TEMP_STEP = 1
 DEFAULT_MAX_ONLINE_ATTEMPTS = 8
 DEFAULT_ENCRYPTION_VERSION = 0
+DEFAULT_UID = 0
 
 MIN_TEMP_C = 16
 MAX_TEMP_C = 30
@@ -108,15 +115,6 @@ DEFAULT_FAN_MODES = [
     GATTR_FEAT_QUIET_MODE,  # Special mode on Gree device
 ]
 
-# FAN_SPEED_HA_TO_GREE = {
-#     FanSpeed.Auto.name: FanSpeed.Auto,
-#     FanSpeed.Low.name: FanSpeed.Low,
-#     FanSpeed.MediumLow.name: FanSpeed.MediumLow,
-#     FanSpeed.Medium.name: FanSpeed.Medium,
-#     FanSpeed.MediumHigh.name: FanSpeed.MediumHigh,
-#     FanSpeed.High.name: FanSpeed.High,
-# }
-
 DEFAULT_SWING_MODES = [
     VerticalSwingMode.Default.name,
     VerticalSwingMode.FullSwing.name,
@@ -132,21 +130,6 @@ DEFAULT_SWING_MODES = [
     VerticalSwingMode.SwingUpper.name,
 ]
 
-# SWING_VERTICAL_MODE_HA_TO_GREE = {
-#     VerticalSwingMode.Default.name: VerticalSwingMode.Default,
-#     VerticalSwingMode.FullSwing.name: VerticalSwingMode.FullSwing,
-#     VerticalSwingMode.FixedUpper.name: VerticalSwingMode.FixedUpper,
-#     VerticalSwingMode.FixedUpperMiddle.name: VerticalSwingMode.FixedUpperMiddle,
-#     VerticalSwingMode.FixedMiddle.name: VerticalSwingMode.FixedMiddle,
-#     VerticalSwingMode.FixedLowerMiddle.name: VerticalSwingMode.FixedLowerMiddle,
-#     VerticalSwingMode.FixedLower.name: VerticalSwingMode.FixedLower,
-#     VerticalSwingMode.SwingLower.name: VerticalSwingMode.SwingLower,
-#     VerticalSwingMode.SwingLowerMiddle.name: VerticalSwingMode.SwingLowerMiddle,
-#     VerticalSwingMode.SwingMiddle.name: VerticalSwingMode.SwingMiddle,
-#     VerticalSwingMode.SwingUpperMiddle.name: VerticalSwingMode.SwingUpperMiddle,
-#     VerticalSwingMode.SwingUpper.name: VerticalSwingMode.SwingUpper,
-# }
-
 DEFAULT_SWING_HORIZONTAL_MODES = [
     HorizontalSwingMode.Default.name,
     HorizontalSwingMode.FullSwing.name,
@@ -156,16 +139,6 @@ DEFAULT_SWING_HORIZONTAL_MODES = [
     HorizontalSwingMode.RightCenter.name,
     HorizontalSwingMode.Right.name,
 ]
-
-# SWING_HORIZONTAL_MODE_HA_TO_GREE = {
-#     HorizontalSwingMode.Default.name: HorizontalSwingMode.Default,
-#     HorizontalSwingMode.FullSwing.name: HorizontalSwingMode.FullSwing,
-#     HorizontalSwingMode.Left.name: HorizontalSwingMode.Left,
-#     HorizontalSwingMode.LeftCenter.name: HorizontalSwingMode.LeftCenter,
-#     HorizontalSwingMode.Center.name: HorizontalSwingMode.Center,
-#     HorizontalSwingMode.RightCenter.name: HorizontalSwingMode.RightCenter,
-#     HorizontalSwingMode.Right.name: HorizontalSwingMode.Right,
-# }
 
 DEFAULT_SUPPORTED_FEATURES = [
     GATTR_BEEPER,
@@ -183,50 +156,4 @@ DEFAULT_SUPPORTED_FEATURES = [
 UNITS_GREE_TO_HA = {
     TemperatureUnits.C: UnitOfTemperature.CELSIUS,
     TemperatureUnits.F: UnitOfTemperature.FAHRENHEIT,
-}
-
-# Keys that can be updated via the options flow
-OPTION_KEYS = {
-    CONF_HVAC_MODES,
-    CONF_FAN_MODES,
-    CONF_SWING_MODES,
-    CONF_SWING_HORIZONTAL_MODES,
-    CONF_DISABLE_AVAILABLE_CHECK,
-    CONF_MAX_ONLINE_ATTEMPTS,
-    CONF_TEMP_SENSOR_OFFSET,
-}
-
-MODES_MAPPING = {
-    "Mod": {"auto": 0, "cool": 1, "dry": 2, "fan_only": 3, "heat": 4},
-    "WdSpd": {
-        "auto": 0,
-        "low": 1,
-        "medium_low": 2,
-        "medium": 3,
-        "medium_high": 4,
-        "high": 5,
-    },
-    "SwUpDn": {
-        "default": 0,
-        "swing_full": 1,
-        "fixed_upmost": 2,
-        "fixed_middle_up": 3,
-        "fixed_middle": 4,
-        "fixed_middle_low": 5,
-        "fixed_lowest": 6,
-        "swing_downmost": 7,
-        "swing_middle_low": 8,
-        "swing_middle": 9,
-        "swing_middle_up": 10,
-        "swing_upmost": 11,
-    },
-    "SwingLfRig": {
-        "default": 0,
-        "swing_full": 1,
-        "fixed_leftmost": 2,
-        "fixed_middle_left": 3,
-        "fixed_middle": 4,
-        "fixed_middle_right": 5,
-        "fixed_rightmost": 6,
-    },
 }
