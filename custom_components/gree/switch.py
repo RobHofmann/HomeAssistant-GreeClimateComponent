@@ -48,7 +48,7 @@ class GreeSwitchDescription(GreeEntityDescription, SwitchEntityDescription):
     updates_device: bool = True
 
 
-SWITCH_TYPES: tuple[GreeSwitchDescription, ...] = (
+SWITCH_TYPES: list[GreeSwitchDescription] = [
     GreeSwitchDescription(
         key=GATTR_FEAT_FRESH_AIR,
         translation_key=GATTR_FEAT_FRESH_AIR,
@@ -126,7 +126,7 @@ SWITCH_TYPES: tuple[GreeSwitchDescription, ...] = (
         entity_category=EntityCategory.CONFIG,
         updates_device=False,  # Local entity
     ),
-)
+]
 
 
 async def async_setup_entry(

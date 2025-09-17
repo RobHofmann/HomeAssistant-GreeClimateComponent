@@ -4,8 +4,8 @@ import logging
 
 from attr import dataclass
 
-from .const import DEFAULT_UID
 from .gree_api import (
+    EncryptionVersion,
     FanSpeed,
     GreeProp,
     HorizontalSwingMode,
@@ -25,6 +25,11 @@ from .gree_helpers import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+DEFAULT_DEVICE_UID = 0
+DEFAULT_DEVICE_PORT = 3000
+DEFAULT_CONNECTION_MAX_ATTEMPTS = 8
+DEFAULT_CONNECTION_TIMEOUT = 2
 
 
 class GreeDeviceNotBoundError(Exception):
@@ -71,10 +76,11 @@ class GreeDevice:
         ip_addr: str,
         mac_addr: str,
         port: int,
-        encryption_version: int,
         encryption_key: str,
-        uid: int = DEFAULT_UID,
-        max_connection_attempts: int = 8,
+        encryption_version: EncryptionVersion | None = None,
+        uid: int = DEFAULT_DEVICE_UID,
+        max_connection_attempts: int = DEFAULT_CONNECTION_MAX_ATTEMPTS,
+        timeout: int = DEFAULT_CONNECTION_TIMEOUT,
     ) -> None:
         """Initialize the Gree device."""
 
@@ -92,7 +98,7 @@ class GreeDevice:
         self._mac_addr = self._mac_addr_sub = mac_addr.lower()
         if "@" in mac_addr:
             self._mac_addr_sub, self._mac_addr = mac_addr.lower().split("@", 1)
-        self._encryption_version: int = encryption_version
+        self._encryption_version: EncryptionVersion | None = encryption_version
         self._encryption_key: str = encryption_key
         self._uid: int = uid
         self._state: dict[GreeProp, int] = {}
@@ -100,6 +106,7 @@ class GreeDevice:
         self._is_bound: bool = False
         self._uniqueid: str = self._mac_addr
         self._max_connection_attempts: int = max_connection_attempts
+        self._timeout: int = timeout
 
         self._props_to_update: list[GreeProp] = list(GreeProp)
         self._props_to_update.remove(
@@ -111,10 +118,6 @@ class GreeDevice:
         self._beeper = False
 
         self.state: GreeDeviceState = GreeDeviceState()
-
-        if encryption_version < 0 or encryption_version > 2:
-            _LOGGER.error("Unsupported encryption version, defaulting to 0")
-            self._encryption_version = 0
 
     async def bind_device(self) -> bool:
         """Setup the device (async)."""
@@ -132,7 +135,8 @@ class GreeDevice:
                         self._port,
                         self._uid,
                         self._encryption_version,
-                        max_connection_attempts=self._max_connection_attempts,
+                        self._max_connection_attempts,
+                        self._timeout,
                     )
                     self._is_bound = True
                 except Exception as e:
@@ -154,6 +158,8 @@ class GreeDevice:
         if not self._is_bound:
             await self.bind_device()
 
+        assert self._encryption_version is not None
+
         try:
             self._state.update(
                 await gree_get_status(
@@ -164,6 +170,8 @@ class GreeDevice:
                     self._encryption_key,
                     self._encryption_version,
                     self._props_to_update,
+                    self._max_connection_attempts,
+                    self._timeout,
                 )
             )
         except Exception as err:
@@ -179,6 +187,8 @@ class GreeDevice:
         """Send the new local device state to the device and updates local state if successfull."""
         if not self._is_bound:
             await self.bind_device()
+
+        assert self._encryption_version is not None
 
         # If there is no change in the properties, do nothing
         has_updated_states = any(
@@ -200,6 +210,8 @@ class GreeDevice:
                     self._encryption_key,
                     self._encryption_version,
                     self._new_state,
+                    self._max_connection_attempts,
+                    self._timeout,
                 )
             )
             self._new_state.clear()
@@ -312,7 +324,7 @@ class GreeDevice:
         return self._encryption_key
 
     @property
-    def encryption_version(self) -> int:
+    def encryption_version(self) -> EncryptionVersion | None:
         """Return the encryption version of the device."""
         return self._encryption_version
 

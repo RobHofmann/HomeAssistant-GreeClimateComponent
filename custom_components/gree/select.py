@@ -25,27 +25,6 @@ _LOGGER = logging.getLogger(__name__)
 T = TypeVar("T")  # T can be any type
 
 
-@dataclass(frozen=True, kw_only=True)
-class GreeSelectDescription(GreeEntityDescription, SelectEntityDescription, Generic[T]):
-    """Description of a Gree switch."""
-
-    device_class = None
-    entity_category = None
-    entity_registry_enabled_default = True
-    entity_registry_visible_default = True
-    force_update = False
-    icon = None
-    has_entity_name = True
-    name = UNDEFINED
-    translation_key = None
-    translation_placeholders = None
-    unit_of_measurement = None
-    options_func: Callable[[], list[str]] | None = None
-    value_func: Callable[[T], str | None]
-    set_func: Callable[[T, str], None]
-    updates_device: bool = True
-
-
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: GreeConfigEntry,
@@ -76,6 +55,27 @@ async def async_setup_entry(
     async_add_entities(
         [GreeSelectEntity(description, coordinator) for description in descriptions]
     )
+
+
+@dataclass(frozen=True, kw_only=True)
+class GreeSelectDescription(GreeEntityDescription, SelectEntityDescription, Generic[T]):
+    """Description of a Gree switch."""
+
+    device_class = None
+    entity_category = None
+    entity_registry_enabled_default = True
+    entity_registry_visible_default = True
+    force_update = False
+    icon = None
+    has_entity_name = True
+    name = UNDEFINED
+    translation_key = None
+    translation_placeholders = None
+    unit_of_measurement = None
+    options_func: Callable[[], list[str]] | None = None
+    value_func: Callable[[T], str | None]
+    set_func: Callable[[T, str], None]
+    updates_device: bool = True
 
 
 class GreeSelectEntity(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ignore[reportIncompatibleVariableOverride]

@@ -11,12 +11,6 @@ from .gree_api import (
     VerticalSwingMode,
 )
 
-MIN_TEMP_C = 16
-MAX_TEMP_C = 30
-
-MIN_TEMP_F = 61
-MAX_TEMP_F = 86
-
 DOMAIN = "gree"
 
 CONF_ADVANCED = "advanced"
@@ -33,20 +27,9 @@ CONF_SWING_HORIZONTAL_MODES = "swing_horizontal_modes"
 CONF_TEMP_SENSOR_OFFSET = "temp_sensor_offset"
 CONF_FEATURES = "features"
 
-DEFAULT_PORT = 7000
-DEFAULT_TIMEOUT = 30
 DEFAULT_TARGET_TEMP_STEP = 1
-DEFAULT_MAX_ONLINE_ATTEMPTS = 8
-DEFAULT_ENCRYPTION_VERSION = 0
-DEFAULT_UID = 0
+DEFAULT_ENCRYPTION_VERSION = None
 
-MIN_TEMP_C = 16
-MAX_TEMP_C = 30
-
-MIN_TEMP_F = 61
-MAX_TEMP_F = 86
-
-TEMSEN_OFFSET = 40
 
 # OPTIONAL FEATURES/MODES
 # use the device beeper on commands

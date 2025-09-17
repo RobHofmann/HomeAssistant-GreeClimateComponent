@@ -10,7 +10,6 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -25,47 +24,6 @@ _LOGGER = logging.getLogger(__name__)
 GATTR_INDOOR_TEMPERATURE = "indoor_temperature"
 GATTR_OUTDOOR_TEMPERATURE = "outdoor_temperature"
 GATTR_HUMIDITY = "humidity"
-
-
-@dataclass(frozen=True, kw_only=True)
-class GreeSensorDescription(GreeEntityDescription, SensorEntityDescription):
-    """Description of a Gree temperature sensor."""
-
-    value_func: Callable[[GreeDevice], float | None]
-
-
-SENSOR_TYPES: tuple[GreeSensorDescription, ...] = (
-    GreeSensorDescription(
-        key=GATTR_INDOOR_TEMPERATURE,
-        translation_key=GATTR_INDOOR_TEMPERATURE,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        suggested_display_precision=0,
-        value_func=lambda device: device.indoors_temperature_c,
-        available_func=lambda device: device.has_indoor_temperature_sensor,
-    ),
-    GreeSensorDescription(
-        key=GATTR_OUTDOOR_TEMPERATURE,
-        translation_key=GATTR_OUTDOOR_TEMPERATURE,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        suggested_display_precision=0,
-        value_func=lambda device: device.outdoors_temperature_c,
-        available_func=lambda device: device.has_outdoor_temperature_sensor,
-    ),
-    GreeSensorDescription(
-        key=GATTR_HUMIDITY,
-        translation_key=GATTR_HUMIDITY,
-        device_class=SensorDeviceClass.HUMIDITY,
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=PERCENTAGE,
-        suggested_display_precision=0,
-        value_func=lambda device: device.humidity,
-        available_func=lambda device: device.has_humidity_sensor,
-    ),
-)
 
 
 async def async_setup_entry(
@@ -97,9 +55,45 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
-    """Unload a config entry."""
-    return True
+@dataclass(frozen=True, kw_only=True)
+class GreeSensorDescription(GreeEntityDescription, SensorEntityDescription):
+    """Description of a Gree temperature sensor."""
+
+    value_func: Callable[[GreeDevice], float | None]
+
+
+SENSOR_TYPES: list[GreeSensorDescription] = [
+    GreeSensorDescription(
+        key=GATTR_INDOOR_TEMPERATURE,
+        translation_key=GATTR_INDOOR_TEMPERATURE,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        suggested_display_precision=0,
+        value_func=lambda device: device.indoors_temperature_c,
+        available_func=lambda device: device.has_indoor_temperature_sensor,
+    ),
+    GreeSensorDescription(
+        key=GATTR_OUTDOOR_TEMPERATURE,
+        translation_key=GATTR_OUTDOOR_TEMPERATURE,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        suggested_display_precision=0,
+        value_func=lambda device: device.outdoors_temperature_c,
+        available_func=lambda device: device.has_outdoor_temperature_sensor,
+    ),
+    GreeSensorDescription(
+        key=GATTR_HUMIDITY,
+        translation_key=GATTR_HUMIDITY,
+        device_class=SensorDeviceClass.HUMIDITY,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=PERCENTAGE,
+        suggested_display_precision=0,
+        value_func=lambda device: device.humidity,
+        available_func=lambda device: device.has_humidity_sensor,
+    ),
+]
 
 
 class GreeSensor(GreeEntity, SensorEntity, RestoreEntity):  # pyright: ignore[reportIncompatibleVariableOverride]

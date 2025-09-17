@@ -40,36 +40,23 @@ from .const import (
     GATTR_FEAT_TURBO,
     HVAC_MODES_GREE_TO_HA,
     HVAC_MODES_HA_TO_GREE,
-    MAX_TEMP_C,
-    MAX_TEMP_F,
-    MIN_TEMP_C,
-    MIN_TEMP_F,
     UNITS_GREE_TO_HA,
 )
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
-from .gree_api import FanSpeed, HorizontalSwingMode, VerticalSwingMode
+from .gree_api import (
+    MAX_TEMP_C,
+    MAX_TEMP_F,
+    MIN_TEMP_C,
+    MIN_TEMP_F,
+    FanSpeed,
+    HorizontalSwingMode,
+    VerticalSwingMode,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 GATTR_CLIMATE = "hvac"
-
-
-@dataclass(frozen=True, kw_only=True)
-class GreeClimateDescription(GreeEntityDescription, ClimateEntityDescription):
-    """Description of a Gree Climate entity."""
-
-    device_class = None
-    entity_category = None
-    entity_registry_enabled_default = True
-    entity_registry_visible_default = True
-    force_update = False
-    icon = None
-    has_entity_name = True
-    name = UNDEFINED
-    translation_key = None
-    translation_placeholders = None
-    unit_of_measurement = None
 
 
 async def async_setup_entry(
@@ -136,6 +123,23 @@ async def async_setup_entry(
             )
         ]
     )
+
+
+@dataclass(frozen=True, kw_only=True)
+class GreeClimateDescription(GreeEntityDescription, ClimateEntityDescription):
+    """Description of a Gree Climate entity."""
+
+    device_class = None
+    entity_category = None
+    entity_registry_enabled_default = True
+    entity_registry_visible_default = True
+    force_update = False
+    icon = None
+    has_entity_name = True
+    name = UNDEFINED
+    translation_key = None
+    translation_placeholders = None
+    unit_of_measurement = None
 
 
 class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[reportIncompatibleVariableOverride]

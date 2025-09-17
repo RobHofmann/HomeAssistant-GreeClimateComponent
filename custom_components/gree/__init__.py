@@ -21,14 +21,17 @@ from .const import (
     CONF_MAX_ONLINE_ATTEMPTS,
     CONF_UID,
     DEFAULT_ENCRYPTION_VERSION,
-    DEFAULT_MAX_ONLINE_ATTEMPTS,
-    DEFAULT_PORT,
     DOMAIN,
 )
 
 # Home Assistant imports
 from .coordinator import GreeConfigEntry, GreeCoordinator
-from .gree_device import GreeDevice, GreeDeviceNotBoundError
+from .gree_device import (
+    DEFAULT_CONNECTION_MAX_ATTEMPTS,
+    DEFAULT_DEVICE_PORT,
+    GreeDevice,
+    GreeDeviceNotBoundError,
+)
 
 PLATFORMS = [
     Platform.CLIMATE,
@@ -72,14 +75,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
         name=conf.get(CONF_NAME, "Gree HVAC"),
         ip_addr=host,
         mac_addr=str(conf.get(CONF_MAC, "")).replace(":", ""),
-        port=conf[CONF_ADVANCED].get(CONF_PORT, DEFAULT_PORT),
+        port=conf[CONF_ADVANCED].get(CONF_PORT, DEFAULT_DEVICE_PORT),
         encryption_version=conf[CONF_ADVANCED].get(
             CONF_ENCRYPTION_VERSION, DEFAULT_ENCRYPTION_VERSION
         ),
         encryption_key=conf[CONF_ADVANCED].get(CONF_ENCRYPTION_KEY, ""),
         uid=conf[CONF_ADVANCED].get(CONF_UID, 0),
         max_connection_attempts=conf.get(
-            CONF_MAX_ONLINE_ATTEMPTS, DEFAULT_MAX_ONLINE_ATTEMPTS
+            CONF_MAX_ONLINE_ATTEMPTS, DEFAULT_CONNECTION_MAX_ATTEMPTS
         ),
     )
 

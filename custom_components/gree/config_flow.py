@@ -9,6 +9,7 @@ from typing import Any
 import voluptuous as vol
 from voluptuous.schema_builder import UNDEFINED
 
+from config.custom_components.gree.gree_api import EncryptionVersion
 from homeassistant import config_entries
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import CONF_HOST, CONF_MAC, CONF_NAME, CONF_PORT
@@ -41,16 +42,18 @@ from .const import (
     CONF_UID,
     DEFAULT_FAN_MODES,
     DEFAULT_HVAC_MODES,
-    DEFAULT_MAX_ONLINE_ATTEMPTS,
-    DEFAULT_PORT,
     DEFAULT_SUPPORTED_FEATURES,
     DEFAULT_SWING_HORIZONTAL_MODES,
     DEFAULT_SWING_MODES,
-    DEFAULT_UID,
     DOMAIN,
 )
 from .coordinator import GreeConfigEntry
-from .gree_device import GreeDevice
+from .gree_device import (
+    DEFAULT_CONNECTION_MAX_ATTEMPTS,
+    DEFAULT_DEVICE_PORT,
+    DEFAULT_DEVICE_UID,
+    GreeDevice,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -75,9 +78,11 @@ def build_main_schema(data: Mapping | None) -> vol.Schema | None:
                     {
                         vol.Required(
                             CONF_PORT,
-                            default=DEFAULT_PORT
+                            default=DEFAULT_DEVICE_PORT
                             if data is None or data[CONF_ADVANCED] is None
-                            else data[CONF_ADVANCED].get(CONF_PORT, DEFAULT_PORT),
+                            else data[CONF_ADVANCED].get(
+                                CONF_PORT, DEFAULT_DEVICE_PORT
+                            ),
                         ): int,
                         vol.Required(
                             CONF_ENCRYPTION_VERSION,
@@ -95,9 +100,9 @@ def build_main_schema(data: Mapping | None) -> vol.Schema | None:
                         ): str,
                         vol.Required(
                             CONF_UID,
-                            default=DEFAULT_UID
+                            default=DEFAULT_DEVICE_UID
                             if data is None or data[CONF_ADVANCED] is None
-                            else data[CONF_ADVANCED].get(CONF_UID, DEFAULT_UID),
+                            else data[CONF_ADVANCED].get(CONF_UID, DEFAULT_DEVICE_UID),
                         ): int,
                     }
                 ),
@@ -178,9 +183,11 @@ def build_options_schema(
             ),
             vol.Optional(
                 CONF_MAX_ONLINE_ATTEMPTS,
-                default=DEFAULT_MAX_ONLINE_ATTEMPTS
+                default=DEFAULT_CONNECTION_MAX_ATTEMPTS
                 if data is None
-                else data.get(CONF_MAX_ONLINE_ATTEMPTS, DEFAULT_MAX_ONLINE_ATTEMPTS),
+                else data.get(
+                    CONF_MAX_ONLINE_ATTEMPTS, DEFAULT_CONNECTION_MAX_ATTEMPTS
+                ),
             ): cv.positive_int,
             vol.Optional(
                 CONF_DISABLE_AVAILABLE_CHECK,
@@ -242,11 +249,13 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     user_input[CONF_HOST],
                     user_input[CONF_MAC],
                     user_input[CONF_ADVANCED][CONF_PORT],
-                    int(user_input[CONF_ADVANCED][CONF_ENCRYPTION_VERSION])
+                    user_input[CONF_ADVANCED][CONF_ENCRYPTION_KEY],
+                    EncryptionVersion(
+                        int(user_input[CONF_ADVANCED][CONF_ENCRYPTION_VERSION])
+                    )
                     if user_input[CONF_ADVANCED][CONF_ENCRYPTION_VERSION]
                     != "Auto-Detect"
-                    else 0,
-                    user_input[CONF_ADVANCED][CONF_ENCRYPTION_KEY],
+                    else None,
                     user_input[CONF_ADVANCED][CONF_UID],
                     max_connection_attempts=2,  # Use fewer attempts for testing the device
                 )
