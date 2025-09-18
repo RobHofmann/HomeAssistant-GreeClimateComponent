@@ -5,6 +5,9 @@ import logging
 from attr import dataclass
 
 from .gree_api import (
+    DEFAULT_CONNECTION_MAX_ATTEMPTS,
+    DEFAULT_CONNECTION_TIMEOUT,
+    DEFAULT_DEVICE_UID,
     EncryptionVersion,
     FanSpeed,
     GreeProp,
@@ -12,6 +15,7 @@ from .gree_api import (
     OperationMode,
     TemperatureUnits,
     VerticalSwingMode,
+    gree_get_device_info,
     gree_get_device_key,
     gree_get_status,
     gree_set_status,
@@ -26,13 +30,8 @@ from .gree_helpers import (
 
 _LOGGER = logging.getLogger(__name__)
 
-DEFAULT_DEVICE_UID = 0
-DEFAULT_DEVICE_PORT = 3000
-DEFAULT_CONNECTION_MAX_ATTEMPTS = 8
-DEFAULT_CONNECTION_TIMEOUT = 2
 
-
-class GreeDeviceNotBoundError(Exception):
+class GreeDeviceNotBoundError(BaseException):
     """Raised when the device binding fails."""
 
 
@@ -95,12 +94,14 @@ class GreeDevice:
         self._name: str = name
         self._ip_addr: str = ip_addr
         self._port: int = port
-        self._mac_addr = self._mac_addr_sub = mac_addr.lower()
+        self._mac_addr = self._mac_addr_sub = mac_addr.replace(":", "").lower()
         if "@" in mac_addr:
             self._mac_addr_sub, self._mac_addr = mac_addr.lower().split("@", 1)
         self._encryption_version: EncryptionVersion | None = encryption_version
         self._encryption_key: str = encryption_key
         self._uid: int = uid
+        self._firmware_version: str | None = None
+        self._firmware_code: str | None = None
         self._state: dict[GreeProp, int] = {}
         self._new_state: dict[GreeProp, int] = {}
         self._is_bound: bool = False
@@ -121,8 +122,18 @@ class GreeDevice:
 
     async def bind_device(self) -> bool:
         """Setup the device (async)."""
-
         if not self._is_bound:
+            try:
+                info = await gree_get_device_info(
+                    self._ip_addr,
+                    self._max_connection_attempts,
+                    self._timeout,
+                )
+                self._firmware_version = info.get("firmware_version")
+                self._firmware_code = info.get("firmware_code")
+            except Exception:
+                _LOGGER.exception("Could not retrieve basic device info")
+
             if not self._encryption_key.strip():
                 _LOGGER.info("No encryption key provided")
                 try:
@@ -332,6 +343,17 @@ class GreeDevice:
     def unique_id(self) -> str:
         """Return the unique ID of the device (MAC)."""
         return self._uniqueid
+
+    @property
+    def firmware_version(self) -> str | None:
+        """Returns the firmware version."""
+        if self._firmware_version and self._firmware_code:
+            return f"{self._firmware_version} ({self._firmware_code})"
+        if self._firmware_version:
+            return self._firmware_version
+        if self._firmware_code:
+            return self._firmware_code
+        return None
 
     @property
     def available(self) -> bool:

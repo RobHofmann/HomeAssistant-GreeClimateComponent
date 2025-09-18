@@ -8,7 +8,14 @@ import logging
 
 # Third-party imports
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_MAC, CONF_NAME, CONF_PORT, Platform
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_MAC,
+    CONF_NAME,
+    CONF_PORT,
+    CONF_TIMEOUT,
+    Platform,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.typing import ConfigType
@@ -26,12 +33,13 @@ from .const import (
 
 # Home Assistant imports
 from .coordinator import GreeConfigEntry, GreeCoordinator
-from .gree_device import (
+from .gree_api import (
     DEFAULT_CONNECTION_MAX_ATTEMPTS,
+    DEFAULT_CONNECTION_TIMEOUT,
     DEFAULT_DEVICE_PORT,
-    GreeDevice,
-    GreeDeviceNotBoundError,
+    DEFAULT_DEVICE_UID,
 )
+from .gree_device import GreeDevice, GreeDeviceNotBoundError
 
 PLATFORMS = [
     Platform.CLIMATE,
@@ -74,16 +82,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
     new_device = GreeDevice(
         name=conf.get(CONF_NAME, "Gree HVAC"),
         ip_addr=host,
-        mac_addr=str(conf.get(CONF_MAC, "")).replace(":", ""),
+        mac_addr=str(conf.get(CONF_MAC, "")),
         port=conf[CONF_ADVANCED].get(CONF_PORT, DEFAULT_DEVICE_PORT),
         encryption_version=conf[CONF_ADVANCED].get(
             CONF_ENCRYPTION_VERSION, DEFAULT_ENCRYPTION_VERSION
         ),
         encryption_key=conf[CONF_ADVANCED].get(CONF_ENCRYPTION_KEY, ""),
-        uid=conf[CONF_ADVANCED].get(CONF_UID, 0),
+        uid=conf[CONF_ADVANCED].get(CONF_UID, DEFAULT_DEVICE_UID),
         max_connection_attempts=conf.get(
             CONF_MAX_ONLINE_ATTEMPTS, DEFAULT_CONNECTION_MAX_ATTEMPTS
         ),
+        timeout=conf.get(CONF_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT),
     )
 
     try:

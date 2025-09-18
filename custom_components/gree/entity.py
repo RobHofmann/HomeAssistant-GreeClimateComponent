@@ -31,6 +31,7 @@ class GreeEntity(CoordinatorEntity[GreeCoordinator]):
             identifiers={(DOMAIN, self._device.unique_id)},
             name=self._device.name,
             manufacturer="Gree",
+            sw_version=self._device.firmware_version
         )
         self.restore_state = restore_state
 

@@ -5,6 +5,7 @@ import base64
 from enum import Enum, IntEnum, unique
 import json
 import logging
+import re
 import socket
 
 import asyncio_dgram
@@ -23,6 +24,11 @@ MAX_TEMP_C = 30
 
 MIN_TEMP_F = 61
 MAX_TEMP_F = 86
+
+DEFAULT_DEVICE_UID = 0
+DEFAULT_DEVICE_PORT = 7000
+DEFAULT_CONNECTION_MAX_ATTEMPTS = 5
+DEFAULT_CONNECTION_TIMEOUT = 10
 
 
 class GreeProp(Enum):
@@ -177,9 +183,12 @@ async def udp_request_async(
     port: int,
     json_data: str,
     max_retries: int,
-    timeout: float,
+    timeout: int,
 ) -> str:
     """Send a payload JSON data to the device and reads the response (async)."""
+    # _LOGGER.info(
+    #     "%s:%d max_r=%d t=%d json:\n%s", ip_addr, port, max_retries, timeout, json_data
+    # )
 
     for attempt in range(max_retries):
         stream: asyncio_dgram.DatagramClient | None = None
@@ -289,7 +298,7 @@ async def fetch_result(
             ip_addr, port, json_data, max_connection_attempts, timeout
         )
     except Exception as err:
-        raise ValueError(f"Error communicating with {ip_addr}", ip_addr) from err
+        raise ValueError(f"Error communicating with {ip_addr}: {err}") from err
 
     # try:
     #     received_json = await udp_request_blocking(ip_addr, port, json_data)
@@ -371,7 +380,7 @@ def gree_get_default_cipher(encryption_version: EncryptionVersion):
     return None
 
 
-def gree_encrypt_pack(
+def gree_encrypted_pack(
     data: str,
     cipher,
     encryption_version: EncryptionVersion,
@@ -494,7 +503,7 @@ async def gree_get_device_key(
         else [encryption_version]
     ):
         _LOGGER.info("Trying to retrieve device encryption key v%d", enc_version)
-        pack, tag = gree_encrypt_pack(
+        pack, tag = gree_encrypted_pack(
             gree_create_bind_pack(mac_addr, uid, enc_version),
             gree_get_default_cipher(enc_version),
             enc_version,
@@ -517,9 +526,9 @@ async def gree_get_device_key(
         except Exception as err:  # noqa: BLE001
             error = err
             _LOGGER.error(
-                "Error getting device encryption key with version %d: %s",
+                "Error getting device encryption key with version %d:\n%s",
                 enc_version,
-                repr(err),
+                err,
             )
             # raise ValueError("Error getting device encryption key") from err
             continue
@@ -555,7 +564,7 @@ async def gree_get_status(
 
     status_values: dict[GreeProp, int] = {}
 
-    pack, tag = gree_encrypt_pack(
+    pack, tag = gree_encrypted_pack(
         gree_create_status_pack(mac_addr, [prop.value for prop in props]),
         get_cipher(encryption_key, encryption_version),
         encryption_version,
@@ -604,7 +613,7 @@ async def gree_set_status(
     _LOGGER.debug("Trying to set device status")
 
     set_pack = gree_create_set_pack(props)
-    pack, tag = gree_encrypt_pack(
+    pack, tag = gree_encrypted_pack(
         set_pack,
         get_cipher(encryption_key, encryption_version),
         encryption_version,
@@ -658,3 +667,44 @@ async def gree_set_status(
         _LOGGER.warning("Expected updated props %s but got %s", props, updated_props)
 
     return updated_props
+
+
+async def gree_get_device_info(
+    ip_addr: str,
+    max_connection_attempts: int,
+    timeout: int,
+) -> dict[str, str | None]:
+    """Tries to retrive the device info."""
+    try:
+        data: dict = await get_result_pack(
+            ip_addr,
+            DEFAULT_DEVICE_PORT,
+            json.dumps({"t": "scan"}),
+            gree_get_default_cipher(EncryptionVersion.V1),
+            EncryptionVersion.V1,
+            max_connection_attempts,
+            timeout,
+        )
+    except Exception as err:
+        _LOGGER.exception("Error retrieving basic device info")
+        raise ValueError("Error retrieving basic device info") from err
+    else:
+        _LOGGER.debug(data)
+        info: dict[str, str | None] = {}
+        info["firmware_version"], info["firmware_code"] = extract_version(data)
+        return info
+
+
+def extract_version(info: dict) -> tuple[str | None, str | None]:
+    """Finds the firmware info."""
+    hid = info.get("hid", "")
+    ver_match = re.search(r"V([\d.]+)\.bin", hid)
+    if ver_match:
+        ver = ver_match.group(1)  # version from hid
+    else:
+        ver = info.get("ver")
+        ver = ver.lstrip("V") if ver else None  # clean ver or None
+
+    id_match = re.match(r"(\d+)", hid)  # leading digits
+    device_id = id_match.group(1) if id_match else None
+    return ver, device_id

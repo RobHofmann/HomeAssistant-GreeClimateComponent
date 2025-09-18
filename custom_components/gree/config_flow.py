@@ -12,7 +12,7 @@ from voluptuous.schema_builder import UNDEFINED
 from config.custom_components.gree.gree_api import EncryptionVersion
 from homeassistant import config_entries
 from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.const import CONF_HOST, CONF_MAC, CONF_NAME, CONF_PORT
+from homeassistant.const import CONF_HOST, CONF_MAC, CONF_NAME, CONF_PORT, CONF_TIMEOUT
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import section
 from homeassistant.exceptions import HomeAssistantError
@@ -38,7 +38,6 @@ from .const import (
     CONF_MAX_ONLINE_ATTEMPTS,
     CONF_SWING_HORIZONTAL_MODES,
     CONF_SWING_MODES,
-    CONF_TEMP_SENSOR_OFFSET,
     CONF_UID,
     DEFAULT_FAN_MODES,
     DEFAULT_HVAC_MODES,
@@ -48,12 +47,13 @@ from .const import (
     DOMAIN,
 )
 from .coordinator import GreeConfigEntry
-from .gree_device import (
+from .gree_api import (
     DEFAULT_CONNECTION_MAX_ATTEMPTS,
+    DEFAULT_CONNECTION_TIMEOUT,
     DEFAULT_DEVICE_PORT,
     DEFAULT_DEVICE_UID,
-    GreeDevice,
 )
+from .gree_device import GreeDevice, GreeDeviceNotBoundError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -103,7 +103,7 @@ def build_main_schema(data: Mapping | None) -> vol.Schema | None:
                             default=DEFAULT_DEVICE_UID
                             if data is None or data[CONF_ADVANCED] is None
                             else data[CONF_ADVANCED].get(CONF_UID, DEFAULT_DEVICE_UID),
-                        ): int,
+                        ): cv.positive_int,
                     }
                 ),
                 {"collapsed": True},
@@ -182,24 +182,6 @@ def build_options_schema(
                 )
             ),
             vol.Optional(
-                CONF_MAX_ONLINE_ATTEMPTS,
-                default=DEFAULT_CONNECTION_MAX_ATTEMPTS
-                if data is None
-                else data.get(
-                    CONF_MAX_ONLINE_ATTEMPTS, DEFAULT_CONNECTION_MAX_ATTEMPTS
-                ),
-            ): cv.positive_int,
-            vol.Optional(
-                CONF_DISABLE_AVAILABLE_CHECK,
-                default=False
-                if data is None
-                else data.get(CONF_DISABLE_AVAILABLE_CHECK, False),
-            ): cv.boolean,
-            vol.Optional(
-                CONF_TEMP_SENSOR_OFFSET,
-                default=False if data is None else data.get(CONF_TEMP_SENSOR_OFFSET, 0),
-            ): cv.boolean,
-            vol.Optional(
                 ATTR_EXTERNAL_TEMPERATURE_SENSOR,
                 default=UNDEFINED
                 if data is None
@@ -223,6 +205,26 @@ def build_options_schema(
                     device_class=SensorDeviceClass.HUMIDITY,
                 )
             ),
+            vol.Required(
+                CONF_DISABLE_AVAILABLE_CHECK,
+                default=False
+                if data is None
+                else data.get(CONF_DISABLE_AVAILABLE_CHECK, False),
+            ): cv.boolean,
+            vol.Required(
+                CONF_MAX_ONLINE_ATTEMPTS,
+                default=DEFAULT_CONNECTION_MAX_ATTEMPTS
+                if data is None
+                else data.get(
+                    CONF_MAX_ONLINE_ATTEMPTS, DEFAULT_CONNECTION_MAX_ATTEMPTS
+                ),
+            ): cv.positive_int,
+            vol.Required(
+                CONF_TIMEOUT,
+                default=DEFAULT_CONNECTION_TIMEOUT
+                if data is None
+                else data.get(CONF_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT),
+            ): cv.positive_int,
         }
     )
 
@@ -258,9 +260,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     else None,
                     user_input[CONF_ADVANCED][CONF_UID],
                     max_connection_attempts=2,  # Use fewer attempts for testing the device
+                    timeout=2,  # Use smaller timeout for testing the device
                 )
                 await self._device.fetch_device_status()
             except CannotConnect:
+                errors["base"] = "cannot_connect"
+            except GreeDeviceNotBoundError:
                 errors["base"] = "cannot_connect"
             except Exception as err:  # noqa: BLE001
                 errors["base"] = "unknown: " + repr(err)

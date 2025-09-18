@@ -1,112 +1,73 @@
 {
   "config": {
     "error": {
-      "cannot_connect": "Unable to connect to the device. Please check the network connection and try again."
-    },
-    "abort": {
-      "already_configured": "A device with this MAC address is already configured."
+      "cannot_connect": "Unable to connect to the device. Please check the device configuration and network connection and try again."
     },
     "title": "Gree Climate",
     "description": "Configure your Gree air conditioner",
     "step": {
       "user": {
-        "title": "Gree Climate Setup",
-        "description": "Choose how to add your Gree air conditioner",
-        "data": {
-          "discovery": "Setup Method"
-        }
-      },
-      "discovery": {
-        "title": "Discovered Devices",
-        "description": "Found {devices_found} Gree device(s). Select one to add or choose manual setup.",
-        "data": {
-          "device": "Device"
-        }
-      },
-      "detect_encryption": {
-        "title": "Configure Device",
-        "description": "Device connection successful. Enter a name for this device.",
-        "data": {
-          "name": "Device Name"
-        }
-      },
-      "manual": {
-        "title": "Manual Setup",
-        "description": "Enter the details for your Gree air conditioner",
+        "title": "Device configuration",
         "data": {
           "name": "Name",
           "host": "IP Address",
-          "port": "Port",
-          "mac": "MAC Address",
-          "timeout": "Timeout",
-          "encryption_key": "Encryption Key",
-          "uid": "UID",
-          "encryption_version": "Encryption Version"
+          "mac": "MAC Address"
+        },
+        "sections": {
+          "advanced": {
+            "name": "Advanced Settings",
+            "description": "Configure advanced setting of the device",
+            "data": {
+              "port": "Port",
+              "encryption_key": "Encryption Key",
+              "encryption_version": "Encryption Version",
+              "uid": "UID"
+            }
+          }
         }
       },
       "device_options": {
-        "title": "Configure the device features",
-        "description": "The Gree API doesn't have a reliable method of getting a the supported features of a device. Please use the options bellow to the best of your knowledge about your device.",
+        "title": "Device features",
+        "description": "The Gree API doesn't have a reliable method of getting the supported features of a device. Please use the options bellow to the best of your knowledge about your device.",
         "data": {
           "hvac_modes": "HVAC Modes",
           "fan_modes": "Fan Speeds",
           "swing_modes": "Vertical Swing Modes",
           "swing_horizontal_modes": "Horizontal Swing Modes",
           "features": "Device Features and Modes",
-          "disable_available_check": "Disable Available Check",
-          "max_online_attempts": "Max Online Attempts",
-          "temp_sensor_offset": "Temperature Sensor Offset",
           "external_temperature_sensor": "External Temperature Sensor",
-          "external_humidity_sensor": "External Humidity Sensor"
+          "external_humidity_sensor": "External Humidity Sensor",
+          "disable_available_check": "Disable Available Check",
+          "max_online_attempts": "Max Connection Attempts",
+          "timeout": "Connection Timeout"
+        },
+        "data_description": {
+          "external_temperature_sensor": "If set will replace the built-in HVAC temperature sensor",
+          "external_humidity_sensor": "If set will replace the built-in HVAC humidity sensor",
+          "max_online_attempts": "The number of attempts to communicate with the device before it is marked as unavailable",
+          "timeout": "The timeout for each of the connection attempts"
         }
       },
       "reconfigure": {
-        "title": "Configure the device features",
-        "description": "The Gree API doesn't have a reliable method of getting a the supported features of a device. Please use the options bellow to the best of your knowledge about your device.",
+        "title": "Device features",
+        "description": "The Gree API doesn't have a reliable method of getting the supported features of a device. Please use the options bellow to the best of your knowledge about your device.",
         "data": {
           "hvac_modes": "HVAC Modes",
           "fan_modes": "Fan Speeds",
           "swing_modes": "Vertical Swing Modes",
           "swing_horizontal_modes": "Horizontal Swing Modes",
           "features": "Device Features and Modes",
-          "disable_available_check": "Disable Available Check",
-          "max_online_attempts": "Max Online Attempts",
-          "temp_sensor_offset": "Temperature Sensor Offset",
           "external_temperature_sensor": "External Temperature Sensor",
-          "external_humidity_sensor": "External Humidity Sensor"
-        }
-      }
-    },
-    "data": {
-      "name": "Name",
-      "host": "IP Address",
-      "port": "Port",
-      "mac": "MAC Address",
-      "timeout": "Timeout",
-      "hvac_modes": "HVAC Modes",
-      "fan_modes": "Fan Modes",
-      "swing_modes": "Vertical Swing Modes",
-      "swing_horizontal_modes": "Horizontal Swing Modes",
-      "encryption_key": "Encryption Key",
-      "uid": "UID",
-      "encryption_version": "Encryption Version",
-      "disable_available_check": "Disable Available Check",
-      "max_online_attempts": "Max Online Attempts",
-      "temp_sensor_offset": "Temperature Sensor Offset"
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Gree Climate Options",
-        "data": {
-          "hvac_modes": "HVAC Modes",
-          "fan_modes": "Fan Modes",
-          "swing_modes": "Vertical Swing Modes",
-          "swing_horizontal_modes": "Horizontal Swing Modes",
+          "external_humidity_sensor": "External Humidity Sensor",
           "disable_available_check": "Disable Available Check",
-          "max_online_attempts": "Max Online Attempts",
-          "temp_sensor_offset": "Temperature Sensor Offset"
+          "max_online_attempts": "Max Connection Attempts",
+          "timeout": "Connection Timeout"
+        },
+        "data_description": {
+          "external_temperature_sensor": "If set will replace the built-in HVAC temperature sensor",
+          "external_humidity_sensor": "If set will replace the built-in HVAC humidity sensor",
+          "max_online_attempts": "The number of attempts to communicate with the device before it is marked as unavailable",
+          "timeout": "The timeout for each of the connection attempts"
         }
       }
     }
@@ -252,10 +213,6 @@
       }
     },
     "select": {
-      "external_temperature_sensor": {
-        "name": "External Temperature Sensor",
-        "description": "Select a temperature sensor entity to use instead of the built-in AC sensor. Choose 'None' to use the built-in sensor."
-      },
       "temperature_units": {
         "name": "Temperature Units",
         "description": "Select the temperature units used by the device."

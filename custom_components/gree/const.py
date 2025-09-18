@@ -24,7 +24,6 @@ CONF_HVAC_MODES = "hvac_modes"
 CONF_FAN_MODES = "fan_modes"
 CONF_SWING_MODES = "swing_modes"
 CONF_SWING_HORIZONTAL_MODES = "swing_horizontal_modes"
-CONF_TEMP_SENSOR_OFFSET = "temp_sensor_offset"
 CONF_FEATURES = "features"
 
 DEFAULT_TARGET_TEMP_STEP = 1
