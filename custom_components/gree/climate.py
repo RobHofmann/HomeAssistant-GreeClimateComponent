@@ -17,9 +17,16 @@ from homeassistant.const import (
     STATE_UNKNOWN,
     UnitOfTemperature,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import (
+    Event,
+    EventStateChangedData,
+    HomeAssistant,
+    State,
+    callback,
+)
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.typing import UNDEFINED
 from homeassistant.util.unit_conversion import TemperatureConverter
@@ -195,13 +202,114 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             self._attr_swing_horizontal_modes = swing_horizontal_modes
 
         self.update_attributes()
-
         _LOGGER.debug("Initialized climate %s", self._attr_unique_id)
 
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         _LOGGER.debug("Updating Climate Entity for %s", self._device.unique_id)
         self.update_attributes()
+
+    async def async_added_to_hass(self):
+        """When this entity is added to hass."""
+        await super().async_added_to_hass()
+
+        self.update_attributes()
+
+        # When using an external temperature sensor, subscribe to its state changes for updating the current temperature
+        if self._external_temperature_sensor:
+            self._update_current_temperature_from_external(
+                self.hass.states.get(self._external_temperature_sensor)
+            )
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass,
+                    [self._external_temperature_sensor],
+                    self._external_temperature_sensor_listener,
+                )
+            )
+
+        # When using an external himidity sensor, subscribe to its state changes for updating the current humidity
+        if self._external_humidity_sensor:
+            self._update_current_humidity_from_external(
+                self.hass.states.get(self._external_humidity_sensor)
+            )
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass,
+                    [self._external_humidity_sensor],
+                    self._external_humidity_sensor_listener,
+                )
+            )
+
+    @callback
+    def _external_temperature_sensor_listener(
+        self, event: Event[EventStateChangedData]
+    ) -> None:
+        """Update current temperature based on external sensor updates."""
+        new_state = event.data.get("new_state")
+        self._update_current_temperature_from_external(new_state)
+
+    def _update_current_temperature_from_external(self, new_state: State | None):
+        """Update current temperature based on external sensor data."""
+        if new_state and new_state.state not in (
+            STATE_UNKNOWN,
+            STATE_UNAVAILABLE,
+        ):
+            try:
+                unit: str = new_state.attributes.get(
+                    ATTR_UNIT_OF_MEASUREMENT, UnitOfTemperature.CELSIUS
+                )
+                value = float(new_state.state)
+
+            except (ValueError, TypeError) as ex:
+                _LOGGER.error(
+                    "Unable to update from external temp sensor %s: %s",
+                    self._external_temperature_sensor,
+                    ex,
+                )
+            else:
+                _LOGGER.debug(
+                    "Using external temperature sensor: %s, value: %s, unit: %s",
+                    self._external_temperature_sensor,
+                    value,
+                    unit,
+                )
+                # Update internal state based on the other entity
+                self._attr_current_temperature = self.hass.config.units.temperature(
+                    value, unit
+                )
+                self.async_write_ha_state()
+
+    @callback
+    def _external_humidity_sensor_listener(
+        self, event: Event[EventStateChangedData]
+    ) -> None:
+        """Update current humidity based on external sensor updates."""
+        new_state = event.data.get("new_state")
+        self._update_current_humidity_from_external(new_state)
+
+    def _update_current_humidity_from_external(self, new_state: State | None) -> None:
+        """Update current humidity based on external sensor updates."""
+        if new_state and new_state.state not in (
+            STATE_UNKNOWN,
+            STATE_UNAVAILABLE,
+        ):
+            try:
+                value = float(new_state.state)
+
+            except (ValueError, TypeError) as ex:
+                _LOGGER.error(
+                    "Unable to update from humidity temp sensor %s: %s",
+                    self._external_humidity_sensor,
+                    ex,
+                )
+            else:
+                _LOGGER.debug(
+                    "Using external humidity sensor: %s, value: %s",
+                    self._external_humidity_sensor,
+                    value,
+                )
+                self._attr_current_humidity = value
 
     def update_attributes(self):
         """Updates the entity attributes with the device values."""
@@ -227,8 +335,12 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
         self._attr_temperature_unit = self.get_temp_units()
         self._attr_target_temperature = self.get_current_target_temp()
-        self._attr_current_temperature = self.get_current_temp()
-        self._attr_current_humidity = self.get_current_humidity()
+
+        if self._external_temperature_sensor is None:
+            self._attr_current_temperature = self.get_current_temp()
+
+        if self._external_humidity_sensor is None:
+            self._attr_current_humidity = self.get_current_humidity()
 
         if self._attr_supported_features & ClimateEntityFeature.TARGET_TEMPERATURE:
             self._attr_max_temp = (
@@ -488,48 +600,16 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
     def get_current_temp(self) -> float | None:
         """Returns the current temperature of the room. Accounting for units."""
 
-        # Use external temperature sensor if available
-        if self._external_temperature_sensor and self.hass:
-            external_state = self.hass.states.get(self._external_temperature_sensor)
-
-            if external_state and external_state.state not in (
-                STATE_UNKNOWN,
-                STATE_UNAVAILABLE,
-            ):
-                try:
-                    unit: str = external_state.attributes.get(
-                        ATTR_UNIT_OF_MEASUREMENT, UnitOfTemperature.CELSIUS
-                    )
-                    value = float(external_state.state)
-
-                except (ValueError, TypeError) as ex:
-                    _LOGGER.error(
-                        "Unable to update from external temp sensor %s: %s",
-                        self._external_temperature_sensor,
-                        ex,
-                    )
-                else:
-                    _LOGGER.debug(
-                        "Using external temperature sensor: %s, value: %s, unit: %s",
-                        self._external_temperature_sensor,
-                        value,
-                        unit,
-                    )
-                    return self.hass.config.units.temperature(value, unit)
-
         # Gree API always return current temperature in ºC
         # so if we are dealing with ºF we convert to that first
         if (
-            self._device.has_indoor_temperature_sensor
+            self.hass
+            and self._device.has_indoor_temperature_sensor
             and self._device.indoors_temperature_c is not None
         ):
-            if self._attr_temperature_unit == UnitOfTemperature.FAHRENHEIT:
-                return TemperatureConverter.convert(
-                    self._device.indoors_temperature_c,
-                    UnitOfTemperature.CELSIUS,
-                    UnitOfTemperature.FAHRENHEIT,
-                )
-            return float(self._device.indoors_temperature_c)
+            return self.hass.config.units.temperature(
+                float(self._device.indoors_temperature_c), UnitOfTemperature.CELSIUS
+            )
 
         # FIXME: When changing Units in HA Settings, the temp does not update
 
@@ -537,31 +617,6 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
     def get_current_humidity(self) -> float | None:
         """Returns the current humidity of the room."""
-
-        # Use external humidity sensor if available
-        if self._external_humidity_sensor and self.hass:
-            external_state = self.hass.states.get(self._external_humidity_sensor)
-
-            if external_state and external_state.state not in (
-                STATE_UNKNOWN,
-                STATE_UNAVAILABLE,
-            ):
-                try:
-                    value = float(external_state.state)
-
-                except (ValueError, TypeError) as ex:
-                    _LOGGER.error(
-                        "Unable to update from humidity temp sensor %s: %s",
-                        self._external_humidity_sensor,
-                        ex,
-                    )
-                else:
-                    _LOGGER.debug(
-                        "Using external humidity sensor: %s, value: %s",
-                        self._external_humidity_sensor,
-                        value,
-                    )
-                    return value
 
         # Gree API always return current humidity in %
         if self._device.has_humidity_sensor and self._device.humidity is not None:
@@ -592,6 +647,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             )
 
         try:
+            # TODO: Confirm that HA sends the values in this entity's temperature_unit which matches the device unit
             self._device.set_target_temperature(temperature)
             await self._device.update_device_status()
 
