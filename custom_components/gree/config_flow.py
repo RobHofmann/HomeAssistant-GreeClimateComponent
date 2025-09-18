@@ -58,7 +58,7 @@ from .gree_device import GreeDevice, GreeDeviceNotBoundError
 _LOGGER = logging.getLogger(__name__)
 
 
-def build_main_schema(data: Mapping | None) -> vol.Schema | None:
+def build_main_schema(data: Mapping | None) -> vol.Schema:
     """Builds the main option schema."""
     return vol.Schema(
         {
@@ -112,9 +112,7 @@ def build_main_schema(data: Mapping | None) -> vol.Schema | None:
     )
 
 
-def build_options_schema(
-    hass: HomeAssistant, data: Mapping | None
-) -> vol.Schema | None:
+def build_options_schema(hass: HomeAssistant, data: Mapping | None) -> vol.Schema:
     """Builds the device option schema."""
 
     return vol.Schema(
@@ -182,10 +180,7 @@ def build_options_schema(
                 )
             ),
             vol.Optional(
-                ATTR_EXTERNAL_TEMPERATURE_SENSOR,
-                default=UNDEFINED
-                if data is None
-                else data.get(ATTR_EXTERNAL_TEMPERATURE_SENSOR, UNDEFINED),
+                ATTR_EXTERNAL_TEMPERATURE_SENSOR, default=UNDEFINED
             ): EntitySelector(
                 config=EntitySelectorConfig(
                     multiple=False,
@@ -227,6 +222,20 @@ def build_options_schema(
             ): cv.positive_int,
         }
     )
+
+
+DEVICE_OPTIONS_KEYS = {
+    CONF_TIMEOUT,
+    CONF_MAX_ONLINE_ATTEMPTS,
+    CONF_DISABLE_AVAILABLE_CHECK,
+    ATTR_EXTERNAL_HUMIDITY_SENSOR,
+    ATTR_EXTERNAL_TEMPERATURE_SENSOR,
+    CONF_FEATURES,
+    CONF_SWING_HORIZONTAL_MODES,
+    CONF_SWING_MODES,
+    CONF_FAN_MODES,
+    CONF_HVAC_MODES,
+}  # keys in the device_options schema
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -322,10 +331,13 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(entry.unique_id)
 
         if user_input is not None:
+            _LOGGER.warning(user_input)
+            # FIXME: Cannot remove external entities after setting
+            data = self._merge_device_options(entry.data, user_input)
             self._abort_if_unique_id_mismatch()
             return self.async_update_reload_and_abort(
                 entry,
-                data_updates=user_input,
+                data=data,
             )
 
         return self.async_show_form(
@@ -334,6 +346,26 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self.hass, entry.data if entry.data is not None else user_input
             ),
         )
+
+    def _merge_device_options(self, data, device_options_data: Mapping) -> dict:
+        """Removes optional keys if unset and updates the others."""
+        old_data = dict(data)
+
+        # Update or drop managed keys based on user_input
+
+        for key in DEVICE_OPTIONS_KEYS:
+            if key in device_options_data:
+                old_data[key] = device_options_data[key]
+            else:
+                old_data.pop(key, None)
+                _LOGGER.warning("Removing key %s", key)
+
+        # If there are any unmanaged keys in user_input, merge them too
+        for key, value in device_options_data.items():
+            if key not in DEVICE_OPTIONS_KEYS:
+                old_data[key] = value
+
+        return old_data
 
 
 class CannotConnect(HomeAssistantError):
