@@ -36,6 +36,7 @@ from .const import (
     CONF_FEATURES,
     CONF_HVAC_MODES,
     CONF_MAX_ONLINE_ATTEMPTS,
+    CONF_RESTORE_STATES,
     CONF_SWING_HORIZONTAL_MODES,
     CONF_SWING_MODES,
     CONF_UID,
@@ -200,6 +201,10 @@ def build_options_schema(hass: HomeAssistant, data: Mapping | None) -> vol.Schem
                     device_class=SensorDeviceClass.HUMIDITY,
                 )
             ),
+            vol.Required(
+                CONF_RESTORE_STATES,
+                default=True if data is None else data.get(CONF_RESTORE_STATES, True),
+            ): cv.boolean,
             vol.Required(
                 CONF_DISABLE_AVAILABLE_CHECK,
                 default=False

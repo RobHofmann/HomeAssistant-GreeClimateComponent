@@ -19,6 +19,7 @@ CONF_ENCRYPTION_KEY = "encryption_key"
 CONF_ENCRYPTION_VERSION = "encryption_version"
 CONF_DISABLE_AVAILABLE_CHECK = "disable_available_check"
 CONF_MAX_ONLINE_ATTEMPTS = "max_online_attempts"
+CONF_RESTORE_STATES = "restore_states"
 
 CONF_HVAC_MODES = "hvac_modes"
 CONF_FAN_MODES = "fan_modes"

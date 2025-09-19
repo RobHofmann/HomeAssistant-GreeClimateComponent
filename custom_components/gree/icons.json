@@ -81,6 +81,12 @@
       "feat_light_sensor": {
         "default": "mdi:brightness-auto"
       },
+      "auto_xfan": {
+        "default": "mdi:fan-auto"
+      },
+      "auto_light": {
+        "default": "mdi:lightbulb-auto"
+      },
       "beeper": {
         "default": "mdi:volume-high"
       }

@@ -20,6 +20,7 @@ from .const import (
     ATTR_AUTO_LIGHT,
     ATTR_AUTO_XFAN,
     CONF_FEATURES,
+    CONF_RESTORE_STATES,
     DEFAULT_SUPPORTED_FEATURES,
     GATTR_ANTI_DIRECT_BLOW,
     GATTR_BEEPER,
@@ -150,7 +151,15 @@ async def async_setup_entry(
     _LOGGER.debug("Adding Switch Entities: %s", supported_features)
 
     entities = [
-        GreeSwitch(description, coordinator, restore_state=True)
+        GreeSwitch(
+            description,
+            coordinator,
+            restore_state=(
+                entry.data.get(CONF_RESTORE_STATES, True)
+                if description.key != GATTR_BEEPER  # Always restore beeper
+                else True
+            ),
+        )
         for description in SWITCH_TYPES
         if description.key in supported_features
     ]

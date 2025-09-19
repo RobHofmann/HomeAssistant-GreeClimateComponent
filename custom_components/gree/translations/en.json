@@ -39,13 +39,15 @@
           "external_humidity_sensor": "External Humidity Sensor",
           "disable_available_check": "Disable Available Check",
           "max_online_attempts": "Max Connection Attempts",
-          "timeout": "Connection Timeout"
+          "timeout": "Connection Timeout",
+          "restore_states": "Restore Entities"
         },
         "data_description": {
           "external_temperature_sensor": "If set will replace the built-in HVAC temperature sensor",
           "external_humidity_sensor": "If set will replace the built-in HVAC humidity sensor",
           "max_online_attempts": "The number of attempts to communicate with the device before it is marked as unavailable",
-          "timeout": "The timeout for each of the connection attempts"
+          "timeout": "The timeout for each of the connection attempts",
+          "restore_states": "If set to true, when the integration is started the device will be overriden by previous states of the integration instead of using the current device state."
         }
       },
       "reconfigure": {
@@ -61,13 +63,15 @@
           "external_humidity_sensor": "External Humidity Sensor",
           "disable_available_check": "Disable Available Check",
           "max_online_attempts": "Max Connection Attempts",
-          "timeout": "Connection Timeout"
+          "timeout": "Connection Timeout",
+          "restore_states": "Restore Entities"
         },
         "data_description": {
           "external_temperature_sensor": "If set will replace the built-in HVAC temperature sensor",
           "external_humidity_sensor": "If set will replace the built-in HVAC humidity sensor",
           "max_online_attempts": "The number of attempts to communicate with the device before it is marked as unavailable",
-          "timeout": "The timeout for each of the connection attempts"
+          "timeout": "The timeout for each of the connection attempts",
+          "restore_states": "If set to true, when the integration is started the device will be overriden by previous states of the integration instead of using the current device state."
         }
       }
     }

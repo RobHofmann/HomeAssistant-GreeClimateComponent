@@ -1,6 +1,5 @@
 """Data update coordinator for Gree integration."""
 
-from asyncio import timeout
 import logging
 
 from homeassistant.config_entries import ConfigEntry
