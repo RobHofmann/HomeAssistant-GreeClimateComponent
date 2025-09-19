@@ -93,7 +93,7 @@ class GreeSelectEntity(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ign
         super().__init__(coordinator, restore_state)
 
         self.entity_description = description  # pyright: ignore[reportIncompatibleVariableOverride]
-        self._attr_unique_id = f"{self._device.name}_{description.key}"
+        self._attr_unique_id = f"{self.device.name}_{description.key}"
 
         # Set up options dynamically
         if description.options_func:
@@ -101,35 +101,35 @@ class GreeSelectEntity(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ign
         else:
             self._attr_options = description.options or ["None"]
 
-        self._attr_current_option = self.entity_description.value_func(self._device)
+        self._attr_current_option = self.entity_description.value_func(self.device)
         _LOGGER.debug("Initialized select %s", self._attr_unique_id)
         _LOGGER.debug("Options: %s", self._attr_options)
 
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        _LOGGER.debug("Updating Select Entity for %s", self._device.unique_id)
-        self._attr_current_option = self.entity_description.value_func(self._device)
+        _LOGGER.debug("Updating Select Entity for %s", self.device.unique_id)
+        self._attr_current_option = self.entity_description.value_func(self.device)
 
     @property
     def current_option(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Return the selected entity option to represent the entity state."""
-        return self.entity_description.value_func(self._device)
+        return self.entity_description.value_func(self.device)
 
     async def async_select_option(self, option: str) -> None:
         """Change the selected option."""
         _LOGGER.debug(
             "async_select_option(%s, %s, %s -> %s)",
-            self._device.unique_id,
+            self.device.unique_id,
             self.entity_description.key,
             self.current_option,
             option,
         )
 
         try:
-            self.entity_description.set_func(self._device, option)
+            self.entity_description.set_func(self.device, option)
 
             if self.entity_description.updates_device:
-                await self._device.update_device_status()
+                await self.device.update_device_status()
 
             # notify coordinator listeners of state change so that dependent entities are updated immediately
             self.coordinator.async_update_listeners()
@@ -138,7 +138,7 @@ class GreeSelectEntity(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ign
         except Exception as err:
             _LOGGER.debug(
                 "Error in async_select_option(%s, %s, %s -> %s)",
-                self._device.unique_id,
+                self.device.unique_id,
                 self.entity_description.key,
                 self.current_option,
                 option,
@@ -162,10 +162,10 @@ class GreeSelectEntity(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ign
                 )
                 if last_state.state not in ("unknown", "unavailable"):
                     try:
-                        self.entity_description.set_func(self._device, last_state.state)
+                        self.entity_description.set_func(self.device, last_state.state)
 
                         if self.entity_description.updates_device:
-                            await self._device.update_device_status()
+                            await self.device.update_device_status()
 
                         self._attr_current_option = last_state.state
                     except Exception as err:  # noqa: BLE001

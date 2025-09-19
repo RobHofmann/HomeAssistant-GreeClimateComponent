@@ -111,20 +111,20 @@ class GreeSensor(GreeEntity, SensorEntity, RestoreEntity):  # pyright: ignore[re
         super().__init__(coordinator, restore_state)
 
         self.entity_description = description  # pyright: ignore[reportIncompatibleVariableOverride]
-        self._attr_unique_id = f"{self._device.name}_{description.key}"
+        self._attr_unique_id = f"{self.device.name}_{description.key}"
         _LOGGER.debug("Initialized sensor %s", self._attr_unique_id)
 
     @property
     def available(self):  # pyright: ignore[reportIncompatibleVariableOverride]
         """Return True if entity is available."""
-        return self._device.available and self.entity_description.available_func(
-            self._device
+        return self.device.available and self.entity_description.available_func(
+            self.device
         )
 
     @property
     def native_value(self):  # pyright: ignore[reportIncompatibleVariableOverride]
         """Return the state of the sensor."""
-        return self.entity_description.value_func(self._device)
+        return self.entity_description.value_func(self.device)
 
     async def async_added_to_hass(self):
         """Handle entity which will be added."""

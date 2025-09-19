@@ -39,6 +39,8 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
             always_update=True,
         )
         self.device: GreeDevice = device
+        self._feature_auto_xfan: bool = False
+        self._feature_auto_light: bool = False
 
     async def _async_setup(self):
         """Set up the coordinator.
@@ -64,3 +66,21 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
             raise ConfigEntryAuthFailed("Failed to initiate Gree device") from err
         except ValueError as err:
             raise UpdateFailed("Error getting state from device") from err
+
+    @property
+    def feature_auto_light(self) -> bool:
+        """Returns the state of the Auto Display Light Feature."""
+        return self._feature_auto_light
+
+    def set_feature_auto_light(self, value: bool) -> None:
+        """Sets the state of the Auto Display Light Feature."""
+        self._feature_auto_light = value
+
+    @property
+    def feature_auto_xfan(self) -> bool:
+        """Returns the state of the Auto X-Fan Feature."""
+        return self._feature_auto_xfan
+
+    def set_feature_auto_xfan(self, value: bool) -> None:
+        """Sets the state of the Auto X-Fan Feature."""
+        self._feature_auto_xfan = value

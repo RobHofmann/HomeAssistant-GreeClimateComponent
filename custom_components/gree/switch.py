@@ -17,6 +17,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import (
+    ATTR_AUTO_LIGHT,
+    ATTR_AUTO_XFAN,
     CONF_FEATURES,
     DEFAULT_SUPPORTED_FEATURES,
     GATTR_ANTI_DIRECT_BLOW,
@@ -153,6 +155,40 @@ async def async_setup_entry(
         if description.key in supported_features
     ]
 
+    if GATTR_FEAT_LIGHT in supported_features:
+        entities.append(
+            GreeSwitch(
+                GreeSwitchDescription(
+                    key=ATTR_AUTO_LIGHT,
+                    translation_key=ATTR_AUTO_LIGHT,
+                    available_func=lambda device: device.available,
+                    value_func=lambda _: coordinator.feature_auto_light,
+                    set_func=lambda _, value: coordinator.set_feature_auto_light(value),
+                    updates_device=False,
+                    entity_category=EntityCategory.CONFIG,
+                ),
+                coordinator,
+                restore_state=True,
+            )
+        )
+
+    if GATTR_FEAT_XFAN in supported_features:
+        entities.append(
+            GreeSwitch(
+                GreeSwitchDescription(
+                    key=ATTR_AUTO_XFAN,
+                    translation_key=ATTR_AUTO_XFAN,
+                    available_func=lambda device: device.available,
+                    value_func=lambda _: coordinator.feature_auto_xfan,
+                    set_func=lambda _, value: coordinator.set_feature_auto_xfan(value),
+                    updates_device=False,
+                    entity_category=EntityCategory.CONFIG,
+                ),
+                coordinator,
+                restore_state=True,
+            )
+        )
+
     async_add_entities(entities)
 
 
@@ -171,18 +207,18 @@ class GreeSwitch(GreeEntity, SwitchEntity, RestoreEntity):  # pyright: ignore[re
         super().__init__(coordinator, restore_state)
 
         self.entity_description = description  # pyright: ignore[reportIncompatibleVariableOverride]
-        self._attr_unique_id = f"{self._device.name}_{description.key}"
+        self._attr_unique_id = f"{self.device.name}_{description.key}"
         _LOGGER.debug("Initialized sensor %s", self._attr_unique_id)
 
     @property
     def available(self):  # pyright: ignore[reportIncompatibleVariableOverride]
         """Return True if entity is available."""
-        return self.entity_description.available_func(self._device)
+        return self.entity_description.available_func(self.device)
 
     @property
     def is_on(self) -> bool | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Return true if the switch is on."""
-        return self.entity_description.value_func(self._device)
+        return self.entity_description.value_func(self.device)
 
     async def async_added_to_hass(self):
         """Handle entity which will be added."""
@@ -197,10 +233,10 @@ class GreeSwitch(GreeEntity, SwitchEntity, RestoreEntity):  # pyright: ignore[re
                 if last_state.state in ("on", "off"):
                     value: bool = last_state.state == "on"
                     try:
-                        self.entity_description.set_func(self._device, value)
+                        self.entity_description.set_func(self.device, value)
 
                         if self.entity_description.updates_device:
-                            await self._device.update_device_status()
+                            await self.device.update_device_status()
 
                         self._attr_is_on = value
                     except Exception as err:  # noqa: BLE001
@@ -216,10 +252,10 @@ class GreeSwitch(GreeEntity, SwitchEntity, RestoreEntity):  # pyright: ignore[re
             raise HomeAssistantError("Entity unavailable")
 
         try:
-            self.entity_description.set_func(self._device, True)
+            self.entity_description.set_func(self.device, True)
 
             if self.entity_description.updates_device:
-                await self._device.update_device_status()
+                await self.device.update_device_status()
 
             # notify coordinator listeners of state change so that dependent entities are updated immediately
             self.coordinator.async_update_listeners()
@@ -239,10 +275,10 @@ class GreeSwitch(GreeEntity, SwitchEntity, RestoreEntity):  # pyright: ignore[re
             raise HomeAssistantError("Entity unavailable")
 
         try:
-            self.entity_description.set_func(self._device, False)
+            self.entity_description.set_func(self.device, False)
 
             if self.entity_description.updates_device:
-                await self._device.update_device_status()
+                await self.device.update_device_status()
 
             # notify coordinator listeners of state change so that dependent entities are updated immediately
             self.coordinator.async_update_listeners()

@@ -60,6 +60,8 @@ GATTR_TEMP_UNITS = "temperature_units"
 
 ATTR_EXTERNAL_TEMPERATURE_SENSOR = "external_temperature_sensor"
 ATTR_EXTERNAL_HUMIDITY_SENSOR = "external_humidity_sensor"
+ATTR_AUTO_XFAN = "auto_xfan"
+ATTR_AUTO_LIGHT = "auto_light"
 
 # HVAC modes - these come from Home Assistant and are standard
 DEFAULT_HVAC_MODES = [

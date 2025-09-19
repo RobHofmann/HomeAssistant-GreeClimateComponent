@@ -29,7 +29,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.typing import UNDEFINED
-from homeassistant.util.unit_conversion import TemperatureConverter
 
 from .const import (
     ATTR_EXTERNAL_HUMIDITY_SENSOR,
@@ -167,7 +166,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         """Initialize the Gree Climate entity."""
         super().__init__(coordinator, restore_state)
         self.entity_description = description
-        self._attr_unique_id = f"{self._device.name}_{description.key}"
+        self._attr_unique_id = f"{self.device.name}_{description.key}"
         self._attr_name = None  # Main entity
 
         self._external_temperature_sensor = external_temperature_sensor_id
@@ -206,7 +205,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        _LOGGER.debug("Updating Climate Entity for %s", self._device.unique_id)
+        _LOGGER.debug("Updating Climate Entity for %s", self.device.unique_id)
         self.update_attributes()
 
     async def async_added_to_hass(self):
@@ -313,7 +312,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
     def update_attributes(self):
         """Updates the entity attributes with the device values."""
-        self._attr_available = self._device.available
+        self._attr_available = self.device.available
 
         if (
             self._attr_supported_features
@@ -360,67 +359,78 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
     async def async_turn_on(self):
         """Turn on."""
-        _LOGGER.debug("turn_on(%s)", self._device.unique_id)
+        _LOGGER.debug("turn_on(%s)", self.device.unique_id)
 
         if not self.available:
             raise HomeAssistantError(
                 translation_domain=DOMAIN, translation_key="entity_unavailable"
             )
+
         try:
-            self._device.set_power_mode(True)
-            await self._device.update_device_status()
+            self.device.set_power_mode(True)
+
+            # If Auto Light is enabled, turn the display lights on
+            if self.coordinator.feature_auto_light:
+                self.device.set_feature_light(True)
+
+            await self.device.update_device_status()
+
+            self.async_write_ha_state()
 
             # notify coordinator listeners of state change so that dependent entities are updated immediately
             self.coordinator.async_update_listeners()
-
-            # TODO: Turn Light on if auto light is on
-
-            await self.coordinator.async_request_refresh()
         except Exception as err:
             _LOGGER.exception("Error in '%s'", "async_turn_on")
             raise HomeAssistantError(
                 translation_domain=DOMAIN, translation_key="generic"
             ) from err
 
-        self.async_write_ha_state()
+        finally:
+            await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self):
         """Turn off."""
-        _LOGGER.debug("turn_off(%s)", self._device.unique_id)
+        _LOGGER.debug("turn_off(%s)", self.device.unique_id)
 
         if not self.available:
             raise HomeAssistantError(
                 translation_domain=DOMAIN, translation_key="entity_unavailable"
             )
+
         try:
-            self._device.set_power_mode(False)
-            await self._device.update_device_status()
+            self.device.set_power_mode(False)
+
+            # If Auto Light is enabled, turn the display lights off
+            if self.coordinator.feature_auto_light:
+                self.device.set_feature_light(False)
+
+            await self.device.update_device_status()
+
+            self.async_write_ha_state()
 
             # notify coordinator listeners of state change so that dependent entities are updated immediately
             self.coordinator.async_update_listeners()
 
-            # TODO: Turn Light off if auto light is on
-
-            await self.coordinator.async_request_refresh()
         except Exception as err:
             _LOGGER.exception("Error in '%s'", "async_turn_off")
             raise HomeAssistantError(
                 translation_domain=DOMAIN, translation_key="generic"
             ) from err
 
-        self.async_write_ha_state()
+        finally:
+            await self.coordinator.async_request_refresh()
 
     def get_hvac_mode(self) -> HVACMode:
         """Converts Gree Operation Modes to HA."""
         return (
             HVACMode.OFF
-            if not self._device.power_mode
-            else HVAC_MODES_GREE_TO_HA[self._device.operation_mode]
+            if not self.device.power_mode
+            else HVAC_MODES_GREE_TO_HA[self.device.operation_mode]
         )
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode):
         """Set the HVAC Mode."""
-        _LOGGER.debug("set_hvac_mode(%s, %s)", self._device.unique_id, hvac_mode)
+        _LOGGER.debug("set_hvac_mode(%s, %s)", self.device.unique_id, hvac_mode)
 
         if not self.available:
             raise HomeAssistantError(
@@ -429,17 +439,26 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
         try:
             if hvac_mode == HVACMode.OFF:
+                if self.coordinator.feature_auto_xfan:
+                    self.device.set_feature_xfan(False)
+
                 await self.async_turn_off()
                 # This will be called in the turn on
                 # await self._device.update_device_status()
             else:
-                self._device.set_operation_mode(HVAC_MODES_HA_TO_GREE[hvac_mode])
+                self.device.set_operation_mode(HVAC_MODES_HA_TO_GREE[hvac_mode])
+
+                # The Auto X-FAN enables that feature if the device is set to a hvac mode taht supports X-FAN
+                if self.coordinator.feature_auto_xfan:
+                    if hvac_mode in (HVACMode.COOL, HVACMode.DRY):
+                        self.device.set_feature_xfan(True)
+                    else:
+                        self.device.set_feature_xfan(False)
+
                 await self.async_turn_on()
 
                 # This will be called in the turn on
                 # await self._device.update_device_status()
-
-            # TODO: Control X-FAN based on auto X-FAN
 
             # notify coordinator listeners of state change so that dependent entities are updated immediately
             self.coordinator.async_update_listeners()
@@ -455,20 +474,17 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
     def get_fan_mode(self) -> str:
         """Converts Gree Fan Modes to HA. Accounts for the 2 special modes."""
-        if (
-            GATTR_FEAT_QUIET_MODE in self._attr_hvac_modes
-            and self._device.feature_quiet
-        ):
+        if GATTR_FEAT_QUIET_MODE in self._attr_hvac_modes and self.device.feature_quiet:
             return GATTR_FEAT_QUIET_MODE
 
-        if GATTR_FEAT_TURBO in self._attr_hvac_modes and self._device.feature_turbo:
+        if GATTR_FEAT_TURBO in self._attr_hvac_modes and self.device.feature_turbo:
             return GATTR_FEAT_TURBO
 
-        return self._device.fan_speed.name
+        return self.device.fan_speed.name
 
     async def async_set_fan_mode(self, fan_mode: str):
         """Set new target fan mode."""
-        _LOGGER.debug("set_fan_mode(%s, %s)", self._device.unique_id, fan_mode)
+        _LOGGER.debug("set_fan_mode(%s, %s)", self.device.unique_id, fan_mode)
 
         if not self.available:
             raise HomeAssistantError(
@@ -497,13 +513,13 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             )
 
         try:
-            self._device.set_feature_quiet(fan_mode == GATTR_FEAT_QUIET_MODE)
-            self._device.set_feature_turbo(fan_mode == GATTR_FEAT_TURBO)
+            self.device.set_feature_quiet(fan_mode == GATTR_FEAT_QUIET_MODE)
+            self.device.set_feature_turbo(fan_mode == GATTR_FEAT_TURBO)
 
             if fan_mode not in (GATTR_FEAT_QUIET_MODE, GATTR_FEAT_TURBO):
-                self._device.set_fan_speed(FanSpeed[fan_mode])
+                self.device.set_fan_speed(FanSpeed[fan_mode])
 
-            await self._device.update_device_status()
+            await self.device.update_device_status()
 
             # notify coordinator listeners of state change so that dependent entities are updated immediately
             self.coordinator.async_update_listeners()
@@ -519,13 +535,11 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
     def get_swing_mode(self) -> str:
         """Converts Gree Swing Modes to HA."""
-        return self._device.vertical_swing_mode.name
+        return self.device.vertical_swing_mode.name
 
     async def async_set_swing_mode(self, swing_mode):
         """Set new target swing operation."""
-        _LOGGER.debug(
-            "async_set_swing_mode(%s, %s)", self._device.unique_id, swing_mode
-        )
+        _LOGGER.debug("async_set_swing_mode(%s, %s)", self.device.unique_id, swing_mode)
 
         if not self.available:
             raise HomeAssistantError(
@@ -538,8 +552,8 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             )
 
         try:
-            self._device.set_vertical_swing_mode(VerticalSwingMode[swing_mode])
-            await self._device.update_device_status()
+            self.device.set_vertical_swing_mode(VerticalSwingMode[swing_mode])
+            await self.device.update_device_status()
 
             # notify coordinator listeners of state change so that dependent entities are updated immediately
             self.coordinator.async_update_listeners()
@@ -555,13 +569,13 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
     def get_swing_horizontal_mode(self) -> str:
         """Converts Gree Swing Horizontal Modes to HA."""
-        return self._device.horizontal_swing_mode.name
+        return self.device.horizontal_swing_mode.name
 
     async def async_set_swing_horizontal_mode(self, swing_horizontal_mode):
         """Set new target horizontal swing operation."""
         _LOGGER.debug(
             "async_set_swing_horizontal_mode(%s, %s)",
-            self._device.unique_id,
+            self.device.unique_id,
             swing_horizontal_mode,
         )
 
@@ -576,10 +590,10 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             )
 
         try:
-            self._device.set_horizontal_swing_mode(
+            self.device.set_horizontal_swing_mode(
                 HorizontalSwingMode[swing_horizontal_mode]
             )
-            await self._device.update_device_status()
+            await self.device.update_device_status()
 
             # notify coordinator listeners of state change so that dependent entities are updated immediately
             self.coordinator.async_update_listeners()
@@ -595,7 +609,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
     def get_temp_units(self) -> UnitOfTemperature:
         """Returns the device units of temperature."""
-        return UNITS_GREE_TO_HA[self._device.target_temperature_unit]
+        return UNITS_GREE_TO_HA[self.device.target_temperature_unit]
 
     def get_current_temp(self) -> float | None:
         """Returns the current temperature of the room. Accounting for units."""
@@ -604,11 +618,11 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         # so if we are dealing with ºF we convert to that first
         if (
             self.hass
-            and self._device.has_indoor_temperature_sensor
-            and self._device.indoors_temperature_c is not None
+            and self.device.has_indoor_temperature_sensor
+            and self.device.indoors_temperature_c is not None
         ):
             return self.hass.config.units.temperature(
-                float(self._device.indoors_temperature_c), UnitOfTemperature.CELSIUS
+                float(self.device.indoors_temperature_c), UnitOfTemperature.CELSIUS
             )
 
         # FIXME: When changing Units in HA Settings, the temp does not update
@@ -619,21 +633,21 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         """Returns the current humidity of the room."""
 
         # Gree API always return current humidity in %
-        if self._device.has_humidity_sensor and self._device.humidity is not None:
-            return float(self._device.humidity)
+        if self.device.has_humidity_sensor and self.device.humidity is not None:
+            return float(self.device.humidity)
 
         return None
 
     def get_current_target_temp(self) -> float | None:
         """Returns the current target temperature set on the device."""
         # Device already return in the temperature_units
-        return self._device.target_temperature
+        return self.device.target_temperature
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
         temperature: float | None = kwargs.get(ATTR_TEMPERATURE)
         _LOGGER.debug(
-            "async_set_temperature(%s, %s)", self._device.unique_id, temperature
+            "async_set_temperature(%s, %s)", self.device.unique_id, temperature
         )
         _LOGGER.debug(kwargs)
 
@@ -648,8 +662,8 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
         try:
             # TODO: Confirm that HA sends the values in this entity's temperature_unit which matches the device unit
-            self._device.set_target_temperature(temperature)
-            await self._device.update_device_status()
+            self.device.set_target_temperature(temperature)
+            await self.device.update_device_status()
 
             # notify coordinator listeners of state change so that dependent entities are updated immediately
             self.coordinator.async_update_listeners()

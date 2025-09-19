@@ -25,13 +25,13 @@ class GreeEntity(CoordinatorEntity[GreeCoordinator]):
     def __init__(self, coordinator: GreeCoordinator, restore_state: bool) -> None:
         """Initialize Gree entity."""
         super().__init__(coordinator)
-        self._device = coordinator.device
+        self.device = coordinator.device
         self._attr_device_info = DeviceInfo(
-            connections={(CONNECTION_NETWORK_MAC, self._device.unique_id)},
-            identifiers={(DOMAIN, self._device.unique_id)},
-            name=self._device.name,
+            connections={(CONNECTION_NETWORK_MAC, self.device.unique_id)},
+            identifiers={(DOMAIN, self.device.unique_id)},
+            name=self.device.name,
             manufacturer="Gree",
-            sw_version=self._device.firmware_version
+            sw_version=self.device.firmware_version,
         )
         self.restore_state = restore_state
 
