@@ -60,8 +60,7 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         so entities can quickly look up their data.
         """
         try:
-            async with timeout(10):
-                await self.device.fetch_device_status()
+            await self.device.fetch_device_status()
         except GreeDeviceNotBoundError as err:
             raise ConfigEntryAuthFailed("Failed to initiate Gree device") from err
         except ValueError as err:
