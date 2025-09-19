@@ -484,7 +484,12 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
     async def async_set_fan_mode(self, fan_mode: str):
         """Set new target fan mode."""
-        _LOGGER.debug("set_fan_mode(%s, %s)", self.device.unique_id, fan_mode)
+        _LOGGER.debug(
+            "set_fan_mode(%s, %s -> %s)",
+            self.device.unique_id,
+            self.get_fan_mode(),
+            fan_mode,
+        )
 
         if not self.available:
             raise HomeAssistantError(
