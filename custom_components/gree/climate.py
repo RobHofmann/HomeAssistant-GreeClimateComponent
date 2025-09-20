@@ -439,21 +439,17 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
         try:
             if hvac_mode == HVACMode.OFF:
-                if self.coordinator.feature_auto_xfan:
-                    self.device.set_feature_xfan(False)
-
                 await self.async_turn_off()
                 # This will be called in the turn on
                 # await self._device.update_device_status()
             else:
                 self.device.set_operation_mode(HVAC_MODES_HA_TO_GREE[hvac_mode])
 
-                # The Auto X-FAN enables that feature if the device is set to a hvac mode taht supports X-FAN
+                # The Auto X-FAN enables that feature if the device is set to a hvac mode that supports X-FAN
                 if self.coordinator.feature_auto_xfan:
-                    if hvac_mode in (HVACMode.COOL, HVACMode.DRY):
-                        self.device.set_feature_xfan(True)
-                    else:
-                        self.device.set_feature_xfan(False)
+                    self.device.set_feature_xfan(
+                        hvac_mode in (HVACMode.COOL, HVACMode.DRY)
+                    )
 
                 await self.async_turn_on()
 
