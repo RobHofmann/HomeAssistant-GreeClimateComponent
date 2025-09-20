@@ -299,11 +299,5 @@
     "generic": {
       "message": "There was a problem performing the requested change, please consult the integration log."
     }
-  },
-  "state": {
-    "temperature_units": {
-      "C": "Celsius",
-      "F": "Fahrenheit"
-    }
   }
 }

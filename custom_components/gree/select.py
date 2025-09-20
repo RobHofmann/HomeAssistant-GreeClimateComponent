@@ -15,7 +15,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.typing import UNDEFINED
 
-from .const import GATTR_TEMP_UNITS
+from .const import CONF_RESTORE_STATES, GATTR_TEMP_UNITS
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
 from .gree_api import TemperatureUnits
@@ -40,11 +40,11 @@ async def async_setup_entry(
             key=GATTR_TEMP_UNITS,
             translation_key=GATTR_TEMP_UNITS,
             entity_category=EntityCategory.CONFIG,
-            options=[member.name for member in TemperatureUnits],
+            options=[f"º{member.name}" for member in TemperatureUnits],
             available_func=lambda device: device.available,
             value_func=lambda device: device.target_temperature_unit.name,
             set_func=lambda device, value: device.set_target_temperature_unit(
-                TemperatureUnits[value]
+                TemperatureUnits[value.replace("º", "")]
             ),
             updates_device=True,
         )
@@ -53,7 +53,12 @@ async def async_setup_entry(
     _LOGGER.debug("Adding Select Entities: %s", [desc.key for desc in descriptions])
 
     async_add_entities(
-        [GreeSelectEntity(description, coordinator) for description in descriptions]
+        [
+            GreeSelectEntity(
+                description, coordinator, entry.data.get(CONF_RESTORE_STATES, True)
+            )
+            for description in descriptions
+        ]
     )
 
 
