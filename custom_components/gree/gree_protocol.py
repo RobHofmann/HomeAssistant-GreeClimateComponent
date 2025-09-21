@@ -18,6 +18,7 @@ from Crypto.Cipher import AES
 
 # Home Assistant imports
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_MAC
+from homeassistant.components.network import async_get_ipv4_broadcast_addresses
 
 # Local imports
 from .const import (
@@ -171,7 +172,7 @@ async def GetDeviceKeyGCM(mac_addr, ip_addr, port, max_retries=8):
         return key
 
 
-async def discover_gree_devices(timeout=3):
+async def discover_gree_devices(hass, timeout=5):
     """Discover Gree devices on the local network using UDP broadcast."""
     _LOGGER.debug("Starting Gree device discovery...")
 
@@ -187,9 +188,35 @@ async def discover_gree_devices(timeout=3):
     devices = []
 
     try:
-        # Send broadcast
-        sock.sendto(DISCOVERY_MESSAGE, ("255.255.255.255", BROADCAST_PORT))
-        _LOGGER.debug("Sent discovery packet, waiting for replies...")
+        # Default broadcast addresses to try
+        broadcast_addresses = [
+            "255.255.255.255",  # Limited broadcast
+            "192.168.255.255",  # /16 broadcast for 192.168.x.x networks
+            "10.255.255.255",  # /8 broadcast for 10.x.x.x networks
+            "172.31.255.255",  # /12 broadcast for 172.16-31.x.x networks
+        ]
+
+        # Get broadcast addresses from Home Assistant's network helper
+        try:
+            ha_broadcast_addresses = await async_get_ipv4_broadcast_addresses(hass)
+            ha_broadcast_strings = [str(addr) for addr in ha_broadcast_addresses]
+            broadcast_addresses.extend(ha_broadcast_strings)
+            _LOGGER.debug(f"Found broadcast addresses from HA: {ha_broadcast_strings}")
+        except Exception as e:
+            _LOGGER.debug(f"Could not get HA broadcast addresses: {e}")
+
+        # Remove duplicates
+        broadcast_addresses = list(dict.fromkeys(broadcast_addresses))
+
+        # Send to all broadcast addresses
+        for broadcast_addr in broadcast_addresses:
+            try:
+                _LOGGER.debug(f"Sending discovery to {broadcast_addr}")
+                sock.sendto(DISCOVERY_MESSAGE, (broadcast_addr, BROADCAST_PORT))
+            except Exception as e:
+                _LOGGER.debug(f"Failed to send to {broadcast_addr}: {e}")
+
+        _LOGGER.debug("Sent discovery packets, waiting for replies...")
 
         start = time.time()
         while time.time() - start < timeout:
