@@ -50,6 +50,7 @@ Tested on the following hardware:
 - AC Pioneer Fortis Series with WI-FI module CS532AE
 - Tadiran Alpha Expert Inverter
 - Toyotomi Izuru TRN/TRG-828ZR
+- Vaillant climaVAIR VAI5 (Wifi module VAI8/5-i, encryption version 2)
 - Wilfa Cool9 Connected
 
 ## Contributing Device Information
