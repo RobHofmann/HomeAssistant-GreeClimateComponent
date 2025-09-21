@@ -190,6 +190,16 @@
         "description": "Select a temperature sensor entity to use instead of the built-in AC sensor. Choose 'None' to use the built-in sensor."
       }
     },
+    "sensor": {
+      "outside_temperature": {
+        "name": "Outside Temperature",
+        "description": "Shows the outside temperature measured by the air conditioner's external sensor."
+      },
+      "room_humidity": {
+        "name": "Room Humidity",
+        "description": "Shows the room humidity level measured by the air conditioner's internal sensor."
+      }
+    },
     "switch": {
       "xfan": {
         "name": "X-Fan",
