@@ -3,10 +3,36 @@
     "error": {
       "cannot_connect": "Unable to connect to the device. Please check the network connection and try again."
     },
+    "abort": {
+      "already_configured": "A device with this MAC address is already configured."
+    },
     "title": "Gree Climate",
     "description": "Configure your Gree air conditioner",
     "step": {
       "user": {
+        "title": "Gree Climate Setup",
+        "description": "Choose how to add your Gree air conditioner",
+        "data": {
+          "discovery": "Setup Method"
+        }
+      },
+      "discovery": {
+        "title": "Discovered Devices",
+        "description": "Found {devices_found} Gree device(s). Select one to add or choose manual setup.",
+        "data": {
+          "device": "Device"
+        }
+      },
+      "detect_encryption": {
+        "title": "Configure Device",
+        "description": "Device connection successful. Enter a name for this device.",
+        "data": {
+          "name": "Device Name"
+        }
+      },
+      "manual": {
+        "title": "Manual Setup",
+        "description": "Enter the details for your Gree air conditioner",
         "data": {
           "name": "Name",
           "host": "IP Address",
@@ -50,6 +76,12 @@
     }
   },
   "selector": {
+    "discovery_method": {
+      "options": {
+        "discover": "Discover devices automatically",
+        "manual": "Add device manually"
+      }
+    },
     "hvac_modes": {
       "options": {
         "auto": "Auto",
