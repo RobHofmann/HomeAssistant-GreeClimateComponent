@@ -6,7 +6,6 @@ from typing import Generic, TypeVar
 
 from attr import dataclass
 
-from config.custom_components.gree.gree_device import GreeDevice
 from homeassistant.components.select import SelectEntity, SelectEntityDescription
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
@@ -19,6 +18,7 @@ from .const import CONF_RESTORE_STATES, GATTR_TEMP_UNITS
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
 from .gree_api import TemperatureUnits
+from .gree_device import GreeDevice
 
 _LOGGER = logging.getLogger(__name__)
 

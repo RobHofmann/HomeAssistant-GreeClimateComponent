@@ -2,19 +2,16 @@
 
 from __future__ import annotations
 
-# Standard library imports
 from collections.abc import Callable
 from dataclasses import dataclass
 
-# Home Assistant imports
-from config.custom_components.gree.coordinator import GreeCoordinator
-from config.custom_components.gree.gree_device import GreeDevice
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.helpers.entity import DeviceInfo, EntityDescription
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-# Local imports
 from .const import DOMAIN
+from .coordinator import GreeCoordinator
+from .gree_device import GreeDevice
 
 
 class GreeEntity(CoordinatorEntity[GreeCoordinator]):

@@ -9,7 +9,6 @@ from typing import Any
 import voluptuous as vol
 from voluptuous.schema_builder import UNDEFINED
 
-from config.custom_components.gree.gree_api import EncryptionVersion
 from homeassistant import config_entries
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import CONF_HOST, CONF_MAC, CONF_NAME, CONF_PORT, CONF_TIMEOUT
@@ -53,6 +52,7 @@ from .gree_api import (
     DEFAULT_CONNECTION_TIMEOUT,
     DEFAULT_DEVICE_PORT,
     DEFAULT_DEVICE_UID,
+    EncryptionVersion,
 )
 from .gree_device import GreeDevice, GreeDeviceNotBoundError
 

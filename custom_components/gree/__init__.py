@@ -6,7 +6,6 @@ from __future__ import annotations
 import asyncio
 import logging
 
-# Third-party imports
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_HOST,
