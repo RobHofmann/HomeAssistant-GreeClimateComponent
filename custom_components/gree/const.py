@@ -35,27 +35,27 @@ DEFAULT_ENCRYPTION_VERSION = None
 # use the device beeper on commands
 GATTR_BEEPER = "beeper"
 # controls the state of the fresh air valve (not available on all units)
-GATTR_FEAT_FRESH_AIR = "feat_fresh_air"
+GATTR_FEAT_FRESH_AIR = "air"
 # "Blow" or "X-Fan", this function keeps the fan running for a while after shutting down. Only usable in Dry and Cool mode
-GATTR_FEAT_XFAN = "feat_xfan"
+GATTR_FEAT_XFAN = "xfan"
 # sleep mode, which gradually changes the temperature in Cool, Heat and Dry mode
-GATTR_FEAT_SLEEP_MODE = "feat_sleep"
+GATTR_FEAT_SLEEP_MODE = "sleep"
 # Anti Freeze maintain the room temperature steadily at 8°C and prevent the room from freezing by heating operation when nobody is at home for long in severe winter
-GATTR_FEAT_SMART_HEAT_8C = "feat_smart_heat"
+GATTR_FEAT_SMART_HEAT_8C = "eightdegheat"
 # turns all indicators and the display on the unit on or off
-GATTR_FEAT_LIGHT = "feat_lights"
+GATTR_FEAT_LIGHT = "lights"
 # controls Health ("Cold plasma") mode
-GATTR_FEAT_HEALTH = "feat_health"
+GATTR_FEAT_HEALTH = "health"
 # prevents the wind from blowing directly on people
-GATTR_ANTI_DIRECT_BLOW = "feat_anti_direct_blow"
+GATTR_ANTI_DIRECT_BLOW = "anti_direct_blow"
 # energy saving mode
-GATTR_FEAT_ENERGY_SAVING = "feat_energy_saving"
+GATTR_FEAT_ENERGY_SAVING = "powersave"
 # use light sensor for unit display
-GATTR_FEAT_SENSOR_LIGHT = "feat_light_sensor"
+GATTR_FEAT_SENSOR_LIGHT = "light_sensor"
 # Quiet mode which slows down the fan to its most quiet speed. Not available in Dry and Fan mode.
-GATTR_FEAT_QUIET_MODE = "feat_quiet"
+GATTR_FEAT_QUIET_MODE = "quiet"
 # Turbo mode sets fan speed to the maximum. Fan speed cannot be changed while active and only available in Dry and Cool mode
-GATTR_FEAT_TURBO = "feat_turbo"
+GATTR_FEAT_TURBO = "turbo"
 
 GATTR_TEMP_UNITS = "temperature_units"
 

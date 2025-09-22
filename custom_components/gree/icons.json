@@ -54,31 +54,31 @@
       }
     },
     "switch": {
-      "feat_fresh_air": {
+      "air": {
         "default": "mdi:air-filter"
       },
-      "feat_xfan": {
+      "xfan": {
         "default": "mdi:fan"
       },
-      "feat_sleep": {
+      "sleep": {
         "default": "mdi:sleep"
       },
-      "feat_smart_heat": {
+      "eightdegheat": {
         "default": "mdi:thermometer-low"
       },
-      "feat_health": {
+      "health": {
         "default": "mdi:shield-check"
       },
-      "feat_anti_direct_blow": {
+      "anti_direct_blow": {
         "default": "mdi:weather-windy"
       },
-      "feat_energy_saving": {
+      "powersave": {
         "default": "mdi:leaf"
       },
-      "feat_lights": {
+      "lights": {
         "default": "mdi:lightbulb"
       },
-      "feat_light_sensor": {
+      "light_sensor": {
         "default": "mdi:brightness-auto"
       },
       "auto_xfan": {
