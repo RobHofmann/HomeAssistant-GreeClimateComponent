@@ -367,22 +367,9 @@ async def fetch_result(
     # except Exception as err:
     #     raise ValueError(f"Error communicating with {ip_addr}", ip_addr) from err
 
-    data = json.loads(received_json)
+    data = get_gree_response_data(received_json, cipher, encryption_version)
 
-    encodedPack = data["pack"]
-    pack = base64.b64decode(encodedPack)
-    decryptedPack = cipher.decrypt(pack)
-
-    if encryption_version == EncryptionVersion.V2:
-        tag = data["tag"]
-        _LOGGER.debug("Verifying tag: %s", tag)
-        cipher.verify(base64.b64decode(tag))
-
-    pack = decryptedPack.decode("utf-8")
-    replacedPack = pack.replace("\x0f", "").replace(pack[pack.rindex("}") + 1 :], "")
-    data["pack"] = json.loads(replacedPack)
-
-    _LOGGER.debug("Got data from %s", ip_addr)
+    _LOGGER.debug("Got data from %s: %s", ip_addr, data)
 
     return data
 
@@ -468,7 +455,7 @@ def gree_get_default_cipher(encryption_version: EncryptionVersion):
     return None
 
 
-def gree_encrypted_pack(
+def gree_create_encrypted_pack(
     data: str,
     cipher,
     encryption_version: EncryptionVersion,
@@ -591,7 +578,7 @@ async def gree_get_device_key(
         else [encryption_version]
     ):
         _LOGGER.info("Trying to retrieve device encryption key v%d", enc_version)
-        pack, tag = gree_encrypted_pack(
+        pack, tag = gree_create_encrypted_pack(
             gree_create_bind_pack(mac_addr, uid, enc_version),
             gree_get_default_cipher(enc_version),
             enc_version,
@@ -652,7 +639,7 @@ async def gree_get_status(
 
     status_values: dict[GreeProp, int] = {}
 
-    pack, tag = gree_encrypted_pack(
+    pack, tag = gree_create_encrypted_pack(
         gree_create_status_pack(mac_addr, [prop.value for prop in props]),
         get_cipher(encryption_key, encryption_version),
         encryption_version,
@@ -701,7 +688,7 @@ async def gree_set_status(
     _LOGGER.debug("Trying to set device status")
 
     set_pack = gree_create_set_pack(props)
-    pack, tag = gree_encrypted_pack(
+    pack, tag = gree_create_encrypted_pack(
         set_pack,
         get_cipher(encryption_key, encryption_version),
         encryption_version,
