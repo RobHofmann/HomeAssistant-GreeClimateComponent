@@ -7,6 +7,8 @@ import json
 import logging
 import re
 import socket
+import time
+from typing import Any
 
 import asyncio_dgram
 from Crypto.Cipher import AES
@@ -178,6 +180,66 @@ def pad(s: str):
     return s + requiredPaddingSize * chr(requiredPaddingSize)
 
 
+def udp_broadcast_request(
+    addresses: list[str], port: int, json_data: str, timeout: int
+):
+    """Sends a UDP message to the bradcast address and returns the responses."""
+    # Create UDP socket manually so we can enable broadcast
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    sock.settimeout(timeout)
+    sock.bind(("", 0))
+
+    responses: dict = {}
+
+    # Default broadcast addresses to try
+    default_broadcast_addresses = [
+        "255.255.255.255",  # Limited broadcast
+        "192.168.255.255",  # /16 broadcast for 192.168.x.x networks
+        "10.255.255.255",  # /8 broadcast for 10.x.x.x networks
+        "172.31.255.255",  # /12 broadcast for 172.16-31.x.x networks
+    ]
+    addresses.extend(default_broadcast_addresses)
+
+    # Remove duplicates
+    broadcast_addresses = list(dict.fromkeys(addresses))
+
+    try:
+        for broadcast_addr in broadcast_addresses:
+            try:
+                _LOGGER.debug("Sending broadcast to %s", broadcast_addr)
+                sock.sendto(json_data.encode("utf-8"), (broadcast_addr, port))
+            except Exception:
+                _LOGGER.exception("Failed to send to %s", broadcast_addr)
+
+        # Send broadcast
+        _LOGGER.debug("Sent broadcast packets, waiting for replies... ")
+
+        start_time: float = time.time()
+        while time.time() - start_time < timeout:
+            try:
+                response, addr = sock.recvfrom(1024)
+
+                try:
+                    # Try to parse as JSON and decrypt if possible
+                    response = json.loads(response.decode(errors="ignore"))
+                except Exception:
+                    _LOGGER.exception("Could not parse response from %s", addr)
+                else:
+                    responses[addr] = response
+            except TimeoutError:
+                break
+    except Exception:
+        _LOGGER.exception("Error sending broadcast packet")
+    finally:
+        sock.close()
+
+    _LOGGER.debug(
+        "Got %d responses in %d seconds: %s", len(responses), timeout, responses
+    )
+    return responses
+
+
 async def udp_request_async(
     ip_addr: str,
     port: int,
@@ -321,6 +383,32 @@ async def fetch_result(
     data["pack"] = json.loads(replacedPack)
 
     _LOGGER.debug("Got data from %s", ip_addr)
+
+    return data
+
+
+def get_gree_response_data(
+    received_json: str,
+    cipher,
+    encryption_version: EncryptionVersion,
+):
+    """Decodes a response from a gree device."""
+    data = json.loads(received_json)
+
+    encodedPack = data.get("pack")
+    if encodedPack:
+        pack = base64.b64decode(encodedPack)
+        decryptedPack = cipher.decrypt(pack)
+        pack = decryptedPack.decode("utf-8")
+        replacedPack = pack.replace("\x0f", "").replace(
+            pack[pack.rindex("}") + 1 :], ""
+        )
+        data["pack"] = json.loads(replacedPack)
+
+    if encryption_version == EncryptionVersion.V2:
+        tag = data["tag"]
+        _LOGGER.debug("Verifying tag: %s", tag)
+        cipher.verify(base64.b64decode(tag))
 
     return data
 
@@ -708,3 +796,44 @@ def extract_version(info: dict) -> tuple[str | None, str | None]:
     id_match = re.match(r"(\d+)", hid)  # leading digits
     device_id = id_match.group(1) if id_match else None
     return ver, device_id
+
+
+def discover_gree_devices(
+    broadcast_addresses: list[str], timeout: int
+) -> list[dict[str, Any]]:
+    """Discovers gree devices in the network."""
+
+    discovered_devices: list[dict[str, Any]] = []
+
+    responses = udp_broadcast_request(
+        broadcast_addresses, DEFAULT_DEVICE_PORT, json.dumps({"t": "scan"}), timeout
+    )
+
+    for address, response in responses.items():
+        data = get_gree_response_data(
+            response,
+            gree_get_default_cipher(EncryptionVersion.V1),
+            EncryptionVersion.V1,
+        )
+
+        if data is not None:
+            pack = data.get("pack")
+            if pack is not None:
+                if pack.get("t") == "dev":
+                    mac_addr = pack.get("mac", "")
+                    if not mac_addr:
+                        _LOGGER.debug("No MAC address in response from %s", address)
+                        continue
+
+                    # Just collect basic device info for now - encryption detection happens later
+                    discovered_device: dict[str, Any] = {
+                        "name": pack.get("name", "") or f"Gree {mac_addr[-4:]}",
+                        "host": address,
+                        "port": DEFAULT_DEVICE_PORT,
+                        "mac": mac_addr,
+                    }
+
+                    discovered_devices.append(discovered_device)
+                    _LOGGER.debug("Discovered device: %s", discovered_device)
+
+    return discovered_devices
