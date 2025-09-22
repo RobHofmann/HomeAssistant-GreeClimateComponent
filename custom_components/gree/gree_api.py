@@ -8,9 +8,9 @@ import logging
 import re
 import socket
 import time
-from typing import Any
 
 import asyncio_dgram
+from attr import dataclass
 from Crypto.Cipher import AES
 
 _LOGGER = logging.getLogger(__name__)
@@ -170,6 +170,16 @@ class GreeCommand(IntEnum):
     BIND = 1
 
 
+@dataclass
+class GreeDiscoveredDevice:
+    """Device discovered data."""
+
+    name: str
+    host: str
+    mac: str
+    port: int
+
+
 propkey_to_enum = {prop.value: prop for prop in GreeProp}
 
 
@@ -221,12 +231,11 @@ def udp_broadcast_request(
                 response, addr = sock.recvfrom(1024)
 
                 try:
-                    # Try to parse as JSON and decrypt if possible
-                    response = json.loads(response.decode(errors="ignore"))
+                    response = response.decode(errors="ignore")
                 except Exception:
                     _LOGGER.exception("Could not parse response from %s", addr)
                 else:
-                    responses[addr] = response
+                    responses[addr[0]] = response
             except TimeoutError:
                 break
     except Exception:
@@ -787,10 +796,10 @@ def extract_version(info: dict) -> tuple[str | None, str | None]:
 
 def discover_gree_devices(
     broadcast_addresses: list[str], timeout: int
-) -> list[dict[str, Any]]:
+) -> list[GreeDiscoveredDevice]:
     """Discovers gree devices in the network."""
 
-    discovered_devices: list[dict[str, Any]] = []
+    discovered_devices: list[GreeDiscoveredDevice] = []
 
     responses = udp_broadcast_request(
         broadcast_addresses, DEFAULT_DEVICE_PORT, json.dumps({"t": "scan"}), timeout
@@ -813,12 +822,12 @@ def discover_gree_devices(
                         continue
 
                     # Just collect basic device info for now - encryption detection happens later
-                    discovered_device: dict[str, Any] = {
-                        "name": pack.get("name", "") or f"Gree {mac_addr[-4:]}",
-                        "host": address,
-                        "port": DEFAULT_DEVICE_PORT,
-                        "mac": mac_addr,
-                    }
+                    discovered_device = GreeDiscoveredDevice(
+                        name=pack.get("name", "") or f"Gree {mac_addr[-4:]}",
+                        host=address,
+                        mac=mac_addr,
+                        port=DEFAULT_DEVICE_PORT,
+                    )
 
                     discovered_devices.append(discovered_device)
                     _LOGGER.debug("Discovered device: %s", discovered_device)

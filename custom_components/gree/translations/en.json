@@ -1,12 +1,30 @@
 {
   "config": {
-    "error": {
-      "cannot_connect": "Unable to connect to the device. Please check the device configuration and network connection and try again."
-    },
     "title": "Gree Climate",
     "description": "Configure your Gree air conditioner",
+    "error": {
+      "cannot_connect": "Unable to connect to the device. Please check the device configuration and network connection and try again.",
+      "no_devices_found": "Couldn't find any Gree device in the network. Please add your device manually."
+    },
+    "abort": {
+      "already_configured": "A device with this MAC address is already configured."
+    },
     "step": {
       "user": {
+        "title": "Gree Climate Setup",
+        "description": "Choose how to add your Gree air conditioner",
+        "data": {
+          "discovery": "Setup Method"
+        }
+      },
+      "manual_discovery": {
+        "title": "Discovered Devices",
+        "description": "Found {devices_found} Gree device(s). Select one to add or choose manual setup.",
+        "data": {
+          "device": "Device"
+        }
+      },
+      "manual_add": {
         "title": "Device configuration",
         "data": {
           "name": "Name",

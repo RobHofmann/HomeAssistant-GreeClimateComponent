@@ -10,6 +10,10 @@ import voluptuous as vol
 from voluptuous.schema_builder import UNDEFINED
 
 from homeassistant import config_entries
+from homeassistant.components.network import (
+    IPv4Address,
+    async_get_ipv4_broadcast_addresses,
+)
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import CONF_HOST, CONF_MAC, CONF_NAME, CONF_PORT, CONF_TIMEOUT
 from homeassistant.core import HomeAssistant
@@ -53,6 +57,8 @@ from .gree_api import (
     DEFAULT_DEVICE_PORT,
     DEFAULT_DEVICE_UID,
     EncryptionVersion,
+    GreeDiscoveredDevice,
+    discover_gree_devices,
 )
 from .gree_device import GreeDevice, GreeDeviceNotBoundError
 
@@ -64,15 +70,16 @@ def build_main_schema(data: Mapping | None) -> vol.Schema:
     return vol.Schema(
         {
             vol.Required(
-                CONF_NAME, default="AC" if data is None else data.get(CONF_NAME, "")
+                CONF_NAME,
+                default="Gree AC" if data is None else data.get(CONF_NAME, ""),
             ): str,
             vol.Required(
                 CONF_HOST,
-                default="192.168.1.103" if data is None else data.get(CONF_HOST, ""),
+                default="" if data is None else data.get(CONF_HOST, ""),
             ): str,
             vol.Required(
                 CONF_MAC,
-                default="C0:39:37:B1:22:80" if data is None else data.get(CONF_MAC, ""),
+                default="" if data is None else data.get(CONF_MAC, ""),
             ): str,
             vol.Required(CONF_ADVANCED): section(
                 vol.Schema(
@@ -80,7 +87,7 @@ def build_main_schema(data: Mapping | None) -> vol.Schema:
                         vol.Required(
                             CONF_PORT,
                             default=DEFAULT_DEVICE_PORT
-                            if data is None or data[CONF_ADVANCED] is None
+                            if data is None or data.get(CONF_ADVANCED) is None
                             else data[CONF_ADVANCED].get(
                                 CONF_PORT, DEFAULT_DEVICE_PORT
                             ),
@@ -88,7 +95,7 @@ def build_main_schema(data: Mapping | None) -> vol.Schema:
                         vol.Required(
                             CONF_ENCRYPTION_VERSION,
                             default="Auto-Detect"
-                            if data is None or data[CONF_ADVANCED] is None
+                            if data is None or data.get(CONF_ADVANCED) is None
                             else data[CONF_ADVANCED].get(
                                 CONF_ENCRYPTION_VERSION, "Auto-Detect"
                             ),
@@ -96,13 +103,13 @@ def build_main_schema(data: Mapping | None) -> vol.Schema:
                         vol.Optional(
                             CONF_ENCRYPTION_KEY,
                             default=""
-                            if data is None or data[CONF_ADVANCED] is None
+                            if data is None or data.get(CONF_ADVANCED) is None
                             else data[CONF_ADVANCED].get(CONF_ENCRYPTION_KEY, ""),
                         ): str,
                         vol.Required(
                             CONF_UID,
                             default=DEFAULT_DEVICE_UID
-                            if data is None or data[CONF_ADVANCED] is None
+                            if data is None or data.get(CONF_ADVANCED) is None
                             else data[CONF_ADVANCED].get(CONF_UID, DEFAULT_DEVICE_UID),
                         ): cv.positive_int,
                     }
@@ -247,6 +254,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow from user."""
 
     VERSION = 2
+    _discovered_devices: list[GreeDiscoveredDevice] | None = None
+    _selected_device: GreeDiscoveredDevice | None = None
+    _discovery_performed: bool = False
 
     def __init__(self) -> None:
         """Initialize the config flow."""
@@ -256,7 +266,77 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Handle the initial step."""
+        """Handle the initial step - show discovery or manual entry."""
+        if user_input is not None:
+            if user_input.get("discovery") == "discover":
+                return await self.async_step_manual_discovery()
+            return await self.async_step_manual_add()
+
+        # Show discovery vs manual choice
+        data_schema = vol.Schema(
+            {
+                vol.Required("discovery", default="discover"): SelectSelector(
+                    SelectSelectorConfig(
+                        options=["discover", "manual"],
+                        translation_key="discovery_method",
+                    )
+                )
+            }
+        )
+        return self.async_show_form(step_id="user", data_schema=data_schema)
+
+    async def async_step_manual_discovery(
+        self, user_input: dict | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Handle device discovery."""
+        if user_input is not None:
+            # User selected a discovered device
+            selected_device = user_input["device"]
+
+            assert self._discovered_devices
+
+            for device in self._discovered_devices:
+                device_id = f"{device.mac}_{device.host}"
+                if device_id == selected_device:
+                    # Check if already configured
+                    await self.async_set_unique_id(format_mac(device.mac))
+                    self._abort_if_unique_id_configured()
+
+                    # Store selected device for next step
+                    self._selected_device = device
+                    return await self.async_step_manual_add()
+
+            # If no matching device found, something went wrong - go to manual
+            return await self.async_step_manual_add()
+
+        # Discover devices
+        self._discovery_performed = True
+        self._discovered_devices = await self._discover_devices(self.hass)
+
+        if not self._discovered_devices:
+            # No devices found, go to manual entry
+            return await self.async_step_manual_add()
+
+        # Create device selection options
+        device_options = {}
+        for device in self._discovered_devices:
+            device_id = f"{device.mac}_{device.host}"
+            device_options[device_id] = f"IP: {device.host}, MAC: {device.mac}"
+
+        data_schema = vol.Schema({vol.Required("device"): vol.In(device_options)})
+
+        return self.async_show_form(
+            step_id="manual_discovery",
+            data_schema=data_schema,
+            description_placeholders={
+                "devices_found": str(len(self._discovered_devices))
+            },
+        )
+
+    async def async_step_manual_add(
+        self, user_input: dict | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Handle the manual add of a device."""
         errors = {}
         if user_input is not None:
             try:
@@ -295,9 +375,18 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._abort_if_unique_id_configured()
 
                 return await self.async_step_device_options()
+        elif self._selected_device is not None:
+            user_input = {}
+            user_input[CONF_NAME] = self._selected_device.name
+            user_input[CONF_HOST] = self._selected_device.host
+            user_input[CONF_MAC] = self._selected_device.mac
+        elif self._discovery_performed and self._selected_device is None:
+            errors["base"] = "no_devices_found"
 
         return self.async_show_form(
-            step_id="user", data_schema=build_main_schema(user_input), errors=errors
+            step_id="manual_add",
+            data_schema=build_main_schema(user_input),
+            errors=errors,
         )
 
     async def async_step_device_options(
@@ -371,6 +460,29 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 old_data[key] = value
 
         return old_data
+
+    async def _discover_devices(
+        self, hass: HomeAssistant
+    ) -> list[GreeDiscoveredDevice]:
+        """Debug for discovering devices."""
+        # Get broadcast addresses from Home Assistant's network helper
+        broadcast_addresses: list[str] = []
+        try:
+            ha_broadcast_addresses: set[
+                IPv4Address
+            ] = await async_get_ipv4_broadcast_addresses(hass)
+            ha_broadcast_strings: list[str] = [
+                str(addr) for addr in ha_broadcast_addresses
+            ]
+            broadcast_addresses.extend(ha_broadcast_strings)
+            _LOGGER.debug("Found broadcast addresses from HA: %s", ha_broadcast_strings)
+
+        except Exception:
+            _LOGGER.exception("Could not get HA broadcast addresses")
+
+        return await hass.async_add_executor_job(
+            discover_gree_devices, broadcast_addresses, 5
+        )
 
 
 class CannotConnect(HomeAssistantError):
