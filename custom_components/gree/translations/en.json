@@ -101,8 +101,8 @@
         "Medium": "Medium",
         "MediumHigh": "Medium-High",
         "High": "High",
-        "feat_turbo": "Turbo",
-        "feat_quiet": "Quiet"
+        "turbo": "Turbo",
+        "quiet": "Quiet"
       }
     },
     "swing_modes": {
@@ -135,15 +135,15 @@
     "features": {
       "options": {
         "beeper": "Beeper",
-        "feat_fresh_air": "Fresh Air",
-        "feat_xfan": "X-Fan",
-        "feat_sleep": "Sleep",
-        "feat_smart_heat": "8ºC Smart Heat",
-        "feat_lights": "Display Light",
-        "feat_health": "Health",
-        "feat_anti_direct_blow": "Anti Direct Blow",
-        "feat_energy_saving": "Energy Saving",
-        "feat_light_sensor": "Display Auto Brightness"
+        "air": "Fresh Air",
+        "xfan": "X-Fan",
+        "sleep": "Sleep",
+        "smart_heat": "8ºC Smart Heat",
+        "lights": "Display Light",
+        "health": "Health",
+        "anti_direct_blow": "Anti Direct Blow",
+        "energy_saving": "Energy Saving",
+        "light_sensor": "Display Auto Brightness"
       }
     }
   },
@@ -174,8 +174,8 @@
               "Medium": "Medium",
               "MediumHigh": "Medium-High",
               "High": "High",
-              "feat_turbo": "Turbo",
-              "feat_quiet": "Quiet"
+              "turbo": "Turbo",
+              "quiet": "Quiet"
             }
           },
           "swing_mode": {
