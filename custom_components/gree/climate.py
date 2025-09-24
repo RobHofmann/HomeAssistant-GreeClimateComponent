@@ -5,6 +5,9 @@ import logging
 from attr import dataclass
 
 from homeassistant.components.climate import (
+    ATTR_FAN_MODE,
+    ATTR_SWING_HORIZONTAL_MODE,
+    ATTR_SWING_MODE,
     ClimateEntity,
     ClimateEntityDescription,
     ClimateEntityFeature,
@@ -37,6 +40,7 @@ from .const import (
     ATTR_EXTERNAL_TEMPERATURE_SENSOR,
     CONF_FAN_MODES,
     CONF_HVAC_MODES,
+    CONF_RESTORE_STATES,
     CONF_SWING_HORIZONTAL_MODES,
     CONF_SWING_MODES,
     DEFAULT_FAN_MODES,
@@ -122,6 +126,7 @@ async def async_setup_entry(
                 fan_modes,
                 swing_modes,
                 swing_horizontal_modes,
+                restore_state=(entry.data.get(CONF_RESTORE_STATES, True)),
                 external_temperature_sensor_id=entry.data.get(
                     ATTR_EXTERNAL_TEMPERATURE_SENSOR
                 ),
@@ -203,18 +208,21 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             self._attr_swing_horizontal_modes = swing_horizontal_modes
 
         self._update_attributes()
-        _LOGGER.debug("Initialized climate %s", self._attr_unique_id)
-
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        _LOGGER.debug("Updating Climate Entity for %s", self.device.unique_id)
-        self._update_attributes()
+        _LOGGER.debug(
+            "Initialized climate '%s' with features: %s",
+            self._attr_unique_id,
+            repr(self._attr_supported_features),
+        )
 
     async def async_added_to_hass(self):
         """When this entity is added to hass."""
         await super().async_added_to_hass()
 
         self._update_attributes()
+
+        # Restore last HA state to device if applicable
+        if self.restore_state:
+            await self._restore_entity_state()
 
         # When using an external temperature sensor, subscribe to its state changes for updating the current temperature
         if self._external_temperature_sensor:
@@ -248,6 +256,145 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                 EVENT_CORE_CONFIG_UPDATE, self._handle_unit_change
             )
         )
+
+    async def _restore_entity_state(self):
+        last_state = await self.async_get_last_state()
+        if last_state is not None:
+            _LOGGER.debug(
+                "Restoring state for %s:\n%s",
+                self.entity_id,
+                last_state,
+            )
+
+            # hvac mode
+            if last_state.state not in [None, STATE_UNKNOWN, STATE_UNAVAILABLE]:
+                last_hvac_mode: HVACMode | None = HVACMode(last_state.state)
+                if (
+                    last_hvac_mode is not None
+                    and last_hvac_mode != self.hvac_mode
+                    and last_hvac_mode in self.hvac_modes
+                ):
+                    try:
+                        await self.async_set_hvac_mode(last_hvac_mode)
+                    except Exception:
+                        _LOGGER.exception(
+                            "Failed to restore the hvac_mode: %s", last_hvac_mode
+                        )
+                else:
+                    _LOGGER.debug(
+                        "No need to restore the hvac_mode: %s",
+                        last_hvac_mode,
+                    )
+
+            # fan mode
+            last_fan_mode: str | None = last_state.attributes.get(ATTR_FAN_MODE)
+            if (
+                last_fan_mode not in [None, STATE_UNKNOWN, STATE_UNAVAILABLE]
+                and self.fan_modes is not None
+                and last_fan_mode != self.fan_mode
+                and last_fan_mode in self.fan_modes
+            ):
+                try:
+                    await self.async_set_fan_mode(last_fan_mode)
+                except Exception:
+                    _LOGGER.exception(
+                        "Failed to restore the fan_mode: %s", last_fan_mode
+                    )
+            else:
+                _LOGGER.debug(
+                    "No need to restore the fan_mode: %s",
+                    last_fan_mode,
+                )
+
+            # swings
+            last_swing_mode: str | None = last_state.attributes.get(ATTR_SWING_MODE)
+            if (
+                last_swing_mode not in [None, STATE_UNKNOWN, STATE_UNAVAILABLE]
+                and self.swing_modes is not None
+                and last_swing_mode != self.swing_mode
+                and last_swing_mode in self.swing_modes
+            ):
+                try:
+                    await self.async_set_swing_mode(last_swing_mode)
+                except Exception:
+                    _LOGGER.exception(
+                        "Failed to restore the swing_mode: %s", last_swing_mode
+                    )
+            else:
+                _LOGGER.debug(
+                    "No need to restore the swing_mode: %s",
+                    last_swing_mode,
+                )
+
+            last_swing_horizontal_mode: str | None = last_state.attributes.get(
+                ATTR_SWING_HORIZONTAL_MODE
+            )
+            if (
+                last_swing_horizontal_mode
+                not in [None, STATE_UNKNOWN, STATE_UNAVAILABLE]
+                and self.swing_horizontal_modes is not None
+                and last_swing_horizontal_mode != self.swing_horizontal_mode
+                and last_swing_horizontal_mode in self.swing_horizontal_modes
+            ):
+                try:
+                    await self.async_set_swing_horizontal_mode(
+                        last_swing_horizontal_mode
+                    )
+                except Exception:
+                    _LOGGER.exception(
+                        "Failed to restore the swing_horizontal_mode: %s",
+                        last_swing_horizontal_mode,
+                    )
+            else:
+                _LOGGER.debug(
+                    "No need to restore the swing_horizontal_mode: %s",
+                    last_swing_horizontal_mode,
+                )
+
+            # target temp
+            last_target_temperature: float | None = last_state.attributes.get(
+                ATTR_TEMPERATURE
+            )
+            if last_target_temperature is not None and last_target_temperature not in [
+                STATE_UNKNOWN,
+                STATE_UNAVAILABLE,
+            ]:
+                # since the ºC and ºF ranges don't overlap we can guess the last state units
+                last_unit: UnitOfTemperature = (
+                    UnitOfTemperature.CELSIUS
+                    if last_target_temperature <= MAX_TEMP_C
+                    else UnitOfTemperature.FAHRENHEIT
+                )
+                last_target_temperature = TemperatureConverter.convert(
+                    last_target_temperature,
+                    last_unit,
+                    self.temperature_unit,
+                )
+                if (
+                    self.supported_features & ClimateEntityFeature.TARGET_TEMPERATURE
+                    and last_target_temperature != self.target_temperature
+                ):
+                    try:
+                        await self.async_set_temperature(
+                            **{ATTR_TEMPERATURE: last_target_temperature}
+                        )
+                    except Exception:
+                        _LOGGER.exception(
+                            "Failed to restore the target_temperature: %s%s",
+                            last_target_temperature,
+                            last_unit,
+                        )
+                else:
+                    _LOGGER.debug(
+                        "No need to restore the target_temperature: %s%s",
+                        last_target_temperature,
+                        self.temperature_unit,
+                    )
+
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        _LOGGER.debug("Updating Climate Entity for %s", self.device.unique_id)
+        self._update_attributes()
 
     @callback
     def _external_temperature_sensor_listener(
