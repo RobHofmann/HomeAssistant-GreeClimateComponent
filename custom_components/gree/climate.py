@@ -270,9 +270,9 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             if last_state.state not in [None, STATE_UNKNOWN, STATE_UNAVAILABLE]:
                 last_hvac_mode: HVACMode | None = HVACMode(last_state.state)
                 if (
-                    last_hvac_mode is not None
-                    and last_hvac_mode != self.hvac_mode
-                    and last_hvac_mode in self.hvac_modes
+                    last_hvac_mode
+                    and last_hvac_mode != self._attr_hvac_mode
+                    and last_hvac_mode in self._attr_hvac_modes
                 ):
                     try:
                         await self.async_set_hvac_mode(last_hvac_mode)
@@ -290,9 +290,9 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             last_fan_mode: str | None = last_state.attributes.get(ATTR_FAN_MODE)
             if (
                 last_fan_mode not in [None, STATE_UNKNOWN, STATE_UNAVAILABLE]
-                and self.fan_modes is not None
-                and last_fan_mode != self.fan_mode
-                and last_fan_mode in self.fan_modes
+                and self._attr_fan_modes
+                and last_fan_mode != self._attr_fan_mode
+                and last_fan_mode in self._attr_fan_modes
             ):
                 try:
                     await self.async_set_fan_mode(last_fan_mode)
@@ -310,9 +310,9 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             last_swing_mode: str | None = last_state.attributes.get(ATTR_SWING_MODE)
             if (
                 last_swing_mode not in [None, STATE_UNKNOWN, STATE_UNAVAILABLE]
-                and self.swing_modes is not None
-                and last_swing_mode != self.swing_mode
-                and last_swing_mode in self.swing_modes
+                and self._attr_swing_modes
+                and last_swing_mode != self._attr_swing_mode
+                and last_swing_mode in self._attr_swing_modes
             ):
                 try:
                     await self.async_set_swing_mode(last_swing_mode)
@@ -332,9 +332,9 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             if (
                 last_swing_horizontal_mode
                 not in [None, STATE_UNKNOWN, STATE_UNAVAILABLE]
-                and self.swing_horizontal_modes is not None
-                and last_swing_horizontal_mode != self.swing_horizontal_mode
-                and last_swing_horizontal_mode in self.swing_horizontal_modes
+                and self._attr_swing_horizontal_modes
+                and last_swing_horizontal_mode != self._attr_swing_horizontal_mode
+                and last_swing_horizontal_mode in self._attr_swing_horizontal_modes
             ):
                 try:
                     await self.async_set_swing_horizontal_mode(
@@ -368,11 +368,12 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                 last_target_temperature = TemperatureConverter.convert(
                     last_target_temperature,
                     last_unit,
-                    self.temperature_unit,
+                    self._attr_temperature_unit,
                 )
                 if (
-                    self.supported_features & ClimateEntityFeature.TARGET_TEMPERATURE
-                    and last_target_temperature != self.target_temperature
+                    self._attr_supported_features
+                    & ClimateEntityFeature.TARGET_TEMPERATURE
+                    and last_target_temperature != self._attr_target_temperature
                 ):
                     try:
                         await self.async_set_temperature(
