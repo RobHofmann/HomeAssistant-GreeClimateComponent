@@ -13,6 +13,7 @@ from homeassistant.components.climate import (
 from homeassistant.const import (
     ATTR_TEMPERATURE,
     ATTR_UNIT_OF_MEASUREMENT,
+    EVENT_CORE_CONFIG_UPDATE,
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
     UnitOfTemperature,
@@ -241,6 +242,13 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                 )
             )
 
+        # Refresh entity when HA unit system changes
+        self.async_on_remove(
+            self.hass.bus.async_listen(
+                EVENT_CORE_CONFIG_UPDATE, self._handle_unit_change
+            )
+        )
+
     @callback
     def _external_temperature_sensor_listener(
         self, event: Event[EventStateChangedData]
@@ -310,6 +318,11 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                     value,
                 )
                 self._attr_current_humidity = value
+
+    async def _handle_unit_change(self, event):
+        """Handle HA unit system change (°C <-> °F)."""
+        # Force refresh from coordinator
+        await self.coordinator.async_request_refresh()
 
     def _update_attributes(self):
         """Updates the entity attributes with the device values."""
@@ -628,8 +641,6 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                 UnitOfTemperature.CELSIUS,
                 self._attr_temperature_unit,
             )
-
-        # FIXME: When changing Units in HA Settings, the temp does not update
 
         return None
 
