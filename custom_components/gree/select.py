@@ -42,7 +42,7 @@ async def async_setup_entry(
             entity_category=EntityCategory.CONFIG,
             options=[f"º{member.name}" for member in TemperatureUnits],
             available_func=lambda device: device.available,
-            value_func=lambda device: device.target_temperature_unit.name,
+            value_func=lambda device: f"º{device.target_temperature_unit.name}",
             set_func=lambda device, value: device.set_target_temperature_unit(
                 TemperatureUnits[value.replace("º", "")]
             ),
