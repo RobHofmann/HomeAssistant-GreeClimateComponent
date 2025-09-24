@@ -29,6 +29,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.typing import UNDEFINED
+from homeassistant.util.unit_conversion import TemperatureConverter
 
 from .const import (
     ATTR_EXTERNAL_HUMIDITY_SENSOR,
@@ -200,19 +201,19 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             self._attr_supported_features |= ClimateEntityFeature.SWING_HORIZONTAL_MODE
             self._attr_swing_horizontal_modes = swing_horizontal_modes
 
-        self.update_attributes()
+        self._update_attributes()
         _LOGGER.debug("Initialized climate %s", self._attr_unique_id)
 
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         _LOGGER.debug("Updating Climate Entity for %s", self.device.unique_id)
-        self.update_attributes()
+        self._update_attributes()
 
     async def async_added_to_hass(self):
         """When this entity is added to hass."""
         await super().async_added_to_hass()
 
-        self.update_attributes()
+        self._update_attributes()
 
         # When using an external temperature sensor, subscribe to its state changes for updating the current temperature
         if self._external_temperature_sensor:
@@ -310,7 +311,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                 )
                 self._attr_current_humidity = value
 
-    def update_attributes(self):
+    def _update_attributes(self):
         """Updates the entity attributes with the device values."""
         self._attr_available = self.device.available
 
@@ -616,14 +617,16 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         """Returns the current temperature of the room. Accounting for units."""
 
         # Gree API always return current temperature in ºC
-        # so if we are dealing with ºF we convert to that first
+        # so here we need to convert to the unit of the entity (same as device)
         if (
             self.hass
             and self.device.has_indoor_temperature_sensor
             and self.device.indoors_temperature_c is not None
         ):
-            return self.hass.config.units.temperature(
-                float(self.device.indoors_temperature_c), UnitOfTemperature.CELSIUS
+            return TemperatureConverter.convert(
+                float(self.device.indoors_temperature_c),
+                UnitOfTemperature.CELSIUS,
+                self._attr_temperature_unit,
             )
 
         # FIXME: When changing Units in HA Settings, the temp does not update
