@@ -108,7 +108,7 @@ async def test_connection(config):
 
     mac_addr = config.get(CONF_MAC).encode().replace(b":", b"").decode("utf-8").lower()
     if "@" in mac_addr:
-        mac_addr = mac_addr.split("@", 1)[0]
+        mac_addr = mac_addr.split("@", 1)[1]
 
     _LOGGER.debug(f"test_connection: host={ip_addr}, port={port}, mac={mac_addr}, encryption_version={encryption_version}, encryption_key={encryption_key}")
 
