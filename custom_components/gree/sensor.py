@@ -15,6 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
+from .const import CONF_DISABLE_AVAILABLE_CHECK
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
 from .gree_device import GreeDevice
@@ -47,7 +48,14 @@ async def async_setup_entry(
     _LOGGER.debug("Adding Sensor Entities: %s", sensors)
 
     entities = [
-        GreeSensor(description, coordinator, restore_state=True)
+        GreeSensor(
+            description,
+            coordinator,
+            restore_state=True,
+            check_availability=(
+                entry.data.get(CONF_DISABLE_AVAILABLE_CHECK, False) is False
+            ),
+        )
         for description in SENSOR_TYPES
         if description.key in sensors
     ]
@@ -71,7 +79,9 @@ SENSOR_TYPES: list[GreeSensorDescription] = [
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_display_precision=0,
         value_func=lambda device: device.indoors_temperature_c,
-        available_func=lambda device: device.has_indoor_temperature_sensor,
+        available_func=lambda device: (
+            device.available and device.has_indoor_temperature_sensor
+        ),
     ),
     GreeSensorDescription(
         key=GATTR_OUTDOOR_TEMPERATURE,
@@ -81,7 +91,9 @@ SENSOR_TYPES: list[GreeSensorDescription] = [
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_display_precision=0,
         value_func=lambda device: device.outdoors_temperature_c,
-        available_func=lambda device: device.has_outdoor_temperature_sensor,
+        available_func=lambda device: (
+            device.available and device.has_outdoor_temperature_sensor
+        ),
     ),
     GreeSensorDescription(
         key=GATTR_HUMIDITY,
@@ -91,7 +103,7 @@ SENSOR_TYPES: list[GreeSensorDescription] = [
         native_unit_of_measurement=PERCENTAGE,
         suggested_display_precision=0,
         value_func=lambda device: device.humidity,
-        available_func=lambda device: device.has_humidity_sensor,
+        available_func=lambda device: (device.available and device.has_humidity_sensor),
     ),
 ]
 
@@ -106,19 +118,17 @@ class GreeSensor(GreeEntity, SensorEntity, RestoreEntity):  # pyright: ignore[re
         description: GreeSensorDescription,
         coordinator: GreeCoordinator,
         restore_state: bool = True,
+        check_availability: bool = True,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, restore_state)
+        super().__init__(description, coordinator, restore_state, check_availability)
 
         self.entity_description = description  # pyright: ignore[reportIncompatibleVariableOverride]
         self._attr_unique_id = f"{self.device.name}_{description.key}"
-        _LOGGER.debug("Initialized sensor %s", self._attr_unique_id)
-
-    @property
-    def available(self):  # pyright: ignore[reportIncompatibleVariableOverride]
-        """Return True if entity is available."""
-        return self.device.available and self.entity_description.available_func(
-            self.device
+        _LOGGER.debug(
+            "Initialized sensor: %s (check_availability=%s)",
+            self._attr_unique_id,
+            self.check_availability,
         )
 
     @property

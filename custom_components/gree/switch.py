@@ -19,6 +19,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from .const import (
     ATTR_AUTO_LIGHT,
     ATTR_AUTO_XFAN,
+    CONF_DISABLE_AVAILABLE_CHECK,
     CONF_FEATURES,
     CONF_RESTORE_STATES,
     DEFAULT_SUPPORTED_FEATURES,
@@ -70,9 +71,11 @@ SWITCH_TYPES: list[GreeSwitchDescription] = [
     GreeSwitchDescription(
         key=GATTR_FEAT_SLEEP_MODE,
         translation_key=GATTR_FEAT_SLEEP_MODE,
-        available_func=lambda device: device.available
-        and device.operation_mode
-        in [OperationMode.Cool, OperationMode.Dry, OperationMode.Heat],
+        available_func=(
+            lambda device: device.available
+            and device.operation_mode
+            in [OperationMode.Cool, OperationMode.Dry, OperationMode.Heat]
+        ),
         value_func=lambda device: device.feature_sleep,
         set_func=lambda device, value: device.set_feature_sleep(value),
     ),
@@ -115,7 +118,7 @@ SWITCH_TYPES: list[GreeSwitchDescription] = [
     GreeSwitchDescription(
         key=GATTR_FEAT_SENSOR_LIGHT,
         translation_key=GATTR_FEAT_SENSOR_LIGHT,
-        available_func=lambda device: device.available and device.feature_light,
+        available_func=lambda device: (device.available and device.feature_light),
         value_func=lambda device: device.feature_light_sensor,
         set_func=lambda device, value: device.set_feature_light_sensor(value),
         entity_category=EntityCategory.CONFIG,
@@ -159,6 +162,11 @@ async def async_setup_entry(
                 if description.key != GATTR_BEEPER  # Always restore beeper
                 else True
             ),
+            check_availability=(
+                entry.data.get(CONF_DISABLE_AVAILABLE_CHECK, False) is False
+                if description.key != GATTR_BEEPER  # Beeper is always available
+                else False
+            ),
         )
         for description in SWITCH_TYPES
         if description.key in supported_features
@@ -178,6 +186,7 @@ async def async_setup_entry(
                 ),
                 coordinator,
                 restore_state=True,
+                check_availability=False,  # Auto Light is always available
             )
         )
 
@@ -195,6 +204,7 @@ async def async_setup_entry(
                 ),
                 coordinator,
                 restore_state=True,
+                check_availability=False,  # Auto X-Fan is always available
             )
         )
 
@@ -211,18 +221,18 @@ class GreeSwitch(GreeEntity, SwitchEntity, RestoreEntity):  # pyright: ignore[re
         description: GreeSwitchDescription,
         coordinator: GreeCoordinator,
         restore_state: bool = True,
+        check_availability: bool = True,
     ) -> None:
         """Initialize switch."""
-        super().__init__(coordinator, restore_state)
+        super().__init__(description, coordinator, restore_state, check_availability)
 
         self.entity_description = description  # pyright: ignore[reportIncompatibleVariableOverride]
         self._attr_unique_id = f"{self.device.name}_{description.key}"
-        _LOGGER.debug("Initialized sensor %s", self._attr_unique_id)
-
-    @property
-    def available(self):  # pyright: ignore[reportIncompatibleVariableOverride]
-        """Return True if entity is available."""
-        return self.entity_description.available_func(self.device)
+        _LOGGER.debug(
+            "Initialized switch: %s (check_availability=%s)",
+            self._attr_unique_id,
+            self.check_availability,
+        )
 
     @property
     def is_on(self) -> bool | None:  # pyright: ignore[reportIncompatibleVariableOverride]

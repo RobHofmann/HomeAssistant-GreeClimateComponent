@@ -105,6 +105,7 @@ class GreeDevice:
         self._state: dict[GreeProp, int] = {}
         self._new_state: dict[GreeProp, int] = {}
         self._is_bound: bool = False
+        self._is_available: bool = False
         self._uniqueid: str = self._mac_addr
         self._max_connection_attempts: int = max_connection_attempts
         self._timeout: int = timeout
@@ -151,6 +152,7 @@ class GreeDevice:
                     )
                     self._is_bound = True
                 except Exception as e:
+                    self._is_available = True
                     raise GreeDeviceNotBoundError("Device not bound") from e
             else:
                 _LOGGER.info(
@@ -185,7 +187,9 @@ class GreeDevice:
                     self._timeout,
                 )
             )
+            self._is_available = True
         except Exception as err:
+            self._is_available = False
             raise ValueError("Error getting device status") from err
 
         self._update_state()
@@ -226,7 +230,9 @@ class GreeDevice:
                 )
             )
             self._new_state.clear()
+            self._is_available = True
         except Exception as err:
+            self._is_available = False
             raise ValueError("Error setting device status") from err
 
         self._update_state()
@@ -357,8 +363,8 @@ class GreeDevice:
 
     @property
     def available(self) -> bool:
-        """Return True if entity is available."""
-        return bool(self._is_bound)
+        """Return True if the device is bouund and last connection was successful."""
+        return self._is_bound and self._is_available
 
     @property
     def beeper(self) -> bool:

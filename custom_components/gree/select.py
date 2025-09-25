@@ -14,7 +14,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.typing import UNDEFINED
 
-from .const import CONF_RESTORE_STATES, GATTR_TEMP_UNITS
+from .const import CONF_DISABLE_AVAILABLE_CHECK, CONF_RESTORE_STATES, GATTR_TEMP_UNITS
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
 from .gree_api import TemperatureUnits
@@ -55,7 +55,12 @@ async def async_setup_entry(
     async_add_entities(
         [
             GreeSelectEntity(
-                description, coordinator, entry.data.get(CONF_RESTORE_STATES, True)
+                description,
+                coordinator,
+                entry.data.get(CONF_RESTORE_STATES, True),
+                check_availability=(
+                    entry.data.get(CONF_DISABLE_AVAILABLE_CHECK, False) is False
+                ),
             )
             for description in descriptions
         ]
@@ -93,9 +98,10 @@ class GreeSelectEntity(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ign
         description: GreeSelectDescription,
         coordinator: GreeCoordinator,
         restore_state: bool = True,
+        check_availability: bool = True,
     ) -> None:
         """Initialize select."""
-        super().__init__(coordinator, restore_state)
+        super().__init__(description, coordinator, restore_state, check_availability)
 
         self.entity_description = description  # pyright: ignore[reportIncompatibleVariableOverride]
         self._attr_unique_id = f"{self.device.name}_{description.key}"
@@ -107,8 +113,12 @@ class GreeSelectEntity(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ign
             self._attr_options = description.options or ["None"]
 
         self._attr_current_option = self.entity_description.value_func(self.device)
-        _LOGGER.debug("Initialized select %s", self._attr_unique_id)
-        _LOGGER.debug("Options: %s", self._attr_options)
+        _LOGGER.debug(
+            "Initialized select: %s (check_availability=%s) Options:\n%s",
+            self._attr_unique_id,
+            self.check_availability,
+            self._attr_options,
+        )
 
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""

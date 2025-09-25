@@ -38,6 +38,7 @@ from homeassistant.util.unit_conversion import TemperatureConverter
 from .const import (
     ATTR_EXTERNAL_HUMIDITY_SENSOR,
     ATTR_EXTERNAL_TEMPERATURE_SENSOR,
+    CONF_DISABLE_AVAILABLE_CHECK,
     CONF_FAN_MODES,
     CONF_HVAC_MODES,
     CONF_RESTORE_STATES,
@@ -127,6 +128,9 @@ async def async_setup_entry(
                 swing_modes,
                 swing_horizontal_modes,
                 restore_state=(entry.data.get(CONF_RESTORE_STATES, True)),
+                check_availability=(
+                    entry.data.get(CONF_DISABLE_AVAILABLE_CHECK, False) is False
+                ),
                 external_temperature_sensor_id=entry.data.get(
                     ATTR_EXTERNAL_TEMPERATURE_SENSOR
                 ),
@@ -167,11 +171,13 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         swing_modes: list[str],
         swing_horizontal_modes: list[str],
         restore_state: bool = True,
+        check_availability: bool = True,
         external_temperature_sensor_id: str | None = None,
         external_humidity_sensor_id: str | None = None,
     ) -> None:
         """Initialize the Gree Climate entity."""
-        super().__init__(coordinator, restore_state)
+        super().__init__(description, coordinator, restore_state, check_availability)
+
         self.entity_description = description
         self._attr_unique_id = f"{self.device.name}_{description.key}"
         self._attr_name = None  # Main entity
@@ -209,8 +215,9 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
         self._update_attributes()
         _LOGGER.debug(
-            "Initialized climate '%s' with features: %s",
+            "Initialized climate: %s (check_availability=%s) Features:\n%s",
             self._attr_unique_id,
+            self.check_availability,
             repr(self._attr_supported_features),
         )
 
