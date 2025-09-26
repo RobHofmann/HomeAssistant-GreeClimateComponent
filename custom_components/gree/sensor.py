@@ -15,16 +15,17 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .const import CONF_DISABLE_AVAILABLE_CHECK
+from .const import (
+    CONF_DISABLE_AVAILABLE_CHECK,
+    GATTR_HUMIDITY,
+    GATTR_INDOOR_TEMPERATURE,
+    GATTR_OUTDOOR_TEMPERATURE,
+)
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
 from .gree_device import GreeDevice
 
 _LOGGER = logging.getLogger(__name__)
-
-GATTR_INDOOR_TEMPERATURE = "indoor_temperature"
-GATTR_OUTDOOR_TEMPERATURE = "outdoor_temperature"
-GATTR_HUMIDITY = "humidity"
 
 
 async def async_setup_entry(

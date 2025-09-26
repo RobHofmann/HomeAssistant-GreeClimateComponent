@@ -175,9 +175,9 @@
         "name": "Outdoor Temperature",
         "description": "The temperature reported by the HVAC outdoors unit"
       },
-      "humidity": {
+      "room_humidity": {
         "name": "Indoor Humidity",
-        "description": "The humidity reported by the HVAC indoors unit"
+        "description": "Shows the room humidity level measured by the air conditioner's internal sensor."
       }
     },
     "climate": {
@@ -238,16 +238,6 @@
       "temperature_units": {
         "name": "Temperature Units",
         "description": "Select the temperature units used by the device."
-      }
-    },
-    "sensor": {
-      "outside_temperature": {
-        "name": "Outside Temperature",
-        "description": "Shows the outside temperature measured by the air conditioner's external sensor."
-      },
-      "room_humidity": {
-        "name": "Room Humidity",
-        "description": "Shows the room humidity level measured by the air conditioner's internal sensor."
       }
     },
     "switch": {
