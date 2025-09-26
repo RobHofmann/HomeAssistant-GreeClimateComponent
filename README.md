@@ -1,16 +1,22 @@
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
+[![HACS](https://img.shields.io/badge/HACS-Default-orange.svg)](https://hacs.xyz)
+[![Home Assistant](https://img.shields.io/badge/Compatible-Home_Assistant_2025.9.4-blue.svg)](https://www.home-assistant.io)
 
 # HomeAssistant-GreeClimateComponent
-Custom Gree climate component written in Python3 for Home Assistant. Controls ACs supporting the Gree protocol.
+
+Custom Gree inetgration for Home Assistant written in Python3. Controls ACs supporting the Gree protocol.
+
+This integration connects directly to your HVAC devices via their IP address on the local network, unlike the official mobile app, which establish a direct connection only during initial setup and subsequently operate through Gree’s servers.
+
+The integration attempts to obtain the encryption key by the initial setup protocol, which has been reverse-engineered.
+
+> [!WARNING]
+> If your HVAC device was previously set up for remote access using a mobile app, the integration may fail to retrieve the encryption key automatically. Find out more on methods of obtaining your device key bellow.
+
 
 For a comprehensive list of tested devices, see [Supported Devices](supported-devices.md).
 
-Tested on Home Assistant 2025.6.3 
+**If you are experiencing issues please read the [Debugging](#debugging) section**
 
-**If you are experiencing issues please be sure to provide details about your device, Home Assistant version and what exactly went wrong.**
-
-This integration connects directly to your HVAC devices via their IP address on the local network, unlike the official mobile app, which establish a direct connection only during initial setup and subsequently operate through Gree’s servers.
-The integration attempts to obtain the encryption key by the initial setup protocol, which has been reverse-engineered.
 
 Official mobile applications:
 - [Gree+ Android App](https://play.google.com/store/apps/details?id=com.gree.greeplus)
@@ -18,30 +24,36 @@ Official mobile applications:
 - [EWPE Smart Android App](https://play.google.com/store/apps/details?id=com.gree.ewpesmart)
 - [EWPE Smart iOS App](https://apps.apple.com/app/ewpe-smart/id1189467454)
 
-If your HVAC device was previously set up for remote access using a mobile app, the integration may fail to retrieve the encryption key automatically.
-
-To extract encryption keys from an account on Gree’s cloud server: https://github.com/luc10/gree-api-client
-
 To configure HVAC wifi (without the mobile app): https://github.com/arthurkrupa/gree-hvac-mqtt-bridge#configuring-hvac-wifi
 
-## HACS
-This component is added to HACS default repository list.
 
-## Config Flow - UI Configuration (recommended)
+## Installation
+
+### HACS (recommended)
+
+This integration is added to HACS default repository list. Search for 'Gree' in the HACS dashboard to find and install it.
+
+### Manual
+
+Copy the `custom_components` folder to your own hassio `/config` folder.
+
+
+## Configuration
+
+### UI Configuration - Config Flow (recommended)
+
 The integration can be added from the Home Assistant UI.
+
 1. Navigate to **Settings** > **Devices & Services** and click **Add Integration**.
-2. Search for **Gree Climate** and fill in the desired `name`, `host`, `port` and `MAC address`.
-3. After setup you can open the integration options to configure additional parameters.
-4. Saving any changes in the options dialog automatically reloads the
-   integration, so new settings take effect immediately without
-   restarting Home Assistant.
+2. Search for **Gree Climate**
+3. Choose automatic discovery or manual setup and fill in the desired `name`, `host` and `MAC address`.
+4. After a successfull connection with the device, you will be asked to configure the device options.
 
-## Manual Installation
+Your can also **Reconfigure** a device by changing its options. Saving any changes in the options dialog automatically reloads the integration, so new settings take effect immediately without restarting Home Assistant.
 
+### Manual - YAML Configuration
 
-1. *(Skip if using HACS)* Copy the `custom_components` folder to your own hassio `/config` folder.
-
-2. **YAML Configuration:** See [`manual-configuration.yaml`](manual-configuration.yaml) for a complete configuration example with all available options and detailed comments.
+See [`manual-configuration.yaml`](manual-configuration.yaml) for a complete configuration example with all available options and detailed comments.
 
    Basic example:
    ```yaml
@@ -52,41 +64,50 @@ The integration can be added from the Home Assistant UI.
        encryption_version: 2
    ```
 
-3. In your configuration.yaml add the following:
+### Obtaining the Encryption Key
 
-   ```yaml
-   climate: !include your_configuration.yaml
-   ```
+The integration has the capability of automatically retrieve the encryption version and key of a device using the gree protocol which has been reverse-engineered.
 
-4. *(Optional)* Add info logging to this component (to see if/how it works)
+However, if your HVAC device was previously set up for remote access using a mobile app, the integration may fail to retrieve the encryption key automatically.
 
-   ```yaml
-   logger:
-     default: error
-     logs:
-       custom_components.gree: debug
-       custom_components.gree.climate: debug
-   ```
+#### Method 1: From Gree's cloud server
 
-5. *(Optional)* Provide encryption key if you have it or feel like extracting it.
+To extract encryption keys from an account on Gree’s cloud server, follow the instructions in https://github.com/luc10/gree-api-client
 
-   One way is to pull the sqlite db from android device like described here:
+#### Method 2: From the Android app
 
-   https://stackoverflow.com/questions/9997976/android-pulling-sqlite-database-android-device
+One way is to pull the sqlite db from android device like described here:
 
-   ```bash
-   adb backup -f ~/backup.ab -noapk com.gree.ewpesmart
-   dd if=data.ab bs=1 skip=24 | python -c "import zlib,sys;sys.stdout.write(zlib.decompress(sys.stdin.read()))" | tar -xvf -
-   sqlite3 data.ab 'select privateKey from db_device_20170503;' # but table name can differ a little bit.
-   ```
+https://stackoverflow.com/questions/9997976/android-pulling-sqlite-database-android-device
 
-   Write it down in `climate.yaml`: `encryption_key: <key>`.
+```bash
+adb backup -f ~/backup.ab -noapk com.gree.ewpesmart
+dd if=data.ab bs=1 skip=24 | python -c "import zlib,sys;sys.stdout.write(zlib.decompress(sys.stdin.read()))" | tar -xvf -
+sqlite3 data.ab 'select privateKey from db_device_20170503;' # but table name can differ a little bit.
+```
 
-   > If you are getting an UTF-8  error (like: "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xda in position 1: invalid continuation byte"), see https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues/318.
+> [!TIP]
+> If you are getting an UTF-8  error (like: "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xda in position 1: invalid continuation byte"), see https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues/318.
 
-6. *(Optional)* Provide the `uid` parameter (can be sniffed). This is not needed for all devices.
+Optionally, you can also sniff the `uid` parameter. This is not needed for all devices.
 
-7. *(Optional)* You can set custom icons by modifying the icon translation file `icons.json`. Refer to this documentation: https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/icon-translations/
+### Icon configuration
+
+You can set custom icons for the climate enity by modifying the icon translation file `icons.json`. Refer to this documentation: https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/icon-translations/
+
+## Debugging
+
+If you are having problems with your device, whenever you write a bug report, be sure to provide details about your device, Home Assistant version and what exactly went wrong.
+
+It also helps tremendously if you include debug logs directly in your issue (otherwise we will just ask for them and it will take longer). So please enable debug logs in the integration UI or like this:
+
+```yaml
+logger:
+   default: error
+   logs:
+      custom_components.gree: debug
+      custom_components.gree.climate: debug
+```
 
 ## Additional Sensors
 
