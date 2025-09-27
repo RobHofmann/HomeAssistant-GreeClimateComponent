@@ -6,6 +6,7 @@ from attr import dataclass
 
 from homeassistant.components.climate import (
     ATTR_FAN_MODE,
+    ATTR_HVAC_MODE,
     ATTR_SWING_HORIZONTAL_MODE,
     ATTR_SWING_MODE,
     ClimateEntity,
@@ -800,11 +801,10 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
+        _LOGGER.debug("async_set_temperature(%s, %s)", self.device.unique_id, kwargs)
+
         temperature: float | None = kwargs.get(ATTR_TEMPERATURE)
-        _LOGGER.debug(
-            "async_set_temperature(%s, %s)", self.device.unique_id, temperature
-        )
-        _LOGGER.debug(kwargs)
+        hvac_mode: HVACMode | None = kwargs.get(ATTR_HVAC_MODE)
 
         if temperature is None:
             _LOGGER.error("No temperature received to set as target")
@@ -818,12 +818,17 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         try:
             # TODO: Confirm that HA sends the values in this entity's temperature_unit which matches the device unit
             self.device.set_target_temperature(temperature)
-            await self.device.update_device_status()
 
-            # notify coordinator listeners of state change so that dependent entities are updated immediately
-            self.coordinator.async_update_listeners()
+            if hvac_mode and hvac_mode in self._attr_hvac_modes:
+                # This will call the set_hvac_mode which internally will send to device
+                await self.async_set_hvac_mode(hvac_mode)
+            else:
+                await self.device.update_device_status()
 
-            await self.coordinator.async_request_refresh()
+                # notify coordinator listeners of state change so that dependent entities are updated immediately
+                self.coordinator.async_update_listeners()
+
+                await self.coordinator.async_request_refresh()
         except Exception as err:
             _LOGGER.exception("Error in '%s'", "async_set_temperature")
             raise HomeAssistantError(
