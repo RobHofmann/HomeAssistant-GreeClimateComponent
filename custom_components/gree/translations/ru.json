@@ -9,6 +9,7 @@
           "host": "IP-адрес",
           "port": "Порт",
           "mac": "MAC-адрес",
+          "timeout": "Тайм-аут",
           "encryption_key": "Ключ шифрования",
           "uid": "UID",
           "encryption_version": "Версия шифрования"
@@ -20,6 +21,7 @@
       "host": "IP-адрес",
       "port": "Порт",
       "mac": "MAC-адрес",
+      "timeout": "Тайм-аут",
       "hvac_modes" : "Режимы HVAC",
       "fan_modes" : "Режимы вентилятора",
       "swing_modes" : "Режимы вертикального качания",
@@ -28,6 +30,7 @@
       "uid": "UID",
       "encryption_version": "Версия шифрования",
       "disable_available_check": "Отключить проверку доступности",
+      "max_online_attempts": "Максимум попыток онлайн",
       "temp_sensor_offset": "Смещение датчика температуры"
     }
   },
@@ -41,6 +44,7 @@
           "swing_modes" : "Режимы вертикального качания",
           "swing_horizontal_modes" : "Режимы горизонтального качания",
           "disable_available_check": "Отключить проверку доступности",
+          "max_online_attempts": "Максимум попыток онлайн",
           "temp_sensor_offset": "Смещение датчика температуры"
         }
       }

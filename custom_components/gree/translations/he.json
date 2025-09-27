@@ -9,6 +9,7 @@
           "host": "כתובת IP",
           "port": "פורט",
           "mac": "כתובת MAC",
+          "timeout": "זמן קצוב להתחברות",
           "encryption_key": "מפתח הצפנה",
           "uid": "UID",
           "encryption_version": "גרסת הצפנה"
@@ -20,6 +21,7 @@
       "host": "כתובת IP",
       "port": "פורט",
       "mac": "כתובת MAC",
+      "timeout": "פסק זמן",
       "hvac_modes" : "מצבי HVAC",
       "fan_modes" : "מצבי מאוורר",
       "swing_modes" : "מצבי נדנוד אנכי",
@@ -28,6 +30,7 @@
       "uid": "UID",
       "encryption_version": "גרסת הצפנה",
       "disable_available_check": "השבת בדיקת זמינות",
+      "max_online_attempts": "ניסיונות מקסימליים להתחברות",
       "temp_sensor_offset": "היסט חיישן טמפרטורה"
     }
   },
@@ -41,6 +44,7 @@
           "swing_modes" : "מצבי נדנוד אנכי",
           "swing_horizontal_modes" : "מצבי נדנוד אופקי",
           "disable_available_check": "השבת בדיקת זמינות",
+          "max_online_attempts": "ניסיונות מקסימליים להתחברות",
           "temp_sensor_offset": "היסט חיישן טמפרטורה"
         }
       }

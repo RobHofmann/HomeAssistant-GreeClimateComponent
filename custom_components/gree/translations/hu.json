@@ -9,6 +9,7 @@
           "host": "IP-cím",
           "port": "Port",
           "mac": "MAC-cím",
+          "timeout": "Időtúllépés",
           "encryption_key": "Titkosítási kulcs",
           "uid": "UID",
           "encryption_version": "Titkosítási verzió"
@@ -20,6 +21,7 @@
       "host": "IP-cím",
       "port": "Port",
       "mac": "MAC-cím",
+      "timeout": "Időtúllépés",
       "hvac_modes" : "HVAC módok",
       "fan_modes" : "Ventilátor módok",
       "swing_modes" : "Függőleges lengési módok",
@@ -28,6 +30,7 @@
       "uid": "UID",
       "encryption_version": "Titkosítási verzió",
       "disable_available_check": "Elérhetőség ellenőrzésének letiltása",
+      "max_online_attempts": "Maximális online próbálkozások",
       "temp_sensor_offset": "Hőmérséklet érzékelő eltolás"
     }
   },
@@ -41,6 +44,7 @@
           "swing_modes" : "Függőleges lengési módok",
           "swing_horizontal_modes" : "Vízszintes lengési módok",
           "disable_available_check": "Elérhetőség ellenőrzésének letiltása",
+          "max_online_attempts": "Maximális online próbálkozások",
           "temp_sensor_offset": "Hőmérséklet érzékelő eltolás"
         }
       }

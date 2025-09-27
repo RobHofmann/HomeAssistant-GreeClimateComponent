@@ -9,6 +9,7 @@
           "host": "Endereço IP",
           "port": "Porta",
           "mac": "Endereço MAC",
+          "timeout": "Tempo de Espera (Timeout)",
           "encryption_key": "Chave de Criptografia",
           "uid": "UID",
           "encryption_version": "Versão da Criptografia"
@@ -20,6 +21,7 @@
       "host": "Endereço IP",
       "port": "Porta",
       "mac": "Endereço MAC",
+      "timeout": "Tempo de Espera (Timeout)",
       "hvac_modes" : "Climatização",
       "fan_modes" : "Ventilação",
       "swing_modes" : "Oscilação Vertical",
@@ -28,6 +30,7 @@
       "uid": "UID",
       "encryption_version": "Versão da Criptografia",
       "disable_available_check": "Desativar Verificação de Disponibilidade",
+      "max_online_attempts": "Máximo de Tentativas de Conexão",
       "temp_sensor_offset": "Ajuste do Sensor de Temperatura"
     }
   },
@@ -41,6 +44,7 @@
           "swing_modes" : "Oscilação Vertical",
           "swing_horizontal_modes" : "Oscilação Horizontal",
           "disable_available_check": "Desativar Verificação de Disponibilidade",
+          "max_online_attempts": "Máximo de Tentativas de Conexão",
           "temp_sensor_offset": "Ajuste do Sensor de Temperatura"
         }
       }

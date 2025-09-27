@@ -9,6 +9,7 @@
           "host": "Adres IP",
           "port": "Port",
           "mac": "Adres MAC",
+          "timeout": "Limit czasu odpowiedzi",
           "encryption_key": "Klucz szyfrowania",
           "uid": "UID",
           "encryption_version": "Wersja szyfrowania"
@@ -20,6 +21,7 @@
       "host": "Adres IP",
       "port": "Port",
       "mac": "Adres MAC",
+      "timeout": "Limit czasu odpowiedzi",
       "hvac_modes" : "Tryby pracy",
       "fan_modes" : "Tryby wentylatora",
       "swing_modes" : "Tryby pionowego ruchu",
@@ -28,6 +30,7 @@
       "uid": "UID",
       "encryption_version": "Wersja szyfrowania",
       "disable_available_check": "Wyłącz sprawdzanie dostępności",
+      "max_online_attempts": "Maksymalna liczba prób połączenia",
       "temp_sensor_offset": "Offset czujnika temperatury"
     }
   },
@@ -41,6 +44,7 @@
           "swing_modes" : "Tryby pionowego ruchu",
           "swing_horizontal_modes" : "Tryby poziomego ruchu",
           "disable_available_check": "Wyłącz sprawdzanie dostępności",
+          "max_online_attempts": "Maksymalna liczba prób połączenia",
           "temp_sensor_offset": "Offset czujnika temperatury"
         }
       }

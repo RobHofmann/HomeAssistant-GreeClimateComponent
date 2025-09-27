@@ -9,6 +9,7 @@
           "host": "Adresă IP",
           "port": "Port",
           "mac": "Adresă MAC",
+          "timeout": "Timp de așteptare",
           "encryption_key": "Cheie de criptare",
           "uid": "UID",
           "encryption_version": "Versiune criptare"
@@ -20,6 +21,7 @@
       "host": "Adresă IP",
       "port": "Port",
       "mac": "Adresă MAC",
+      "timeout": "Timp de așteptare",
       "hvac_modes" : "Moduri HVAC",
       "fan_modes" : "Moduri ventilator",
       "swing_modes" : "Moduri balansare verticală",
@@ -28,6 +30,7 @@
       "uid": "UID",
       "encryption_version": "Versiune criptare",
       "disable_available_check": "Dezactivează verificarea disponibilității",
+      "max_online_attempts": "Număr maxim de încercări online",
       "temp_sensor_offset": "Offset senzor temperatură"
     }
   },
@@ -41,6 +44,7 @@
           "swing_modes" : "Moduri balansare verticală",
           "swing_horizontal_modes" : "Moduri balansare orizontală",
           "disable_available_check": "Dezactivează verificarea disponibilității",
+          "max_online_attempts": "Număr maxim de încercări online",
           "temp_sensor_offset": "Offset senzor temperatură"
         }
       }

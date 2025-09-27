@@ -1,13 +1,14 @@
 {
   "config": {
+    "title": "Gree Climate",
+    "description": "Configure your Gree air conditioner",
     "error": {
-      "cannot_connect": "Unable to connect to the device. Please check the network connection and try again."
+      "cannot_connect": "Unable to connect to the device. Please check the device configuration and network connection and try again.",
+      "no_devices_found": "Couldn't find any Gree device in the network. Please add your device manually."
     },
     "abort": {
       "already_configured": "A device with this MAC address is already configured."
     },
-    "title": "Gree Climate",
-    "description": "Configure your Gree air conditioner",
     "step": {
       "user": {
         "title": "Gree Climate Setup",
@@ -16,61 +17,79 @@
           "discovery": "Setup Method"
         }
       },
-      "discovery": {
+      "manual_discovery": {
         "title": "Discovered Devices",
         "description": "Found {devices_found} Gree device(s). Select one to add or choose manual setup.",
         "data": {
           "device": "Device"
         }
       },
-      "detect_encryption": {
-        "title": "Configure Device",
-        "description": "Device connection successful. Enter a name for this device.",
-        "data": {
-          "name": "Device Name"
-        }
-      },
-      "manual": {
-        "title": "Manual Setup",
-        "description": "Enter the details for your Gree air conditioner",
+      "manual_add": {
+        "title": "Device configuration",
         "data": {
           "name": "Name",
           "host": "IP Address",
-          "port": "Port",
-          "mac": "MAC Address",
-          "encryption_key": "Encryption Key",
-          "uid": "UID",
-          "encryption_version": "Encryption Version"
+          "mac": "MAC Address"
+        },
+        "sections": {
+          "advanced": {
+            "name": "Advanced Settings",
+            "description": "Configure advanced setting of the device",
+            "data": {
+              "port": "Port",
+              "encryption_key": "Encryption Key",
+              "encryption_version": "Encryption Version",
+              "uid": "UID"
+            }
+          }
         }
-      }
-    },
-    "data": {
-      "name": "Name",
-      "host": "IP Address",
-      "port": "Port",
-      "mac": "MAC Address",
-      "hvac_modes" : "HVAC Modes",
-      "fan_modes" : "Fan Modes",
-      "swing_modes" : "Vertical Swing Modes",
-      "swing_horizontal_modes" : "Horizontal Swing Modes",
-      "encryption_key": "Encryption Key",
-      "uid": "UID",
-      "encryption_version": "Encryption Version",
-      "disable_available_check": "Disable Available Check",
-      "temp_sensor_offset": "Temperature Sensor Offset"
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Gree Climate Options",
+      },
+      "device_options": {
+        "title": "Device features",
+        "description": "The Gree API doesn't have a reliable method of getting the supported features of a device. Please use the options bellow to the best of your knowledge about your device.",
         "data": {
-          "hvac_modes" : "HVAC Modes",
-          "fan_modes" : "Fan Modes",
-          "swing_modes" : "Vertical Swing Modes",
-          "swing_horizontal_modes" : "Horizontal Swing Modes",
+          "hvac_modes": "HVAC Modes",
+          "fan_modes": "Fan Speeds",
+          "swing_modes": "Vertical Swing Modes",
+          "swing_horizontal_modes": "Horizontal Swing Modes",
+          "features": "Device Features and Modes",
+          "external_temperature_sensor": "External Temperature Sensor",
+          "external_humidity_sensor": "External Humidity Sensor",
           "disable_available_check": "Disable Available Check",
-          "temp_sensor_offset": "Temperature Sensor Offset"
+          "max_online_attempts": "Max Connection Attempts",
+          "timeout": "Connection Timeout",
+          "restore_states": "Restore Entities"
+        },
+        "data_description": {
+          "external_temperature_sensor": "If set will replace the built-in HVAC temperature sensor",
+          "external_humidity_sensor": "If set will replace the built-in HVAC humidity sensor",
+          "max_online_attempts": "The number of attempts to communicate with the device before it is marked as unavailable",
+          "timeout": "The timeout for each of the connection attempts",
+          "restore_states": "If set to true, when the integration is started the device will be overriden by previous states of the integration instead of using the current device state."
+        }
+      },
+      "reconfigure": {
+        "title": "Device features",
+        "description": "The Gree API doesn't have a reliable method of getting the supported features of a device. Please use the options bellow to the best of your knowledge about your device.",
+        "data": {
+          "hvac_modes": "HVAC Modes",
+          "fan_modes": "Fan Speeds",
+          "swing_modes": "Vertical Swing Modes",
+          "swing_horizontal_modes": "Horizontal Swing Modes",
+          "features": "Device Features and Modes",
+          "external_temperature_sensor": "External Temperature Sensor",
+          "external_humidity_sensor": "External Humidity Sensor",
+          "disable_available_check": "Disable Available Check",
+          "max_online_attempts": "Max Connection Attempts",
+          "timeout": "Connection Timeout",
+          "restore_states": "Restore Entities"
+        },
+        "data_description": {
+          "external_temperature_sensor": "If set will replace the built-in HVAC temperature sensor",
+          "external_humidity_sensor": "If set will replace the built-in HVAC humidity sensor",
+          "max_online_attempts": "The number of attempts to communicate with the device before it is marked as unavailable",
+          "timeout": "The timeout for each of the connection attempts",
+          "restore_states": "If set to true, when the integration is started the device will be overriden by previous states of the integration instead of using the current device state."
         }
       }
     }
@@ -94,85 +113,116 @@
     },
     "fan_modes": {
       "options": {
-        "auto": "Auto",
-        "low": "Low",
-        "medium_low": "Medium-Low",
-        "medium": "Medium",
-        "medium_high": "Medium-High",
-        "high": "High",
+        "Auto": "Auto",
+        "Low": "Low",
+        "MediumLow": "Medium-Low",
+        "Medium": "Medium",
+        "MediumHigh": "Medium-High",
+        "High": "High",
         "turbo": "Turbo",
         "quiet": "Quiet"
       }
     },
     "swing_modes": {
       "options": {
-        "default": "Default",
-        "swing_full": "Swing in full range",
-        "fixed_upmost": "Fixed in the upmost position",
-        "fixed_middle_up": "Fixed in the middle-up position",
-        "fixed_middle": "Fixed in the middle position",
-        "fixed_middle_low": "Fixed in the middle-low position",
-        "fixed_lowest": "Fixed in the lowest position",
-        "swing_downmost": "Swing in the downmost region",
-        "swing_middle_low": "Swing in the middle-low region",
-        "swing_middle": "Swing in the middle region",
-        "swing_middle_up": "Swing in the middle-up region",
-        "swing_upmost": "Swing in the upmost region"
+        "Default": "Default",
+        "FullSwing": "Swing in full range",
+        "FixedUpper": "Fixed in the upmost position",
+        "FixedUpperMiddle": "Fixed in the middle-up position",
+        "FixedMiddle": "Fixed in the middle position",
+        "FixedLowerMiddle": "Fixed in the middle-low position",
+        "FixedLower": "Fixed in the lowest position",
+        "SwingLower": "Swing in the downmost region",
+        "SwingLowerMiddle": "Swing in the middle-low region",
+        "SwingMiddle": "Swing in the middle region",
+        "SwingUpperMiddle": "Swing in the middle-up region",
+        "SwingUpper": "Swing in the upmost region"
       }
     },
     "swing_horizontal_modes": {
       "options": {
-        "default": "Default",
-        "swing_full": "Full swing",
-        "fixed_leftmost": "Fixed in the leftmost position",
-        "fixed_middle_left": "Fixed in the middle-left position",
-        "fixed_middle": "Fixed in the middle position",
-        "fixed_middle_right": "Fixed in the middle-right position",
-        "fixed_rightmost": "Fixed in the rightmost position"
+        "Default": "Default",
+        "FullSwing": "Swing in full range",
+        "Left": "Fixed in the leftmost position",
+        "LeftCenter": "Fixed in the middle-left position",
+        "Center": "Fixed in the middle position",
+        "RightCenter": "Fixed in the middle-right position",
+        "Right": "Fixed in the rightmost position"
+      }
+    },
+    "features": {
+      "options": {
+        "beeper": "Beeper",
+        "air": "Fresh Air",
+        "xfan": "X-Fan",
+        "sleep": "Sleep",
+        "smart_heat": "8ºC Smart Heat",
+        "lights": "Display Light",
+        "health": "Health",
+        "anti_direct_blow": "Anti Direct Blow",
+        "energy_saving": "Energy Saving",
+        "light_sensor": "Display Auto Brightness"
       }
     }
   },
   "entity": {
+    "sensor": {
+      "indoor_temperature": {
+        "name": "Indoor Temperature",
+        "description": "The temperature reported by the HVAC indoors unit"
+      },
+      "outdoor_temperature": {
+        "name": "Outdoor Temperature",
+        "description": "The temperature reported by the HVAC outdoors unit"
+      },
+      "room_humidity": {
+        "name": "Indoor Humidity",
+        "description": "Shows the room humidity level measured by the air conditioner's internal sensor."
+      }
+    },
     "climate": {
-      "gree": {
+      "hvac": {
         "state_attributes": {
+          "default": "Fan Speed",
           "fan_mode": {
             "state": {
-              "auto": "Auto",
-              "low": "Low",
-              "medium_low": "Medium-Low",
-              "medium": "Medium",
-              "medium_high": "Medium-High",
-              "high": "High",
+              "Auto": "Auto",
+              "Low": "Low",
+              "MediumLow": "Medium-Low",
+              "Medium": "Medium",
+              "MediumHigh": "Medium-High",
+              "High": "High",
               "turbo": "Turbo",
               "quiet": "Quiet"
             }
           },
           "swing_mode": {
+            "default": "Vertical Swing",
             "state": {
-              "default": "Default",
-              "swing_full": "Swing in full range",
-              "fixed_upmost": "Fixed in the upmost position",
-              "fixed_middle_up": "Fixed in the middle-up position",
-              "fixed_middle": "Fixed in the middle position",
-              "fixed_middle_low": "Fixed in the middle-low position",
-              "fixed_lowest": "Fixed in the lowest position",
-              "swing_downmost": "Swing in the downmost region",
-              "swing_middle_low": "Swing in the middle-low region",
-              "swing_middle": "Swing in the middle region",
-              "swing_middle_up": "Swing in the middle-up region",
-              "swing_upmost": "Swing in the upmost region"
+              "Default": "Default",
+              "FullSwing": "Swing in full range",
+              "FixedUpper": "Fixed in the upmost position",
+              "FixedUpperMiddle": "Fixed in the middle-up position",
+              "FixedMiddle": "Fixed in the middle position",
+              "FixedLowerMiddle": "Fixed in the middle-low position",
+              "FixedLower": "Fixed in the lowest position",
+              "SwingLower": "Swing in the downmost region",
+              "SwingLowerMiddle": "Swing in the middle-low region",
+              "SwingMiddle": "Swing in the middle region",
+              "SwingUpperMiddle": "Swing in the middle-up region",
+              "SwingUpper": "Swing in the upmost region"
             }
           },
           "swing_horizontal_mode": {
+            "default": "Horizontal Swing",
             "state": {
-              "default": "Default",
-              "swing_full": "Swing in full range",
-              "fixed_leftmost": "Fixed in the leftmost position",
-              "fixed_middle_left": "Fixed in the middle-left position",
-              "fixed_middle": "Fixed in the middle position",
-              "fixed_middle_right": "Fixed in the middle-right position",
-              "fixed_rightmost": "Fixed in the rightmost position"
+              "Default": "Default",
+              "FullSwing": "Swing in full range",
+              "Left": "Fixed in the leftmost position",
+              "LeftCenter": "Fixed in the middle-left position",
+              "Center": "Fixed in the middle position",
+              "RightCenter": "Fixed in the middle-right position",
+              "Right": "Fixed in the rightmost position"
             }
           }
         }
@@ -185,29 +235,27 @@
       }
     },
     "select": {
-      "external_temperature_sensor": {
-        "name": "External Temperature Sensor",
-        "description": "Select a temperature sensor entity to use instead of the built-in AC sensor. Choose 'None' to use the built-in sensor."
-      }
-    },
-    "sensor": {
-      "outside_temperature": {
-        "name": "Outside Temperature",
-        "description": "Shows the outside temperature measured by the air conditioner's external sensor."
-      },
-      "room_humidity": {
-        "name": "Room Humidity",
-        "description": "Shows the room humidity level measured by the air conditioner's internal sensor."
+      "temperature_units": {
+        "name": "Temperature Units",
+        "description": "Select the temperature units used by the device."
       }
     },
     "switch": {
+      "auto_light": {
+        "name": "Auto Display Light",
+        "description": "Automatically controls the display lights based on HVAC operations. When enabled, lights will turn on/off with the AC unit."
+      },
+      "auto_xfan": {
+        "name": "Auto X-Fan",
+        "description": "Automatically controls the X-Fan mode based on HVAC operations. When enabled, X-Fan will automatically turn on in cooling and dry modes."
+      },
+      "lights": {
+        "name": "Display Light",
+        "description": "Controls the display lights on the air conditioner unit."
+      },
       "xfan": {
         "name": "X-Fan",
         "description": "Enables or disables the X-Fan mode for extra drying when turning off."
-      },
-      "lights": {
-        "name": "Lights",
-        "description": "Controls the display lights on the air conditioner unit."
       },
       "health": {
         "name": "Health",
@@ -218,7 +266,7 @@
         "description": "Enables or disables the power saving mode for energy efficiency. Only available in cooling mode."
       },
       "eightdegheat": {
-        "name": "8°C Heat",
+        "name": "Smart Heat 8ºC",
         "description": "Enables or disables the 8°C heating mode for frost protection. Only available in heating mode."
       },
       "sleep": {
@@ -226,29 +274,35 @@
         "description": "Enables or disables the sleep mode for comfortable overnight operation. Only available in cooling or heating mode."
       },
       "air": {
-        "name": "Air",
+        "name": "Fresh Air",
         "description": "Enables or disables the fresh air circulation mode."
-      },
-      "auto_xfan": {
-        "name": "Auto X-Fan",
-        "description": "Automatically controls the X-Fan mode based on HVAC operations. When enabled, X-Fan will automatically turn on in cooling and dry modes."
-      },
-      "auto_light": {
-        "name": "Auto Light",
-        "description": "Automatically controls the display lights based on HVAC operations. When enabled, lights will turn on/off with the AC unit."
       },
       "anti_direct_blow": {
         "name": "Anti Direct Blow",
         "description": "Prevents direct air flow from blowing on people by adjusting the air deflector position."
       },
       "light_sensor": {
-        "name": "Light Sensor",
+        "name": "Display Auto Brightness",
         "description": "Enables or disables light sensor for automatic brightness. Requires lights to be enabled."
       },
       "beeper": {
         "name": "Beeper",
         "description": "Controls the beeper sounds from the air conditioner unit. When enabled, the unit will make sounds for button presses and status changes."
       }
+    }
+  },
+  "exceptions": {
+    "turbo_availability": {
+      "message": "Trubo mode is not available in Dry and Fan-only modes."
+    },
+    "quiet_availability": {
+      "message": "Quiet mode is only available in Dry and Cool modes."
+    },
+    "entity_unavailable": {
+      "message": "The entity is unavailable."
+    },
+    "generic": {
+      "message": "There was a problem performing the requested change, please consult the integration log."
     }
   }
 }
