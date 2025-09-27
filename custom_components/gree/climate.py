@@ -661,11 +661,6 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                 translation_domain=DOMAIN, translation_key="entity_unavailable"
             )
 
-        if self._attr_hvac_mode == HVACMode.OFF:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN, translation_key="change_while_device_off"
-            )
-
         if fan_mode == GATTR_FEAT_TURBO and self._attr_hvac_mode in (
             HVACMode.DRY,
             HVACMode.FAN_ONLY,
@@ -716,11 +711,6 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                 translation_domain=DOMAIN, translation_key="entity_unavailable"
             )
 
-        if self._attr_hvac_mode == HVACMode.OFF:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN, translation_key="change_while_device_off"
-            )
-
         try:
             self.device.set_vertical_swing_mode(VerticalSwingMode[swing_mode])
             await self.device.update_device_status()
@@ -752,11 +742,6 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         if not self.available:
             raise HomeAssistantError(
                 translation_domain=DOMAIN, translation_key="entity_unavailable"
-            )
-
-        if self._attr_hvac_mode == HVACMode.OFF:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN, translation_key="change_while_device_off"
             )
 
         try:

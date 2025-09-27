@@ -292,9 +292,6 @@
     }
   },
   "exceptions": {
-    "change_while_device_off": {
-      "message": "You cannot change this while the device is off."
-    },
     "turbo_availability": {
       "message": "Trubo mode is not available in Dry and Fan-only modes."
     },
