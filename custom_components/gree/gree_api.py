@@ -510,6 +510,15 @@ def gree_create_bind_pack(
     return pack
 
 
+def gree_create_sub_bind_pack(mac_addr: str) -> str:
+    """Create a bind pack to send to the device."""
+
+    pack: str = json.dumps({"mac": mac_addr, "i": 1})
+
+    _LOGGER.debug("Sub Bind Pack: %s", pack)
+    return pack
+
+
 def gree_create_status_pack(mac_addr: str, props: list[str]) -> str:
     """Create a status pack to send to the device."""
 
@@ -805,7 +814,7 @@ def extract_version(info: dict) -> tuple[str | None, str | None]:
     return ver, device_id
 
 
-def discover_gree_devices(
+async def discover_gree_devices(
     broadcast_addresses: list[str], timeout: int
 ) -> list[GreeDiscoveredDevice]:
     """Discovers gree devices in the network."""
@@ -822,7 +831,6 @@ def discover_gree_devices(
             gree_get_default_cipher(EncryptionVersion.V1),
             EncryptionVersion.V1,
         )
-
         if data is not None:
             pack = data.get("pack")
             if pack is not None:
@@ -843,7 +851,94 @@ def discover_gree_devices(
                         uid=data.get("uid", 0),
                     )
 
-                    discovered_devices.append(discovered_device)
-                    _LOGGER.debug("Discovered device: %s", discovered_device)
+                    # If VRF, the mac is of the main device and we have to query it for the sub devices
+                    # Sub-devices will be created with a mac of sub@main
+                    # check if the device has sub-devices
+                    sub_count = pack.get("subCnt", 0)
+
+                    if sub_count == 0:  # Is normal HVAC
+                        discovered_devices.append(discovered_device)
+                        _LOGGER.debug("Discovered device: %s", discovered_device)
+                    else:  # Is VRF with multiple sub devices
+                        _LOGGER.debug(
+                            "Trying to fetching sub-devices for '%s' (subCount=%d)",
+                            mac_addr,
+                            sub_count,
+                        )
+                        try:
+                            discovered_sub_devices = await get_sub_devices_list(
+                                discovered_device.mac,
+                                discovered_device.host,
+                                discovered_device.uid,
+                                max_connection_attempts=2,
+                                timeout=timeout,
+                            )
+
+                            for sub_device in discovered_sub_devices:
+                                sub_mac = sub_device.get("mac", "")
+                                if sub_mac:
+                                    discovered_sub_device = GreeDiscoveredDevice(
+                                        name=f"{discovered_device.name}@{sub_mac[:4]}"
+                                        or f"Gree {mac_addr[-4:]}",
+                                        host=discovered_device.host,
+                                        mac=f"{sub_mac}@{discovered_device.mac}",
+                                        port=discovered_device.port,
+                                        brand=discovered_device.brand,
+                                        model=sub_device.get("mid", discovered_device),
+                                        uid=discovered_device.uid,
+                                    )
+                                    discovered_devices.append(discovered_sub_device)
+                                    _LOGGER.debug(
+                                        "Discovered sub-device: %s", discovered_device
+                                    )
+                        except Exception:
+                            _LOGGER.exception("Failed to fetch sub-devices")
 
     return discovered_devices
+
+
+async def get_sub_devices_list(
+    mac_addr: str, ip_addr: str, uid: int, max_connection_attempts: int, timeout: int
+) -> list:
+    """Fetch the list of sub-devices for a Gree device."""
+    try:
+        key, version = await gree_get_device_key(
+            ip_addr,
+            mac_addr,
+            DEFAULT_DEVICE_PORT,
+            uid,
+            None,
+            max_connection_attempts,
+            timeout,
+        )
+
+        pack, tag = gree_create_encrypted_pack(
+            gree_create_sub_bind_pack(mac_addr),
+            get_cipher(key, version),
+            version,
+        )
+
+        jsonPayloadToSend = gree_create_payload(
+            pack,
+            "subList",
+            GreeCommand.BIND,
+            mac_addr,
+            uid,
+            version,
+            tag,
+        )
+
+        result = await get_result_pack(
+            ip_addr,
+            DEFAULT_DEVICE_PORT,
+            jsonPayloadToSend,
+            get_cipher(key, version),
+            version,
+            max_connection_attempts,
+            timeout,
+        )
+
+        return result.get("list", [])
+
+    except Exception as err:
+        raise ValueError(f"Error fetching sub-device list for '{mac_addr}'") from err

@@ -380,6 +380,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             user_input[CONF_NAME] = self._selected_device.name
             user_input[CONF_HOST] = self._selected_device.host
             user_input[CONF_MAC] = self._selected_device.mac
+            user_input[CONF_ADVANCED] = {}
+            user_input[CONF_ADVANCED][CONF_PORT] = self._selected_device.port
+            user_input[CONF_ADVANCED][CONF_UID] = self._selected_device.uid
         elif self._discovery_performed and self._selected_device is None:
             errors["base"] = "no_devices_found"
 
@@ -480,9 +483,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         except Exception:
             _LOGGER.exception("Could not get HA broadcast addresses")
 
-        return await hass.async_add_executor_job(
-            discover_gree_devices, broadcast_addresses, 5
-        )
+        return await discover_gree_devices(broadcast_addresses, 5)
 
 
 class CannotConnect(HomeAssistantError):
