@@ -178,6 +178,9 @@ class GreeDiscoveredDevice:
     host: str
     mac: str
     port: int
+    brand: str
+    model: str
+    uid: int
 
 
 propkey_to_enum = {prop.value: prop for prop in GreeProp}
@@ -516,11 +519,16 @@ def gree_create_status_pack(mac_addr: str, props: list[str]) -> str:
     return pack
 
 
-def gree_create_set_pack(props: dict[GreeProp, int]) -> str:
+def gree_create_set_pack(mac_addr: str, props: dict[GreeProp, int]) -> str:
     """Create a set pack to send to the device."""
 
     pack: str = json.dumps(
-        {"opt": [prop.value for prop in props], "p": list(props.values()), "t": "cmd"}
+        {
+            "opt": [prop.value for prop in props],
+            "p": list(props.values()),
+            "t": "cmd",
+            "sub": mac_addr,
+        }
     )
 
     _LOGGER.debug("Status Pack: %s", pack)
@@ -529,6 +537,7 @@ def gree_create_set_pack(props: dict[GreeProp, int]) -> str:
 
 def gree_create_payload(
     pack: str,
+    payload_type: str,
     i_command: GreeCommand,
     mac_addr: str,
     uid: int,
@@ -545,7 +554,7 @@ def gree_create_payload(
                 "cid": "app",
                 "i": i_command.value,
                 "pack": pack,
-                "t": "pack",
+                "t": payload_type,
                 "tcid": mac_addr,
                 "uid": uid,
             }
@@ -593,7 +602,7 @@ async def gree_get_device_key(
             enc_version,
         )
         jsonPayloadToSend = gree_create_payload(
-            pack, GreeCommand.BIND, mac_addr, uid, enc_version, tag
+            pack, "pack", GreeCommand.BIND, mac_addr, uid, enc_version, tag
         )
 
         try:
@@ -634,6 +643,7 @@ async def gree_get_device_key(
 async def gree_get_status(
     ip_addr: str,
     mac_addr: str,
+    mac_addr_sub: str,
     port: int,
     uid: int,
     encryption_key: str,
@@ -649,12 +659,12 @@ async def gree_get_status(
     status_values: dict[GreeProp, int] = {}
 
     pack, tag = gree_create_encrypted_pack(
-        gree_create_status_pack(mac_addr, [prop.value for prop in props]),
+        gree_create_status_pack(mac_addr_sub, [prop.value for prop in props]),
         get_cipher(encryption_key, encryption_version),
         encryption_version,
     )
     jsonPayloadToSend = gree_create_payload(
-        pack, GreeCommand.STATUS, mac_addr, uid, encryption_version, tag
+        pack, "pack", GreeCommand.STATUS, mac_addr, uid, encryption_version, tag
     )
 
     try:
@@ -684,6 +694,7 @@ async def gree_get_status(
 async def gree_set_status(
     ip_addr: str,
     mac_addr: str,
+    mac_addr_sub: str,
     port: int,
     uid: int,
     encryption_key: str,
@@ -696,7 +707,7 @@ async def gree_set_status(
 
     _LOGGER.debug("Trying to set device status")
 
-    set_pack = gree_create_set_pack(props)
+    set_pack = gree_create_set_pack(mac_addr_sub, props)
     pack, tag = gree_create_encrypted_pack(
         set_pack,
         get_cipher(encryption_key, encryption_version),
@@ -704,7 +715,7 @@ async def gree_set_status(
     )
 
     jsonPayloadToSend = gree_create_payload(
-        pack, GreeCommand.STATUS, mac_addr, uid, encryption_version, tag
+        pack, "pack", GreeCommand.STATUS, mac_addr, uid, encryption_version, tag
     )
 
     try:
@@ -827,6 +838,9 @@ def discover_gree_devices(
                         host=address,
                         mac=mac_addr,
                         port=DEFAULT_DEVICE_PORT,
+                        brand=pack.get("brand", "gree"),
+                        model=pack.get("brand", "gree"),
+                        uid=data.get("uid", 0),
                     )
 
                     discovered_devices.append(discovered_device)

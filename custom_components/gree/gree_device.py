@@ -106,7 +106,7 @@ class GreeDevice:
         self._new_state: dict[GreeProp, int] = {}
         self._is_bound: bool = False
         self._is_available: bool = False
-        self._uniqueid: str = self._mac_addr
+        self._uniqueid: str = self._mac_addr_sub
         self._max_connection_attempts: int = max_connection_attempts
         self._timeout: int = timeout
 
@@ -178,6 +178,7 @@ class GreeDevice:
                 await gree_get_status(
                     self._ip_addr,
                     self._mac_addr,
+                    self._mac_addr_sub,
                     self._port,
                     self._uid,
                     self._encryption_key,
@@ -220,6 +221,7 @@ class GreeDevice:
                 await gree_set_status(
                     self._ip_addr,
                     self._mac_addr,
+                    self._mac_addr_sub,
                     self._port,
                     self._uid,
                     self._encryption_key,
