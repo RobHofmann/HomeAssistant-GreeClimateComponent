@@ -89,7 +89,7 @@ class GreeDevice:
             ip_addr,
             port,
         )
-        _LOGGER.debug("Version: %s, Key: %s", encryption_version, encryption_key)
+        _LOGGER.debug("Version: %s, Key: %s", encryption_version, encryption_key[:5])
 
         self._name: str = name
         self._ip_addr: str = ip_addr
