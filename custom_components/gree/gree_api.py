@@ -398,6 +398,7 @@ def get_gree_response_data(
     if encodedPack:
         pack = base64.b64decode(encodedPack)
         decryptedPack = cipher.decrypt(pack)
+        _LOGGER.debug("Decoding pack: %s", decryptedPack)
         pack = decryptedPack.decode("utf-8")
         replacedPack = pack.replace("\x0f", "").replace(
             pack[pack.rindex("}") + 1 :], ""
