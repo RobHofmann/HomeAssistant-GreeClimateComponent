@@ -252,6 +252,7 @@ async def discover_gree_devices(hass, timeout=5):
                         # If we successfully decrypted and got device info
                         if pack_json and pack_json.get("t") == "dev":
                             mac_addr = pack_json.get("mac", "")
+                            sub_cnt = pack_json.get("subCnt", 0)
                             if not mac_addr:
                                 _LOGGER.debug(f"No MAC address in response from {addr}")
                                 continue
@@ -266,8 +267,30 @@ async def discover_gree_devices(hass, timeout=5):
                                 "model": pack_json.get("model", "gree"),
                                 "version": pack_json.get("ver", ""),
                             }
-                            devices.append(device_info)
-                            _LOGGER.debug(f"Discovered Gree device: {device_info}")
+                            # If subCnt > 1, fetch sub-device list
+                            if sub_cnt > 1:
+                                try:
+                                    _LOGGER.debug(f"Fetching sub-devices for {mac_addr} (subCnt={sub_cnt})")
+                                    sub_devices = await get_subunits_list(mac_addr, addr[0], BROADCAST_PORT)
+                                    for sub_device in sub_devices.get("list", []):
+                                        sub_mac = sub_device.get("mac", "")
+                                        if sub_mac:
+                                            sub_device_info = {
+                                                "name": f"{device_info['name']}_{sub_mac[:4]}",
+                                                "host": addr[0],
+                                                "port": BROADCAST_PORT,
+                                                "mac": f"{sub_mac}@{mac_addr}",
+                                                "brand": device_info["brand"],
+                                                "model": sub_device.get("mid", device_info["model"]),
+                                                "version": device_info["version"],
+                                            }
+                                            devices.append(sub_device_info)
+                                            _LOGGER.debug(f"Discovered sub-device: {sub_device_info}")
+                                except Exception as e:
+                                    _LOGGER.error(f"Error fetching sub-devices for {mac_addr}: {e}")
+                            else:
+                                devices.append(device_info)
+                                _LOGGER.debug(f"Discovered Gree device: {device_info}")
                         else:
                             _LOGGER.debug(f"Invalid or missing device info from {addr}")
                     else:
@@ -285,6 +308,8 @@ async def discover_gree_devices(hass, timeout=5):
 
 async def detect_device_encryption(mac_addr, ip_addr, port):
     """Test which encryption version a device uses for communication."""
+    if "@" in mac_addr:
+        mac_addr = mac_addr.split("@", 1)[1]
     _LOGGER.debug(f"Detecting encryption version for device {mac_addr} at {ip_addr}:{port}")
 
     # Test encryption version 1 first
@@ -309,3 +334,31 @@ async def detect_device_encryption(mac_addr, ip_addr, port):
 
     _LOGGER.error(f"Could not determine encryption version for device {mac_addr}")
     return None
+
+async def get_subunits_list(mac_addr, ip_addr, port):
+    """
+    Fetch the list of sub-devices for a Gree device.
+    """
+    try:
+        # Prepare the payload
+        encryption_version = await detect_device_encryption(mac_addr, ip_addr, port)
+
+        json_payload = f'{{"mac":"{mac_addr}", "i":"1"}}'
+        if encryption_version == 1:
+            cipher = AES.new(GENERIC_GREE_DEVICE_KEY.encode("utf8"), AES.MODE_ECB)
+            pack = base64.b64encode(cipher.encrypt(Pad(json_payload).encode("utf8"))).decode("utf-8")
+        else:
+            pack, tag = EncryptGCM(GENERIC_GREE_DEVICE_KEY_GCM, json_payload)
+            cipher = GetGCMCipher(GENERIC_GREE_DEVICE_KEY_GCM)
+
+        jsonPayloadToSend = (
+            f'{{"cid": "app","i": 1,"pack": "{pack}","t":"subList","tcid":"{str(mac_addr)}","uid": 0}}'
+        )
+        # Use FetchResult to send and receive data
+        result = await FetchResult(cipher, ip_addr, port, jsonPayloadToSend, encryption_version=encryption_version)
+        _LOGGER.debug(f"get_subunits_list: FetchResult: {result}")
+
+        return result
+    except Exception as e:
+        _LOGGER.error(f"Error fetching sub-device list for {mac_addr}: {e}")
+        return {"list": []}
