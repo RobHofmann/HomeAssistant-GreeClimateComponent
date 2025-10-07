@@ -8,6 +8,7 @@ import logging
 import re
 import socket
 import time
+from typing import Any
 
 import asyncio_dgram
 from attr import dataclass
@@ -556,34 +557,20 @@ def gree_create_payload(
 ) -> str:
     """Create the full payload to send to the device."""
 
-    payload: str = ""
+    base_payload: dict[str, Any] = {
+        "cid": "app",
+        "i": i_command.value,
+        "pack": pack,
+        "t": payload_type,
+        "tcid": mac_addr,
+        "uid": uid,
+    }
 
-    if encryption_version == EncryptionVersion.V1:
-        payload = json.dumps(
-            {
-                "cid": "app",
-                "i": i_command.value,
-                "pack": pack,
-                "t": payload_type,
-                "tcid": mac_addr,
-                "uid": uid,
-            }
-        )
-    elif encryption_version == EncryptionVersion.V2:
-        payload = json.dumps(
-            {
-                "cid": "app",
-                "i": i_command.value,
-                "pack": pack,
-                "t": payload_type,
-                "tcid": mac_addr,
-                "uid": uid,
-                "tag": tag,
-            }
-        )
+    if encryption_version == EncryptionVersion.V2 and tag is not None:
+        base_payload["tag"] = tag
 
     # _LOGGER.debug("Payload: %s", payload)
-    return payload
+    return json.dumps(base_payload)
 
 
 async def gree_get_device_key(
