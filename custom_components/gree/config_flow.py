@@ -14,7 +14,6 @@ from homeassistant.components.network import (
     IPv4Address,
     async_get_ipv4_broadcast_addresses,
 )
-from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import CONF_HOST, CONF_MAC, CONF_NAME, CONF_PORT, CONF_TIMEOUT
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import section
@@ -22,10 +21,9 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.selector import (
-    EntitySelector,
-    EntitySelectorConfig,
     SelectSelector,
     SelectSelectorConfig,
+    SelectSelectorMode,
 )
 
 from .const import (
@@ -71,7 +69,7 @@ def build_main_schema(data: Mapping | None) -> vol.Schema:
         {
             vol.Required(
                 CONF_NAME,
-                default="Gree AC" if data is None else data.get(CONF_NAME, ""),
+                default="Gree AC" if data is None else data.get(CONF_NAME, "Gree AC"),
             ): str,
             vol.Required(
                 CONF_HOST,
@@ -111,6 +109,27 @@ def build_main_schema(data: Mapping | None) -> vol.Schema:
                             default=DEFAULT_DEVICE_UID
                             if data is None or data.get(CONF_ADVANCED) is None
                             else data[CONF_ADVANCED].get(CONF_UID, DEFAULT_DEVICE_UID),
+                        ): cv.positive_int,
+                        vol.Required(
+                            CONF_DISABLE_AVAILABLE_CHECK,
+                            default=False
+                            if data is None
+                            else data.get(CONF_DISABLE_AVAILABLE_CHECK, False),
+                        ): cv.boolean,
+                        vol.Required(
+                            CONF_MAX_ONLINE_ATTEMPTS,
+                            default=DEFAULT_CONNECTION_MAX_ATTEMPTS
+                            if data is None
+                            else data.get(
+                                CONF_MAX_ONLINE_ATTEMPTS,
+                                DEFAULT_CONNECTION_MAX_ATTEMPTS,
+                            ),
+                        ): cv.positive_int,
+                        vol.Required(
+                            CONF_TIMEOUT,
+                            default=DEFAULT_CONNECTION_TIMEOUT
+                            if data is None
+                            else data.get(CONF_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT),
                         ): cv.positive_int,
                     }
                 ),
@@ -187,53 +206,76 @@ def build_options_schema(hass: HomeAssistant, data: Mapping | None) -> vol.Schem
                     translation_key=CONF_FEATURES,
                 )
             ),
-            vol.Optional(
-                ATTR_EXTERNAL_TEMPERATURE_SENSOR, default=UNDEFINED
-            ): EntitySelector(
-                config=EntitySelectorConfig(
+            # Ideally we would use an Optional EntitySelector for external sensors.
+            # Currently we can't because unsetting the value in the UI makes HA
+            # populate the user_input with the previous set value, making the user
+            # unable to unset the external sensors.
+            vol.Required(
+                ATTR_EXTERNAL_TEMPERATURE_SENSOR,
+                default="None"
+                if data is None
+                else data.get(ATTR_EXTERNAL_TEMPERATURE_SENSOR, "None"),
+            ): SelectSelector(
+                config=SelectSelectorConfig(
+                    options=get_temperature_sensor_options(hass),
                     multiple=False,
-                    domain="sensor",
-                    device_class=SensorDeviceClass.TEMPERATURE,
+                    mode=SelectSelectorMode.DROPDOWN,
+                    translation_key=ATTR_EXTERNAL_TEMPERATURE_SENSOR,
                 )
             ),
-            vol.Optional(
+            vol.Required(
                 ATTR_EXTERNAL_HUMIDITY_SENSOR,
                 default=UNDEFINED
                 if data is None
                 else data.get(ATTR_EXTERNAL_HUMIDITY_SENSOR, UNDEFINED),
-            ): EntitySelector(
-                config=EntitySelectorConfig(
+            ): SelectSelector(
+                config=SelectSelectorConfig(
+                    options=get_humidity_sensor_options(hass),
                     multiple=False,
-                    domain="sensor",
-                    device_class=SensorDeviceClass.HUMIDITY,
+                    mode=SelectSelectorMode.DROPDOWN,
+                    translation_key=ATTR_EXTERNAL_HUMIDITY_SENSOR,
                 )
             ),
             vol.Required(
                 CONF_RESTORE_STATES,
                 default=True if data is None else data.get(CONF_RESTORE_STATES, True),
             ): cv.boolean,
-            vol.Required(
-                CONF_DISABLE_AVAILABLE_CHECK,
-                default=False
-                if data is None
-                else data.get(CONF_DISABLE_AVAILABLE_CHECK, False),
-            ): cv.boolean,
-            vol.Required(
-                CONF_MAX_ONLINE_ATTEMPTS,
-                default=DEFAULT_CONNECTION_MAX_ATTEMPTS
-                if data is None
-                else data.get(
-                    CONF_MAX_ONLINE_ATTEMPTS, DEFAULT_CONNECTION_MAX_ATTEMPTS
-                ),
-            ): cv.positive_int,
-            vol.Required(
-                CONF_TIMEOUT,
-                default=DEFAULT_CONNECTION_TIMEOUT
-                if data is None
-                else data.get(CONF_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT),
-            ): cv.positive_int,
         }
     )
+
+
+def get_temperature_sensor_options(hass: HomeAssistant) -> list[str]:
+    """Get list of available temperature sensor entities."""
+    options: list[str] = [
+        "None"
+    ]  # Include None as option since otherwise the user can't unset the external sensor
+
+    # Get all entities from the registry
+    for state in hass.states.async_all():
+        # Look for temperature sensors
+        if state.entity_id.startswith("sensor."):
+            # Check for explicit device_class
+            if state.attributes.get("device_class") == "temperature":
+                options.append(state.entity_id)
+
+    return options
+
+
+def get_humidity_sensor_options(hass: HomeAssistant) -> list[str]:
+    """Get list of available temperature sensor entities."""
+    options: list[str] = [
+        "None"
+    ]  # Include None as option since otherwise the user can't unset the external sensor
+
+    # Get all entities from the registry
+    for state in hass.states.async_all():
+        # Look for temperature sensors
+        if state.entity_id.startswith("sensor."):
+            # Check for explicit device_class
+            if state.attributes.get("device_class") == "humidity":
+                options.append(state.entity_id)
+
+    return options
 
 
 DEVICE_OPTIONS_KEYS = {
@@ -429,7 +471,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             _LOGGER.warning(user_input)
-            # FIXME: Cannot remove external entities after setting
             data = self._merge_device_options(entry.data, user_input)
             self._abort_if_unique_id_mismatch()
             return self.async_update_reload_and_abort(
@@ -458,9 +499,13 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.warning("Removing key %s", key)
 
         # If there are any unmanaged keys in user_input, merge them too
-        for key, value in device_options_data.items():
-            if key not in DEVICE_OPTIONS_KEYS:
-                old_data[key] = value
+        old_data.update(
+            {
+                key: value
+                for key, value in device_options_data.items()
+                if key not in DEVICE_OPTIONS_KEYS
+            }
+        )
 
         return old_data
 

@@ -88,10 +88,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
         ),
         encryption_key=conf[CONF_ADVANCED].get(CONF_ENCRYPTION_KEY, ""),
         uid=conf[CONF_ADVANCED].get(CONF_UID, DEFAULT_DEVICE_UID),
-        max_connection_attempts=conf.get(
+        max_connection_attempts=conf[CONF_ADVANCED].get(
             CONF_MAX_ONLINE_ATTEMPTS, DEFAULT_CONNECTION_MAX_ATTEMPTS
         ),
-        timeout=conf.get(CONF_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT),
+        timeout=conf[CONF_ADVANCED].get(CONF_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT),
     )
 
     try:

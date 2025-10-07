@@ -39,6 +39,7 @@ from homeassistant.util.unit_conversion import TemperatureConverter
 from .const import (
     ATTR_EXTERNAL_HUMIDITY_SENSOR,
     ATTR_EXTERNAL_TEMPERATURE_SENSOR,
+    CONF_ADVANCED,
     CONF_DISABLE_AVAILABLE_CHECK,
     CONF_FAN_MODES,
     CONF_HVAC_MODES,
@@ -130,7 +131,8 @@ async def async_setup_entry(
                 swing_horizontal_modes,
                 restore_state=(entry.data.get(CONF_RESTORE_STATES, True)),
                 check_availability=(
-                    entry.data.get(CONF_DISABLE_AVAILABLE_CHECK, False) is False
+                    entry.data[CONF_ADVANCED].get(CONF_DISABLE_AVAILABLE_CHECK, False)
+                    is False
                 ),
                 external_temperature_sensor_id=entry.data.get(
                     ATTR_EXTERNAL_TEMPERATURE_SENSOR
@@ -233,7 +235,10 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             await self._restore_entity_state()
 
         # When using an external temperature sensor, subscribe to its state changes for updating the current temperature
-        if self._external_temperature_sensor:
+        if (
+            self._external_temperature_sensor
+            and self._external_temperature_sensor != "None"
+        ):
             self._update_current_temperature_from_external(
                 self.hass.states.get(self._external_temperature_sensor)
             )
@@ -246,7 +251,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             )
 
         # When using an external himidity sensor, subscribe to its state changes for updating the current humidity
-        if self._external_humidity_sensor:
+        if self._external_humidity_sensor and self._external_humidity_sensor != "None":
             self._update_current_humidity_from_external(
                 self.hass.states.get(self._external_humidity_sensor)
             )
@@ -505,10 +510,16 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         self._attr_temperature_unit = self.get_temp_units()
         self._attr_target_temperature = self.get_current_target_temp()
 
-        if self._external_temperature_sensor is None:
+        if (
+            self._external_temperature_sensor is None
+            or self._external_temperature_sensor == "None"
+        ):
             self._attr_current_temperature = self.get_current_temp()
 
-        if self._external_humidity_sensor is None:
+        if (
+            self._external_humidity_sensor is None
+            or self._external_humidity_sensor == "None"
+        ):
             self._attr_current_humidity = self.get_current_humidity()
 
         if self._attr_supported_features & ClimateEntityFeature.TARGET_TEMPERATURE:
