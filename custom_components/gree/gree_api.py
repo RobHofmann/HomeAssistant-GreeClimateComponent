@@ -903,7 +903,7 @@ async def get_sub_devices_list(
 ) -> list:
     """Fetch the list of sub-devices for a Gree device."""
     try:
-        key, version = await gree_get_device_key(
+        _, version = await gree_get_device_key(
             ip_addr,
             mac_addr,
             DEFAULT_DEVICE_PORT,
@@ -915,7 +915,7 @@ async def get_sub_devices_list(
 
         pack, tag = gree_create_encrypted_pack(
             gree_create_sub_bind_pack(mac_addr),
-            get_cipher(key, version),
+            gree_get_default_cipher(version),
             version,
         )
 
@@ -933,7 +933,7 @@ async def get_sub_devices_list(
             ip_addr,
             DEFAULT_DEVICE_PORT,
             jsonPayloadToSend,
-            get_cipher(key, version),
+            gree_get_default_cipher(version),
             version,
             max_connection_attempts,
             timeout,
