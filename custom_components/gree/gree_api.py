@@ -575,7 +575,7 @@ def gree_create_payload(
                 "cid": "app",
                 "i": i_command.value,
                 "pack": pack,
-                "t": "pack",
+                "t": payload_type,
                 "tcid": mac_addr,
                 "uid": uid,
                 "tag": tag,
