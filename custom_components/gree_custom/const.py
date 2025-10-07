@@ -11,7 +11,7 @@ from .gree_api import (
     VerticalSwingMode,
 )
 
-DOMAIN = "gree"
+DOMAIN = "gree_custom"
 
 CONF_ADVANCED = "advanced"
 CONF_UID = "uid"

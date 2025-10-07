@@ -105,8 +105,7 @@ It also helps tremendously if you include debug logs directly in your issue (oth
 logger:
    default: error
    logs:
-      custom_components.gree: debug
-      custom_components.gree.climate: debug
+      custom_components.gree_custom: debug
 ```
 
 ## Additional Sensors

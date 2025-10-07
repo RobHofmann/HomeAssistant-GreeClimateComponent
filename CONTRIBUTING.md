@@ -18,12 +18,12 @@ Here's a general guide to get it working with this integration repository:
     2. Add the mounting:
 	```json
 		"mounts": [
-			"source=${localWorkspaceFolder}/../YourForkName/custom_components/gree,target=/workspaces/core/config/custom_components/gree,type=bind"
+			"source=${localWorkspaceFolder}/../YourForkName/custom_components/gree_custom,target=/workspaces/core/config/custom_components/gree_custom,type=bind"
 		],
 	```
 7. Open `development/core` with VSCode
 8. Use the command **"Dev Containers: Reopen in Container"**
-9. Once inside the container make sure the folder `config/custom_components/gree` exists
+9. Once inside the container make sure the folder `config/custom_components/gree_custom` exists
 10. You should be now be able to edit the integration files from inside the devcontainer
 11. Make your changes
 12. Push to your fork, rebase with the latest upstream version and submit a pull request
