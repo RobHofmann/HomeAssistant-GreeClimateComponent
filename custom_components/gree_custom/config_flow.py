@@ -417,13 +417,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     max_connection_attempts=2,  # Use fewer attempts for testing the device
                     timeout=2,  # Use smaller timeout for testing the device
                 )
-                await self._device.fetch_device_status()
+                await self._device.bind_device()
             except CannotConnect:
                 errors["base"] = "cannot_connect"
+                _LOGGER.exception("Cannot connect")
             except GreeDeviceNotBoundError:
                 errors["base"] = "cannot_connect"
-            except Exception as err:  # noqa: BLE001
-                errors["base"] = "unknown: " + repr(err)
+                _LOGGER.exception("Error while binding")
+            except Exception:
+                errors["base"] = "unknown"
+                _LOGGER.exception("Unknown error while binding")
             else:
                 self._step_main_data = user_input
                 self._step_main_data["advanced"].update(
