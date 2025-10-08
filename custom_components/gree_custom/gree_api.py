@@ -569,7 +569,7 @@ def gree_create_payload(
     if encryption_version == EncryptionVersion.V2 and tag is not None:
         base_payload["tag"] = tag
 
-    # _LOGGER.debug("Payload: %s", payload)
+    _LOGGER.debug("Payload: %s", base_payload)
     return json.dumps(base_payload)
 
 
@@ -866,8 +866,7 @@ async def discover_gree_devices(
                                 sub_mac = sub_device.get("mac", "")
                                 if sub_mac:
                                     discovered_sub_device = GreeDiscoveredDevice(
-                                        name=f"{discovered_device.name}@{sub_mac[:4]}"
-                                        or f"Gree {mac_addr[-4:]}",
+                                        name=f"{discovered_device.name or f'Gree {mac_addr[-4:]}'}@{sub_mac[:4]}",
                                         host=discovered_device.host,
                                         mac=f"{sub_mac}@{discovered_device.mac}",
                                         port=discovered_device.port,
@@ -877,7 +876,8 @@ async def discover_gree_devices(
                                     )
                                     discovered_devices.append(discovered_sub_device)
                                     _LOGGER.debug(
-                                        "Discovered sub-device: %s", discovered_device
+                                        "Discovered sub-device: %s",
+                                        discovered_sub_device,
                                     )
                         except Exception:
                             _LOGGER.exception("Failed to fetch sub-devices")
