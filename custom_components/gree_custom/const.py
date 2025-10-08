@@ -26,6 +26,7 @@ CONF_FAN_MODES = "fan_modes"
 CONF_SWING_MODES = "swing_modes"
 CONF_SWING_HORIZONTAL_MODES = "swing_horizontal_modes"
 CONF_FEATURES = "features"
+CONF_TEMPERATURE_STEP = "target_temp_step"
 
 DEFAULT_TARGET_TEMP_STEP = 1
 DEFAULT_ENCRYPTION_VERSION = None

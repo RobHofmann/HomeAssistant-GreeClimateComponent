@@ -21,6 +21,9 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
@@ -40,12 +43,14 @@ from .const import (
     CONF_RESTORE_STATES,
     CONF_SWING_HORIZONTAL_MODES,
     CONF_SWING_MODES,
+    CONF_TEMPERATURE_STEP,
     CONF_UID,
     DEFAULT_FAN_MODES,
     DEFAULT_HVAC_MODES,
     DEFAULT_SUPPORTED_FEATURES,
     DEFAULT_SWING_HORIZONTAL_MODES,
     DEFAULT_SWING_MODES,
+    DEFAULT_TARGET_TEMP_STEP,
     DOMAIN,
 )
 from .coordinator import GreeConfigEntry
@@ -204,6 +209,20 @@ def build_options_schema(hass: HomeAssistant, data: Mapping | None) -> vol.Schem
                     options=DEFAULT_SUPPORTED_FEATURES,
                     multiple=True,
                     translation_key=CONF_FEATURES,
+                )
+            ),
+            vol.Required(
+                CONF_TEMPERATURE_STEP,
+                default=DEFAULT_TARGET_TEMP_STEP
+                if data is None
+                else data.get(CONF_TEMPERATURE_STEP, DEFAULT_TARGET_TEMP_STEP),
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=0.5,
+                    max=5,
+                    step=0.5,
+                    mode=NumberSelectorMode.BOX,
+                    unit_of_measurement="ºC",
                 )
             ),
             # Ideally we would use an Optional EntitySelector for external sensors.

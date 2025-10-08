@@ -66,12 +66,13 @@ class TempOffsetResolver:
         return pen
 
 
-def gree_get_target_temp_props_from_f(desired_temp_f: float) -> tuple[int, int]:
-    """Get SetTem and TemRec for a given Fahrenheit temperature."""
+def gree_get_target_temp_props_from_f(desired_temp_f: int) -> tuple[int, int]:
+    """Get SetTem and TemRec for a given Fahrenheit temperature. Only integer values supported."""
     # See: https://github.com/tomikaa87/gree-remote
 
-    SetTem = round((desired_temp_f - 32.0) * 5.0 / 9.0)
-    TemRec = (int)((((desired_temp_f - 32.0) * 5.0 / 9.0) - SetTem) > -0.001)
+    celsius = (desired_temp_f - 32.0) * 5.0 / 9.0
+    SetTem = round(celsius)
+    TemRec = int((celsius - SetTem) > -0.001)
 
     return SetTem, TemRec
 

@@ -524,7 +524,13 @@ class GreeDevice:
         """Sets the target temperature in target_temperature_unit."""
 
         if self.target_temperature_unit == TemperatureUnits.F:
-            raw_c, tem_rec = gree_get_target_temp_props_from_f(value)
+            if not value.is_integer():
+                _LOGGER.warning(
+                    "The Gree API does not support floating Fahrenheit values, the applied value will be: %.2f -> %d",
+                    value,
+                    round(value),
+                )
+            raw_c, tem_rec = gree_get_target_temp_props_from_f(round(value))
         else:
             raw_c, tem_rec = gree_get_target_temp_props_from_c(value)
 

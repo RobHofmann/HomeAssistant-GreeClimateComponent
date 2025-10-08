@@ -46,10 +46,12 @@ from .const import (
     CONF_RESTORE_STATES,
     CONF_SWING_HORIZONTAL_MODES,
     CONF_SWING_MODES,
+    CONF_TEMPERATURE_STEP,
     DEFAULT_FAN_MODES,
     DEFAULT_HVAC_MODES,
     DEFAULT_SWING_HORIZONTAL_MODES,
     DEFAULT_SWING_MODES,
+    DEFAULT_TARGET_TEMP_STEP,
     DOMAIN,
     GATTR_FEAT_QUIET_MODE,
     GATTR_FEAT_TURBO,
@@ -129,6 +131,9 @@ async def async_setup_entry(
                 fan_modes,
                 swing_modes,
                 swing_horizontal_modes,
+                temperature_step=entry.data.get(
+                    CONF_TEMPERATURE_STEP, DEFAULT_TARGET_TEMP_STEP
+                ),
                 restore_state=(entry.data.get(CONF_RESTORE_STATES, True)),
                 check_availability=(
                     entry.data[CONF_ADVANCED].get(CONF_DISABLE_AVAILABLE_CHECK, False)
@@ -173,6 +178,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         fan_modes: list[str],
         swing_modes: list[str],
         swing_horizontal_modes: list[str],
+        temperature_step: int,
         restore_state: bool = True,
         check_availability: bool = True,
         external_temperature_sensor_id: str | None = None,
@@ -188,8 +194,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         self._external_temperature_sensor = external_temperature_sensor_id
         self._external_humidity_sensor = external_humidity_sensor_id
 
-        self._attr_precision = 1
-        self._attr_target_temperature_step = 1
+        self._attr_target_temperature_step = temperature_step
 
         self._attr_hvac_modes = hvac_modes
 
