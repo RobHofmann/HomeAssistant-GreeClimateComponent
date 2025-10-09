@@ -61,8 +61,10 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         try:
             await self.device.fetch_device_status()
         except GreeDeviceNotBoundError as err:
+            _LOGGER.exception("Failed to initiate Gree device")
             raise ConfigEntryAuthFailed("Failed to initiate Gree device") from err
         except ValueError as err:
+            _LOGGER.exception("Error getting state from device")
             raise UpdateFailed("Error getting state from device") from err
 
     @property

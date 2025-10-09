@@ -300,6 +300,11 @@ class GreeDevice:
 
     def _get_prop_raw(self, prop: GreeProp, default: int | None = None) -> int | None:
         """Get the raw value of a property."""
+        if prop not in self._state:
+            _LOGGER.warning(
+                "Property '%s' not found in state of device '%s'", prop, self.name
+            )
+            return default
         return self._state.get(prop, default)
 
     def LogDeviceInfo(self):

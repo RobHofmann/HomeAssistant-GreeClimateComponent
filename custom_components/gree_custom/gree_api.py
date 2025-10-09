@@ -653,7 +653,7 @@ async def gree_get_status(
 
     _LOGGER.debug("Trying to get device status")
 
-    status_values: dict[GreeProp, int] = {}
+    status_values: dict[GreeProp, int | None] = {}
 
     pack, tag = gree_create_encrypted_pack(
         gree_create_status_pack(mac_addr_sub, [prop.value for prop in props]),
@@ -681,11 +681,11 @@ async def gree_get_status(
         raise ValueError("Error getting device status, no data received")
 
     cols = [propkey_to_enum[c] for c in result["cols"] if c in propkey_to_enum]
-    values = list(map(int, result["dat"]))
+    values = [int(x) if x != "" else None for x in result["dat"]]
     status_values = dict(zip(cols, values, strict=True))
 
     _LOGGER.debug("Device status values: %s", status_values)
-    return status_values
+    return {k: v for k, v in status_values.items() if v is not None}
 
 
 async def gree_set_status(
