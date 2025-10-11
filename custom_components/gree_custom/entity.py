@@ -35,6 +35,7 @@ class GreeEntity(CoordinatorEntity[GreeCoordinator]):
         self.restore_state = restore_state
         self.check_availability = check_availability
 
+        self._attr_unique_id = description.key
         self._attr_device_info = DeviceInfo(
             connections={(CONNECTION_NETWORK_MAC, self.device.unique_id)},
             identifiers={(DOMAIN, self.device.unique_id)},

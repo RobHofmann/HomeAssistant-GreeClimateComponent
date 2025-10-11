@@ -125,7 +125,6 @@ class GreeSensor(GreeEntity, SensorEntity, RestoreEntity):  # pyright: ignore[re
         super().__init__(description, coordinator, restore_state, check_availability)
 
         self.entity_description = description  # pyright: ignore[reportIncompatibleVariableOverride]
-        self._attr_unique_id = f"{self.device.name}_{description.key}"
         _LOGGER.debug(
             "Initialized sensor: %s (check_availability=%s)",
             self._attr_unique_id,

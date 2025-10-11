@@ -104,7 +104,6 @@ class GreeSelectEntity(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ign
         super().__init__(description, coordinator, restore_state, check_availability)
 
         self.entity_description = description  # pyright: ignore[reportIncompatibleVariableOverride]
-        self._attr_unique_id = f"{self.device.name}_{description.key}"
 
         # Set up options dynamically
         if description.options_func:

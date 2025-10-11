@@ -188,7 +188,6 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         super().__init__(description, coordinator, restore_state, check_availability)
 
         self.entity_description = description
-        self._attr_unique_id = f"{self.device.name}_{description.key}"
         self._attr_name = None  # Main entity
 
         self._external_temperature_sensor = external_temperature_sensor_id
