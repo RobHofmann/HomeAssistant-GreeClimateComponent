@@ -97,7 +97,9 @@ class GreeDevice:
             ip_addr,
             port,
         )
-        _LOGGER.debug("Version: %s, Key: %s", encryption_version, encryption_key[:5])
+        _LOGGER.debug(
+            "Version: %s, Key: %s[omitted]", encryption_version, encryption_key[:5]
+        )
 
         self._name: str = name
         self._ip_addr: str = ip_addr
@@ -167,11 +169,10 @@ class GreeDevice:
                 )
                 self._is_bound = True
             except Exception as e:
-                self._is_available = True
-                raise GreeDeviceNotBoundError("Unbale to obtain device key") from e
+                raise GreeDeviceNotBoundError("Unable to obtain device key") from e
             else:
                 if not self._encryption_key.strip() or not self._encryption_version:
-                    _LOGGER.info("No encryption key provided")
+                    _LOGGER.info("Using the obtained encryption key and version")
                     self._encryption_key = encryption_key
                     self._encryption_version = encryption_version
                 else:
@@ -184,6 +185,7 @@ class GreeDevice:
                         self._encryption_version,
                     )
 
+                self._is_available = True
                 self._is_bound = True
 
         return self._is_bound

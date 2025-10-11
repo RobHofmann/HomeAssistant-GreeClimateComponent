@@ -7,7 +7,6 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-from voluptuous.schema_builder import UNDEFINED
 
 from homeassistant import config_entries
 from homeassistant.components.network import (
@@ -258,9 +257,9 @@ def build_options_schema(hass: HomeAssistant, data: Mapping | None) -> vol.Schem
             ),
             vol.Required(
                 ATTR_EXTERNAL_HUMIDITY_SENSOR,
-                default=UNDEFINED
+                default="None"
                 if data is None
-                else data.get(ATTR_EXTERNAL_HUMIDITY_SENSOR, UNDEFINED),
+                else data.get(ATTR_EXTERNAL_HUMIDITY_SENSOR, "None"),
             ): SelectSelector(
                 config=SelectSelectorConfig(
                     options=get_humidity_sensor_options(hass),
@@ -311,6 +310,42 @@ def get_humidity_sensor_options(hass: HomeAssistant) -> list[str]:
     return options
 
 
+def apply_schema_defaults(schema: vol.Schema, data: dict) -> dict:
+    """Fill in defaults for missing required keys (including nested)."""
+    data = dict(data or {})
+    result = {}
+
+    for key_obj, validator in schema.schema.items():
+        key = key_obj.schema  # actual string name
+        value = data.get(key, vol.UNDEFINED)
+
+        # Extract default if missing
+        if value is vol.UNDEFINED:
+            default = getattr(key_obj, "default", vol.UNDEFINED)
+            if default is not vol.UNDEFINED:
+                value = default() if callable(default) else default
+
+        # Handle nested schema recursively
+        if isinstance(validator, vol.Schema) and isinstance(value, dict):
+            value = apply_schema_defaults(validator, value)
+
+        # Run individual field validator (type checks etc.)
+        if value is not vol.UNDEFINED:
+            value = validator(value) if callable(validator) else value
+
+        result[key] = value
+
+    return result
+
+
+def format_mac_id(mac_addr: str) -> str:
+    """Returns a formated mac address for use as unique id."""
+    if "@" in mac_addr:
+        _mac_addr_sub, _ = mac_addr.lower().split("@", 1)
+        return format_mac(_mac_addr_sub)
+    return format_mac(mac_addr)
+
+
 DEVICE_OPTIONS_KEYS = {
     CONF_TIMEOUT,
     CONF_MAX_ONLINE_ATTEMPTS,
@@ -337,13 +372,47 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Initialize the config flow."""
         self._step_main_data: dict | None = None
         self._device: GreeDevice | None = None
-        self._reconfiguringEntry: GreeConfigEntry | None = None
+        self._reconfiguring_entry: GreeConfigEntry | None = None
 
     async def async_step_import(
-        self, user_input: dict
+        self, import_config: dict
     ) -> config_entries.ConfigFlowResult:
         """Handle import from configuration.yaml."""
-        return await self.async_step_user(user_input)
+        _LOGGER.debug("Importing config entry: %s", import_config)
+
+        # Combine the schemas
+        schema1 = build_main_schema(import_config)
+        schema2 = build_options_schema(self.hass, import_config)
+        COMBINED = vol.Schema(
+            {
+                **schema1.schema,
+                **schema2.schema,
+            }
+        )
+
+        # Fill the imported data with the schema defaults
+        data = apply_schema_defaults(COMBINED, import_config)
+
+        unique_id = format_mac_id(import_config[CONF_MAC])
+        entry = next(
+            (
+                e
+                for e in self.hass.config_entries.async_entries(DOMAIN)
+                if e.unique_id == unique_id
+            ),
+            None,
+        )
+
+        await self.async_set_unique_id(unique_id)
+
+        if entry:
+            return self.async_update_reload_and_abort(
+                entry,
+                title=import_config[CONF_NAME],
+                data=data,
+            )
+
+        return self.async_create_entry(title=data[CONF_NAME], data=data)
 
     async def async_step_user(
         self, user_input: dict | None = None
@@ -381,7 +450,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 device_id = f"{device.mac}_{device.host}"
                 if device_id == selected_device:
                     # Check if already configured
-                    await self.async_set_unique_id(format_mac(device.mac))
+                    await self.async_set_unique_id(format_mac_id(device.mac))
                     self._abort_if_unique_id_configured()
 
                     # Store selected device for next step
@@ -421,6 +490,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the manual add of a device."""
         errors = {}
         if user_input is not None:
+            await self.async_set_unique_id(format_mac_id(user_input[CONF_MAC]))
+            self._abort_if_unique_id_configured()
+
             try:
                 self._device = GreeDevice(
                     user_input[CONF_NAME],
@@ -459,9 +531,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_ENCRYPTION_KEY: self._device.encryption_key,
                     }
                 )
-                await self.async_set_unique_id(format_mac(self._device.unique_id))
-                self._abort_if_unique_id_configured()
-
                 return await self.async_step_device_options()
         elif self._selected_device is not None:
             user_input = {}
@@ -493,8 +562,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data = {**self._step_main_data, **user_input}
 
             # If we are adding a new device
-            if not self._reconfiguringEntry:
-                await self.async_set_unique_id(self._device.unique_id)
+            if not self._reconfiguring_entry:
+                await self.async_set_unique_id(format_mac_id(data[CONF_MAC]))
                 self._abort_if_unique_id_configured()
                 _LOGGER.debug("New entry with config: %s", data)
                 return self.async_create_entry(
@@ -504,7 +573,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # If we are reconfiguring a device
             self._abort_if_unique_id_mismatch()
             return self.async_update_reload_and_abort(
-                self._reconfiguringEntry,
+                self._reconfiguring_entry,
                 title=self._step_main_data[CONF_NAME],
                 data=data,
             )
@@ -514,8 +583,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=build_options_schema(
                 self.hass,
                 user_input
-                if not self._reconfiguringEntry
-                else self._reconfiguringEntry.data,
+                if not self._reconfiguring_entry
+                else self._reconfiguring_entry.data,
             ),
         )
 
@@ -525,7 +594,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         _LOGGER.debug("Reconfiguring: %s", entry)
         await self.async_set_unique_id(entry.unique_id)
-        self._reconfiguringEntry = entry
+        self._reconfiguring_entry = entry
 
         errors = {}
 
@@ -572,14 +641,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
                 return await self.async_step_device_options()
 
-        # if user_input is not None:
-        #     data = self._merge_device_options(entry.data, user_input)
-        #     self._abort_if_unique_id_mismatch()
-        #     return self.async_update_reload_and_abort(
-        #         entry,
-        #         data=data,
-        #     )
-
         return self.async_show_form(
             step_id="reconfigure",
             data_schema=build_main_schema(
@@ -587,30 +648,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             ),
             errors=errors,
         )
-
-    def _merge_device_options(self, data, device_options_data: Mapping) -> dict:
-        """Removes optional keys if unset and updates the others."""
-        old_data = dict(data)
-
-        # Update or drop managed keys based on user_input
-
-        for key in DEVICE_OPTIONS_KEYS:
-            if key in device_options_data:
-                old_data[key] = device_options_data[key]
-            else:
-                old_data.pop(key, None)
-                _LOGGER.warning("Removing key %s", key)
-
-        # If there are any unmanaged keys in user_input, merge them too
-        old_data.update(
-            {
-                key: value
-                for key, value in device_options_data.items()
-                if key not in DEVICE_OPTIONS_KEYS
-            }
-        )
-
-        return old_data
 
     async def _discover_devices(
         self, hass: HomeAssistant

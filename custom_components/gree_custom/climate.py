@@ -117,7 +117,6 @@ async def async_setup_entry(
             "Climate Entity will not be created because no Climate options and features are available for the device"
         )
         return
-
     async_add_entities(
         [
             GreeClimate(
@@ -211,14 +210,20 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         if fan_modes:
             self._attr_supported_features |= ClimateEntityFeature.FAN_MODE
             self._attr_fan_modes = fan_modes
+        else:
+            self._attr_fan_modes = None
 
         if swing_modes:
             self._attr_supported_features |= ClimateEntityFeature.SWING_MODE
             self._attr_swing_modes = swing_modes
+        else:
+            self._attr_swing_modes = None
 
         if swing_horizontal_modes:
             self._attr_supported_features |= ClimateEntityFeature.SWING_HORIZONTAL_MODE
             self._attr_swing_horizontal_modes = swing_horizontal_modes
+        else:
+            self._attr_swing_horizontal_modes = None
 
         self._update_attributes()
         _LOGGER.debug(
@@ -349,9 +354,9 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             if (
                 last_swing_horizontal_mode
                 not in [None, STATE_UNKNOWN, STATE_UNAVAILABLE]
-                and self._attr_swing_horizontal_modes
-                and last_swing_horizontal_mode != self._attr_swing_horizontal_mode
-                and last_swing_horizontal_mode in self._attr_swing_horizontal_modes
+                and self.swing_horizontal_modes
+                and last_swing_horizontal_mode != self.swing_horizontal_mode
+                and last_swing_horizontal_mode in self.swing_horizontal_modes
             ):
                 try:
                     await self.async_set_swing_horizontal_mode(

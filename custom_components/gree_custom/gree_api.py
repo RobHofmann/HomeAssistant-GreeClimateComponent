@@ -630,7 +630,7 @@ async def gree_get_device_key(
         _LOGGER.info(
             "Fetched device encryption key with version %d with success", enc_version
         )
-        _LOGGER.debug("Fetched encryption key: %s", key)
+        _LOGGER.debug("Fetched encryption key: %s[omitted]", key[:5])
 
         return key, enc_version
 
