@@ -35,6 +35,14 @@ class GreeDeviceNotBoundError(BaseException):
     """Raised when the device binding fails."""
 
 
+class GreeDeviceNotBoundErrorKey(BaseException):
+    """Raised when the device binding fails because of wrong key."""
+
+
+class CannotConnect(BaseException):
+    """Error to indicate we cannot connect."""
+
+
 @dataclass
 class GreeDeviceState:
     """Data structure for Gree device state."""
@@ -125,40 +133,57 @@ class GreeDevice:
         """Setup the device (async)."""
         if not self._is_bound:
             try:
+                # Used also as basic communication test
                 info = await gree_get_device_info(
                     self._ip_addr,
                     self._max_connection_attempts,
                     self._timeout,
                 )
+            except Exception as e:
+                _LOGGER.exception("Could not retrieve basic device info")
+                raise CannotConnect(
+                    f"Not able to connect to the device {self._ip_addr}"
+                ) from e
+            else:
+                if info.get("mac", "") != self._mac_addr:
+                    raise CannotConnect(
+                        f"Not able to connect to the device {self._ip_addr}. MAC mismatch {info.get('mac', '')} not {self._mac_addr}."
+                    )
                 self._firmware_version = info.get("firmware_version")
                 self._firmware_code = info.get("firmware_code")
-            except Exception:
-                _LOGGER.exception("Could not retrieve basic device info")
 
-            if not self._encryption_key.strip():
-                _LOGGER.info("No encryption key provided")
-                try:
-                    (
-                        self._encryption_key,
-                        self._encryption_version,
-                    ) = await gree_get_device_key(
-                        self._ip_addr,
-                        self._mac_addr,
-                        self._port,
-                        self._uid,
-                        self._encryption_version,
-                        self._max_connection_attempts,
-                        self._timeout,
-                    )
-                    self._is_bound = True
-                except Exception as e:
-                    self._is_available = True
-                    raise GreeDeviceNotBoundError("Device not bound") from e
-            else:
-                _LOGGER.info(
-                    "Using the provided encryption key with version %d",
+            try:
+                (
+                    encryption_key,
+                    encryption_version,
+                ) = await gree_get_device_key(
+                    self._ip_addr,
+                    self._mac_addr,
+                    self._port,
+                    self._uid,
                     self._encryption_version,
+                    self._max_connection_attempts,
+                    self._timeout,
                 )
+                self._is_bound = True
+            except Exception as e:
+                self._is_available = True
+                raise GreeDeviceNotBoundError("Unbale to obtain device key") from e
+            else:
+                if not self._encryption_key.strip() or not self._encryption_version:
+                    _LOGGER.info("No encryption key provided")
+                    self._encryption_key = encryption_key
+                    self._encryption_version = encryption_version
+                else:
+                    if encryption_key != self._encryption_key:
+                        raise GreeDeviceNotBoundErrorKey(
+                            "Wrong encryption key provided"
+                        )
+                    _LOGGER.info(
+                        "Using the provided encryption key with version %d",
+                        self._encryption_version,
+                    )
+
                 self._is_bound = True
 
         return self._is_bound

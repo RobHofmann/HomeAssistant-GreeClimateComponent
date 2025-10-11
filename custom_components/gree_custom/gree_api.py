@@ -781,9 +781,10 @@ async def gree_get_device_info(
         _LOGGER.exception("Error retrieving basic device info")
         raise ValueError("Error retrieving basic device info") from err
     else:
-        _LOGGER.debug(data)
+        _LOGGER.debug("Got device info: %s", data)
         info: dict[str, str | None] = {}
         info["firmware_version"], info["firmware_code"] = extract_version(data)
+        info["mac"] = data.get("mac", "")
         return info
 
 

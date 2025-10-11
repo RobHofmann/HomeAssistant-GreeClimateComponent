@@ -17,7 +17,6 @@ from homeassistant.components.network import (
 from homeassistant.const import CONF_HOST, CONF_MAC, CONF_NAME, CONF_PORT, CONF_TIMEOUT
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import section
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.selector import (
@@ -63,13 +62,21 @@ from .gree_api import (
     GreeDiscoveredDevice,
     discover_gree_devices,
 )
-from .gree_device import GreeDevice, GreeDeviceNotBoundError
+from .gree_device import (
+    CannotConnect,
+    GreeDevice,
+    GreeDeviceNotBoundError,
+    GreeDeviceNotBoundErrorKey,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 
 def build_main_schema(data: Mapping | None) -> vol.Schema:
     """Builds the main option schema."""
+    if data:
+        _LOGGER.debug("Building main schema with previous values: %s", data)
+
     return vol.Schema(
         {
             vol.Required(
@@ -102,7 +109,7 @@ def build_main_schema(data: Mapping | None) -> vol.Schema:
                             else data[CONF_ADVANCED].get(
                                 CONF_ENCRYPTION_VERSION, "Auto-Detect"
                             ),
-                        ): vol.In(["Auto-Detect", "1", "2"]),
+                        ): vol.In(["Auto-Detect", 1, 2]),
                         vol.Optional(
                             CONF_ENCRYPTION_KEY,
                             default=""
@@ -146,6 +153,8 @@ def build_main_schema(data: Mapping | None) -> vol.Schema:
 
 def build_options_schema(hass: HomeAssistant, data: Mapping | None) -> vol.Schema:
     """Builds the device option schema."""
+    if data:
+        _LOGGER.debug("Building device options schema with previous values: %s", data)
 
     return vol.Schema(
         {
@@ -323,6 +332,13 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Initialize the config flow."""
         self._step_main_data: dict | None = None
         self._device: GreeDevice | None = None
+        self._reconfiguringEntry: GreeConfigEntry | None = None
+
+    async def async_step_import(
+        self, user_input: dict
+    ) -> config_entries.ConfigFlowResult:
+        """Handle import from configuration.yaml."""
+        return await self.async_step_user(user_input)
 
     async def async_step_user(
         self, user_input: dict | None = None
@@ -424,6 +440,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except GreeDeviceNotBoundError:
                 errors["base"] = "cannot_connect"
                 _LOGGER.exception("Error while binding")
+            except GreeDeviceNotBoundErrorKey:
+                errors["base"] = "cannot_connect_key"
+                _LOGGER.exception("Error while binding with wrong key")
             except Exception:
                 errors["base"] = "unknown"
                 _LOGGER.exception("Unknown error while binding")
@@ -457,7 +476,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_device_options(
-        self, user_input: dict | None = None
+        self,
+        user_input: dict | None = None,
     ) -> config_entries.ConfigFlowResult:
         """Second step: configure features/modes."""
         if (
@@ -466,23 +486,33 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             and self._device is not None
         ):
             data = {**self._step_main_data, **user_input}
-            await self.async_set_unique_id(self._device.unique_id)
-            self._abort_if_unique_id_configured()
-            _LOGGER.debug("New entry with config: %s", data)
-            return self.async_create_entry(
-                title=self._step_main_data[CONF_NAME], data=data
+
+            # If we are adding a new device
+            if not self._reconfiguringEntry:
+                await self.async_set_unique_id(self._device.unique_id)
+                self._abort_if_unique_id_configured()
+                _LOGGER.debug("New entry with config: %s", data)
+                return self.async_create_entry(
+                    title=self._step_main_data[CONF_NAME], data=data
+                )
+
+            # If we are reconfiguring a device
+            self._abort_if_unique_id_mismatch()
+            return self.async_update_reload_and_abort(
+                self._reconfiguringEntry,
+                title=self._step_main_data[CONF_NAME],
+                data=data,
             )
 
         return self.async_show_form(
             step_id="device_options",
-            data_schema=build_options_schema(self.hass, user_input),
+            data_schema=build_options_schema(
+                self.hass,
+                user_input
+                if not self._reconfiguringEntry
+                else self._reconfiguringEntry.data,
+            ),
         )
-
-    async def async_step_import(
-        self, user_input: dict
-    ) -> config_entries.ConfigFlowResult:
-        """Handle import from configuration.yaml."""
-        return await self.async_step_user(user_input)
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None):
         """Handle reconfiguration of an existing entry."""
@@ -490,21 +520,67 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         _LOGGER.debug("Reconfiguring: %s", entry)
         await self.async_set_unique_id(entry.unique_id)
+        self._reconfiguringEntry = entry
+
+        errors = {}
 
         if user_input is not None:
-            _LOGGER.warning(user_input)
-            data = self._merge_device_options(entry.data, user_input)
             self._abort_if_unique_id_mismatch()
-            return self.async_update_reload_and_abort(
-                entry,
-                data=data,
-            )
+            _LOGGER.debug("User input: %s", user_input)
+            try:
+                self._device = GreeDevice(
+                    user_input[CONF_NAME],
+                    user_input[CONF_HOST],
+                    user_input[CONF_MAC],
+                    user_input[CONF_ADVANCED][CONF_PORT],
+                    user_input[CONF_ADVANCED][CONF_ENCRYPTION_KEY],
+                    EncryptionVersion(
+                        int(user_input[CONF_ADVANCED][CONF_ENCRYPTION_VERSION])
+                    )
+                    if user_input[CONF_ADVANCED][CONF_ENCRYPTION_VERSION]
+                    != "Auto-Detect"
+                    else None,
+                    user_input[CONF_ADVANCED][CONF_UID],
+                    max_connection_attempts=2,  # Use fewer attempts for testing the device
+                    timeout=2,  # Use smaller timeout for testing the device
+                )
+                await self._device.bind_device()
+            except CannotConnect:
+                errors["base"] = "cannot_connect"
+                _LOGGER.exception("Cannot connect")
+            except GreeDeviceNotBoundError:
+                errors["base"] = "cannot_connect"
+                _LOGGER.exception("Error while binding")
+            except GreeDeviceNotBoundErrorKey:
+                errors["base"] = "cannot_connect_key"
+                _LOGGER.exception("Error while binding with wrong key")
+            except Exception:
+                errors["base"] = "unknown"
+                _LOGGER.exception("Unknown error while binding")
+            else:
+                self._step_main_data = user_input
+                self._step_main_data["advanced"].update(
+                    {
+                        CONF_ENCRYPTION_VERSION: self._device.encryption_version,
+                        CONF_ENCRYPTION_KEY: self._device.encryption_key,
+                    }
+                )
+                return await self.async_step_device_options()
+
+        # if user_input is not None:
+        #     data = self._merge_device_options(entry.data, user_input)
+        #     self._abort_if_unique_id_mismatch()
+        #     return self.async_update_reload_and_abort(
+        #         entry,
+        #         data=data,
+        #     )
 
         return self.async_show_form(
             step_id="reconfigure",
-            data_schema=build_options_schema(
-                self.hass, entry.data if entry.data is not None else user_input
+            data_schema=build_main_schema(
+                entry.data if entry.data is not None else user_input
             ),
+            errors=errors,
         )
 
     def _merge_device_options(self, data, device_options_data: Mapping) -> dict:
@@ -551,7 +627,3 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.exception("Could not get HA broadcast addresses")
 
         return await discover_gree_devices(broadcast_addresses, 5)
-
-
-class CannotConnect(HomeAssistantError):
-    """Error to indicate we cannot connect."""

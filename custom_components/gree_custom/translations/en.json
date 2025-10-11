@@ -5,6 +5,7 @@
     "error": {
       "unknown": "Something went wrong, please try again. If the issue persists, please check the logs.",
       "cannot_connect": "Unable to connect to the device. Please check the device configuration and network connection and try again. If the issue persists, please check the logs.",
+      "cannot_connect_key": "Unable to connect to the device. The provided encryption key does not match the device key.",
       "no_devices_found": "Couldn't find any Gree device in the network. Please add your device manually."
     },
     "abort": {
@@ -74,24 +75,30 @@
         }
       },
       "reconfigure": {
-        "title": "Device features",
-        "description": "The Gree API doesn't have a reliable method of getting the supported features of a device. Please use the options bellow to the best of your knowledge about your device.",
+        "title": "Device configuration",
         "data": {
-          "hvac_modes": "HVAC Modes",
-          "fan_modes": "Fan Speeds",
-          "swing_modes": "Vertical Swing Modes",
-          "swing_horizontal_modes": "Horizontal Swing Modes",
-          "features": "Device Features and Modes",
-          "external_temperature_sensor": "External Temperature Sensor",
-          "external_humidity_sensor": "External Humidity Sensor",
-          "restore_states": "Restore Entities",
-          "target_temp_step": "Temperature Step"
+          "name": "Name",
+          "host": "IP Address",
+          "mac": "MAC Address"
         },
-        "data_description": {
-          "external_temperature_sensor": "If set will replace the built-in HVAC temperature sensor",
-          "external_humidity_sensor": "If set will replace the built-in HVAC humidity sensor",
-          "restore_states": "If set to true, when the integration is started the device will be overriden by previous states of the integration instead of using the current device state.",
-          "target_temp_step": "Sets the increment step for adjusting the target temperature. Fahrenheit degrees are clamped to the nearest integer."
+        "sections": {
+          "advanced": {
+            "name": "Advanced Settings",
+            "description": "Configure advanced setting of the device",
+            "data": {
+              "port": "Port",
+              "encryption_key": "Encryption Key",
+              "encryption_version": "Encryption Version",
+              "uid": "UID",
+              "disable_available_check": "Disable Available Check",
+              "max_online_attempts": "Max Connection Attempts",
+              "timeout": "Connection Timeout"
+            },
+            "data_description": {
+              "max_online_attempts": "The number of attempts to communicate with the device before it is marked as unavailable",
+              "timeout": "The timeout for each of the connection attempts"
+            }
+          }
         }
       }
     }
@@ -158,11 +165,11 @@
         "air": "Fresh Air",
         "xfan": "X-Fan",
         "sleep": "Sleep",
-        "smart_heat": "8ºC Smart Heat",
+        "eightdegheat": "8ºC Smart Heat",
         "lights": "Display Light",
         "health": "Health",
         "anti_direct_blow": "Anti Direct Blow",
-        "energy_saving": "Energy Saving",
+        "powersave": "Energy Saving",
         "light_sensor": "Display Auto Brightness"
       }
     }
