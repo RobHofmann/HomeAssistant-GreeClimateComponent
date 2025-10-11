@@ -26,6 +26,9 @@ from homeassistant.helpers.selector import (
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
 )
 
 from .const import (
@@ -115,7 +118,9 @@ def build_main_schema(data: Mapping | None) -> vol.Schema:
                             default=""
                             if data is None or data.get(CONF_ADVANCED) is None
                             else data[CONF_ADVANCED].get(CONF_ENCRYPTION_KEY, ""),
-                        ): str,
+                        ): TextSelector(
+                            TextSelectorConfig(type=TextSelectorType.PASSWORD)
+                        ),
                         vol.Required(
                             CONF_UID,
                             default=DEFAULT_DEVICE_UID
