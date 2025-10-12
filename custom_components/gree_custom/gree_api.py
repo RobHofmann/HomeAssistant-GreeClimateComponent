@@ -840,15 +840,16 @@ async def discover_gree_devices(
                         uid=data.get("uid", 0),
                     )
 
+                    discovered_devices.append(discovered_device)
+                    _LOGGER.debug("Discovered device: %s", discovered_device)
+
                     # If VRF, the mac is of the main device and we have to query it for the sub devices
                     # Sub-devices will be created with a mac of sub@main
                     # check if the device has sub-devices
                     sub_count = pack.get("subCnt", 0)
 
-                    if sub_count == 0:  # Is normal HVAC
-                        discovered_devices.append(discovered_device)
-                        _LOGGER.debug("Discovered device: %s", discovered_device)
-                    else:  # Is VRF with multiple sub devices
+                    if sub_count > 0:
+                        # Is VRF with multiple sub devices
                         _LOGGER.debug(
                             "Trying to fetching sub-devices for '%s' (subCount=%d)",
                             mac_addr,
