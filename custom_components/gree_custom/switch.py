@@ -36,7 +36,7 @@ from .const import (
 )
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
-from .gree_api import OperationMode
+from .gree_api import GreeProp, OperationMode
 from .gree_device import GreeDevice
 
 _LOGGER = logging.getLogger(__name__)
@@ -56,15 +56,20 @@ SWITCH_TYPES: list[GreeSwitchDescription] = [
     GreeSwitchDescription(
         key=GATTR_FEAT_FRESH_AIR,
         translation_key=GATTR_FEAT_FRESH_AIR,
-        available_func=lambda device: device.available,
+        available_func=lambda device: (
+            device.available and device.supports_property(GreeProp.FEAT_FRESH_AIR)
+        ),
         value_func=lambda device: device.feature_fresh_air,
         set_func=lambda device, value: device.set_feature_fresh_air(value),
     ),
     GreeSwitchDescription(
         key=GATTR_FEAT_XFAN,
         translation_key=GATTR_FEAT_XFAN,
-        available_func=lambda device: device.available
-        and device.operation_mode in [OperationMode.Cool, OperationMode.Dry],
+        available_func=lambda device: (
+            device.available
+            and device.supports_property(GreeProp.FEAT_XFAN)
+            and device.operation_mode in [OperationMode.Cool, OperationMode.Dry]
+        ),
         value_func=lambda device: device.feature_x_fan,
         set_func=lambda device, value: device.set_feature_xfan(value),
     ),
@@ -73,6 +78,7 @@ SWITCH_TYPES: list[GreeSwitchDescription] = [
         translation_key=GATTR_FEAT_SLEEP_MODE,
         available_func=(
             lambda device: device.available
+            and device.supports_property(GreeProp.FEAT_SLEEP_MODE)
             and device.operation_mode
             in [OperationMode.Cool, OperationMode.Dry, OperationMode.Heat]
         ),
@@ -82,35 +88,46 @@ SWITCH_TYPES: list[GreeSwitchDescription] = [
     GreeSwitchDescription(
         key=GATTR_FEAT_SMART_HEAT_8C,
         translation_key=GATTR_FEAT_SMART_HEAT_8C,
-        available_func=lambda device: device.available,
+        available_func=lambda device: (
+            device.available and device.supports_property(GreeProp.FEAT_SMART_HEAT_8C)
+        ),
         value_func=lambda device: device.feature_smart_heat,
         set_func=lambda device, value: device.set_feature_smart_heat(value),
     ),
     GreeSwitchDescription(
         key=GATTR_FEAT_HEALTH,
         translation_key=GATTR_FEAT_HEALTH,
-        available_func=lambda device: device.available,
+        available_func=lambda device: (
+            device.available and device.supports_property(GreeProp.FEAT_HEALTH)
+        ),
         value_func=lambda device: device.feature_health,
         set_func=lambda device, value: device.set_feature_health(value),
     ),
     GreeSwitchDescription(
         key=GATTR_ANTI_DIRECT_BLOW,
         translation_key=GATTR_ANTI_DIRECT_BLOW,
-        available_func=lambda device: device.available,
+        available_func=lambda device: (
+            device.available
+            and device.supports_property(GreeProp.FEAT_ANTI_DIRECT_BLOW)
+        ),
         value_func=lambda device: device.feature_anti_direct_blow,
         set_func=lambda device, value: device.set_feature_anti_direct_blow(value),
     ),
     GreeSwitchDescription(
         key=GATTR_FEAT_ENERGY_SAVING,
         translation_key=GATTR_FEAT_ENERGY_SAVING,
-        available_func=lambda device: device.available,
+        available_func=lambda device: (
+            device.available and device.supports_property(GreeProp.FEAT_ENERGY_SAVING)
+        ),
         value_func=lambda device: device.feature_energy_saving,
         set_func=lambda device, value: device.set_feature_energy_saving(value),
     ),
     GreeSwitchDescription(
         key=GATTR_FEAT_LIGHT,
         translation_key=GATTR_FEAT_LIGHT,
-        available_func=lambda device: device.available,
+        available_func=lambda device: (
+            device.available and device.supports_property(GreeProp.FEAT_LIGHT)
+        ),
         value_func=lambda device: device.feature_light,
         set_func=lambda device, value: device.set_feature_light(value),
         entity_category=EntityCategory.CONFIG,
@@ -118,7 +135,12 @@ SWITCH_TYPES: list[GreeSwitchDescription] = [
     GreeSwitchDescription(
         key=GATTR_FEAT_SENSOR_LIGHT,
         translation_key=GATTR_FEAT_SENSOR_LIGHT,
-        available_func=lambda device: (device.available and device.feature_light),
+        available_func=lambda device: (
+            device.available
+            and device.supports_property(GreeProp.FEAT_SENSOR_LIGHT)
+            and device.supports_property(GreeProp.FEAT_LIGHT)
+            and device.feature_light
+        ),
         value_func=lambda device: device.feature_light_sensor,
         set_func=lambda device, value: device.set_feature_light_sensor(value),
         entity_category=EntityCategory.CONFIG,
@@ -178,7 +200,10 @@ async def async_setup_entry(
                 GreeSwitchDescription(
                     key=ATTR_AUTO_LIGHT,
                     translation_key=ATTR_AUTO_LIGHT,
-                    available_func=lambda device: device.available,
+                    available_func=(
+                        lambda device: device.available
+                        and device.supports_property(GreeProp.FEAT_LIGHT)
+                    ),
                     value_func=lambda _: coordinator.feature_auto_light,
                     set_func=lambda _, value: coordinator.set_feature_auto_light(value),
                     updates_device=False,
@@ -186,7 +211,7 @@ async def async_setup_entry(
                 ),
                 coordinator,
                 restore_state=True,
-                check_availability=False,  # Auto Light is always available
+                check_availability=True,
             )
         )
 
@@ -196,7 +221,10 @@ async def async_setup_entry(
                 GreeSwitchDescription(
                     key=ATTR_AUTO_XFAN,
                     translation_key=ATTR_AUTO_XFAN,
-                    available_func=lambda device: device.available,
+                    available_func=lambda device: (
+                        device.available
+                        and device.supports_property(GreeProp.FEAT_XFAN)
+                    ),
                     value_func=lambda _: coordinator.feature_auto_xfan,
                     set_func=lambda _, value: coordinator.set_feature_auto_xfan(value),
                     updates_device=False,
@@ -204,7 +232,7 @@ async def async_setup_entry(
                 ),
                 coordinator,
                 restore_state=True,
-                check_availability=False,  # Auto X-Fan is always available
+                check_availability=True,
             )
         )
 

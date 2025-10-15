@@ -67,6 +67,7 @@ from .gree_api import (
     MIN_TEMP_C,
     MIN_TEMP_F,
     FanSpeed,
+    GreeProp,
     HorizontalSwingMode,
     VerticalSwingMode,
 )
@@ -794,7 +795,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         # so here we need to convert to the unit of the entity (same as device)
         if (
             self.hass
-            and self.device.has_indoor_temperature_sensor
+            and self.device.supports_property(GreeProp.SENSOR_TEMPERATURE)
             and self.device.indoors_temperature_c is not None
         ):
             return TemperatureConverter.convert(
@@ -809,7 +810,10 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         """Returns the current humidity of the room."""
 
         # Gree API always return current humidity in %
-        if self.device.has_humidity_sensor and self.device.humidity is not None:
+        if (
+            self.device.supports_property(GreeProp.SENSOR_HUMIDITY)
+            and self.device.humidity is not None
+        ):
             return float(self.device.humidity)
 
         return None

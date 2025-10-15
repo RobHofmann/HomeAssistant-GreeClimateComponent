@@ -648,12 +648,12 @@ async def gree_get_status(
     props: list[GreeProp],
     max_connection_attempts: int,
     timeout: int,
-) -> dict[GreeProp, int]:
-    """Get the status of the device by sending a status request to the device (async)."""
+) -> tuple[dict[GreeProp, int], list[GreeProp]]:
+    """Get the status of the device by sending a status request to the device (async). Also returns the props not present."""
 
     _LOGGER.debug("Trying to get device status")
 
-    status_values: dict[GreeProp, int | None] = {}
+    status_values_raw: dict[GreeProp, int | None] = {}
 
     pack, tag = gree_create_encrypted_pack(
         gree_create_status_pack(mac_addr_sub, [prop.value for prop in props]),
@@ -682,10 +682,12 @@ async def gree_get_status(
 
     cols = [propkey_to_enum[c] for c in result["cols"] if c in propkey_to_enum]
     values = [int(x) if x != "" else None for x in result["dat"]]
-    status_values = dict(zip(cols, values, strict=True))
+    status_values_raw = dict(zip(cols, values, strict=True))
 
+    status_values = {k: v for k, v in status_values_raw.items() if v is not None}
     _LOGGER.debug("Device status values: %s", status_values)
-    return {k: v for k, v in status_values.items() if v is not None}
+
+    return status_values, [p for p in props if p not in status_values]
 
 
 async def gree_set_status(

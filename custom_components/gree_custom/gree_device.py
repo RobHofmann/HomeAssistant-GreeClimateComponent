@@ -2,8 +2,6 @@
 
 import logging
 
-from attr import dataclass
-
 from .gree_api import (
     DEFAULT_CONNECTION_MAX_ATTEMPTS,
     DEFAULT_CONNECTION_TIMEOUT,
@@ -41,37 +39,6 @@ class GreeDeviceNotBoundErrorKey(BaseException):
 
 class CannotConnect(BaseException):
     """Error to indicate we cannot connect."""
-
-
-@dataclass
-class GreeDeviceState:
-    """Data structure for Gree device state."""
-
-    power: bool = False
-    operation_mode: OperationMode = OperationMode.Auto
-    fan_speed: FanSpeed = FanSpeed.Auto
-    target_temperature: float = -1
-    target_temperature_unit: TemperatureUnits = TemperatureUnits.C
-    horizontal_swing_mode: HorizontalSwingMode = HorizontalSwingMode.Default
-    vertical_swing_mode: VerticalSwingMode = VerticalSwingMode.Default
-    feature_fresh_air: bool = False
-    feature_x_fan: bool = False
-    feature_health: bool = False
-    feature_sleep: bool = False
-    feature_light: bool = False
-    feature_light_sensor: bool = False
-    feature_quiet: bool = False
-    feature_turbo: bool = False
-    feature_smart_heat: bool = False
-    feature_energy_saving: bool = False
-    feature_anti_direct_blow: bool = False
-    has_indoor_temperature_sensor: bool = False
-    indoors_temperature_c: int | None = None
-    has_outdoor_temperature_sensor: bool = False
-    outdoors_temperature_c: int | None = None
-    has_humidity_sensor: bool = False
-    humidity: int | None = None
-    has_light_sensor: bool = False
 
 
 class GreeDevice:
@@ -112,8 +79,8 @@ class GreeDevice:
         self._uid: int = uid
         self._firmware_version: str | None = None
         self._firmware_code: str | None = None
-        self._state: dict[GreeProp, int] = {}
-        self._new_state: dict[GreeProp, int] = {}
+        self._raw_state: dict[GreeProp, int] = {}
+        self._new_raw_state: dict[GreeProp, int] = {}
         self._is_bound: bool = False
         self._is_available: bool = False
         self._uniqueid: str = self._mac_addr_sub
@@ -128,8 +95,6 @@ class GreeDevice:
         self._temp_processor_indoors: TempOffsetResolver | None = None
         self._temp_processor_outdoors: TempOffsetResolver | None = None
         self._beeper = False
-
-        self.state: GreeDeviceState = GreeDeviceState()
 
     async def bind_device(self) -> bool:
         """Setup the device (async)."""
@@ -190,7 +155,7 @@ class GreeDevice:
 
         return self._is_bound
 
-    async def fetch_device_status(self) -> GreeDeviceState:
+    async def fetch_device_status(self):
         """Get the device status (async)."""
 
         _LOGGER.debug("Trying to get device status")
@@ -201,32 +166,43 @@ class GreeDevice:
         assert self._encryption_version is not None
 
         try:
-            self._state.update(
-                await gree_get_status(
+            state, props_not_present = await gree_get_status(
+                self._ip_addr,
+                self._mac_addr,
+                self._mac_addr_sub,
+                self._port,
+                self._uid,
+                self._encryption_key,
+                self._encryption_version,
+                self._props_to_update,
+                self._max_connection_attempts,
+                self._timeout,
+            )
+            self._raw_state.update(state)
+
+            if self._mac_addr != self._mac_addr_sub:
+                sub_state, _ = await gree_get_status(
                     self._ip_addr,
                     self._mac_addr,
-                    self._mac_addr_sub,
+                    self._mac_addr,
                     self._port,
                     self._uid,
                     self._encryption_key,
                     self._encryption_version,
-                    self._props_to_update,
+                    props_not_present,
                     self._max_connection_attempts,
                     self._timeout,
                 )
-            )
+                # self._raw_state.update(sub_state)
+
             self._is_available = True
         except Exception as err:
             self._is_available = False
             raise ValueError("Error getting device status") from err
 
-        self._update_state()
-
         self._remove_unsupported_props()
 
-        return self.state
-
-    async def update_device_status(self) -> GreeDeviceState:
+    async def update_device_status(self):
         """Send the new local device state to the device and updates local state if successfull."""
         if not self._is_bound:
             await self.bind_device()
@@ -235,16 +211,16 @@ class GreeDevice:
 
         # If there is no change in the properties, do nothing
         has_updated_states = any(
-            self._state.get(k) != v for k, v in self._new_state.items()
+            self._raw_state.get(k) != v for k, v in self._new_raw_state.items()
         )
         if not has_updated_states:
             _LOGGER.debug("No changes in the properties, skipping update to device")
-            return self.state
+            return
 
-        self._new_state[GreeProp.BEEPER] = 0 if self._beeper else 1
+        self._new_raw_state[GreeProp.BEEPER] = 0 if self._beeper else 1
 
         try:
-            self._state.update(
+            self._raw_state.update(
                 await gree_set_status(
                     self._ip_addr,
                     self._mac_addr,
@@ -253,96 +229,90 @@ class GreeDevice:
                     self._uid,
                     self._encryption_key,
                     self._encryption_version,
-                    self._new_state,
+                    self._new_raw_state,
                     self._max_connection_attempts,
                     self._timeout,
                 )
             )
-            self._new_state.clear()
+            self._new_raw_state.clear()
             self._is_available = True
         except Exception as err:
             self._is_available = False
             raise ValueError("Error setting device status") from err
 
-        self._update_state()
-        return self.state
-
-    def set_device_status(self, props: dict[GreeProp, int]) -> None:
+    def _set_device_status(self, props: dict[GreeProp, int]) -> None:
         """Sets a new local device status. Use 'update_device_status' to update the device."""
-        self._new_state.update(props)
+        self._new_raw_state.update(props)
 
-    def _update_state(self) -> None:
-        """Update the state from the internal state."""
-
-        self.state.power = self.power_mode
-        self.state.operation_mode = self.operation_mode
-        self.state.fan_speed = self.fan_speed
-        self.state.target_temperature = self.target_temperature
-        self.state.target_temperature_unit = self.target_temperature_unit
-        self.state.horizontal_swing_mode = self.horizontal_swing_mode
-        self.state.vertical_swing_mode = self.vertical_swing_mode
-        self.state.feature_fresh_air = self.feature_fresh_air
-        self.state.feature_x_fan = self.feature_x_fan
-        self.state.feature_health = self.feature_health
-        self.state.feature_sleep = self.feature_sleep
-        self.state.feature_light = self.feature_light
-        self.state.feature_light_sensor = self.feature_light_sensor
-        self.state.feature_quiet = self.feature_quiet
-        self.state.feature_turbo = self.feature_turbo
-        self.state.feature_smart_heat = self.feature_smart_heat
-        self.state.feature_energy_saving = self.feature_energy_saving
-        self.state.feature_anti_direct_blow = self.feature_anti_direct_blow
-        self.state.has_indoor_temperature_sensor = self.has_indoor_temperature_sensor
-        self.state.indoors_temperature_c = self.indoors_temperature_c
-        self.state.has_outdoor_temperature_sensor = self.has_outdoor_temperature_sensor
-        self.state.outdoors_temperature_c = self.outdoors_temperature_c
-        self.state.has_humidity_sensor = self.has_humidity_sensor
-        self.state.humidity = self.humidity
+    def _bool_from_raw_state(self, prop: GreeProp) -> bool:
+        return self._get_prop_raw(prop, 0) != 0
 
     def _remove_unsupported_props(self):
         """Remove unsupported properties from the list to update."""
+
+        # Remove all unsupported properties
+        # A unsupported propery is one that the device returns
+        # with an empty string, or nothing at all
+        # If that is the case, _state_raw should not contain that property
+        # In case it still has it, we remove it here as well
+        for p in list(self._props_to_update):
+            if not self.supports_property(p):
+                self._props_to_update.remove(p)
+                self._raw_state.pop(p, None)
+                _LOGGER.debug("No longer updating property: %s", p)
+
+        # Sensors should also be invalidated if their values are not expected (=0)
         if (
             GreeProp.SENSOR_TEMPERATURE in self._props_to_update
-            and not self.has_indoor_temperature_sensor
+            and self._get_prop_raw(GreeProp.SENSOR_TEMPERATURE, 0) == 0
         ):
             self._props_to_update.remove(GreeProp.SENSOR_TEMPERATURE)
-            self._state.pop(GreeProp.SENSOR_TEMPERATURE, None)
-            _LOGGER.debug("No longer updating temperature sensor property")
+            self._raw_state.pop(GreeProp.SENSOR_TEMPERATURE, None)
+            _LOGGER.debug(
+                "No longer updating property due to bad value: %s",
+                GreeProp.SENSOR_TEMPERATURE,
+            )
 
         if (
             GreeProp.SENSOR_OUTSIDE_TEMPERATURE in self._props_to_update
-            and not self.has_outdoor_temperature_sensor
+            and self._get_prop_raw(GreeProp.SENSOR_OUTSIDE_TEMPERATURE, 0) == 0
         ):
             self._props_to_update.remove(GreeProp.SENSOR_OUTSIDE_TEMPERATURE)
-            self._state.pop(GreeProp.SENSOR_OUTSIDE_TEMPERATURE, None)
-            _LOGGER.debug("No longer updating outside temperature sensor property")
+            self._raw_state.pop(GreeProp.SENSOR_OUTSIDE_TEMPERATURE, None)
+            _LOGGER.debug(
+                "No longer updating property due to bad value: %s",
+                GreeProp.SENSOR_OUTSIDE_TEMPERATURE,
+            )
 
         if (
             GreeProp.SENSOR_HUMIDITY in self._props_to_update
-            and not self.has_humidity_sensor
+            and self._get_prop_raw(GreeProp.SENSOR_HUMIDITY, 0) == 0
         ):
             self._props_to_update.remove(GreeProp.SENSOR_HUMIDITY)
-            self._state.pop(GreeProp.SENSOR_HUMIDITY, None)
-            _LOGGER.debug("No longer updating humidity sensor property")
+            self._raw_state.pop(GreeProp.SENSOR_HUMIDITY, None)
+            _LOGGER.debug(
+                "No longer updating property due to bad value: %s",
+                GreeProp.SENSOR_HUMIDITY,
+            )
 
     def _get_prop_raw(self, prop: GreeProp, default: int | None = None) -> int | None:
-        """Get the raw value of a property."""
-        if prop not in self._state:
+        """Get the raw value of a property. If does not exist, returns default."""
+        if prop not in self._raw_state:
             _LOGGER.warning(
                 "Property '%s' not found in state of device '%s'", prop, self.name
             )
             return default
-        return self._state.get(prop, default)
+        return self._raw_state.get(prop, default)
 
-    def LogDeviceInfo(self):
+    def log_device_info(self):
         """Log basic device information."""
 
         capabilities = []
-        if self.has_indoor_temperature_sensor:
+        if self.supports_property(GreeProp.SENSOR_TEMPERATURE):
             capabilities.append("Temperature Sensor")
-        if self.has_outdoor_temperature_sensor:
+        if self.supports_property(GreeProp.SENSOR_OUTSIDE_TEMPERATURE):
             capabilities.append("Outside Temperature Sensor")
-        if self.has_humidity_sensor:
+        if self.supports_property(GreeProp.SENSOR_HUMIDITY):
             capabilities.append("Humidity Sensor")
 
         _LOGGER.info(
@@ -351,11 +321,15 @@ class GreeDevice:
 
         _LOGGER.info(
             "Indoor Temperature: %s ºC",
-            self.indoors_temperature_c if self.has_indoor_temperature_sensor else None,
+            self.indoors_temperature_c
+            if self.supports_property(GreeProp.SENSOR_TEMPERATURE)
+            else None,
         )
         _LOGGER.info(
             "Outddor Temperature: %s ºC",
-            self.indoors_temperature_c if self.has_indoor_temperature_sensor else None,
+            self.outdoors_temperature_c
+            if self.supports_property(GreeProp.SENSOR_OUTSIDE_TEMPERATURE)
+            else None,
         )
         _LOGGER.info(
             "Target Temperature: %s º%s",
@@ -363,6 +337,12 @@ class GreeDevice:
             self.target_temperature_unit.name,
         )
         _LOGGER.info("Mode: %s", self.operation_mode.name)
+
+    def supports_property(self, property: GreeProp) -> bool:
+        """Returns True if the device endpoint supports the property."""
+        # We consider a property as unsupported if it is not present in the raw state list
+        # This assumes that the full state is fetched at least once before this method is called
+        return property in self._raw_state
 
     @property
     def name(self) -> str:
@@ -410,33 +390,9 @@ class GreeDevice:
         self._beeper = value
 
     @property
-    def has_indoor_temperature_sensor(self) -> bool:
-        """Return True if the device has a temperature sensor."""
-        return (
-            GreeProp.SENSOR_TEMPERATURE in self._state
-            and self._get_prop_raw(GreeProp.SENSOR_TEMPERATURE, 0) != 0
-        )
-
-    @property
-    def has_outdoor_temperature_sensor(self) -> bool:
-        """Return True if the device has an outdoor temperature sensor."""
-        return (
-            GreeProp.SENSOR_OUTSIDE_TEMPERATURE in self._state
-            and self._get_prop_raw(GreeProp.SENSOR_OUTSIDE_TEMPERATURE, 0) != 0
-        )
-
-    @property
-    def has_humidity_sensor(self) -> bool:
-        """Return True if the device has an humidity sensor."""
-        return (
-            GreeProp.SENSOR_HUMIDITY in self._state
-            and self._get_prop_raw(GreeProp.SENSOR_HUMIDITY, 0) != 0
-        )
-
-    @property
     def indoors_temperature_c(self) -> int | None:
         """Return the current temperature if available."""
-        if self.has_indoor_temperature_sensor:
+        if self.supports_property(GreeProp.SENSOR_TEMPERATURE):
             if self._temp_processor_indoors is None:
                 self._temp_processor_indoors = TempOffsetResolver()
 
@@ -452,7 +408,7 @@ class GreeDevice:
     @property
     def outdoors_temperature_c(self) -> int | None:
         """Return the current outside temperature if available."""
-        if self.has_outdoor_temperature_sensor:
+        if self.supports_property(GreeProp.SENSOR_OUTSIDE_TEMPERATURE):
             if self._temp_processor_outdoors is None:
                 self._temp_processor_outdoors = TempOffsetResolver()
 
@@ -468,18 +424,16 @@ class GreeDevice:
     @property
     def humidity(self) -> int | None:
         """Return the current humidity if available."""
-        if self.has_humidity_sensor:
-            return self._get_prop_raw(GreeProp.SENSOR_HUMIDITY, None)
-        return None
+        return self._get_prop_raw(GreeProp.SENSOR_HUMIDITY, None)
 
     @property
     def power_mode(self) -> bool:
         """Return the current power mode."""
-        return self._get_prop_raw(GreeProp.POWER, 0) == 1
+        return self._bool_from_raw_state(GreeProp.POWER)
 
     def set_power_mode(self, value: bool):
         """Sets the device power mode."""
-        self.set_device_status({GreeProp.POWER: 1 if value else 0})
+        self._set_device_status({GreeProp.POWER: 1 if value else 0})
 
     @property
     def operation_mode(self) -> OperationMode:
@@ -490,7 +444,7 @@ class GreeDevice:
 
     def set_operation_mode(self, mode: OperationMode):
         """Sets the device operation mode."""
-        self.set_device_status({GreeProp.OP_MODE: mode})
+        self._set_device_status({GreeProp.OP_MODE: mode})
 
     @property
     def fan_speed(self) -> FanSpeed:
@@ -499,7 +453,7 @@ class GreeDevice:
 
     def set_fan_speed(self, speed: FanSpeed):
         """Sets the device fan speed mode."""
-        self.set_device_status({GreeProp.FAN_SPEED: speed})
+        self._set_device_status({GreeProp.FAN_SPEED: speed})
 
     @property
     def vertical_swing_mode(self) -> VerticalSwingMode:
@@ -510,7 +464,7 @@ class GreeDevice:
 
     def set_vertical_swing_mode(self, swing_mode: VerticalSwingMode):
         """Sets the device vertical swing mode."""
-        self.set_device_status({GreeProp.SWING_VERTICAL: swing_mode})
+        self._set_device_status({GreeProp.SWING_VERTICAL: swing_mode})
 
     @property
     def horizontal_swing_mode(self) -> HorizontalSwingMode:
@@ -523,7 +477,7 @@ class GreeDevice:
 
     def set_horizontal_swing_mode(self, swing_mode: HorizontalSwingMode):
         """Sets the device horizontal swing mode."""
-        self.set_device_status({GreeProp.SWING_HORIZONTAL: swing_mode})
+        self._set_device_status({GreeProp.SWING_HORIZONTAL: swing_mode})
 
     @property
     def target_temperature_unit(self) -> TemperatureUnits:
@@ -536,7 +490,7 @@ class GreeDevice:
 
     def set_target_temperature_unit(self, units: TemperatureUnits):
         """Sets the units of the target temperature."""
-        self.set_device_status({GreeProp.TARGET_TEMPERATURE_UNIT: units})
+        self._set_device_status({GreeProp.TARGET_TEMPERATURE_UNIT: units})
 
     @property
     def target_temperature(self) -> float:
@@ -566,7 +520,7 @@ class GreeDevice:
         else:
             raw_c, tem_rec = gree_get_target_temp_props_from_c(value)
 
-        self.set_device_status(
+        self._set_device_status(
             {
                 GreeProp.TARGET_TEMPERATURE: raw_c,
                 GreeProp.TARGET_TEMPERATURE_BIT: tem_rec,
@@ -576,50 +530,50 @@ class GreeDevice:
     @property
     def feature_light_sensor(self) -> bool:
         """Return the light sensor state."""
-        return self._get_prop_raw(GreeProp.FEAT_SENSOR_LIGHT, 0) != 0
+        return self._bool_from_raw_state(GreeProp.FEAT_SENSOR_LIGHT)
 
     def set_feature_light_sensor(self, value: bool) -> None:
         """Set the light sensor state."""
-        self.set_device_status({GreeProp.FEAT_SENSOR_LIGHT: 1 if value else 0})
+        self._set_device_status({GreeProp.FEAT_SENSOR_LIGHT: 1 if value else 0})
 
     @property
     def feature_fresh_air(self) -> bool:
         """Return the fresh air mode state."""
-        return self._get_prop_raw(GreeProp.FEAT_FRESH_AIR, 0) == 1
+        return self._bool_from_raw_state(GreeProp.FEAT_FRESH_AIR)
 
     def set_feature_fresh_air(self, value: bool) -> None:
         """Set the fresh air mode state."""
-        self.set_device_status({GreeProp.FEAT_FRESH_AIR: 1 if value else 0})
+        self._set_device_status({GreeProp.FEAT_FRESH_AIR: 1 if value else 0})
 
     @property
     def feature_x_fan(self) -> bool:
         """Return the x-fan mode state."""
-        return self._get_prop_raw(GreeProp.FEAT_XFAN, 0) == 1
+        return self._bool_from_raw_state(GreeProp.FEAT_XFAN)
 
     def set_feature_xfan(self, value: bool) -> None:
         """Set the x-fan mode state."""
-        self.set_device_status({GreeProp.FEAT_XFAN: 1 if value else 0})
+        self._set_device_status({GreeProp.FEAT_XFAN: 1 if value else 0})
 
     @property
     def feature_health(self) -> bool:
         """Return the health mode state."""
-        return self._get_prop_raw(GreeProp.FEAT_HEALTH, 0) == 1
+        return self._bool_from_raw_state(GreeProp.FEAT_HEALTH)
 
     def set_feature_health(self, value: bool) -> None:
         """Set the health mode state."""
-        self.set_device_status({GreeProp.FEAT_HEALTH: 1 if value else 0})
+        self._set_device_status({GreeProp.FEAT_HEALTH: 1 if value else 0})
 
     @property
     def feature_sleep(self) -> bool:
         """Return the sleep mode state."""
-        return (
-            self._get_prop_raw(GreeProp.FEAT_SLEEP_MODE_SWING, 0) == 1
-            or self._get_prop_raw(GreeProp.FEAT_SLEEP_MODE, 0) == 1
-        )
+        val1 = self._bool_from_raw_state(GreeProp.FEAT_SLEEP_MODE_SWING)
+        val2 = self._bool_from_raw_state(GreeProp.FEAT_SLEEP_MODE)
+
+        return val1 is True or val2 is True
 
     def set_feature_sleep(self, value: bool) -> None:
         """Set the sleep mode state."""
-        self.set_device_status(
+        self._set_device_status(
             {
                 GreeProp.FEAT_SLEEP_MODE: 1 if value else 0,
                 GreeProp.FEAT_SLEEP_MODE_SWING: 1 if value else 0,
@@ -629,53 +583,53 @@ class GreeDevice:
     @property
     def feature_light(self) -> bool:
         """Return the light state."""
-        return self._get_prop_raw(GreeProp.FEAT_LIGHT, 0) == 1
+        return self._bool_from_raw_state(GreeProp.FEAT_LIGHT)
 
     def set_feature_light(self, value: bool) -> None:
         """Set the light state."""
-        self.set_device_status({GreeProp.FEAT_LIGHT: 1 if value else 0})
+        self._set_device_status({GreeProp.FEAT_LIGHT: 1 if value else 0})
 
     @property
     def feature_quiet(self) -> bool:
         """Return the quiet mode state."""
-        return self._get_prop_raw(GreeProp.FEAT_QUIET_MODE, 0) == 1
+        return self._bool_from_raw_state(GreeProp.FEAT_QUIET_MODE)
 
     def set_feature_quiet(self, value: bool) -> None:
         """Set the quiet mode state."""
-        self.set_device_status({GreeProp.FEAT_QUIET_MODE: 1 if value else 0})
+        self._set_device_status({GreeProp.FEAT_QUIET_MODE: 1 if value else 0})
 
     @property
     def feature_turbo(self) -> bool:
         """Return the turbo mode state."""
-        return self._get_prop_raw(GreeProp.FEAT_TURBO_MODE, 0) == 1
+        return self._bool_from_raw_state(GreeProp.FEAT_TURBO_MODE)
 
     def set_feature_turbo(self, value: bool) -> None:
         """Set the turbo mode state."""
-        self.set_device_status({GreeProp.FEAT_TURBO_MODE: 1 if value else 0})
+        self._set_device_status({GreeProp.FEAT_TURBO_MODE: 1 if value else 0})
 
     @property
     def feature_smart_heat(self) -> bool:
         """Return the smart heat (8ºC / anti-freeze) mode state."""
-        return self._get_prop_raw(GreeProp.FEAT_SMART_HEAT_8C, 0) == 1
+        return self._bool_from_raw_state(GreeProp.FEAT_SMART_HEAT_8C)
 
     def set_feature_smart_heat(self, value: bool) -> None:
         """Set the smart heat (8ºC / anti-freeze) mode state."""
-        self.set_device_status({GreeProp.FEAT_SMART_HEAT_8C: 1 if value else 0})
+        self._set_device_status({GreeProp.FEAT_SMART_HEAT_8C: 1 if value else 0})
 
     @property
     def feature_energy_saving(self) -> bool:
         """Return the energy saving mode state."""
-        return self._get_prop_raw(GreeProp.FEAT_ENERGY_SAVING, 0) == 1
+        return self._bool_from_raw_state(GreeProp.FEAT_ENERGY_SAVING)
 
     def set_feature_energy_saving(self, value: bool) -> None:
         """Set the energy saving mode state."""
-        self.set_device_status({GreeProp.FEAT_ENERGY_SAVING: 1 if value else 0})
+        self._set_device_status({GreeProp.FEAT_ENERGY_SAVING: 1 if value else 0})
 
     @property
     def feature_anti_direct_blow(self) -> bool:
         """Return the anti direct blow mode state."""
-        return self._get_prop_raw(GreeProp.FEAT_ANTI_DIRECT_BLOW, None) == 1
+        return self._bool_from_raw_state(GreeProp.FEAT_ANTI_DIRECT_BLOW)
 
     def set_feature_anti_direct_blow(self, value: bool) -> None:
         """Set the anti direct blow mode state."""
-        self.set_device_status({GreeProp.FEAT_ANTI_DIRECT_BLOW: 1 if value else 0})
+        self._set_device_status({GreeProp.FEAT_ANTI_DIRECT_BLOW: 1 if value else 0})

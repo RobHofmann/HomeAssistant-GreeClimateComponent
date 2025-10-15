@@ -4,6 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 import logging
 
+from config.custom_components.gree_custom.gree_api import GreeProp
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -37,14 +38,56 @@ async def async_setup_entry(
 
     coordinator = entry.runtime_data
 
-    sensors = []
+    sensors: list[GreeSensorDescription] = []
 
-    if coordinator.device.has_indoor_temperature_sensor:
-        sensors.append(GATTR_INDOOR_TEMPERATURE)
-    if coordinator.device.has_outdoor_temperature_sensor:
-        sensors.append(GATTR_OUTDOOR_TEMPERATURE)
-    if coordinator.device.has_humidity_sensor:
-        sensors.append(GATTR_HUMIDITY)
+    if coordinator.device.supports_property(GreeProp.SENSOR_TEMPERATURE):
+        sensors.append(
+            GreeSensorDescription(
+                key=GATTR_INDOOR_TEMPERATURE,
+                translation_key=GATTR_INDOOR_TEMPERATURE,
+                device_class=SensorDeviceClass.TEMPERATURE,
+                state_class=SensorStateClass.MEASUREMENT,
+                native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+                suggested_display_precision=0,
+                value_func=lambda device: device.indoors_temperature_c,
+                available_func=lambda device: (
+                    device.available
+                    and device.supports_property(GreeProp.SENSOR_TEMPERATURE)
+                ),
+            )
+        )
+    if coordinator.device.supports_property(GreeProp.SENSOR_OUTSIDE_TEMPERATURE):
+        sensors.append(
+            GreeSensorDescription(
+                key=GATTR_OUTDOOR_TEMPERATURE,
+                translation_key=GATTR_OUTDOOR_TEMPERATURE,
+                device_class=SensorDeviceClass.TEMPERATURE,
+                state_class=SensorStateClass.MEASUREMENT,
+                native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+                suggested_display_precision=0,
+                value_func=lambda device: device.outdoors_temperature_c,
+                available_func=lambda device: (
+                    device.available
+                    and device.supports_property(GreeProp.SENSOR_OUTSIDE_TEMPERATURE)
+                ),
+            )
+        )
+    if coordinator.device.supports_property(GreeProp.SENSOR_HUMIDITY):
+        sensors.append(
+            GreeSensorDescription(
+                key=GATTR_HUMIDITY,
+                translation_key=GATTR_HUMIDITY,
+                device_class=SensorDeviceClass.HUMIDITY,
+                state_class=SensorStateClass.MEASUREMENT,
+                native_unit_of_measurement=PERCENTAGE,
+                suggested_display_precision=0,
+                value_func=lambda device: device.humidity,
+                available_func=lambda device: (
+                    device.available
+                    and device.supports_property(GreeProp.SENSOR_HUMIDITY)
+                ),
+            )
+        )
 
     _LOGGER.debug("Adding Sensor Entities: %s", sensors)
 
@@ -57,8 +100,7 @@ async def async_setup_entry(
                 entry.data.get(CONF_DISABLE_AVAILABLE_CHECK, False) is False
             ),
         )
-        for description in SENSOR_TYPES
-        if description.key in sensors
+        for description in sensors
     ]
 
     async_add_entities(entities)
@@ -69,44 +111,6 @@ class GreeSensorDescription(GreeEntityDescription, SensorEntityDescription):
     """Description of a Gree temperature sensor."""
 
     value_func: Callable[[GreeDevice], float | None]
-
-
-SENSOR_TYPES: list[GreeSensorDescription] = [
-    GreeSensorDescription(
-        key=GATTR_INDOOR_TEMPERATURE,
-        translation_key=GATTR_INDOOR_TEMPERATURE,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        suggested_display_precision=0,
-        value_func=lambda device: device.indoors_temperature_c,
-        available_func=lambda device: (
-            device.available and device.has_indoor_temperature_sensor
-        ),
-    ),
-    GreeSensorDescription(
-        key=GATTR_OUTDOOR_TEMPERATURE,
-        translation_key=GATTR_OUTDOOR_TEMPERATURE,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        suggested_display_precision=0,
-        value_func=lambda device: device.outdoors_temperature_c,
-        available_func=lambda device: (
-            device.available and device.has_outdoor_temperature_sensor
-        ),
-    ),
-    GreeSensorDescription(
-        key=GATTR_HUMIDITY,
-        translation_key=GATTR_HUMIDITY,
-        device_class=SensorDeviceClass.HUMIDITY,
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=PERCENTAGE,
-        suggested_display_precision=0,
-        value_func=lambda device: device.humidity,
-        available_func=lambda device: (device.available and device.has_humidity_sensor),
-    ),
-]
 
 
 class GreeSensor(GreeEntity, SensorEntity, RestoreEntity):  # pyright: ignore[reportIncompatibleVariableOverride]

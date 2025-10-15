@@ -17,7 +17,7 @@ from homeassistant.helpers.typing import UNDEFINED
 from .const import CONF_DISABLE_AVAILABLE_CHECK, CONF_RESTORE_STATES, GATTR_TEMP_UNITS
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
-from .gree_api import TemperatureUnits
+from .gree_api import GreeProp, TemperatureUnits
 from .gree_device import GreeDevice
 
 _LOGGER = logging.getLogger(__name__)
@@ -41,7 +41,8 @@ async def async_setup_entry(
             translation_key=GATTR_TEMP_UNITS,
             entity_category=EntityCategory.CONFIG,
             options=[f"º{member.name}" for member in TemperatureUnits],
-            available_func=lambda device: device.available,
+            available_func=lambda device: (device.available
+            and device.supports_property(GreeProp.TARGET_TEMPERATURE_UNIT)),
             value_func=lambda device: f"º{device.target_temperature_unit.name}",
             set_func=lambda device, value: device.set_target_temperature_unit(
                 TemperatureUnits[value.replace("º", "")]
