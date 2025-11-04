@@ -4,101 +4,95 @@
 # when using YAML configuration instead of the UI config flow.
 #
 # Copy the sections you need to your configuration.yaml file.
+#
+# If an option is not provided the default values will be used.
+# For option lists, pass empty list ([]) to disable the option.
+#
+# MAC address Format can be XX:XX:XX:XX:XX:XX, XX-XX-XX-XX-XX-XX, xxxxxxxxxxxx 
+#
+# For VRF units the MAC is usually xxxxxxxxxxxx@yyyyyyyyyyyy where 
+# the first part (x) is the sub device MAC and the second (y) the main device MAC
+# In this case it is preferred to place the main device MAC on the top config and 
+# the sub device MAC on the device list config
 
-gree:
-  # Name for the AC unit (required)
-  - name: "First AC"
-    
-    # IP Address of AC (required)
-    host: "192.168.1.101"
-    
-    # MAC address of the device (required)
-    # Format can be XX:XX:XX:XX:XX:XX, XX-XX-XX-XX-XX-XX, xxxxxxxxxxxx 
-    # or xxxxxxxxxxxx@yyyyyyyyyyyy (for VRF units) depending on your model
-    mac: "20-FA-BB-12-34-56"
-    
-    # Encryption version (optional, defaults to 1)
-    encryption_version: 1
-    
-    # Port number to connect to the device (optional, defaults to 7000)
-    # port: 7000
-    
-    # Custom encryption key (optional, auto-fetched if empty)
-    # If you have extracted your encryption key, you can specify it here
-    # encryption_key: "A1B2C3D4E5F6"
-    
-    # Device identifier (optional)
-    # This is not needed for all devices, can be sniffed if required
-    # uid: 123
-    
-    # Standard Home Assistant HVAC Modes to enable (optional)
-    # Default: ["auto", "cool", "dry", "fan_only", "heat", "off"]
-    # hvac_modes:
-    #   - "auto"
-    #   - "cool" 
-    #   - "dry"
-    #   - "fan_only"
-    #   - "heat"
-    #   - "off"
-    
-    # Fan modes (optional)
-    # Default: ["auto", "low", "medium_low", "medium", "medium_high", "high", "turbo", "quiet"]
-    # fan_modes:
-    #   - "auto"
-    #   - "low"
-    #   - "medium_low"
-    #   - "medium"
-    #   - "medium_high"
-    #   - "high"
-    #   - "turbo"
-    #   - "quiet"
-    
-    # Fan vertical swing modes (optional)
-    # Pass empty list ([]) to disable vertical swing
-    # Default: ["default", "swing_full", "fixed_upmost", "fixed_middle_up", "fixed_middle", "fixed_middle_low", "fixed_lowest", "swing_downmost", "swing_middle_low", "swing_middle", "swing_middle_up", "swing_upmost"]
-    # swing_modes:
-    #   - "default"
-    #   - "swing_full"
-    #   - "fixed_upmost"
-    #   - "fixed_middle_up"
-    #   - "fixed_middle"
-    #   - "fixed_middle_low"
-    #   - "fixed_lowest"
-    #   - "swing_downmost"
-    #   - "swing_middle_low"
-    #   - "swing_middle"
-    #   - "swing_middle_up"
-    #   - "swing_upmost"
-    
-    # Fan horizontal swing modes (optional)
-    # Pass empty list ([]) to disable horizontal swing
-    # Default: ["default", "swing_full", "fixed_leftmost", "fixed_middle_left", "fixed_middle", "fixed_middle_right", "fixed_rightmost"]
-    # swing_horizontal_modes:
-    #   - "default"
-    #   - "swing_full"
-    #   - "fixed_leftmost"
-    #   - "fixed_middle_left"
-    #   - "fixed_middle"
-    #   - "fixed_middle_right"
-    #   - "fixed_rightmost"
-          
-    # Keep AC always available in HA (optional, defaults to false)
-    # Disables connection checking - useful for devices that don't respond reliably
-    # disable_available_check: false
-    
-    # Display offset for temp sensor (optional, auto-detected if not set)
-    # Set to true to apply -40°C offset, false for no offset, or leave unset for auto-detection
-    # temp_sensor_offset: true
+
+gree_custom:
+  - host: "192.168.1.100" # IP Address of AC | required | str
+    mac: "20-FA-BB-12-34-56" # MAC Address of Main AC Unit | required | str
+    advanced:
+      port: 7000 # Port number to connect to the device | int | default = 7000
+      encryption_version: 2 # The encryption version to use with the device | options = "Auto-Detect", 1, 2 | default = "Auto-Detect"
+      encryption_key: "my_device_key" # Custom encryption key | str | default = <fetched from device>
+      uid: 0 # Device identifier which is not needed for all devices, can be sniffed if required | positive int | default = 0
+      disable_available_check: false # boolean | default = false
+      max_online_attempts: 3 # Number connection attempts made with device before it is marked as unavailable | positive int | default = 5
+      timeout: 10 # Seconds before a connection attempt times out |  positive int (seconds) | default = 10
+    devices: # List of the devices that will be created (optional if only one device and no configuration required)
+      - device_name: "Gree AC" # Name for the AC unit | str | default = "Gree AC <MAC>]"
+        mac: "20-FA-BB-12-34-56" # MAC Address of the sub AC unit (same as Main device if not VRF) | required | str
+        hvac_modes: # Standard Home Assistant HVAC Modes to enable | list | options = ["auto", "cool", "dry", "fan_only", "heat", "off"] | default = all options
+          - "auto"
+          - "cool"
+          - "dry"
+          - "fan_only"
+          - "heat"
+          - "off"
+        fan_modes: # Supported fan modes | list | options = ["Auto", "Low", "MediumLow", "Medium", "MediumHigh", "High", "turbo", "quiet"] | default = all options
+          - "Auto"
+          - "Low"
+          - "MediumLow"
+          - "Medium"
+          - "MediumHigh"
+          - "High"
+          - "turbo"
+          - "quiet"
+        swing_modes: # Supported vertical swing modes | list | options = ["Default", "FullSwing", "FixedUpper", "FixedUpperMiddle", "FixedMiddle", "FixedLowerMiddle", "FixedLower", "SwingLower", "SwingLowerMiddle", "SwingMiddle", "SwingUpperMiddle", "SwingUpper"] | default = all options
+          - "Default"
+          - "FullSwing"
+          - "FixedUpper"
+          - "FixedUpperMiddle"
+          - "FixedMiddle"
+          - "FixedLowerMiddle"
+          - "FixedLower"
+          - "SwingLower"
+          - "SwingLowerMiddle"
+          - "SwingMiddle"
+          - "SwingUpperMiddle"
+          - "SwingUpper"
+        swing_horizontal_modes: # Supported horizontal swing modes | list | options = ["Default", "FullSwing", "Left", "LeftCenter", "Center", "RightCenter", "Right"] | default = all options
+          - "Default"
+          - "FullSwing"
+          - "Left"
+          - "LeftCenter"
+          - "Center"
+          - "RightCenter"
+          - "Right"
+        features: # Supported device features | list | options = ["beeper", "air", "xfan", "sleep", "eightdegheat", "lights", "health", "anti_direct_blow", "powersave", "light_sensor"] | default = all options
+          - "beeper"
+          - "air"
+          - "xfan"
+          - "sleep"
+          - "eightdegheat"
+          - "lights"
+          - "health"
+          - "anti_direct_blow"
+          - "powersave"
+          - "light_sensor"
+        target_temp_step: 1 # Number of degrees increase or decrease when changing the temperature | 0.5 < int < 5, 0.5 increments | default = 1
+        external_temperature_sensor: "None" # Sets a given temperature sensor as the sensor for the AC | str (Entity ID) | default = "None"
+        external_humidity_sensor: "None" # Sets a given humidity sensor as the sensor for the AC | str (Entity ID) | default = "None"
+        restore_states: true # Wether to restore the last HA state to device when HA starts | bool | default = true
+
 
 # Example for multiple AC units:
-# gree:
-#   - name: "Living Room AC"
-#     host: "192.168.1.101"
+# gree_custom:
+#   - host: "192.168.1.101"
 #     mac: "20-FA-BB-12-34-56"
-#     encryption_version: 2
-#   
-#   - name: "Bedroom AC" 
-#     host: "192.168.1.102"
+#     advanced:
+#       encryption_version: 2
+  
+#   - host: "192.168.1.102"
 #     mac: "20-FA-BB-12-34-57"
-#     encryption_version: 1
-#     port: 7001
+#     devices:
+#       - name: "Gree AC"
+#         mac: "20-FA-BB-12-34-57"

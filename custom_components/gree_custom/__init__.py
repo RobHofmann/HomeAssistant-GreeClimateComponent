@@ -7,21 +7,17 @@ import asyncio
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    CONF_HOST,
-    CONF_MAC,
-    CONF_NAME,
-    CONF_PORT,
-    CONF_TIMEOUT,
-    Platform,
-)
+from homeassistant.const import CONF_HOST, CONF_MAC, CONF_PORT, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.typing import ConfigType
 
 # Local imports
 from .const import (
     CONF_ADVANCED,
+    CONF_DEV_NAME,
+    CONF_DEVICES,
     CONF_ENCRYPTION_KEY,
     CONF_ENCRYPTION_VERSION,
     CONF_MAX_ONLINE_ATTEMPTS,
@@ -34,7 +30,6 @@ from .const import (
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .gree_api import (
     DEFAULT_CONNECTION_MAX_ATTEMPTS,
-    DEFAULT_CONNECTION_TIMEOUT,
     DEFAULT_DEVICE_PORT,
     DEFAULT_DEVICE_UID,
 )
@@ -69,47 +64,51 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool:
     """Set up Gree from a config entry."""
 
-    _LOGGER.debug("Setting up entry: %s\n%s", entry, entry.data)
+    _LOGGER.info(
+        "Setting up entry '%s' for: %s at %s",
+        entry.entry_id,
+        entry.data[CONF_MAC],
+        entry.data[CONF_HOST],
+    )
+    _LOGGER.debug("Entry '%s' data: %s\n%s", entry.entry_id, entry, entry.data)
 
     conf = entry.data
     if conf is None or conf[CONF_ADVANCED] is None:
         _LOGGER.error("Bad config entry, this should not happen")
         return False
 
-    host: str = conf[CONF_HOST]
+    coordinators: dict[str, GreeCoordinator] = {}
+    for d in conf.get(CONF_DEVICES, []):
+        mac = str(d.get(CONF_MAC, ""))
+        device = GreeDevice(
+            d.get(CONF_DEV_NAME, "Gree HVAC"),
+            conf.get(CONF_HOST, ""),
+            mac,
+            conf[CONF_ADVANCED].get(CONF_PORT, DEFAULT_DEVICE_PORT),
+            conf[CONF_ADVANCED].get(CONF_ENCRYPTION_KEY, ""),
+            conf[CONF_ADVANCED].get(
+                CONF_ENCRYPTION_VERSION, DEFAULT_ENCRYPTION_VERSION
+            ),
+            conf[CONF_ADVANCED].get(CONF_UID, DEFAULT_DEVICE_UID),
+            max_connection_attempts=conf[CONF_ADVANCED].get(
+                CONF_MAX_ONLINE_ATTEMPTS, DEFAULT_CONNECTION_MAX_ATTEMPTS
+            ),
+        )
+        try:
+            async with asyncio.timeout(30):
+                await device.bind_device()
+            # TODO: Add scan interval to config
+            coordinators[mac] = GreeCoordinator(hass, entry, device)
+            await coordinators[mac].async_config_entry_first_refresh()
+            _LOGGER.debug("Bound to device %s", mac)
+        except TimeoutError as err:
+            _LOGGER.debug("Conection to %s timed out", mac)
+            raise ConfigEntryNotReady from err
+        except GreeDeviceNotBoundError as err:
+            _LOGGER.debug("Failed to bind to device %s", mac)
+            raise ConfigEntryNotReady from err
 
-    new_device = GreeDevice(
-        name=conf.get(CONF_NAME, "Gree HVAC"),
-        ip_addr=host,
-        mac_addr=str(conf.get(CONF_MAC, "")),
-        port=conf[CONF_ADVANCED].get(CONF_PORT, DEFAULT_DEVICE_PORT),
-        encryption_version=conf[CONF_ADVANCED].get(
-            CONF_ENCRYPTION_VERSION, DEFAULT_ENCRYPTION_VERSION
-        ),
-        encryption_key=conf[CONF_ADVANCED].get(CONF_ENCRYPTION_KEY, ""),
-        uid=conf[CONF_ADVANCED].get(CONF_UID, DEFAULT_DEVICE_UID),
-        max_connection_attempts=conf[CONF_ADVANCED].get(
-            CONF_MAX_ONLINE_ATTEMPTS, DEFAULT_CONNECTION_MAX_ATTEMPTS
-        ),
-        timeout=conf[CONF_ADVANCED].get(CONF_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT),
-    )
-
-    try:
-        async with asyncio.timeout(30):
-            await new_device.bind_device()
-        _LOGGER.debug("Bound to device %s", host)
-    except TimeoutError as err:
-        _LOGGER.debug("Conection to %s timed out", host)
-        raise ConfigEntryNotReady from err
-    except GreeDeviceNotBoundError as err:
-        _LOGGER.debug("Failed to bind to device %s", host)
-        raise ConfigEntryNotReady from err
-
-    coordinator = GreeCoordinator(hass, entry, new_device)
-
-    await coordinator.async_config_entry_first_refresh()
-
-    entry.runtime_data = coordinator
+    entry.runtime_data = coordinators
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True

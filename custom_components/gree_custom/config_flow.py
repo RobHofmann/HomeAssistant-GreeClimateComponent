@@ -13,7 +13,7 @@ from homeassistant.components.network import (
     IPv4Address,
     async_get_ipv4_broadcast_addresses,
 )
-from homeassistant.const import CONF_HOST, CONF_MAC, CONF_NAME, CONF_PORT, CONF_TIMEOUT
+from homeassistant.const import CONF_HOST, CONF_MAC, CONF_PORT, CONF_TIMEOUT
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import section
 from homeassistant.helpers import config_validation as cv
@@ -34,6 +34,8 @@ from .const import (
     ATTR_EXTERNAL_HUMIDITY_SENSOR,
     ATTR_EXTERNAL_TEMPERATURE_SENSOR,
     CONF_ADVANCED,
+    CONF_DEV_NAME,
+    CONF_DEVICES,
     CONF_DISABLE_AVAILABLE_CHECK,
     CONF_ENCRYPTION_KEY,
     CONF_ENCRYPTION_VERSION,
@@ -48,11 +50,22 @@ from .const import (
     CONF_UID,
     DEFAULT_FAN_MODES,
     DEFAULT_HVAC_MODES,
-    DEFAULT_SUPPORTED_FEATURES,
     DEFAULT_SWING_HORIZONTAL_MODES,
     DEFAULT_SWING_MODES,
     DEFAULT_TARGET_TEMP_STEP,
     DOMAIN,
+    GATTR_ANTI_DIRECT_BLOW,
+    GATTR_BEEPER,
+    GATTR_FEAT_ENERGY_SAVING,
+    GATTR_FEAT_FRESH_AIR,
+    GATTR_FEAT_HEALTH,
+    GATTR_FEAT_LIGHT,
+    GATTR_FEAT_QUIET_MODE,
+    GATTR_FEAT_SENSOR_LIGHT,
+    GATTR_FEAT_SLEEP_MODE,
+    GATTR_FEAT_SMART_HEAT_8C,
+    GATTR_FEAT_TURBO,
+    GATTR_FEAT_XFAN,
 )
 from .coordinator import GreeConfigEntry
 from .gree_api import (
@@ -62,6 +75,7 @@ from .gree_api import (
     DEFAULT_DEVICE_UID,
     EncryptionVersion,
     GreeDiscoveredDevice,
+    GreeProp,
     discover_gree_devices,
 )
 from .gree_device import (
@@ -81,10 +95,6 @@ def build_main_schema(data: Mapping | None) -> vol.Schema:
 
     return vol.Schema(
         {
-            vol.Required(
-                CONF_NAME,
-                default="Gree AC" if data is None else data.get(CONF_NAME, "Gree AC"),
-            ): str,
             vol.Required(
                 CONF_HOST,
                 default="" if data is None else data.get(CONF_HOST, ""),
@@ -155,89 +165,170 @@ def build_main_schema(data: Mapping | None) -> vol.Schema:
     )
 
 
-def build_options_schema(hass: HomeAssistant, data: Mapping | None) -> vol.Schema:
+def build_options_schema(
+    hass: HomeAssistant, device: GreeDevice, data: Mapping | None
+) -> vol.Schema:
     """Builds the device option schema."""
     if data:
         _LOGGER.debug("Building device options schema with previous values: %s", data)
 
-    return vol.Schema(
+    schema: dict = {}
+    schema.update(
+        {
+            vol.Required(
+                CONF_DEV_NAME,
+                default=f"Gree AC {device.unique_id}"
+                if data is None
+                else data.get(CONF_DEV_NAME, f"Gree AC {device.unique_id}"),
+            ): str
+        }
+    )
+
+    if device.supports_property(GreeProp.OP_MODE):
+        schema.update(
+            {
+                vol.Optional(
+                    CONF_HVAC_MODES,
+                    default=DEFAULT_HVAC_MODES
+                    if data is None
+                    else data.get(CONF_HVAC_MODES, DEFAULT_HVAC_MODES),
+                ): SelectSelector(
+                    config=SelectSelectorConfig(
+                        options=DEFAULT_HVAC_MODES,
+                        multiple=True,
+                        translation_key=CONF_HVAC_MODES,
+                    )
+                ),
+            }
+        )
+
+    valid_fan_modes = []
+    if device.supports_property(GreeProp.FAN_SPEED):
+        valid_fan_modes = DEFAULT_FAN_MODES
+    if device.supports_property(GreeProp.FEAT_TURBO_MODE):
+        valid_fan_modes.append(GATTR_FEAT_TURBO)
+    if device.supports_property(GreeProp.FEAT_QUIET_MODE):
+        valid_fan_modes.append(GATTR_FEAT_QUIET_MODE)
+
+    if valid_fan_modes:
+        schema.update(
+            {
+                vol.Optional(
+                    CONF_FAN_MODES,
+                    default=valid_fan_modes
+                    if data is None
+                    else data.get(CONF_FAN_MODES, valid_fan_modes),
+                ): SelectSelector(
+                    config=SelectSelectorConfig(
+                        options=valid_fan_modes,
+                        multiple=True,
+                        translation_key=CONF_FAN_MODES,
+                    )
+                ),
+            }
+        )
+
+    if device.supports_property(GreeProp.SWING_VERTICAL):
+        schema.update(
+            {
+                vol.Optional(
+                    CONF_SWING_MODES,
+                    default=DEFAULT_SWING_MODES
+                    if data is None
+                    else data.get(CONF_SWING_MODES, DEFAULT_SWING_MODES),
+                ): SelectSelector(
+                    config=SelectSelectorConfig(
+                        options=DEFAULT_SWING_MODES,
+                        multiple=True,
+                        translation_key=CONF_SWING_MODES,
+                    )
+                ),
+            }
+        )
+
+    if device.supports_property(GreeProp.SWING_HORIZONTAL):
+        schema.update(
+            {
+                vol.Optional(
+                    CONF_SWING_HORIZONTAL_MODES,
+                    default=DEFAULT_SWING_HORIZONTAL_MODES
+                    if data is None
+                    else data.get(
+                        CONF_SWING_HORIZONTAL_MODES, DEFAULT_SWING_HORIZONTAL_MODES
+                    ),
+                ): SelectSelector(
+                    config=SelectSelectorConfig(
+                        options=DEFAULT_SWING_HORIZONTAL_MODES,
+                        multiple=True,
+                        translation_key=CONF_SWING_HORIZONTAL_MODES,
+                    )
+                ),
+            }
+        )
+
+    valid_features = [GATTR_BEEPER]
+    if device.supports_property(GreeProp.FEAT_FRESH_AIR):
+        valid_features.append(GATTR_FEAT_FRESH_AIR)
+    if device.supports_property(GreeProp.FEAT_XFAN):
+        valid_features.append(GATTR_FEAT_XFAN)
+    if device.supports_property(GreeProp.FEAT_SLEEP_MODE) or device.supports_property(
+        GreeProp.FEAT_SLEEP_MODE_SWING
+    ):
+        valid_features.append(GATTR_FEAT_SLEEP_MODE)
+    if device.supports_property(GreeProp.FEAT_SMART_HEAT_8C):
+        valid_features.append(GATTR_FEAT_SMART_HEAT_8C)
+    if device.supports_property(GreeProp.FEAT_LIGHT):
+        valid_features.append(GATTR_FEAT_LIGHT)
+    if device.supports_property(GreeProp.FEAT_LIGHT) and device.supports_property(
+        GreeProp.FEAT_SENSOR_LIGHT
+    ):
+        valid_features.append(GATTR_FEAT_SENSOR_LIGHT)
+    if device.supports_property(GreeProp.FEAT_HEALTH):
+        valid_features.append(GATTR_FEAT_HEALTH)
+    if device.supports_property(GreeProp.FEAT_ANTI_DIRECT_BLOW):
+        valid_features.append(GATTR_ANTI_DIRECT_BLOW)
+    if device.supports_property(GreeProp.FEAT_ENERGY_SAVING):
+        valid_features.append(GATTR_FEAT_ENERGY_SAVING)
+
+    schema.update(
         {
             vol.Optional(
-                CONF_HVAC_MODES,
-                default=DEFAULT_HVAC_MODES
-                if data is None
-                else data.get(CONF_HVAC_MODES, DEFAULT_HVAC_MODES),
-            ): SelectSelector(
-                config=SelectSelectorConfig(
-                    options=DEFAULT_HVAC_MODES,
-                    multiple=True,
-                    translation_key=CONF_HVAC_MODES,
-                )
-            ),
-            vol.Optional(
-                CONF_FAN_MODES,
-                default=DEFAULT_FAN_MODES
-                if data is None
-                else data.get(CONF_FAN_MODES, DEFAULT_FAN_MODES),
-            ): SelectSelector(
-                config=SelectSelectorConfig(
-                    options=DEFAULT_FAN_MODES,
-                    multiple=True,
-                    translation_key=CONF_FAN_MODES,
-                )
-            ),
-            vol.Optional(
-                CONF_SWING_MODES,
-                default=DEFAULT_SWING_MODES
-                if data is None
-                else data.get(CONF_SWING_MODES, DEFAULT_SWING_MODES),
-            ): SelectSelector(
-                config=SelectSelectorConfig(
-                    options=DEFAULT_SWING_MODES,
-                    multiple=True,
-                    translation_key=CONF_SWING_MODES,
-                )
-            ),
-            vol.Optional(
-                CONF_SWING_HORIZONTAL_MODES,
-                default=DEFAULT_SWING_HORIZONTAL_MODES
-                if data is None
-                else data.get(
-                    CONF_SWING_HORIZONTAL_MODES, DEFAULT_SWING_HORIZONTAL_MODES
-                ),
-            ): SelectSelector(
-                config=SelectSelectorConfig(
-                    options=DEFAULT_SWING_HORIZONTAL_MODES,
-                    multiple=True,
-                    translation_key=CONF_SWING_HORIZONTAL_MODES,
-                )
-            ),
-            vol.Optional(
                 CONF_FEATURES,
-                default=DEFAULT_SUPPORTED_FEATURES
+                default=valid_features
                 if data is None
-                else data.get(CONF_FEATURES, DEFAULT_SUPPORTED_FEATURES),
+                else data.get(CONF_FEATURES, valid_features),
             ): SelectSelector(
                 config=SelectSelectorConfig(
-                    options=DEFAULT_SUPPORTED_FEATURES,
+                    options=valid_features,
                     multiple=True,
                     translation_key=CONF_FEATURES,
                 )
-            ),
-            vol.Required(
-                CONF_TEMPERATURE_STEP,
-                default=DEFAULT_TARGET_TEMP_STEP
-                if data is None
-                else data.get(CONF_TEMPERATURE_STEP, DEFAULT_TARGET_TEMP_STEP),
-            ): NumberSelector(
-                NumberSelectorConfig(
-                    min=0.5,
-                    max=5,
-                    step=0.5,
-                    mode=NumberSelectorMode.BOX,
-                    unit_of_measurement="ºC",
+            )
+        }
+    )
+
+    if device.supports_property(GreeProp.TARGET_TEMPERATURE):
+        schema.update(
+            {
+                vol.Required(
+                    CONF_TEMPERATURE_STEP,
+                    default=DEFAULT_TARGET_TEMP_STEP
+                    if data is None
+                    else data.get(CONF_TEMPERATURE_STEP, DEFAULT_TARGET_TEMP_STEP),
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=0.5,
+                        max=5,
+                        step=0.5,
+                        mode=NumberSelectorMode.BOX,
+                        unit_of_measurement="ºC",
+                    )
                 )
-            ),
+            }
+        )
+
+    schema.update(
+        {
             # Ideally we would use an Optional EntitySelector for external sensors.
             # Currently we can't because unsetting the value in the UI makes HA
             # populate the user_input with the previous set value, making the user
@@ -274,6 +365,7 @@ def build_options_schema(hass: HomeAssistant, data: Mapping | None) -> vol.Schem
             ): cv.boolean,
         }
     )
+    return vol.Schema(schema)
 
 
 def get_temperature_sensor_options(hass: HomeAssistant) -> list[str]:
@@ -365,14 +457,19 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 2
     _discovered_devices: list[GreeDiscoveredDevice] | None = None
-    _selected_device: GreeDiscoveredDevice | None = None
+    _discovery_selected_device: GreeDiscoveredDevice | None = None
     _discovery_performed: bool = False
 
     def __init__(self) -> None:
         """Initialize the config flow."""
         self._step_main_data: dict | None = None
-        self._device: GreeDevice | None = None
+        self._main_mac: str = ""
+        self._discovered_subdevices: list[GreeDiscoveredDevice] | None = None
+        self._device_configs: dict = {}
+        self._selected_subdevices_macs: list = []
         self._reconfiguring_entry: GreeConfigEntry | None = None
+        self._devices: dict[str, GreeDevice] = {}
+        self._is_reconfigure: bool = False
 
     async def async_step_import(
         self, import_config: dict
@@ -380,20 +477,75 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle import from configuration.yaml."""
         _LOGGER.debug("Importing config entry: %s", import_config)
 
+        mac = import_config.get(CONF_MAC, "")
+
+        if not mac:
+            _LOGGER.error("No MAC for imported device: %s", import_config)
+            raise ValueError(f"No MAC for imported device: {import_config}")
+
         # Combine the schemas
         schema1 = build_main_schema(import_config)
-        schema2 = build_options_schema(self.hass, import_config)
-        COMBINED = vol.Schema(
-            {
-                **schema1.schema,
-                **schema2.schema,
-            }
+        data = apply_schema_defaults(schema1, import_config)
+
+        device: GreeDevice = GreeDevice(
+            f"Temporary Device for {data[CONF_MAC]}",
+            data[CONF_HOST],
+            data[CONF_MAC],
+            data[CONF_ADVANCED][CONF_PORT],
+            data[CONF_ADVANCED][CONF_ENCRYPTION_KEY],
+            EncryptionVersion(int(data[CONF_ADVANCED][CONF_ENCRYPTION_VERSION]))
+            if data[CONF_ADVANCED][CONF_ENCRYPTION_VERSION] != "Auto-Detect"
+            else None,
+            data[CONF_ADVANCED][CONF_UID],
+            max_connection_attempts=2,  # Use fewer attempts for testing the device
+            timeout=2,  # Use smaller timeout for testing the device
         )
+        await device.fetch_device_status()
 
-        # Fill the imported data with the schema defaults
-        data = apply_schema_defaults(COMBINED, import_config)
+        data[CONF_MAC] = device.mac_address
+        data[CONF_ADVANCED][CONF_ENCRYPTION_VERSION] = (
+            int(device.encryption_version) if device.encryption_version else 0
+        )
+        data[CONF_ADVANCED][CONF_ENCRYPTION_KEY] = device.encryption_key
 
-        unique_id = format_mac_id(import_config[CONF_MAC])
+        device_configs: list[dict] = import_config.get(CONF_DEVICES, [])
+
+        # add the main device to the configs if not present
+        if not self._get_device_conf(
+            import_config, device.mac_address_sub
+        ) and not self._get_device_conf(import_config, import_config[CONF_MAC]):
+            device_configs.append({CONF_MAC: device.mac_address_sub})
+
+        data[CONF_DEVICES] = []
+        for dev_config in device_configs:
+            mac = dev_config.get(CONF_MAC, "")
+
+            if not mac:
+                _LOGGER.error("No MAC for imported device: %s", dev_config)
+                continue
+
+            dev: GreeDevice = GreeDevice(
+                f"Temporary Device for {mac}",
+                data[CONF_HOST],
+                mac,
+                data[CONF_ADVANCED][CONF_PORT],
+                data[CONF_ADVANCED][CONF_ENCRYPTION_KEY],
+                EncryptionVersion(int(data[CONF_ADVANCED][CONF_ENCRYPTION_VERSION])),
+                data[CONF_ADVANCED][CONF_UID],
+                max_connection_attempts=2,  # Use fewer attempts for testing the device
+                timeout=2,  # Use smaller timeout for testing the device
+            )
+
+            await dev.fetch_device_status()
+            schema_dev = build_options_schema(self.hass, dev, dev_config)
+            data[CONF_DEVICES].append(
+                {
+                    **apply_schema_defaults(schema_dev, import_config),
+                    CONF_MAC: dev.mac_address_sub,
+                }
+            )
+
+        unique_id = format_mac_id(device.mac_address)
         entry = next(
             (
                 e
@@ -408,11 +560,13 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if entry:
             return self.async_update_reload_and_abort(
                 entry,
-                title=import_config[CONF_NAME],
+                title=f"Gree System at {data[CONF_HOST]}",
                 data=data,
             )
 
-        return self.async_create_entry(title=data[CONF_NAME], data=data)
+        return self.async_create_entry(
+            title=f"Gree System at {data[CONF_HOST]}", data=data
+        )
 
     async def async_step_user(
         self, user_input: dict | None = None
@@ -440,6 +594,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, user_input: dict | None = None
     ) -> config_entries.ConfigFlowResult:
         """Handle device discovery."""
+
         if user_input is not None:
             # User selected a discovered device
             selected_device = user_input["device"]
@@ -447,14 +602,14 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             assert self._discovered_devices
 
             for device in self._discovered_devices:
-                device_id = f"{device.mac}_{device.host}"
+                device_id = device.mac
                 if device_id == selected_device:
                     # Check if already configured
                     await self.async_set_unique_id(format_mac_id(device.mac))
                     self._abort_if_unique_id_configured()
 
                     # Store selected device for next step
-                    self._selected_device = device
+                    self._discovery_selected_device = device
                     return await self.async_step_manual_add()
 
             # If no matching device found, something went wrong - go to manual
@@ -471,8 +626,13 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # Create device selection options
         device_options = {}
         for device in self._discovered_devices:
-            device_id = f"{device.mac}_{device.host}"
-            device_options[device_id] = f"IP: {device.host}, MAC: {device.mac}"
+            device_id = device.mac
+            if device.subdevices > 0:
+                device_options[device_id] = (
+                    f"IP: {device.host}, MAC: {device.mac}, Subdevices: {device.subdevices}"
+                )
+            else:
+                device_options[device_id] = f"IP: {device.host}, MAC: {device.mac}"
 
         data_schema = vol.Schema({vol.Required("device"): vol.In(device_options)})
 
@@ -485,17 +645,15 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_manual_add(
-        self, user_input: dict | None = None
+        self, user_input: dict | None = None, reconfigure_input: dict | None = None
     ) -> config_entries.ConfigFlowResult:
         """Handle the manual add of a device."""
         errors = {}
-        if user_input is not None:
-            await self.async_set_unique_id(format_mac_id(user_input[CONF_MAC]))
-            self._abort_if_unique_id_configured()
 
+        if user_input is not None:
             try:
-                self._device = GreeDevice(
-                    user_input[CONF_NAME],
+                _main_device = GreeDevice(
+                    f"Gree Device {user_input[CONF_MAC]}",
                     user_input[CONF_HOST],
                     user_input[CONF_MAC],
                     user_input[CONF_ADVANCED][CONF_PORT],
@@ -510,7 +668,37 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     max_connection_attempts=2,  # Use fewer attempts for testing the device
                     timeout=2,  # Use smaller timeout for testing the device
                 )
-                await self._device.bind_device()
+                self._main_mac = _main_device.mac_address
+                await self.async_set_unique_id(format_mac_id(self._main_mac))
+
+                if self._is_reconfigure:
+                    self._abort_if_unique_id_mismatch()
+                else:
+                    self._abort_if_unique_id_configured()
+
+                self._devices[_main_device.mac_address_sub] = _main_device
+
+                # self._discovered_subdevices = await get_sub_devices(
+                #     _main_device.mac_address, user_input[CONF_HOST], 0, 2, 2
+                # )
+                self._discovered_subdevices = await self._devices[
+                    _main_device.mac_address_sub
+                ].fetch_sub_devices()
+
+                # for d in self._discovered_subdevices:
+                #     self._devices[d.mac] = GreeDevice(
+                #         d.name,
+                #         user_input[CONF_HOST],
+                #         f"{d.mac}@{_main_device.mac_address}",
+                #         user_input[CONF_ADVANCED][CONF_PORT],
+                #         _main_device.encryption_key,
+                #         _main_device.encryption_version,
+                #         user_input[CONF_ADVANCED][CONF_UID],
+                #         max_connection_attempts=2,  # Use fewer attempts for testing the device
+                #         timeout=2,  # Use smaller timeout for testing the device
+                #     )
+
+                await self._devices[_main_device.mac_address_sub].fetch_device_status()
             except CannotConnect:
                 errors["base"] = "cannot_connect"
                 _LOGGER.exception("Cannot connect")
@@ -524,24 +712,33 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "unknown"
                 _LOGGER.exception("Unknown error while binding")
             else:
-                self._step_main_data = user_input
-                self._step_main_data["advanced"].update(
+                if self._step_main_data:
+                    self._step_main_data.update(user_input)
+                else:
+                    self._step_main_data = user_input
+                self._step_main_data[CONF_MAC] = _main_device.mac_address
+                self._step_main_data[CONF_ADVANCED].update(
                     {
-                        CONF_ENCRYPTION_VERSION: self._device.encryption_version,
-                        CONF_ENCRYPTION_KEY: self._device.encryption_key,
+                        CONF_ENCRYPTION_VERSION: _main_device.encryption_version,
+                        CONF_ENCRYPTION_KEY: _main_device.encryption_key,
                     }
                 )
+
                 return await self.async_step_device_options()
-        elif self._selected_device is not None:
+
+        elif self._discovery_selected_device is not None:
             user_input = {}
-            user_input[CONF_NAME] = self._selected_device.name
-            user_input[CONF_HOST] = self._selected_device.host
-            user_input[CONF_MAC] = self._selected_device.mac
+            # user_input[CONF_NAME] = self._selected_device.name
+            user_input[CONF_HOST] = self._discovery_selected_device.host
+            user_input[CONF_MAC] = self._discovery_selected_device.mac
             user_input[CONF_ADVANCED] = {}
-            user_input[CONF_ADVANCED][CONF_PORT] = self._selected_device.port
-            user_input[CONF_ADVANCED][CONF_UID] = self._selected_device.uid
-        elif self._discovery_performed and self._selected_device is None:
+            user_input[CONF_ADVANCED][CONF_PORT] = self._discovery_selected_device.port
+            user_input[CONF_ADVANCED][CONF_UID] = self._discovery_selected_device.uid
+        elif self._discovery_performed and self._discovery_selected_device is None:
             errors["base"] = "no_devices_found"
+        elif reconfigure_input is not None:
+            user_input = reconfigure_input
+            self._step_main_data = reconfigure_input
 
         return self.async_show_form(
             step_id="manual_add",
@@ -552,40 +749,102 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_device_options(
         self,
         user_input: dict | None = None,
+        index: int | None = None,
     ) -> config_entries.ConfigFlowResult:
         """Second step: configure features/modes."""
         if (
             user_input is not None
             and self._step_main_data is not None
-            and self._device is not None
+            and self._devices[self._main_mac] is not None
         ):
-            data = {**self._step_main_data, **user_input}
-
-            # If we are adding a new device
-            if not self._reconfiguring_entry:
-                await self.async_set_unique_id(format_mac_id(data[CONF_MAC]))
+            await self.async_set_unique_id(format_mac_id(self._main_mac))
+            if self._is_reconfigure:
+                self._abort_if_unique_id_mismatch()
+            else:
                 self._abort_if_unique_id_configured()
-                _LOGGER.debug("New entry with config: %s", data)
-                return self.async_create_entry(
-                    title=self._step_main_data[CONF_NAME], data=data
-                )
 
-            # If we are reconfiguring a device
-            self._abort_if_unique_id_mismatch()
-            return self.async_update_reload_and_abort(
-                self._reconfiguring_entry,
-                title=self._step_main_data[CONF_NAME],
-                data=data,
+            # Configuring the main device
+            # If it has no subdevices, finalyze entry
+            # Otherwise repeat form while iterating the subdevices
+            if index is None:
+                self._device_configs[self._main_mac] = {
+                    # Ignore the subdevice selection item
+                    k: v
+                    for k, v in user_input.items()
+                    if k != CONF_DEVICES
+                }
+
+                self._selected_subdevices_macs = user_input.get(CONF_DEVICES, [])
+                # Remove the device configs for the ones not selected so they are removed from the entry
+                self._device_configs = {
+                    k: v
+                    for k, v in self._device_configs.items()
+                    if k in self._selected_subdevices_macs or k == self._main_mac
+                }
+
+                if self._selected_subdevices_macs:
+                    return await self.async_step_device_options(None, 0)
+
+                if self._is_reconfigure:
+                    return self._update_entry()
+                return self._create_final_entry()
+
+            # If configuring a subdevice iterate the chosen subdevices
+            # If the last subdevice, finalyze the entry
+            self._device_configs[self._selected_subdevices_macs[index]] = user_input
+            if index + 1 < len(self._selected_subdevices_macs):
+                return await self.async_step_device_options(None, index + 1)
+
+            if self._is_reconfigure:
+                return self._update_entry()
+            return self._create_final_entry()
+
+        if self._step_main_data is None:
+            raise ValueError("No data from main options")
+
+        if self._devices[self._main_mac] is None:
+            raise ValueError("No device created in main options step")
+
+        device: GreeDevice = self._devices[self._main_mac]
+
+        if index is not None and self._discovered_subdevices:
+            device = self._devices[self._selected_subdevices_macs[index]]
+
+        await device.fetch_device_status()
+
+        conf_input = user_input
+        if self._is_reconfigure:
+            conf_input = self._get_device_conf(
+                self._step_main_data, device.mac_address_sub
+            )
+
+        schema = build_options_schema(self.hass, device, conf_input)
+
+        # If we are configuring the main device,
+        # add list of subdevices to include if any
+        if index is None and self._discovered_subdevices:
+            subdev_options = {d.mac: d.name for d in self._discovered_subdevices}
+            selected_options = subdev_options.keys()
+
+            # If reconfiguring, only preselect the devices already configured
+            if self._is_reconfigure:
+                configured_device_macs = [
+                    device["mac"] for device in self._step_main_data["devices"]
+                ]
+                selected_options = [
+                    mac for mac in subdev_options if mac in configured_device_macs
+                ]
+            schema.extend(
+                {
+                    vol.Required(
+                        CONF_DEVICES, default=selected_options
+                    ): cv.multi_select(subdev_options)
+                }
             )
 
         return self.async_show_form(
             step_id="device_options",
-            data_schema=build_options_schema(
-                self.hass,
-                user_input
-                if not self._reconfiguring_entry
-                else self._reconfiguring_entry.data,
-            ),
+            data_schema=schema,
         )
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None):
@@ -595,59 +854,19 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         _LOGGER.debug("Reconfiguring: %s", entry)
         await self.async_set_unique_id(entry.unique_id)
         self._reconfiguring_entry = entry
+        self._is_reconfigure = True
 
-        errors = {}
-
-        if user_input is not None:
-            self._abort_if_unique_id_mismatch()
-            _LOGGER.debug("User input: %s", user_input)
-            try:
-                self._device = GreeDevice(
-                    user_input[CONF_NAME],
-                    user_input[CONF_HOST],
-                    user_input[CONF_MAC],
-                    user_input[CONF_ADVANCED][CONF_PORT],
-                    user_input[CONF_ADVANCED][CONF_ENCRYPTION_KEY],
-                    EncryptionVersion(
-                        int(user_input[CONF_ADVANCED][CONF_ENCRYPTION_VERSION])
-                    )
-                    if user_input[CONF_ADVANCED][CONF_ENCRYPTION_VERSION]
-                    != "Auto-Detect"
-                    else None,
-                    user_input[CONF_ADVANCED][CONF_UID],
-                    max_connection_attempts=2,  # Use fewer attempts for testing the device
-                    timeout=2,  # Use smaller timeout for testing the device
-                )
-                await self._device.bind_device()
-            except CannotConnect:
-                errors["base"] = "cannot_connect"
-                _LOGGER.exception("Cannot connect")
-            except GreeDeviceNotBoundError:
-                errors["base"] = "cannot_connect"
-                _LOGGER.exception("Error while binding")
-            except GreeDeviceNotBoundErrorKey:
-                errors["base"] = "cannot_connect_key"
-                _LOGGER.exception("Error while binding with wrong key")
-            except Exception:
-                errors["base"] = "unknown"
-                _LOGGER.exception("Unknown error while binding")
-            else:
-                self._step_main_data = user_input
-                self._step_main_data["advanced"].update(
-                    {
-                        CONF_ENCRYPTION_VERSION: self._device.encryption_version,
-                        CONF_ENCRYPTION_KEY: self._device.encryption_key,
-                    }
-                )
-                return await self.async_step_device_options()
-
-        return self.async_show_form(
-            step_id="reconfigure",
-            data_schema=build_main_schema(
-                entry.data if entry.data is not None else user_input
-            ),
-            errors=errors,
+        return await self.async_step_manual_add(
+            None, dict(entry.data) if entry.data is not None else None
         )
+
+        # return self.async_show_form(
+        #     step_id="reconfigure",
+        #     data_schema=build_main_schema(
+        #         entry.data if entry.data is not None else user_input
+        #     ),
+        #     errors=errors,
+        # )
 
     async def _discover_devices(
         self, hass: HomeAssistant
@@ -669,3 +888,51 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.exception("Could not get HA broadcast addresses")
 
         return await discover_gree_devices(broadcast_addresses, 5)
+
+    def _create_final_entry(self):
+        """Build final entry data."""
+        data: dict = {}
+
+        if self._step_main_data:
+            data = self._step_main_data.copy()
+
+        # build devices list: main + subdevices
+        devices = []
+        for mac, conf in self._device_configs.items():
+            devices.append({**conf, CONF_MAC: mac})
+
+        data[CONF_DEVICES] = devices
+
+        _LOGGER.debug("New entry with config: %s", data)
+        return self.async_create_entry(
+            title=f"Gree System at {data[CONF_HOST]}", data=data
+        )
+
+    def _update_entry(self):
+        """Build final entry data."""
+        data: dict = {}
+
+        if self._reconfiguring_entry is None:
+            raise ValueError("Error updating entry which is not set")
+
+        if self._step_main_data:
+            data = self._step_main_data.copy()
+
+        # build devices list: main + subdevices
+        devices = []
+        for mac, conf in self._device_configs.items():
+            devices.append({**conf, CONF_MAC: mac})
+
+        data[CONF_DEVICES] = devices
+
+        _LOGGER.debug("Updating entry with config: %s", data)
+
+        return self.async_update_reload_and_abort(
+            self._reconfiguring_entry,
+            title=f"Gree System at {data[CONF_HOST]}",
+            data=data,
+        )
+
+    def _get_device_conf(self, config: dict, mac: str) -> dict | None:
+        configured_devices = config.get(CONF_DEVICES, [])
+        return next((d for d in configured_devices if d.get(CONF_MAC) == mac), None)

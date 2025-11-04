@@ -17,6 +17,7 @@ from homeassistant.components.climate import (
 from homeassistant.const import (
     ATTR_TEMPERATURE,
     ATTR_UNIT_OF_MEASUREMENT,
+    CONF_MAC,
     EVENT_CORE_CONFIG_UPDATE,
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
@@ -40,6 +41,7 @@ from .const import (
     ATTR_EXTERNAL_HUMIDITY_SENSOR,
     ATTR_EXTERNAL_TEMPERATURE_SENSOR,
     CONF_ADVANCED,
+    CONF_DEVICES,
     CONF_DISABLE_AVAILABLE_CHECK,
     CONF_FAN_MODES,
     CONF_HVAC_MODES,
@@ -84,42 +86,53 @@ async def async_setup_entry(
 ) -> None:
     """Set up sensors from a config entry."""
 
-    coordinator = entry.runtime_data
+    entities: list[GreeClimate] = []
 
-    hvac_modes: list[HVACMode] = [
-        HVACMode[mode.upper()]
-        for mode in (
-            entry.data[CONF_HVAC_MODES]
-            if entry.data[CONF_HVAC_MODES] is not None
-            else DEFAULT_HVAC_MODES
+    for d in entry.data.get(CONF_DEVICES, []):
+        coordinator: GreeCoordinator = entry.runtime_data[d.get(CONF_MAC, "")]
+        if not coordinator:
+            _LOGGER.error(
+                "Cannot create Gree Climate. No coordinator found for device '%s'",
+                d.get(CONF_MAC, ""),
+            )
+
+        hvac_modes: list[HVACMode] = [
+            HVACMode[mode.upper()]
+            for mode in (
+                d[CONF_HVAC_MODES]
+                if d[CONF_HVAC_MODES] is not None
+                else DEFAULT_HVAC_MODES
+            )
+        ]
+
+        fan_modes: list[str] = (
+            d[CONF_FAN_MODES] if d[CONF_FAN_MODES] is not None else DEFAULT_FAN_MODES
         )
-    ]
 
-    fan_modes: list[str] = (
-        entry.data[CONF_FAN_MODES]
-        if entry.data[CONF_FAN_MODES] is not None
-        else DEFAULT_FAN_MODES
-    )
-
-    swing_modes: list[str] = (
-        entry.data[CONF_SWING_MODES]
-        if entry.data[CONF_SWING_MODES] is not None
-        else DEFAULT_SWING_MODES
-    )
-
-    swing_horizontal_modes: list[str] = (
-        entry.data[CONF_SWING_HORIZONTAL_MODES]
-        if entry.data[CONF_SWING_HORIZONTAL_MODES] is not None
-        else DEFAULT_SWING_HORIZONTAL_MODES
-    )
-
-    if not hvac_modes:
-        _LOGGER.info(
-            "Climate Entity will not be created because no Climate options and features are available for the device"
+        swing_modes: list[str] = (
+            d[CONF_SWING_MODES]
+            if d[CONF_SWING_MODES] is not None
+            else DEFAULT_SWING_MODES
         )
-        return
-    async_add_entities(
-        [
+
+        swing_horizontal_modes: list[str] = (
+            d[CONF_SWING_HORIZONTAL_MODES]
+            if d[CONF_SWING_HORIZONTAL_MODES] is not None
+            else DEFAULT_SWING_HORIZONTAL_MODES
+        )
+
+        if not hvac_modes:
+            _LOGGER.info(
+                "Climate Entity will not be created because no Climate options and features are available for the device"
+            )
+            return
+
+        _LOGGER.debug(
+            "Adding Climate Entity for device '%s'",
+            coordinator.device.mac_address_sub,
+        )
+
+        entities.append(
             GreeClimate(
                 GreeClimateDescription(
                     key=GATTR_CLIMATE,
@@ -146,8 +159,9 @@ async def async_setup_entry(
                     ATTR_EXTERNAL_HUMIDITY_SENSOR
                 ),
             )
-        ]
-    )
+        )
+
+    async_add_entities(entities)
 
 
 @dataclass(frozen=True, kw_only=True)

@@ -7,14 +7,19 @@ from typing import Generic, TypeVar
 from attr import dataclass
 
 from homeassistant.components.select import SelectEntity, SelectEntityDescription
-from homeassistant.const import EntityCategory
+from homeassistant.const import CONF_MAC, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.typing import UNDEFINED
 
-from .const import CONF_DISABLE_AVAILABLE_CHECK, CONF_RESTORE_STATES, GATTR_TEMP_UNITS
+from .const import (
+    CONF_DEVICES,
+    CONF_DISABLE_AVAILABLE_CHECK,
+    CONF_RESTORE_STATES,
+    GATTR_TEMP_UNITS,
+)
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
 from .gree_api import GreeProp, TemperatureUnits
@@ -32,30 +37,45 @@ async def async_setup_entry(
 ) -> None:
     """Set up switches from a config entry."""
 
-    coordinator = entry.runtime_data
-    descriptions: list[GreeSelectDescription] = []
+    entities: list[GreeSelect] = []
 
-    descriptions.append(
-        GreeSelectDescription[GreeDevice](
-            key=GATTR_TEMP_UNITS,
-            translation_key=GATTR_TEMP_UNITS,
-            entity_category=EntityCategory.CONFIG,
-            options=[f"º{member.name}" for member in TemperatureUnits],
-            available_func=lambda device: (device.available
-            and device.supports_property(GreeProp.TARGET_TEMPERATURE_UNIT)),
-            value_func=lambda device: f"º{device.target_temperature_unit.name}",
-            set_func=lambda device, value: device.set_target_temperature_unit(
-                TemperatureUnits[value.replace("º", "")]
-            ),
-            updates_device=True,
+    for d in entry.data.get(CONF_DEVICES, []):
+        coordinator: GreeCoordinator = entry.runtime_data[d.get(CONF_MAC, "")]
+        if not coordinator:
+            _LOGGER.error(
+                "Cannot create Gree Selectors. No coordinator found for device '%s'",
+                d.get(CONF_MAC, ""),
+            )
+
+        descriptions: list[GreeSelectDescription] = []
+
+        if coordinator.device.supports_property(GreeProp.TARGET_TEMPERATURE_UNIT):
+            descriptions.append(
+                GreeSelectDescription[GreeDevice](
+                    key=GATTR_TEMP_UNITS,
+                    translation_key=GATTR_TEMP_UNITS,
+                    entity_category=EntityCategory.CONFIG,
+                    options=[f"º{member.name}" for member in TemperatureUnits],
+                    available_func=lambda device: (
+                        device.available
+                        and device.supports_property(GreeProp.TARGET_TEMPERATURE_UNIT)
+                    ),
+                    value_func=lambda device: f"º{device.target_temperature_unit.name}",
+                    set_func=lambda device, value: device.set_target_temperature_unit(
+                        TemperatureUnits[value.replace("º", "")]
+                    ),
+                    updates_device=True,
+                )
+            )
+
+        _LOGGER.debug(
+            "Adding Select Entities for device '%s': %s",
+            coordinator.device.mac_address_sub,
+            [d.key for d in descriptions],
         )
-    )
 
-    _LOGGER.debug("Adding Select Entities: %s", [desc.key for desc in descriptions])
-
-    async_add_entities(
-        [
-            GreeSelectEntity(
+        entities.extend(
+            GreeSelect(
                 description,
                 coordinator,
                 entry.data.get(CONF_RESTORE_STATES, True),
@@ -64,8 +84,9 @@ async def async_setup_entry(
                 ),
             )
             for description in descriptions
-        ]
-    )
+        )
+
+    async_add_entities(entities)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -89,7 +110,7 @@ class GreeSelectDescription(GreeEntityDescription, SelectEntityDescription, Gene
     updates_device: bool = True
 
 
-class GreeSelectEntity(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ignore[reportIncompatibleVariableOverride]
+class GreeSelect(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ignore[reportIncompatibleVariableOverride]
     """A Gree select entity."""
 
     entity_description: GreeSelectDescription
@@ -114,7 +135,7 @@ class GreeSelectEntity(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ign
 
         self._attr_current_option = self.entity_description.value_func(self.device)
         _LOGGER.debug(
-            "Initialized select: %s (check_availability=%s) Options:\n%s",
+            "Initialized select: %s (check_availability=%s) Options: %s",
             self._attr_unique_id,
             self.check_availability,
             self._attr_options,

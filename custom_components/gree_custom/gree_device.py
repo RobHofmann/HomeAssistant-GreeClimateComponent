@@ -8,6 +8,7 @@ from .gree_api import (
     DEFAULT_DEVICE_UID,
     EncryptionVersion,
     FanSpeed,
+    GreeDiscoveredDevice,
     GreeProp,
     HorizontalSwingMode,
     OperationMode,
@@ -16,6 +17,7 @@ from .gree_api import (
     gree_get_device_info,
     gree_get_device_key,
     gree_get_status,
+    gree_get_sub_devices_list,
     gree_set_status,
 )
 from .gree_helpers import (
@@ -71,14 +73,15 @@ class GreeDevice:
         self._name: str = name
         self._ip_addr: str = ip_addr
         self._port: int = port
-        self._mac_addr = self._mac_addr_sub = mac_addr.replace(":", "").lower()
-        if "@" in mac_addr:
-            self._mac_addr_sub, self._mac_addr = mac_addr.lower().split("@", 1)
+        self._mac_addr = self._mac_addr_sub = (
+            mac_addr.replace(":", "").replace("-", "").lower()
+        )
+        if "@" in self._mac_addr:
+            self._mac_addr_sub, self._mac_addr = self._mac_addr.lower().split("@", 1)
         self._encryption_version: EncryptionVersion | None = encryption_version
         self._encryption_key: str = encryption_key
         self._uid: int = uid
-        self._firmware_version: str | None = None
-        self._firmware_code: str | None = None
+
         self._raw_state: dict[GreeProp, int] = {}
         self._new_raw_state: dict[GreeProp, int] = {}
         self._is_bound: bool = False
@@ -96,12 +99,17 @@ class GreeDevice:
         self._temp_processor_outdoors: TempOffsetResolver | None = None
         self._beeper = False
 
+        self._raw_info: dict[str, str | None] = {}
+        self._firmware_version: str | None = None
+        self._firmware_code: str | None = None
+        self._subdevicesCount: int = 0
+
     async def bind_device(self) -> bool:
         """Setup the device (async)."""
         if not self._is_bound:
             try:
                 # Used also as basic communication test
-                info = await gree_get_device_info(
+                self._raw_info = await gree_get_device_info(
                     self._ip_addr,
                     self._max_connection_attempts,
                     self._timeout,
@@ -112,13 +120,15 @@ class GreeDevice:
                     f"Not able to connect to the device {self._ip_addr}"
                 ) from e
             else:
-                if info.get("mac", "") != self._mac_addr:
+                if self._raw_info.get("mac", "") != self._mac_addr:
                     raise CannotConnect(
-                        f"Not able to connect to the device {self._ip_addr}. MAC mismatch {info.get('mac', '')} not {self._mac_addr}."
+                        f"Not able to connect to the device {self._ip_addr}. MAC mismatch {self._raw_info.get('mac', '')} not {self._mac_addr}."
                     )
-                self._firmware_version = info.get("firmware_version")
-                self._firmware_code = info.get("firmware_code")
-
+                self._firmware_version = self._raw_info.get("firmware_version")
+                self._firmware_code = self._raw_info.get("firmware_code")
+                self._subdevicesCount = int(
+                    self._raw_info.get("subdevices_count", 0) or 0
+                )
             try:
                 (
                     encryption_key,
@@ -155,9 +165,60 @@ class GreeDevice:
 
         return self._is_bound
 
+    async def fetch_sub_devices(self) -> list[GreeDiscoveredDevice]:
+        """Get the sub devices list."""
+        _LOGGER.debug("Trying to get subdevices")
+
+        if not self._is_bound:
+            await self.bind_device()
+
+        assert self._encryption_version is not None
+
+        if not self._subdevicesCount:
+            return []
+
+        discovered_devices: list[GreeDiscoveredDevice] = []
+
+        try:
+            subs = await gree_get_sub_devices_list(
+                self._ip_addr,
+                self._mac_addr,
+                self._port,
+                self._uid,
+                self._encryption_key,
+                self._encryption_version,
+                self._max_connection_attempts,
+                self._timeout,
+            )
+        except Exception as err:
+            self._is_available = False
+            raise ValueError("Error getting subdevices") from err
+        else:
+            for sub_device in subs:
+                sub_mac = sub_device.get("mac", "")
+                if sub_mac:
+                    discovered_sub_device = GreeDiscoveredDevice(
+                        name=f"{sub_device.get('name', '') or f'Gree {sub_mac[:4]}@{self.mac_address[-4:]}'}",
+                        host=self._ip_addr,
+                        mac=sub_mac,
+                        port=self._port,
+                        brand=sub_device.get("brand", "Gree"),
+                        model=sub_device.get("mid", "HVAC"),
+                        uid=self._uid,
+                        subdevices=0,
+                    )
+                    discovered_devices.append(discovered_sub_device)
+                    _LOGGER.debug(
+                        "Discovered sub-device: %s",
+                        discovered_sub_device,
+                    )
+                _LOGGER.debug("Subdevices of '%s': %s", self._mac_addr, subs)
+                self._is_available = True
+
+            return discovered_devices
+
     async def fetch_device_status(self):
         """Get the device status (async)."""
-
         _LOGGER.debug("Trying to get device status")
 
         if not self._is_bound:
@@ -342,7 +403,7 @@ class GreeDevice:
         """Returns True if the device endpoint supports the property."""
         # We consider a property as unsupported if it is not present in the raw state list
         # This assumes that the full state is fetched at least once before this method is called
-        return property in self._raw_state
+        return property in self._raw_state if property is not GreeProp.BEEPER else True
 
     @property
     def name(self) -> str:
@@ -363,6 +424,16 @@ class GreeDevice:
     def unique_id(self) -> str:
         """Return the unique ID of the device (MAC)."""
         return self._uniqueid
+
+    @property
+    def mac_address(self) -> str:
+        """Return the main MAC address of the device."""
+        return self._mac_addr
+
+    @property
+    def mac_address_sub(self) -> str:
+        """Return the secondary MAC address of the device. For non VRF is the same as MAC otherwise is the MAC of the subdevice (same as MAC for the main device)."""
+        return self._mac_addr_sub
 
     @property
     def firmware_version(self) -> str | None:

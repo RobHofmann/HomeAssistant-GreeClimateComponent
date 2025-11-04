@@ -5,6 +5,7 @@ from homeassistant.const import UnitOfTemperature
 
 from .gree_api import (
     FanSpeed,
+    GreeProp,
     HorizontalSwingMode,
     OperationMode,
     TemperatureUnits,
@@ -20,7 +21,8 @@ CONF_ENCRYPTION_VERSION = "encryption_version"
 CONF_DISABLE_AVAILABLE_CHECK = "disable_available_check"
 CONF_MAX_ONLINE_ATTEMPTS = "max_online_attempts"
 CONF_RESTORE_STATES = "restore_states"
-
+CONF_DEVICES = "devices"
+CONF_DEV_NAME = "device_name"
 CONF_HVAC_MODES = "hvac_modes"
 CONF_FAN_MODES = "fan_modes"
 CONF_SWING_MODES = "swing_modes"
@@ -68,6 +70,18 @@ ATTR_EXTERNAL_HUMIDITY_SENSOR = "external_humidity_sensor"
 ATTR_AUTO_XFAN = "auto_xfan"
 ATTR_AUTO_LIGHT = "auto_light"
 
+# Map each feature constant to its corresponding GreeProp
+CONF_TO_PROP_FEATURE_MAP = {
+    GATTR_BEEPER: GreeProp.BEEPER,
+    GATTR_FEAT_FRESH_AIR: GreeProp.FEAT_FRESH_AIR,
+    GATTR_FEAT_XFAN: GreeProp.FEAT_XFAN,
+    GATTR_FEAT_SLEEP_MODE: GreeProp.FEAT_SLEEP_MODE,
+    GATTR_FEAT_SMART_HEAT_8C: GreeProp.FEAT_SMART_HEAT_8C,
+    GATTR_FEAT_HEALTH: GreeProp.FEAT_HEALTH,
+    GATTR_ANTI_DIRECT_BLOW: GreeProp.FEAT_ANTI_DIRECT_BLOW,
+    GATTR_FEAT_ENERGY_SAVING: GreeProp.FEAT_ENERGY_SAVING,
+    GATTR_FEAT_LIGHT: GreeProp.FEAT_LIGHT,
+}
 
 # HVAC modes - these come from Home Assistant and are standard
 DEFAULT_HVAC_MODES = [
@@ -101,8 +115,8 @@ DEFAULT_FAN_MODES = [
     FanSpeed.Medium.name,
     FanSpeed.MediumHigh.name,
     FanSpeed.High.name,
-    GATTR_FEAT_TURBO,  # Special mode on Gree device
-    GATTR_FEAT_QUIET_MODE,  # Special mode on Gree device
+    # GATTR_FEAT_TURBO,  # Special mode on Gree device
+    # GATTR_FEAT_QUIET_MODE,  # Special mode on Gree device
 ]
 
 DEFAULT_SWING_MODES = [

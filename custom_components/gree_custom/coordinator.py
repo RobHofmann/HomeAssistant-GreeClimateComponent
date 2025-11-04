@@ -15,7 +15,7 @@ from .gree_device import GreeDevice, GreeDeviceNotBoundError
 
 _LOGGER = logging.getLogger(__name__)
 
-type GreeConfigEntry = ConfigEntry[GreeCoordinator]
+type GreeConfigEntry = ConfigEntry[dict[str, GreeCoordinator]]
 
 
 class GreeCoordinator(DataUpdateCoordinator[None]):
