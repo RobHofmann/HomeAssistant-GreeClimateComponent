@@ -10,7 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_MAC, CONF_PORT, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers.device_registry import DeviceEntry
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.typing import ConfigType
 
 from .aiogree.const import (
@@ -120,8 +120,45 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
-def _update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Handle options update."""
-    _LOGGER.debug("Options updated for entry %s: %s", entry.entry_id, entry.options)
-    _LOGGER.debug("Reloading config entry %s after options update", entry.entry_id)
-    hass.config_entries.async_schedule_reload(entry.entry_id)
+async def async_remove_config_entry_device(
+    hass: HomeAssistant, config_entry: GreeConfigEntry, device_entry: dr.DeviceEntry
+) -> bool:
+    """Remove a config entry from a device."""
+
+    # Find MAC address for this device (from identifiers)
+    identifiers = device_entry.identifiers
+    mac: str | None = None
+    for domain, identifier in identifiers:
+        if domain == DOMAIN:
+            mac = identifier
+            break
+
+    if mac is None:
+        return False
+
+    runtime_data: GreeCoordinator | None = config_entry.runtime_data.pop(mac, None)
+
+    if not runtime_data:
+        return False
+
+    data: dict = dict(config_entry.data)
+    device_configs: list[dict] = data.get(CONF_DEVICES, [])
+    for dconf in list(device_configs):
+        if dconf.get(CONF_MAC, "") != mac:
+            continue
+
+        device_configs.remove(dconf)
+
+    data[CONF_DEVICES] = device_configs
+
+    device_registry = dr.async_get(hass)
+    device_registry.async_remove_device(device_entry.id)
+
+    if device_configs:
+        # There are still other devices, update the entry
+        hass.config_entries.async_update_entry(config_entry, data=data)
+    else:
+        # No other devices, remove the entry
+        await hass.config_entries.async_remove(config_entry.entry_id)
+
+    return True
