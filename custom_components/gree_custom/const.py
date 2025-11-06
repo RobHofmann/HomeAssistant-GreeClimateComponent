@@ -3,7 +3,7 @@
 from homeassistant.components.climate import HVACMode
 from homeassistant.const import UnitOfTemperature
 
-from .gree_api import (
+from .aiogree.api import (
     FanSpeed,
     GreeProp,
     HorizontalSwingMode,

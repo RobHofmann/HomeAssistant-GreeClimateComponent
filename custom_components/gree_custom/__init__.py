@@ -13,6 +13,13 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.typing import ConfigType
 
+from .aiogree.const import (
+    DEFAULT_CONNECTION_MAX_ATTEMPTS,
+    DEFAULT_DEVICE_PORT,
+    DEFAULT_DEVICE_UID,
+)
+from .aiogree.device import GreeDevice, GreeDeviceNotBoundError
+
 # Local imports
 from .const import (
     CONF_ADVANCED,
@@ -28,12 +35,6 @@ from .const import (
 
 # Home Assistant imports
 from .coordinator import GreeConfigEntry, GreeCoordinator
-from .gree_api import (
-    DEFAULT_CONNECTION_MAX_ATTEMPTS,
-    DEFAULT_DEVICE_PORT,
-    DEFAULT_DEVICE_UID,
-)
-from .gree_device import GreeDevice, GreeDeviceNotBoundError
 
 PLATFORMS = [
     Platform.CLIMATE,

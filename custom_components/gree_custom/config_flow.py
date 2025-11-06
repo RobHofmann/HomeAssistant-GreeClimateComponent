@@ -30,6 +30,24 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
+from .aiogree.api import (
+    EncryptionVersion,
+    GreeDiscoveredDevice,
+    GreeProp,
+    discover_gree_devices,
+)
+from .aiogree.const import (
+    DEFAULT_CONNECTION_MAX_ATTEMPTS,
+    DEFAULT_CONNECTION_TIMEOUT,
+    DEFAULT_DEVICE_PORT,
+    DEFAULT_DEVICE_UID,
+)
+from .aiogree.device import (
+    CannotConnect,
+    GreeDevice,
+    GreeDeviceNotBoundError,
+    GreeDeviceNotBoundErrorKey,
+)
 from .const import (
     ATTR_EXTERNAL_HUMIDITY_SENSOR,
     ATTR_EXTERNAL_TEMPERATURE_SENSOR,
@@ -68,22 +86,6 @@ from .const import (
     GATTR_FEAT_XFAN,
 )
 from .coordinator import GreeConfigEntry
-from .gree_api import (
-    DEFAULT_CONNECTION_MAX_ATTEMPTS,
-    DEFAULT_CONNECTION_TIMEOUT,
-    DEFAULT_DEVICE_PORT,
-    DEFAULT_DEVICE_UID,
-    EncryptionVersion,
-    GreeDiscoveredDevice,
-    GreeProp,
-    discover_gree_devices,
-)
-from .gree_device import (
-    CannotConnect,
-    GreeDevice,
-    GreeDeviceNotBoundError,
-    GreeDeviceNotBoundErrorKey,
-)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -685,18 +687,19 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     _main_device.mac_address_sub
                 ].fetch_sub_devices()
 
-                # for d in self._discovered_subdevices:
-                #     self._devices[d.mac] = GreeDevice(
-                #         d.name,
-                #         user_input[CONF_HOST],
-                #         f"{d.mac}@{_main_device.mac_address}",
-                #         user_input[CONF_ADVANCED][CONF_PORT],
-                #         _main_device.encryption_key,
-                #         _main_device.encryption_version,
-                #         user_input[CONF_ADVANCED][CONF_UID],
-                #         max_connection_attempts=2,  # Use fewer attempts for testing the device
-                #         timeout=2,  # Use smaller timeout for testing the device
-                #     )
+                for d in self._discovered_subdevices:
+                    subdev = GreeDevice(
+                        d.name,
+                        user_input[CONF_HOST],
+                        f"{d.mac}@{_main_device.mac_address}",
+                        user_input[CONF_ADVANCED][CONF_PORT],
+                        _main_device.encryption_key,
+                        _main_device.encryption_version,
+                        user_input[CONF_ADVANCED][CONF_UID],
+                        max_connection_attempts=2,  # Use fewer attempts for testing the device
+                        timeout=2,  # Use smaller timeout for testing the device
+                    )
+                    self._devices[subdev.mac_address_sub] = subdev
 
                 await self._devices[_main_device.mac_address_sub].fetch_device_status()
             except CannotConnect:

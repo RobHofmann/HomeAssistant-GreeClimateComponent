@@ -2,10 +2,7 @@
 
 import logging
 
-from .gree_api import (
-    DEFAULT_CONNECTION_MAX_ATTEMPTS,
-    DEFAULT_CONNECTION_TIMEOUT,
-    DEFAULT_DEVICE_UID,
+from .api import (
     EncryptionVersion,
     FanSpeed,
     GreeDiscoveredDevice,
@@ -20,7 +17,12 @@ from .gree_api import (
     gree_get_sub_devices_list,
     gree_set_status,
 )
-from .gree_helpers import (
+from .const import (
+    DEFAULT_CONNECTION_MAX_ATTEMPTS,
+    DEFAULT_CONNECTION_TIMEOUT,
+    DEFAULT_DEVICE_UID,
+)
+from .helpers import (
     TempOffsetResolver,
     gree_get_target_temp_props_from_c,
     gree_get_target_temp_props_from_f,

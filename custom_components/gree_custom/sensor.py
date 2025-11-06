@@ -15,6 +15,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
+from .aiogree.api import GreeProp
+from .aiogree.device import GreeDevice
 from .const import (
     CONF_DEVICES,
     CONF_DISABLE_AVAILABLE_CHECK,
@@ -24,8 +26,6 @@ from .const import (
 )
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
-from .gree_api import GreeProp
-from .gree_device import GreeDevice
 
 _LOGGER = logging.getLogger(__name__)
 

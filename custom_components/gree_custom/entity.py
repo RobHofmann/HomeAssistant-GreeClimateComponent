@@ -9,9 +9,9 @@ from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.helpers.entity import DeviceInfo, EntityDescription
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .aiogree.device import GreeDevice
 from .const import DOMAIN
 from .coordinator import GreeCoordinator
-from .gree_device import GreeDevice
 
 
 class GreeEntity(CoordinatorEntity[GreeCoordinator]):

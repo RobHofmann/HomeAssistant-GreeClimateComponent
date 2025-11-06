@@ -11,7 +11,7 @@ from homeassistant.helpers.update_coordinator import (
     timedelta,
 )
 
-from .gree_device import GreeDevice, GreeDeviceNotBoundError
+from .aiogree.device import GreeDevice, GreeDeviceNotBoundError
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -37,6 +37,8 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.typing import UNDEFINED
 from homeassistant.util.unit_conversion import TemperatureConverter
 
+from .aiogree.api import FanSpeed, GreeProp, HorizontalSwingMode, VerticalSwingMode
+from .aiogree.const import MAX_TEMP_C, MAX_TEMP_F, MIN_TEMP_C, MIN_TEMP_F
 from .const import (
     ATTR_EXTERNAL_HUMIDITY_SENSOR,
     ATTR_EXTERNAL_TEMPERATURE_SENSOR,
@@ -63,16 +65,6 @@ from .const import (
 )
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
-from .gree_api import (
-    MAX_TEMP_C,
-    MAX_TEMP_F,
-    MIN_TEMP_C,
-    MIN_TEMP_F,
-    FanSpeed,
-    GreeProp,
-    HorizontalSwingMode,
-    VerticalSwingMode,
-)
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -16,6 +16,8 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
+from .aiogree.api import GreeProp, OperationMode
+from .aiogree.device import GreeDevice
 from .const import (
     ATTR_AUTO_LIGHT,
     ATTR_AUTO_XFAN,
@@ -38,8 +40,6 @@ from .const import (
 )
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
-from .gree_api import GreeProp, OperationMode
-from .gree_device import GreeDevice
 
 _LOGGER = logging.getLogger(__name__)
 
