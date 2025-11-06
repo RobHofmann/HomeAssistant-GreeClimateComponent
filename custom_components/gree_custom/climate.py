@@ -136,20 +136,14 @@ async def async_setup_entry(
                 fan_modes,
                 swing_modes,
                 swing_horizontal_modes,
-                temperature_step=entry.data.get(
-                    CONF_TEMPERATURE_STEP, DEFAULT_TARGET_TEMP_STEP
-                ),
-                restore_state=(entry.data.get(CONF_RESTORE_STATES, True)),
+                temperature_step=d.get(CONF_TEMPERATURE_STEP, DEFAULT_TARGET_TEMP_STEP),
+                restore_state=(d.get(CONF_RESTORE_STATES, True)),
                 check_availability=(
                     entry.data[CONF_ADVANCED].get(CONF_DISABLE_AVAILABLE_CHECK, False)
                     is False
                 ),
-                external_temperature_sensor_id=entry.data.get(
-                    ATTR_EXTERNAL_TEMPERATURE_SENSOR
-                ),
-                external_humidity_sensor_id=entry.data.get(
-                    ATTR_EXTERNAL_HUMIDITY_SENSOR
-                ),
+                external_temperature_sensor_id=d.get(ATTR_EXTERNAL_TEMPERATURE_SENSOR),
+                external_humidity_sensor_id=d.get(ATTR_EXTERNAL_HUMIDITY_SENSOR),
             )
         )
 
