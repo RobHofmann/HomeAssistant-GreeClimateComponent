@@ -206,7 +206,7 @@ def build_options_schema(
 
     valid_fan_modes = []
     if device.supports_property(GreeProp.FAN_SPEED):
-        valid_fan_modes = DEFAULT_FAN_MODES
+        valid_fan_modes = list(DEFAULT_FAN_MODES)
     if device.supports_property(GreeProp.FEAT_TURBO_MODE):
         valid_fan_modes.append(GATTR_FEAT_TURBO)
     if device.supports_property(GreeProp.FEAT_QUIET_MODE):
