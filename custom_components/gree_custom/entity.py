@@ -38,7 +38,7 @@ class GreeEntity(CoordinatorEntity[GreeCoordinator]):
     @property
     def unique_id(self) -> str | None:
         """Returns a unique id for the entity."""
-        return self.entity_description.key
+        return f"{self.device.mac_address_sub}_{self.entity_description.key}"
 
     @property
     def device_info(self) -> DeviceInfo:
