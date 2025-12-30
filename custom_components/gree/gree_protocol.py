@@ -104,7 +104,7 @@ async def test_connection(config):
     ip_addr = config[CONF_HOST]
     port = config[CONF_PORT]
     encryption_version = config[CONF_ENCRYPTION_VERSION]
-    encryption_key = config[CONF_ENCRYPTION_KEY]
+    encryption_key = config.get(CONF_ENCRYPTION_KEY)
 
     mac_addr = config.get(CONF_MAC).encode().replace(b":", b"").decode("utf-8").lower()
     if "@" in mac_addr:
@@ -113,6 +113,35 @@ async def test_connection(config):
     _LOGGER.debug(f"test_connection: host={ip_addr}, port={port}, mac={mac_addr}, encryption_version={encryption_version}, encryption_key={encryption_key}")
 
     try:
+        # If we have a key, try to use it to verify connection instead of fetching a new one
+        if encryption_key:
+            _LOGGER.debug("Testing connection with provided key")
+            # Try to fetch status using the provided key
+            # We request a simple property "Pow" (Power)
+            plaintext = '{"cols":["Pow"],"mac":"' + mac_addr + '","t":"status"}'
+            
+            if encryption_version == 1:
+                cipher = AES.new(encryption_key.encode("utf8"), AES.MODE_ECB)
+                pack = base64.b64encode(cipher.encrypt(Pad(plaintext).encode("utf8"))).decode("utf-8")
+                jsonPayloadToSend = f'{{"cid":"app","i":0,"pack":"{pack}","t":"pack","tcid":"{mac_addr}","uid":0}}'
+            else:
+                # Version 2
+                pack, tag = EncryptGCM(encryption_key.encode("utf8"), plaintext)
+                cipher = GetGCMCipher(encryption_key.encode("utf8"))
+                jsonPayloadToSend = f'{{"cid":"app","i":0,"pack":"{pack}","t":"pack","tcid":"{mac_addr}","uid":0,"tag":"{tag}"}}'
+
+            result = await FetchResult(cipher, ip_addr, port, jsonPayloadToSend, encryption_version=encryption_version)
+            if result:
+                _LOGGER.debug("Connection verified with provided key")
+                return True
+            else:
+                _LOGGER.warning("Failed to verify connection with provided key")
+                # Fallthrough to try fetching key? No, if user provided key, we assume they want to use it.
+                # But maybe they provided wrong key?
+                # Let's return False if provided key fails, as we shouldn't overwrite it with a fetched one silently?
+                # Actually, original logic was "return key is not None" after fetching.
+                return False
+
         if encryption_version == 1:
             key = await GetDeviceKey(mac_addr, ip_addr, port)
         else:
