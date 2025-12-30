@@ -104,7 +104,7 @@ async def test_connection(config):
     ip_addr = config[CONF_HOST]
     port = config[CONF_PORT]
     encryption_version = config[CONF_ENCRYPTION_VERSION]
-    encryption_key = config.get(CONF_ENCRYPTION_KEY)
+    encryption_key = config[CONF_ENCRYPTION_KEY]
 
     mac_addr = config.get(CONF_MAC).encode().replace(b":", b"").decode("utf-8").lower()
     if "@" in mac_addr:
