@@ -192,7 +192,6 @@
     "climate": {
       "hvac": {
         "state_attributes": {
-          "default": "Fan Speed",
           "fan_mode": {
             "state": {
               "auto": "Auto",
@@ -206,7 +205,6 @@
             }
           },
           "swing_mode": {
-            "default": "Vertical Swing",
             "state": {
               "default": "Default",
               "full_swing": "Swing in full range",
@@ -223,7 +221,6 @@
             }
           },
           "swing_horizontal_mode": {
-            "default": "Horizontal Swing",
             "state": {
               "default": "Default",
               "full_swing": "Swing in full range",
@@ -239,64 +236,50 @@
     },
     "number": {
       "target_temp_step": {
-        "name": "Temperature Step",
-        "description": "Sets the increment step for adjusting the target temperature."
+        "name": "Temperature Step"
       }
     },
     "select": {
       "temperature_units": {
-        "name": "Temperature Units",
-        "description": "Select the temperature units used by the device."
+        "name": "Temperature Units"
       }
     },
     "switch": {
       "auto_light": {
-        "name": "Auto Display Light",
-        "description": "Automatically controls the display lights based on HVAC operations. When enabled, lights will turn on/off with the AC unit."
+        "name": "Auto Display Light"
       },
       "auto_xfan": {
-        "name": "Auto X-Fan",
-        "description": "Automatically controls the X-Fan mode based on HVAC operations. When enabled, X-Fan will automatically turn on in cooling and dry modes."
+        "name": "Auto X-Fan"
       },
       "lights": {
-        "name": "Display Light",
-        "description": "Controls the display lights on the air conditioner unit."
+        "name": "Display Light"
       },
       "xfan": {
-        "name": "X-Fan",
-        "description": "Enables or disables the X-Fan mode for extra drying when turning off."
+        "name": "X-Fan"
       },
       "health": {
-        "name": "Health",
-        "description": "Enables or disables the Health mode for air ionization and purification."
+        "name": "Health"
       },
       "powersave": {
-        "name": "Power Save",
-        "description": "Enables or disables the power saving mode for energy efficiency. Only available in cooling mode."
+        "name": "Power Save"
       },
       "eightdegheat": {
-        "name": "Smart Heat 8ºC",
-        "description": "Enables or disables the 8°C heating mode for frost protection. Only available in heating mode."
+        "name": "Smart Heat 8ºC"
       },
       "sleep": {
-        "name": "Sleep",
-        "description": "Enables or disables the sleep mode for comfortable overnight operation. Only available in cooling or heating mode."
+        "name": "Sleep"
       },
       "air": {
-        "name": "Fresh Air",
-        "description": "Enables or disables the fresh air circulation mode."
+        "name": "Fresh Air"
       },
       "anti_direct_blow": {
-        "name": "Anti Direct Blow",
-        "description": "Prevents direct air flow from blowing on people by adjusting the air deflector position."
+        "name": "Anti Direct Blow"
       },
       "light_sensor": {
-        "name": "Display Auto Brightness",
-        "description": "Enables or disables light sensor for automatic brightness. Requires lights to be enabled."
+        "name": "Display Auto Brightness"
       },
       "beeper": {
-        "name": "Beeper",
-        "description": "Controls the beeper sounds from the air conditioner unit. When enabled, the unit will make sounds for button presses and status changes."
+        "name": "Beeper"
       }
     }
   },

@@ -151,7 +151,7 @@
     "swing_horizontal_modes": {
       "options": {
         "default": "Por defeito",
-        "full_Swing": "Oscilação completa",
+        "full_swing": "Oscilação completa",
         "left": "Fixo à esquerda",
         "left_center": "Fixo entre o meio e esquerda",
         "center": "Fixo no meio",
@@ -196,7 +196,7 @@
             "state": {
               "auto": "Automática",
               "low": "Baixa",
-              "medium_ow": "Média-Baixa",
+              "medium_low": "Média-Baixa",
               "medium": "Média",
               "medium_high": "Média-Alta",
               "high": "Alta",
@@ -211,7 +211,7 @@
               "fixed_upper": "Fixo no topo",
               "fixed_upper_middle": "Fixo entre o meio e topo",
               "fixed_middle": "Fixo no meio",
-              "fixed_lowerMiddle": "Fixo entre o meio e baixo",
+              "fixed_lower_middle": "Fixo entre o meio e baixo",
               "fixed_lower": "Fixo em baixo",
               "swing_lower": "Oscilação na região inferior",
               "swing_lower_middle": "Oscilação na região média-inferior",
@@ -236,64 +236,50 @@
     },
     "number": {
       "target_temp_step": {
-        "name": "Incremento de Temperatura",
-        "description": "Define o incremento de temperatura usado para ajustar a temperatura."
+        "name": "Incremento de Temperatura"
       }
     },
     "select": {
       "temperature_units": {
-        "name": "Unidade de Temperatura",
-        "description": "Seleciona a unidade de temperatura usada pelo dispositivo."
+        "name": "Unidade de Temperatura"
       }
     },
     "switch": {
       "auto_light": {
-        "name": "Visor Automático",
-        "description": "Controla o funcionamento do visor do dispositivo com base no modo de operação. Se ativo, o visor irá ficar desligado no modo desligar e ligado nos restantes modos."
+        "name": "Visor Automático"
       },
       "auto_xfan": {
-        "name": "X-Fan Automática",
-        "description": "Controla o modo X-Fan com base no modo de operação. Quando ativo, o modo X-Fan será ligado automaticamente nos modos de Refrigerar e Desumidificar."
+        "name": "X-Fan Automática"
       },
       "lights": {
-        "name": "Visor",
-        "description": "Controla se o visor do dispositivo está ligado ou não."
+        "name": "Visor"
       },
       "xfan": {
-        "name": "X-Fan",
-        "description": "Evita condensação após desligar o dispositivo mantendo o ventilador ligado por uns momentos."
+        "name": "X-Fan"
       },
       "health": {
-        "name": "Saúde",
-        "description": "Purifica a ar através de ionização."
+        "name": "Saúde"
       },
       "powersave": {
-        "name": "Poupança de Energia",
-        "description": "Reduz o consumo energético do dispositivo. Apenas disponível no modo de Refrigerar."
+        "name": "Poupança de Energia"
       },
       "eightdegheat": {
-        "name": "Fora de Casa",
-        "description": "Mantém uma temperatura de 8°C para evitar o congelamento. Apenas disponível no modo de Aquecer."
+        "name": "Fora de Casa"
       },
       "sleep": {
-        "name": "Dormir",
-        "description": "Mantém uma operação noturna confortável. Apenas disponível nos modos de Refrigerar e Aquecer."
+        "name": "Dormir"
       },
       "air": {
-        "name": "Ar Fresco",
-        "description": "Controla o modo circulação de Ar Fresco."
+        "name": "Ar Fresco"
       },
       "anti_direct_blow": {
-        "name": "Anti Sopro Direto",
-        "description": "Previne que o fluxo de ar seja direcionado diretamente para as pessoas através do ajuste das grelhas direcionais."
+        "name": "Anti Sopro Direto"
       },
       "light_sensor": {
-        "name": "Brilho Automático do Visor",
-        "description": "Permite que o brilho do visor se adapte automáticamente ao ambiente. Requer o visor esteja ligado."
+        "name": "Brilho Automático do Visor"
       },
       "beeper": {
-        "name": "Aviso Sonoro",
-        "description": "Se ativo, o dispositivo irá produzir um 'beep' a cada comando."
+        "name": "Aviso Sonoro"
       }
     }
   },
