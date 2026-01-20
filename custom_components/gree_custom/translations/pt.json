@@ -1,0 +1,314 @@
+{
+  "config": {
+    "title": "Gree Climate",
+    "description": "Configure os seus equipamentos Gree",
+    "error": {
+      "unknown": "Ocorreu algo de errado, tente de novo. Se o problema persistir, verifique os registos.",
+      "cannot_connect": "Não foi possível ligar ao dispositivo. Verifique as configurações do dispositivo e de rede e tente de novo.ain. Se o problema persistir, verifique os registos.",
+      "cannot_connect_key": "Não foi possível ligar ao dispositivo. A chave de encriptação definida não corresponde à chave do dispositivo.",
+      "no_devices_found": "Não foram encontrados novos dispositivos Gree compatíveis na rede. Por favor, adicione o dispositivo manualmente."
+    },
+    "abort": {
+      "already_configured": "Um dispositivo com este endereço MAC já foi configurado previamente."
+    },
+    "step": {
+      "user": {
+        "title": "Configuração Gree",
+        "description": "Escolha como adicionar o seu dispositivo Gree",
+        "data": {
+          "discovery": "Método"
+        }
+      },
+      "manual_discovery": {
+        "title": "Dispositivos Encontrados",
+        "description": "Foram encontrado(s) {devices_found} dispositivo(s) Gree. Selecione um para adicionar ou escolha a configuração manual.",
+        "data": {
+          "device": "Dispositivo"
+        }
+      },
+      "manual_add": {
+        "title": "Configuração do dispositivo",
+        "data": {
+          "host": "Endereço IP",
+          "mac": "Endereço MAC"
+        },
+        "sections": {
+          "advanced": {
+            "name": "Definições Avançadas",
+            "description": "Configure as definições avançadas do dispositivo",
+            "data": {
+              "port": "Porta",
+              "encryption_key": "Chave de Encriptação",
+              "encryption_version": "Versão de Encriptação",
+              "uid": "UID",
+              "disable_available_check": "Desativar Verificação de Disponibilidade",
+              "max_online_attempts": "Máximo de Tentativas de Ligação",
+              "timeout": "Tempo Limite de Ligação"
+            },
+            "data_description": {
+              "max_online_attempts": "Número máximo de tentativas de comunicação com o dispositivo antes de ele ser marcado como indisponível",
+              "timeout": "Tempo limite de espera das respostas de cada ligação ao dispositivo"
+            }
+          }
+        }
+      },
+      "device_options": {
+        "title": "Funcionalidades do dispositivo",
+        "description": "A API da Gree não fornece um método robusto para obter as funcionalidades de um dispositivo. Por favor, use as opções abaixo com base nos seus conhecimentos sobre o dispositivo.",
+        "data": {
+          "device_name": "Nome do Dispositivo",
+          "hvac_modes": "Modos de Climatização",
+          "fan_modes": "Velocidades da Ventoinha",
+          "swing_modes": "Modos de Oscilamento Vertical",
+          "swing_horizontal_modes": "Modos de Oscilamento Horizontal",
+          "features": "Outas Funcionalidades e Modos",
+          "external_temperature_sensor": "Sensor de Temperatura",
+          "external_humidity_sensor": "Sensor de Humidade",
+          "restore_states": "Restaurar Entidades",
+          "target_temp_step": "Incremento de Temperatura"
+        },
+        "data_description": {
+          "external_temperature_sensor": "Se definido, substitui o sensor integrado de temperatura interior do dispositivo",
+          "external_humidity_sensor": "Se definido, substitui o sensor integrado de humidade interior do dispositivo",
+          "restore_states": "Se ativo, quando a integração é iniciada, o estado do dispositivo será reposto para o último estado observado na integração.",
+          "target_temp_step": "Define o incremento da temperatura quando esta é ajustada. Graus Fahrenheit são arredondados para às unidades."
+        }
+      },
+      "reconfigure": {
+        "title": "Configuração do dispositivo",
+        "data": {
+          "name": "Nomw",
+          "host": "Endereço IP",
+          "mac": "Endereço MAC"
+        },
+        "sections": {
+          "advanced": {
+            "name": "Definições Avançadas",
+            "description": "Configure as definições avançadas do dispositivo",
+            "data": {
+              "port": "Porta",
+              "encryption_key": "Chave de Encriptação",
+              "encryption_version": "Versão de Encriptação",
+              "uid": "UID",
+              "disable_available_check": "Desativar Verificação de Disponibilidade",
+              "max_online_attempts": "Máximo de Tentativas de Ligação",
+              "timeout": "Tempo Limite de Ligação"
+            },
+            "data_description": {
+              "max_online_attempts": "Número máximo de tentativas de comunicação com o dispositivo antes de ele ser marcado como indisponível",
+              "timeout": "Tempo limite de espera das respostas de cada ligação ao dispositivo"
+            }
+          }
+        }
+      }
+    }
+  },
+  "selector": {
+    "discovery_method": {
+      "options": {
+        "discover": "Procura automática de dispositivos",
+        "manual": "Adicionar manualmente"
+      }
+    },
+    "hvac_modes": {
+      "options": {
+        "auto": "Automático",
+        "cool": "Arrefecer",
+        "dry": "Secar",
+        "fan_only": "Ventilação",
+        "heat": "Aquecer",
+        "off": "Desligar"
+      }
+    },
+    "fan_modes": {
+      "options": {
+        "auto": "Automática",
+        "low": "Baixa",
+        "medium_low": "Média-Baixa",
+        "medium": "Média",
+        "medium_high": "Média-Alta",
+        "high": "Alta",
+        "turbo": "Turbo",
+        "quiet": "Silenciosa"
+      }
+    },
+    "swing_modes": {
+      "options": {
+        "default": "Por defeito",
+        "full_swing": "Oscilação completa",
+        "fixed_upper": "Fixo no topo",
+        "fixed_upper_middle": "Fixo entre o meio e topo",
+        "fixed_middle": "Fixo no meio",
+        "fixed_lower_middle": "Fixo entre o meio e baixo",
+        "fixed_lower": "Fixo em baixo",
+        "swing_lower": "Oscilação na região inferior",
+        "swing_lower_middle": "Oscilação na região média-inferior",
+        "swing_middle": "Oscilação na região intermédia",
+        "swing_upper_middle": "Oscilação na região média-superior",
+        "swing_upper": "Oscilação na região superior"
+      }
+    },
+    "swing_horizontal_modes": {
+      "options": {
+        "default": "Por defeito",
+        "full_Swing": "Oscilação completa",
+        "left": "Fixo à esquerda",
+        "left_center": "Fixo entre o meio e esquerda",
+        "center": "Fixo no meio",
+        "right_center": "Fixo entre o meio e a direita",
+        "right": "Fixo à direita"
+      }
+    },
+    "features": {
+      "options": {
+        "beeper": "Aviso Sonoro",
+        "air": "Ar Fresco",
+        "xfan": "X-Fan",
+        "sleep": "Dormir",
+        "eightdegheat": "Fora de Casa",
+        "lights": "Visor",
+        "health": "Saúde",
+        "anti_direct_blow": "Anti Sopro Direto",
+        "powersave": "Poupança de Energia",
+        "light_sensor": "Brilho Automático do Visor"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "indoor_temperature": {
+        "name": "Temperatura Interior",
+        "description": "Temperatura reportada pelo sensor do dispositivo interior"
+      },
+      "outdoor_temperature": {
+        "name": "Temperatura Exterior",
+        "description": "Temperatura reportada pelo sensor do dispositivo exterior"
+      },
+      "room_humidity": {
+        "name": "Humidade Interior",
+        "description": "Humidade reportada pelo sensor do dispositivo interior"
+      }
+    },
+    "climate": {
+      "hvac": {
+        "state_attributes": {
+          "fan_mode": {
+            "state": {
+              "auto": "Automática",
+              "low": "Baixa",
+              "medium_ow": "Média-Baixa",
+              "medium": "Média",
+              "medium_high": "Média-Alta",
+              "high": "Alta",
+              "turbo": "Turbo",
+              "quiet": "Silenciosa"
+            }
+          },
+          "swing_mode": {
+            "state": {
+              "default": "Por defeito",
+              "full_swing": "Oscilação completa",
+              "fixed_upper": "Fixo no topo",
+              "fixed_upper_middle": "Fixo entre o meio e topo",
+              "fixed_middle": "Fixo no meio",
+              "fixed_lowerMiddle": "Fixo entre o meio e baixo",
+              "fixed_lower": "Fixo em baixo",
+              "swing_lower": "Oscilação na região inferior",
+              "swing_lower_middle": "Oscilação na região média-inferior",
+              "swing_middle": "Oscilação na região intermédia",
+              "swing_upper_middle": "Oscilação na região média-superior",
+              "swing_upper": "Oscilação na região superior"
+            }
+          },
+          "swing_horizontal_mode": {
+            "state": {
+              "default": "Por defeito",
+              "full_swing": "Oscilação completa",
+              "left": "Fixo à esquerda",
+              "left_center": "Fixo entre o meio e esquerda",
+              "center": "Fixo no meio",
+              "right_center": "Fixo entre o meio e a direita",
+              "right": "Fixo à direita"
+            }
+          }
+        }
+      }
+    },
+    "number": {
+      "target_temp_step": {
+        "name": "Incremento de Temperatura",
+        "description": "Define o incremento de temperatura usado para ajustar a temperatura."
+      }
+    },
+    "select": {
+      "temperature_units": {
+        "name": "Unidade de Temperatura",
+        "description": "Seleciona a unidade de temperatura usada pelo dispositivo."
+      }
+    },
+    "switch": {
+      "auto_light": {
+        "name": "Visor Automático",
+        "description": "Controla o funcionamento do visor do dispositivo com base no modo de operação. Se ativo, o visor irá ficar desligado no modo desligar e ligado nos restantes modos."
+      },
+      "auto_xfan": {
+        "name": "X-Fan Automática",
+        "description": "Controla o modo X-Fan com base no modo de operação. Quando ativo, o modo X-Fan será ligado automaticamente nos modos de Refrigerar e Desumidificar."
+      },
+      "lights": {
+        "name": "Visor",
+        "description": "Controla se o visor do dispositivo está ligado ou não."
+      },
+      "xfan": {
+        "name": "X-Fan",
+        "description": "Evita condensação após desligar o dispositivo mantendo o ventilador ligado por uns momentos."
+      },
+      "health": {
+        "name": "Saúde",
+        "description": "Purifica a ar através de ionização."
+      },
+      "powersave": {
+        "name": "Poupança de Energia",
+        "description": "Reduz o consumo energético do dispositivo. Apenas disponível no modo de Refrigerar."
+      },
+      "eightdegheat": {
+        "name": "Fora de Casa",
+        "description": "Mantém uma temperatura de 8°C para evitar o congelamento. Apenas disponível no modo de Aquecer."
+      },
+      "sleep": {
+        "name": "Dormir",
+        "description": "Mantém uma operação noturna confortável. Apenas disponível nos modos de Refrigerar e Aquecer."
+      },
+      "air": {
+        "name": "Ar Fresco",
+        "description": "Controla o modo circulação de Ar Fresco."
+      },
+      "anti_direct_blow": {
+        "name": "Anti Sopro Direto",
+        "description": "Previne que o fluxo de ar seja direcionado diretamente para as pessoas através do ajuste das grelhas direcionais."
+      },
+      "light_sensor": {
+        "name": "Brilho Automático do Visor",
+        "description": "Permite que o brilho do visor se adapte automáticamente ao ambiente. Requer o visor esteja ligado."
+      },
+      "beeper": {
+        "name": "Aviso Sonoro",
+        "description": "Se ativo, o dispositivo irá produzir um 'beep' a cada comando."
+      }
+    }
+  },
+  "exceptions": {
+    "turbo_availability": {
+      "message": "Modo Turbo não está disponível nos modo de Desumidificar e Ventoinha."
+    },
+    "quiet_availability": {
+      "message": "Modo Silencioso apenas disponível nos modo de Desumidificar e Ventoinha."
+    },
+    "entity_unavailable": {
+      "message": "A entidade não está disponível."
+    },
+    "generic": {
+      "message": "Ocorreu um erro a realizar a ação pretendida, consulto os registos da integração."
+    }
+  }
+}
