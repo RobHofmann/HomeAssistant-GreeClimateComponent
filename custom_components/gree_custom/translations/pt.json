@@ -1,7 +1,5 @@
 {
   "config": {
-    "title": "Gree Climate",
-    "description": "Configure os seus equipamentos Gree",
     "error": {
       "unknown": "Ocorreu algo de errado, tente de novo. Se o problema persistir, verifique os registos.",
       "cannot_connect": "Não foi possível ligar ao dispositivo. Verifique as configurações do dispositivo e de rede e tente de novo.ain. Se o problema persistir, verifique os registos.",
@@ -177,16 +175,13 @@
   "entity": {
     "sensor": {
       "indoor_temperature": {
-        "name": "Temperatura Interior",
-        "description": "Temperatura reportada pelo sensor do dispositivo interior"
+        "name": "Temperatura Interior"
       },
       "outdoor_temperature": {
-        "name": "Temperatura Exterior",
-        "description": "Temperatura reportada pelo sensor do dispositivo exterior"
+        "name": "Temperatura Exterior"
       },
       "room_humidity": {
-        "name": "Humidade Interior",
-        "description": "Humidade reportada pelo sensor do dispositivo interior"
+        "name": "Humidade Interior"
       }
     },
     "climate": {

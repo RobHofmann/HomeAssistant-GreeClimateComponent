@@ -1,7 +1,5 @@
 {
   "config": {
-    "title": "Gree Climate",
-    "description": "Configure your Gree air conditioner",
     "error": {
       "unknown": "Something went wrong, please try again. If the issue persists, please check the logs.",
       "cannot_connect": "Unable to connect to the device. Please check the device configuration and network connection and try again. If the issue persists, please check the logs.",
@@ -177,16 +175,13 @@
   "entity": {
     "sensor": {
       "indoor_temperature": {
-        "name": "Indoor Temperature",
-        "description": "The temperature reported by the HVAC indoors unit"
+        "name": "Indoor Temperature"
       },
       "outdoor_temperature": {
-        "name": "Outdoor Temperature",
-        "description": "The temperature reported by the HVAC outdoors unit"
+        "name": "Outdoor Temperature"
       },
       "room_humidity": {
-        "name": "Indoor Humidity",
-        "description": "Shows the room humidity level measured by the air conditioner's internal sensor."
+        "name": "Indoor Humidity"
       }
     },
     "climate": {
