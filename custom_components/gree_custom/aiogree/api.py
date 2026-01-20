@@ -105,54 +105,54 @@ class TemperatureUnits(IntEnum):
 class OperationMode(IntEnum):
     """Enumeration of HVAC modes."""
 
-    Auto = 0
-    Cool = 1
-    Dry = 2
-    Fan = 3
-    Heat = 4
+    auto = 0
+    cool = 1
+    dry = 2
+    fan = 3
+    heat = 4
 
 
 @unique
 class FanSpeed(IntEnum):
     """Enumeration of fan speeds."""
 
-    Auto = 0
-    Low = 1
-    MediumLow = 2
-    Medium = 3
-    MediumHigh = 4
-    High = 5
+    auto = 0
+    low = 1
+    medium_low = 2
+    medium = 3
+    medium_high = 4
+    high = 5
 
 
 @unique
 class HorizontalSwingMode(IntEnum):
     """Enumeration of horizontal swing modes."""
 
-    Default = 0
-    FullSwing = 1
-    Left = 2
-    LeftCenter = 3
-    Center = 4
-    RightCenter = 5
-    Right = 6
+    default = 0
+    full_swing = 1
+    left = 2
+    left_center = 3
+    center = 4
+    right_center = 5
+    right = 6
 
 
 @unique
 class VerticalSwingMode(IntEnum):
     """Enumeration of vertical swing modes."""
 
-    Default = 0
-    FullSwing = 1
-    FixedUpper = 2
-    FixedUpperMiddle = 3
-    FixedMiddle = 4
-    FixedLowerMiddle = 5
-    FixedLower = 6
-    SwingUpper = 7
-    SwingUpperMiddle = 8
-    SwingMiddle = 9
-    SwingLowerMiddle = 10
-    SwingLower = 11
+    default = 0
+    full_swing = 1
+    fixed_upper = 2
+    fixed_upper_middle = 3
+    fixed_middle = 4
+    fixed_lower_middle = 5
+    fixed_lower = 6
+    swing_upper = 7
+    swing_upper_middle = 8
+    swing_middle = 9
+    swing_lower_middle = 10
+    swing_lower = 11
 
 
 class GreeCommand(IntEnum):
@@ -270,7 +270,7 @@ async def udp_request_async(
                 ip_addr,
                 attempt + 1,
                 max_retries,
-                repr(err),
+                err,
             )
             # raise ValueError(f"Error communicating with {ip_addr}", ip_addr) from err
         finally:

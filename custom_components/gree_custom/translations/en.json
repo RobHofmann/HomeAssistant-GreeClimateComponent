@@ -122,41 +122,41 @@
     },
     "fan_modes": {
       "options": {
-        "Auto": "Auto",
-        "Low": "Low",
-        "MediumLow": "Medium-Low",
-        "Medium": "Medium",
-        "MediumHigh": "Medium-High",
-        "High": "High",
+        "auto": "Auto",
+        "low": "Low",
+        "medium_low": "Medium-Low",
+        "medium": "Medium",
+        "medium_high": "Medium-High",
+        "high": "High",
         "turbo": "Turbo",
         "quiet": "Quiet"
       }
     },
     "swing_modes": {
       "options": {
-        "Default": "Default",
-        "FullSwing": "Swing in full range",
-        "FixedUpper": "Fixed in the upmost position",
-        "FixedUpperMiddle": "Fixed in the middle-up position",
-        "FixedMiddle": "Fixed in the middle position",
-        "FixedLowerMiddle": "Fixed in the middle-low position",
-        "FixedLower": "Fixed in the lowest position",
-        "SwingLower": "Swing in the downmost region",
-        "SwingLowerMiddle": "Swing in the middle-low region",
-        "SwingMiddle": "Swing in the middle region",
-        "SwingUpperMiddle": "Swing in the middle-up region",
-        "SwingUpper": "Swing in the upmost region"
+        "default": "Default",
+        "full_swing": "Swing in full range",
+        "fixed_upper": "Fixed in the upmost position",
+        "fixed_upper_middle": "Fixed in the middle-up position",
+        "fixed_middle": "Fixed in the middle position",
+        "fixed_lower_middle": "Fixed in the middle-low position",
+        "fixed_lower": "Fixed in the lowest position",
+        "swing_lower": "Swing in the downmost region",
+        "swing_lower_middle": "Swing in the middle-low region",
+        "swing_middle": "Swing in the middle region",
+        "swing_upper_middle": "Swing in the middle-up region",
+        "swing_upper": "Swing in the upmost region"
       }
     },
     "swing_horizontal_modes": {
       "options": {
-        "Default": "Default",
-        "FullSwing": "Swing in full range",
-        "Left": "Fixed in the leftmost position",
-        "LeftCenter": "Fixed in the middle-left position",
-        "Center": "Fixed in the middle position",
-        "RightCenter": "Fixed in the middle-right position",
-        "Right": "Fixed in the rightmost position"
+        "default": "Default",
+        "full_swing": "Swing in full range",
+        "left": "Fixed in the leftmost position",
+        "left_center": "Fixed in the middle-left position",
+        "center": "Fixed in the middle position",
+        "right_center": "Fixed in the middle-right position",
+        "right": "Fixed in the rightmost position"
       }
     },
     "features": {
@@ -195,12 +195,12 @@
           "default": "Fan Speed",
           "fan_mode": {
             "state": {
-              "Auto": "Auto",
-              "Low": "Low",
-              "MediumLow": "Medium-Low",
-              "Medium": "Medium",
-              "MediumHigh": "Medium-High",
-              "High": "High",
+              "auto": "Auto",
+              "low": "Low",
+              "medium_low": "Medium-Low",
+              "medium": "Medium",
+              "medium_high": "Medium-High",
+              "high": "High",
               "turbo": "Turbo",
               "quiet": "Quiet"
             }
@@ -208,30 +208,30 @@
           "swing_mode": {
             "default": "Vertical Swing",
             "state": {
-              "Default": "Default",
-              "FullSwing": "Swing in full range",
-              "FixedUpper": "Fixed in the upmost position",
-              "FixedUpperMiddle": "Fixed in the middle-up position",
-              "FixedMiddle": "Fixed in the middle position",
-              "FixedLowerMiddle": "Fixed in the middle-low position",
-              "FixedLower": "Fixed in the lowest position",
-              "SwingLower": "Swing in the downmost region",
-              "SwingLowerMiddle": "Swing in the middle-low region",
-              "SwingMiddle": "Swing in the middle region",
-              "SwingUpperMiddle": "Swing in the middle-up region",
-              "SwingUpper": "Swing in the upmost region"
+              "default": "Default",
+              "full_swing": "Swing in full range",
+              "fixed_upper": "Fixed in the upmost position",
+              "fixed_upper_middle": "Fixed in the middle-up position",
+              "fixed_middle": "Fixed in the middle position",
+              "fixed_lower_middle": "Fixed in the middle-low position",
+              "fixed_lower": "Fixed in the lowest position",
+              "swing_lower": "Swing in the downmost region",
+              "swing_lower_middle": "Swing in the middle-low region",
+              "swing_middle": "Swing in the middle region",
+              "swing_upper_middle": "Swing in the middle-up region",
+              "swing_upper": "Swing in the upmost region"
             }
           },
           "swing_horizontal_mode": {
             "default": "Horizontal Swing",
             "state": {
-              "Default": "Default",
-              "FullSwing": "Swing in full range",
-              "Left": "Fixed in the leftmost position",
-              "LeftCenter": "Fixed in the middle-left position",
-              "Center": "Fixed in the middle position",
-              "RightCenter": "Fixed in the middle-right position",
-              "Right": "Fixed in the rightmost position"
+              "default": "Default",
+              "full_swing": "Swing in full range",
+              "left": "Fixed in the leftmost position",
+              "left_center": "Fixed in the middle-left position",
+              "center": "Fixed in the middle position",
+              "right_center": "Fixed in the middle-right position",
+              "right": "Fixed in the rightmost position"
             }
           }
         }
@@ -302,7 +302,7 @@
   },
   "exceptions": {
     "turbo_availability": {
-      "message": "Trubo mode is not available in Dry and Fan-only modes."
+      "message": "Turbo mode is not available in Dry and Fan-only modes."
     },
     "quiet_availability": {
       "message": "Quiet mode is only available in Dry and Cool modes."

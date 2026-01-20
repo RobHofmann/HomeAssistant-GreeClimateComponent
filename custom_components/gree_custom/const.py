@@ -94,54 +94,54 @@ DEFAULT_HVAC_MODES = [
 ]
 
 HVAC_MODES_HA_TO_GREE = {
-    HVACMode.AUTO: OperationMode.Auto,
-    HVACMode.COOL: OperationMode.Cool,
-    HVACMode.DRY: OperationMode.Dry,
-    HVACMode.FAN_ONLY: OperationMode.Fan,
-    HVACMode.HEAT: OperationMode.Heat,
+    HVACMode.AUTO: OperationMode.auto,
+    HVACMode.COOL: OperationMode.cool,
+    HVACMode.DRY: OperationMode.dry,
+    HVACMode.FAN_ONLY: OperationMode.fan,
+    HVACMode.HEAT: OperationMode.heat,
 }
 HVAC_MODES_GREE_TO_HA = {
-    OperationMode.Auto: HVACMode.AUTO,
-    OperationMode.Cool: HVACMode.COOL,
-    OperationMode.Dry: HVACMode.DRY,
-    OperationMode.Fan: HVACMode.FAN_ONLY,
-    OperationMode.Heat: HVACMode.HEAT,
+    OperationMode.auto: HVACMode.AUTO,
+    OperationMode.cool: HVACMode.COOL,
+    OperationMode.dry: HVACMode.DRY,
+    OperationMode.fan: HVACMode.FAN_ONLY,
+    OperationMode.heat: HVACMode.HEAT,
 }
 
 DEFAULT_FAN_MODES = [
-    FanSpeed.Auto.name,
-    FanSpeed.Low.name,
-    FanSpeed.MediumLow.name,
-    FanSpeed.Medium.name,
-    FanSpeed.MediumHigh.name,
-    FanSpeed.High.name,
+    FanSpeed.auto.name,
+    FanSpeed.low.name,
+    FanSpeed.medium_low.name,
+    FanSpeed.medium.name,
+    FanSpeed.medium_high.name,
+    FanSpeed.high.name,
     # GATTR_FEAT_TURBO,  # Special mode on Gree device
     # GATTR_FEAT_QUIET_MODE,  # Special mode on Gree device
 ]
 
 DEFAULT_SWING_MODES = [
-    VerticalSwingMode.Default.name,
-    VerticalSwingMode.FullSwing.name,
-    VerticalSwingMode.FixedUpper.name,
-    VerticalSwingMode.FixedUpperMiddle.name,
-    VerticalSwingMode.FixedMiddle.name,
-    VerticalSwingMode.FixedLowerMiddle.name,
-    VerticalSwingMode.FixedLower.name,
-    VerticalSwingMode.SwingLower.name,
-    VerticalSwingMode.SwingLowerMiddle.name,
-    VerticalSwingMode.SwingMiddle.name,
-    VerticalSwingMode.SwingUpperMiddle.name,
-    VerticalSwingMode.SwingUpper.name,
+    VerticalSwingMode.default.name,
+    VerticalSwingMode.full_swing.name,
+    VerticalSwingMode.fixed_upper.name,
+    VerticalSwingMode.fixed_upper_middle.name,
+    VerticalSwingMode.fixed_middle.name,
+    VerticalSwingMode.fixed_lower_middle.name,
+    VerticalSwingMode.fixed_lower.name,
+    VerticalSwingMode.swing_lower.name,
+    VerticalSwingMode.swing_lower_middle.name,
+    VerticalSwingMode.swing_middle.name,
+    VerticalSwingMode.swing_upper_middle.name,
+    VerticalSwingMode.swing_upper.name,
 ]
 
 DEFAULT_SWING_HORIZONTAL_MODES = [
-    HorizontalSwingMode.Default.name,
-    HorizontalSwingMode.FullSwing.name,
-    HorizontalSwingMode.Left.name,
-    HorizontalSwingMode.LeftCenter.name,
-    HorizontalSwingMode.Center.name,
-    HorizontalSwingMode.RightCenter.name,
-    HorizontalSwingMode.Right.name,
+    HorizontalSwingMode.default.name,
+    HorizontalSwingMode.full_swing.name,
+    HorizontalSwingMode.left.name,
+    HorizontalSwingMode.left_center.name,
+    HorizontalSwingMode.center.name,
+    HorizontalSwingMode.right_center.name,
+    HorizontalSwingMode.right.name,
 ]
 
 DEFAULT_SUPPORTED_FEATURES = [

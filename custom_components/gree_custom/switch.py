@@ -70,7 +70,7 @@ SWITCH_TYPES: list[GreeSwitchDescription] = [
         available_func=lambda device: (
             device.available
             and device.supports_property(GreeProp.FEAT_XFAN)
-            and device.operation_mode in [OperationMode.Cool, OperationMode.Dry]
+            and device.operation_mode in [OperationMode.cool, OperationMode.dry]
         ),
         value_func=lambda device, _: device.feature_x_fan,
         set_func=lambda device, _, value: device.set_feature_xfan(value),
@@ -82,7 +82,7 @@ SWITCH_TYPES: list[GreeSwitchDescription] = [
             lambda device: device.available
             and device.supports_property(GreeProp.FEAT_SLEEP_MODE)
             and device.operation_mode
-            in [OperationMode.Cool, OperationMode.Dry, OperationMode.Heat]
+            in [OperationMode.cool, OperationMode.dry, OperationMode.heat]
         ),
         value_func=lambda device, _: device.feature_sleep,
         set_func=lambda device, _, value: device.set_feature_sleep(value),

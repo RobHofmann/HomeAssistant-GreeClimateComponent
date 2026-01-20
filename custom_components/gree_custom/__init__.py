@@ -123,7 +123,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_remove_config_entry_device(
     hass: HomeAssistant, config_entry: GreeConfigEntry, device_entry: dr.DeviceEntry
 ) -> bool:
-    """Remove a config entry from a device."""
+    """Remove a device from a config entry."""
 
     # Find MAC address for this device (from identifiers)
     identifiers = device_entry.identifiers
