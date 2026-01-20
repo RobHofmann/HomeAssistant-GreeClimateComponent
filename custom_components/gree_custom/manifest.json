@@ -5,7 +5,7 @@
   "documentation": "https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent",
   "dependencies": [],
   "codeowners": ["@robhofmann"],
-  "requirements": ["pycryptodome", "aiofiles", "asyncio_dgram"],
+  "requirements": ["pycryptodome", "asyncio_dgram"],
   "config_flow": true,
   "integration_type": "hub"
 }
