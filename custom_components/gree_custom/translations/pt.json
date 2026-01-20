@@ -115,7 +115,7 @@
         "dry": "Secar",
         "fan_only": "Ventilação",
         "heat": "Aquecer",
-        "off": "Desligar"
+        "off": "Desligado"
       }
     },
     "fan_modes": {
@@ -151,7 +151,7 @@
         "default": "Por defeito",
         "full_swing": "Oscilação completa",
         "left": "Fixo à esquerda",
-        "left_center": "Fixo entre o meio e esquerda",
+        "left_center": "Fixo entre o meio e a esquerda",
         "center": "Fixo no meio",
         "right_center": "Fixo entre o meio e a direita",
         "right": "Fixo à direita"
@@ -220,7 +220,7 @@
               "default": "Por defeito",
               "full_swing": "Oscilação completa",
               "left": "Fixo à esquerda",
-              "left_center": "Fixo entre o meio e esquerda",
+              "left_center": "Fixo entre o meio e a esquerda",
               "center": "Fixo no meio",
               "right_center": "Fixo entre o meio e a direita",
               "right": "Fixo à direita"
