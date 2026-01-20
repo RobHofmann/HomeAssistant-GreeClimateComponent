@@ -3,9 +3,10 @@
   "name": "Gree A/C",
   "version": "4.0.0",
   "documentation": "https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent",
-  "dependencies": [],
+  "dependencies": ["network"],
   "codeowners": ["@robhofmann"],
   "requirements": ["pycryptodome", "asyncio_dgram"],
   "config_flow": true,
-  "integration_type": "hub"
+  "integration_type": "hub",
+  "iot_class": "local_polling"
 }
