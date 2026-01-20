@@ -110,28 +110,6 @@ class GreeDevice:
         """Setup the device (async)."""
         if not self._is_bound:
             try:
-                # Used also as basic communication test
-                self._raw_info = await gree_get_device_info(
-                    self._ip_addr,
-                    self._max_connection_attempts,
-                    self._timeout,
-                )
-            except Exception as e:
-                _LOGGER.exception("Could not retrieve basic device info")
-                raise CannotConnect(
-                    f"Not able to connect to the device {self._ip_addr}"
-                ) from e
-            else:
-                if self._raw_info.get("mac", "") != self._mac_addr:
-                    raise CannotConnect(
-                        f"Not able to connect to the device {self._ip_addr}. MAC mismatch {self._raw_info.get('mac', '')} not {self._mac_addr}."
-                    )
-                self._firmware_version = self._raw_info.get("firmware_version")
-                self._firmware_code = self._raw_info.get("firmware_code")
-                self._subdevicesCount = int(
-                    self._raw_info.get("subdevices_count", 0) or 0
-                )
-            try:
                 (
                     encryption_key,
                     encryption_version,
@@ -165,6 +143,28 @@ class GreeDevice:
                 self._is_available = True
                 self._is_bound = True
 
+            try:
+                # Used also as basic communication test
+                self._raw_info = await gree_get_device_info(
+                    self._ip_addr,
+                    self._max_connection_attempts,
+                    self._timeout,
+                )
+            except Exception as e:
+                _LOGGER.exception("Could not retrieve basic device info")
+                raise CannotConnect(
+                    f"Not able to connect to the device {self._ip_addr}"
+                ) from e
+            else:
+                if self._raw_info.get("mac", "") != self._mac_addr:
+                    raise CannotConnect(
+                        f"Not able to connect to the device {self._ip_addr}. MAC mismatch {self._raw_info.get('mac', '')} not {self._mac_addr}."
+                    )
+                self._firmware_version = self._raw_info.get("firmware_version")
+                self._firmware_code = self._raw_info.get("firmware_code")
+                self._subdevicesCount = int(
+                    self._raw_info.get("subdevices_count", 0) or 0
+                )
         return self._is_bound
 
     async def fetch_sub_devices(self) -> list[GreeDiscoveredDevice]:
@@ -512,7 +512,7 @@ class GreeDevice:
     def operation_mode(self) -> OperationMode:
         """Return the current operation mode."""
         return OperationMode(
-            self._get_prop_raw(GreeProp.OP_MODE, OperationMode.Auto.value)
+            self._get_prop_raw(GreeProp.OP_MODE, OperationMode.auto.value)
         )
 
     def set_operation_mode(self, mode: OperationMode):
@@ -522,7 +522,7 @@ class GreeDevice:
     @property
     def fan_speed(self) -> FanSpeed:
         """Return the current fan speed."""
-        return FanSpeed(self._get_prop_raw(GreeProp.FAN_SPEED, FanSpeed.Auto.value))
+        return FanSpeed(self._get_prop_raw(GreeProp.FAN_SPEED, FanSpeed.auto.value))
 
     def set_fan_speed(self, speed: FanSpeed):
         """Sets the device fan speed mode."""
@@ -532,7 +532,7 @@ class GreeDevice:
     def vertical_swing_mode(self) -> VerticalSwingMode:
         """Return the current vertical swing setting."""
         return VerticalSwingMode(
-            self._get_prop_raw(GreeProp.SWING_VERTICAL, VerticalSwingMode.Default.value)
+            self._get_prop_raw(GreeProp.SWING_VERTICAL, VerticalSwingMode.default.value)
         )
 
     def set_vertical_swing_mode(self, swing_mode: VerticalSwingMode):
@@ -544,7 +544,7 @@ class GreeDevice:
         """Return the current horizontal swing setting."""
         return HorizontalSwingMode(
             self._get_prop_raw(
-                GreeProp.SWING_HORIZONTAL, HorizontalSwingMode.Default.value
+                GreeProp.SWING_HORIZONTAL, HorizontalSwingMode.default.value
             )
         )
 
