@@ -21,6 +21,7 @@ from .const import (
     GREE_GENERIC_DEVICE_KEY,
     GREE_GENERIC_DEVICE_KEY_GCM,
 )
+from .cipher import CipherBase, CipherV1, CipherV2
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -349,8 +350,7 @@ async def fetch_result(
     ip_addr: str,
     port: int,
     json_data: str,
-    cipher,
-    encryption_version: EncryptionVersion,
+    cipher: CipherBase,
     max_connection_attempts: int,
     timeout: int,
 ):
@@ -372,7 +372,7 @@ async def fetch_result(
     # except Exception as err:
     #     raise ValueError(f"Error communicating with {ip_addr}", ip_addr) from err
 
-    data = get_gree_response_data(received_json, cipher, encryption_version)
+    data = get_gree_response_data(received_json, cipher)
 
     _LOGGER.debug("Got data from %s: %s", ip_addr, data)
 
@@ -381,27 +381,17 @@ async def fetch_result(
 
 def get_gree_response_data(
     received_json: str,
-    cipher,
-    encryption_version: EncryptionVersion,
+    cipher: CipherBase,
 ):
     """Decodes a response from a gree device."""
     data = json.loads(received_json)
 
-    encodedPack = data.get("pack")
-    if encodedPack:
-        pack = base64.b64decode(encodedPack)
-        decryptedPack = cipher.decrypt(pack)
-        _LOGGER.debug("Decoding pack: %s", decryptedPack)
-        pack = decryptedPack.decode("utf-8")
-        replacedPack = pack.replace("\x0f", "").replace(
-            pack[pack.rindex("}") + 1 :], ""
-        )
-        data["pack"] = json.loads(replacedPack)
+    encodedPack = data.get("pack", None)
+    tag = data.get("tag", None)
 
-    if encryption_version == EncryptionVersion.V2:
-        tag = data["tag"]
-        _LOGGER.debug("Verifying tag: %s", tag)
-        cipher.verify(base64.b64decode(tag))
+    if encodedPack:
+        decodedPack = cipher.decrypt(encodedPack, tag)
+        data["pack"] = json.loads(decodedPack)
 
     return data
 
@@ -410,8 +400,7 @@ async def get_result_pack(
     ip_addr: str,
     port: int,
     json_data: str,
-    cipher,
-    encryption_version: EncryptionVersion,
+    cipher: CipherBase,
     max_connection_attempts: int,
     timeout: int,
 ):
@@ -422,7 +411,6 @@ async def get_result_pack(
         port,
         json_data,
         cipher,
-        encryption_version,
         max_connection_attempts,
         timeout,
     )
@@ -433,29 +421,27 @@ async def get_result_pack(
     raise ValueError("No pack received from device")
 
 
-def get_cipher(key: str, encryption_version: EncryptionVersion):
+def get_cipher(key: str, encryption_version: EncryptionVersion) -> CipherBase:
     """Get AES cipher object based on encryption version."""
 
     if encryption_version == EncryptionVersion.V1:
-        return AES.new(key.encode("utf8"), AES.MODE_ECB)
+        return CipherV1(key)
 
     if encryption_version == EncryptionVersion.V2:
-        return AES.new(key.encode("utf8"), AES.MODE_GCM, nonce=GCM_IV).update(
-            assoc_data=GCM_ADD
-        )
+        return CipherV2(key)
 
     _LOGGER.error("Unsupported encryption version: %d", encryption_version)
     return None
 
 
-def gree_get_default_cipher(encryption_version: EncryptionVersion):
+def gree_get_default_cipher(encryption_version: EncryptionVersion) -> CipherBase:
     """Get AES cipher object based on encryption version using default keys."""
 
     if encryption_version == EncryptionVersion.V1:
-        return get_cipher(GREE_GENERIC_DEVICE_KEY, encryption_version)
+        return CipherV1()
 
     if encryption_version == EncryptionVersion.V2:
-        return get_cipher(GREE_GENERIC_DEVICE_KEY_GCM, encryption_version)
+        return CipherV2()
 
     _LOGGER.error("Unsupported encryption version: %d", encryption_version)
     return None
@@ -463,29 +449,16 @@ def gree_get_default_cipher(encryption_version: EncryptionVersion):
 
 def gree_create_encrypted_pack(
     data: str,
-    cipher,
-    encryption_version: EncryptionVersion,
-) -> tuple[str, str]:
+    cipher: CipherBase,
+) -> tuple[str, str | None]:
     """Create an encrypted pack to send to the device."""
 
     if cipher is None:
         raise ValueError("Cipher must not be None")
 
-    if encryption_version == EncryptionVersion.V1:
-        encrypted_data = cipher.encrypt(pad(data).encode("utf-8"))
-        return (
-            base64.b64encode(encrypted_data).decode("utf-8"),
-            "",
-        )
+    encrypted_data, tag = cipher.encrypt(data)
 
-    if encryption_version == EncryptionVersion.V2:
-        encrypted_data, tag = cipher.encrypt_and_digest(data.encode("utf-8"))
-        return (
-            base64.b64encode(encrypted_data).decode("utf-8"),
-            base64.b64encode(tag).decode("utf-8"),
-        )
-
-    raise ValueError(f"Unsupported encryption version: {encryption_version}")
+    return (encrypted_data, tag)
 
 
 def gree_create_bind_pack(
@@ -544,8 +517,7 @@ def gree_create_payload(
     i_command: GreeCommand,
     mac_addr: str,
     uid: int,
-    encryption_version: EncryptionVersion,
-    tag: str,
+    tag: str | None,
 ) -> str:
     """Create the full payload to send to the device."""
 
@@ -558,7 +530,7 @@ def gree_create_payload(
         "uid": uid,
     }
 
-    if encryption_version == EncryptionVersion.V2 and tag is not None:
+    if tag is not None:
         base_payload["tag"] = tag
 
     _LOGGER.debug("Payload: %s", base_payload)
@@ -585,13 +557,13 @@ async def gree_get_device_key(
         else [encryption_version]
     ):
         _LOGGER.info("Trying to retrieve device encryption key v%d", enc_version)
+
+        cipher = gree_get_default_cipher(enc_version)
         pack, tag = gree_create_encrypted_pack(
-            gree_create_bind_pack(mac_addr, uid, enc_version),
-            gree_get_default_cipher(enc_version),
-            enc_version,
+            gree_create_bind_pack(mac_addr, uid, enc_version), cipher
         )
         jsonPayloadToSend = gree_create_payload(
-            pack, "pack", GreeCommand.BIND, mac_addr, uid, enc_version, tag
+            pack, "pack", GreeCommand.BIND, mac_addr, uid, tag
         )
 
         try:
@@ -599,8 +571,7 @@ async def gree_get_device_key(
                 ip_addr,
                 port,
                 jsonPayloadToSend,
-                gree_get_default_cipher(enc_version),
-                enc_version,
+                cipher,
                 max_connection_attempts,
                 timeout,
             )
@@ -635,8 +606,7 @@ async def gree_get_status(
     mac_addr_sub: str,
     port: int,
     uid: int,
-    encryption_key: str,
-    encryption_version: EncryptionVersion,
+    cipher: CipherBase,
     props: list[GreeProp],
     max_connection_attempts: int,
     timeout: int,
@@ -648,12 +618,10 @@ async def gree_get_status(
     status_values_raw: dict[GreeProp, int | None] = {}
 
     pack, tag = gree_create_encrypted_pack(
-        gree_create_status_pack(mac_addr_sub, [prop.value for prop in props]),
-        get_cipher(encryption_key, encryption_version),
-        encryption_version,
+        gree_create_status_pack(mac_addr_sub, [prop.value for prop in props]), cipher
     )
     jsonPayloadToSend = gree_create_payload(
-        pack, "pack", GreeCommand.STATUS, mac_addr, uid, encryption_version, tag
+        pack, "pack", GreeCommand.STATUS, mac_addr, uid, tag
     )
 
     try:
@@ -661,8 +629,7 @@ async def gree_get_status(
             ip_addr,
             port,
             jsonPayloadToSend,
-            get_cipher(encryption_key, encryption_version),
-            encryption_version,
+            cipher,
             max_connection_attempts,
             timeout,
         )
@@ -688,8 +655,7 @@ async def gree_set_status(
     mac_addr_sub: str,
     port: int,
     uid: int,
-    encryption_key: str,
-    encryption_version: EncryptionVersion,
+    cipher: CipherBase,
     props: dict[GreeProp, int],
     max_connection_attempts: int,
     timeout: int,
@@ -699,14 +665,10 @@ async def gree_set_status(
     _LOGGER.debug("Trying to set device status")
 
     set_pack = gree_create_set_pack(mac_addr_sub, props)
-    pack, tag = gree_create_encrypted_pack(
-        set_pack,
-        get_cipher(encryption_key, encryption_version),
-        encryption_version,
-    )
+    pack, tag = gree_create_encrypted_pack(set_pack, cipher)
 
     jsonPayloadToSend = gree_create_payload(
-        pack, "pack", GreeCommand.STATUS, mac_addr, uid, encryption_version, tag
+        pack, "pack", GreeCommand.STATUS, mac_addr, uid, tag
     )
 
     try:
@@ -714,8 +676,7 @@ async def gree_set_status(
             ip_addr,
             port,
             jsonPayloadToSend,
-            get_cipher(encryption_key, encryption_version),
-            encryption_version,
+            cipher,
             max_connection_attempts,
             timeout,
         )
@@ -767,7 +728,6 @@ async def gree_get_device_info(
             DEFAULT_DEVICE_PORT,
             json.dumps({"t": "scan"}),
             gree_get_default_cipher(EncryptionVersion.V1),
-            EncryptionVersion.V1,
             max_connection_attempts,
             timeout,
         )
@@ -813,7 +773,6 @@ async def discover_gree_devices(
         data = get_gree_response_data(
             response,
             gree_get_default_cipher(EncryptionVersion.V1),
-            EncryptionVersion.V1,
         )
         if data is not None:
             pack = data.get("pack")
@@ -888,8 +847,7 @@ async def gree_get_sub_devices_list(
     mac_addr: str,
     port: int,
     uid: int,
-    encryption_key: str,
-    encryption_version: EncryptionVersion,
+    cipher: CipherBase,
     max_connection_attempts: int,
     timeout: int,
 ) -> list:
@@ -897,8 +855,7 @@ async def gree_get_sub_devices_list(
     try:
         pack, tag = gree_create_encrypted_pack(
             gree_create_sub_bind_pack(mac_addr),
-            gree_get_default_cipher(encryption_version),
-            encryption_version,
+            cipher,
         )
 
         jsonPayloadToSend = gree_create_payload(
@@ -907,7 +864,6 @@ async def gree_get_sub_devices_list(
             GreeCommand.BIND,
             mac_addr,
             uid,
-            encryption_version,
             tag,
         )
 
@@ -915,8 +871,7 @@ async def gree_get_sub_devices_list(
             ip_addr,
             port,
             jsonPayloadToSend,
-            gree_get_default_cipher(encryption_version),
-            encryption_version,
+            cipher,
             max_connection_attempts,
             timeout,
         )

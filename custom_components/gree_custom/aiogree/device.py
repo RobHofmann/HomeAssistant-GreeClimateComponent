@@ -11,12 +11,15 @@ from .api import (
     OperationMode,
     TemperatureUnits,
     VerticalSwingMode,
+    get_cipher,
+    gree_get_default_cipher,
     gree_get_device_info,
     gree_get_device_key,
     gree_get_status,
     gree_get_sub_devices_list,
     gree_set_status,
 )
+from .cipher import CipherBase
 from .const import (
     DEFAULT_CONNECTION_MAX_ATTEMPTS,
     DEFAULT_CONNECTION_TIMEOUT,
@@ -82,6 +85,7 @@ class GreeDevice:
             self._mac_addr_sub, self._mac_addr = self._mac_addr.lower().split("@", 1)
         self._encryption_version: EncryptionVersion | None = encryption_version
         self._encryption_key: str = encryption_key
+        self._cipher: CipherBase | None = None
         self._uid: int = uid
 
         self._raw_state: dict[GreeProp, int] = {}
@@ -122,7 +126,6 @@ class GreeDevice:
                     self._max_connection_attempts,
                     self._timeout,
                 )
-                self._is_bound = True
             except Exception as e:
                 raise GreeDeviceNotBoundError("Unable to obtain device key") from e
             else:
@@ -140,6 +143,7 @@ class GreeDevice:
                         self._encryption_version,
                     )
 
+                self._cipher = get_cipher(encryption_key, encryption_version)
                 self._is_available = True
                 self._is_bound = True
 
@@ -174,7 +178,7 @@ class GreeDevice:
         if not self._is_bound:
             await self.bind_device()
 
-        assert self._encryption_version is not None
+        assert self._cipher is not None
 
         if not self._subdevicesCount:
             return []
@@ -187,8 +191,7 @@ class GreeDevice:
                 self._mac_addr,
                 self._port,
                 self._uid,
-                self._encryption_key,
-                self._encryption_version,
+                gree_get_default_cipher(self._encryption_version),
                 self._max_connection_attempts,
                 self._timeout,
             )
@@ -226,7 +229,7 @@ class GreeDevice:
         if not self._is_bound:
             await self.bind_device()
 
-        assert self._encryption_version is not None
+        assert self._cipher is not None
 
         try:
             state, props_not_present = await gree_get_status(
@@ -235,8 +238,7 @@ class GreeDevice:
                 self._mac_addr_sub,
                 self._port,
                 self._uid,
-                self._encryption_key,
-                self._encryption_version,
+                self._cipher,
                 self._props_to_update,
                 self._max_connection_attempts,
                 self._timeout,
@@ -250,8 +252,7 @@ class GreeDevice:
                     self._mac_addr,
                     self._port,
                     self._uid,
-                    self._encryption_key,
-                    self._encryption_version,
+                    self._cipher,
                     props_not_present,
                     self._max_connection_attempts,
                     self._timeout,
@@ -270,7 +271,7 @@ class GreeDevice:
         if not self._is_bound:
             await self.bind_device()
 
-        assert self._encryption_version is not None
+        assert self._cipher is not None
 
         # If there is no change in the properties, do nothing
         has_updated_states = any(
@@ -290,8 +291,7 @@ class GreeDevice:
                     self._mac_addr_sub,
                     self._port,
                     self._uid,
-                    self._encryption_key,
-                    self._encryption_version,
+                    self._cipher,
                     self._new_raw_state,
                     self._max_connection_attempts,
                     self._timeout,
