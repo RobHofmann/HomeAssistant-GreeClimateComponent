@@ -830,8 +830,8 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         temperature: float | None = kwargs.get(ATTR_TEMPERATURE)
         hvac_mode: HVACMode | None = kwargs.get(ATTR_HVAC_MODE)
 
-        if temperature is None:
-            _LOGGER.error("No temperature received to set as target")
+        if temperature is None and hvac_mode is None:
+            _LOGGER.error("No temperature or mode received to set")
             return
 
         if not self.available:
@@ -839,9 +839,21 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                 translation_domain=DOMAIN, translation_key="entity_unavailable"
             )
 
+        # Ignore temperature if mode is AUTO
+        if (
+            temperature is not None
+            and hvac_mode is not None
+            and hvac_mode == HVACMode.AUTO
+        ):
+            temperature = None
+            _LOGGER.warning(
+                "Ignoring temperature when setting the device mode to AUTO. Will be overriden by the device factory settings"
+            )
+
         try:
             # TODO: Confirm that HA sends the values in this entity's temperature_unit which matches the device unit
-            self.device.set_target_temperature(temperature)
+            if temperature is not None:
+                self.device.set_target_temperature(temperature)
 
             if hvac_mode and hvac_mode in self._attr_hvac_modes:
                 # This will call the set_hvac_mode which internally will send to device
