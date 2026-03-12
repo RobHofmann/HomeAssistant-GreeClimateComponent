@@ -1,6 +1,7 @@
 """Contains the API to interface with the Gree device."""
 
 import logging
+from typing import Any
 
 from .api import (
     EncryptionVersion,
@@ -400,6 +401,31 @@ class GreeDevice:
             self.target_temperature_unit.name,
         )
         _LOGGER.info("Mode: %s", self.operation_mode.name)
+
+    def gather_diagnostics(self) -> dict[str, Any]:
+        """Returns diagnostic info for the device."""
+        data: dict[str, Any] = {}
+
+        info = {
+            "ip": self._ip_addr,
+            "mac": self._mac_addr,
+            "mac_sub": self._mac_addr_sub,
+            "port": self._port,
+            "timeout": self._timeout,
+            "max_connections": self._max_connection_attempts,
+            "is_bound": self._is_bound,
+            "is_available": self._is_available,
+            "beeper": self.beeper,
+            "encryption": str(self.encryption_version),
+            "key": self.encryption_key[:5] + "[redacted]",
+        }
+
+        data["info"] = info
+        data["raw_info"] = self._raw_info
+        data["state"] = {str(k): v for k, v in self._raw_state.items()}
+        data["state_unsaved"] = {str(k): v for k, v in self._new_raw_state.items()}
+
+        return data
 
     def supports_property(self, property: GreeProp) -> bool:
         """Returns True if the device endpoint supports the property."""

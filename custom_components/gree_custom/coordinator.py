@@ -1,6 +1,7 @@
 """Data update coordinator for Gree integration."""
 
 import logging
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -66,6 +67,16 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         except ValueError as err:
             _LOGGER.exception("Error getting state from device")
             raise UpdateFailed("Error getting state from device") from err
+
+    def get_coordinator_diagnostics(self) -> dict[str, Any]:
+        """Returns diagnostic data for the coordinator."""
+        data = self.device.gather_diagnostics()
+        data["coordinator_props"] = {
+            "auto_light": self.feature_auto_light,
+            "auto_xfan": self.feature_auto_xfan,
+        }
+
+        return data
 
     @property
     def feature_auto_light(self) -> bool:

@@ -737,6 +737,7 @@ async def gree_get_device_info(
     else:
         _LOGGER.debug("Got device info: %s", data)
         info: dict[str, str | None] = {}
+        info["raw"] = data
         info["firmware_version"], info["firmware_code"] = extract_version(data)
         info["mac"] = data.get("mac", "")
         info["subdevices_count"] = data.get("subCnt", 0)
