@@ -1,5 +1,5 @@
 [![HACS](https://img.shields.io/badge/HACS-Default-orange.svg)](https://hacs.xyz)
-[![Home Assistant](https://img.shields.io/badge/Compatible-Home_Assistant_2025.9.4-blue.svg)](https://www.home-assistant.io)
+[![Home Assistant](https://img.shields.io/badge/Compatible-Home_Assistant_2026.3.1-blue.svg)](https://www.home-assistant.io)
 
 # HomeAssistant-GreeClimateComponent
 

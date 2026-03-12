@@ -1,7 +1,6 @@
 """Contains the API to interface with the Gree device."""
 
 import asyncio
-import base64
 from enum import Enum, IntEnum, unique
 import json
 import logging
@@ -12,16 +11,9 @@ from typing import Any
 
 import asyncio_dgram
 from attr import dataclass
-from Crypto.Cipher import AES
 
-from .const import (
-    DEFAULT_DEVICE_PORT,
-    GCM_ADD,
-    GCM_IV,
-    GREE_GENERIC_DEVICE_KEY,
-    GREE_GENERIC_DEVICE_KEY_GCM,
-)
 from .cipher import CipherBase, CipherV1, CipherV2
+from .const import DEFAULT_DEVICE_PORT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -374,7 +366,13 @@ async def fetch_result(
 
     data = get_gree_response_data(received_json, cipher)
 
-    _LOGGER.debug("Got data from %s: %s", ip_addr, data)
+    # Do not modify the original data
+    redacted = data.copy()
+    if "pack" in redacted and "key" in redacted["pack"]:
+        redacted["pack"] = redacted["pack"].copy()
+        redacted["pack"]["key"] = str(redacted["pack"]["key"])[:5] + "[redacted]"
+
+    _LOGGER.debug("Got data from %s: %s", ip_addr, redacted)
 
     return data
 

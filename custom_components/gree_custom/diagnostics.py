@@ -3,13 +3,10 @@
 import logging
 from typing import Any
 
-from homeassistant.components.diagnostics.util import async_redact_data
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
 
-from .const import (
-    DOMAIN,
-)
+from .const import DOMAIN
 from .coordinator import GreeConfigEntry, GreeCoordinator
 
 _LOGGER = logging.getLogger(__name__)

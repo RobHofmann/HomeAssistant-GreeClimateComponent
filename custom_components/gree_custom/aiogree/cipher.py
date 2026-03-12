@@ -5,9 +5,13 @@ import logging
 
 from Crypto.Cipher import AES
 
-from .const import GCM_ADD, GCM_IV, GREE_GENERIC_DEVICE_KEY, GREE_GENERIC_DEVICE_KEY_GCM
-
 _LOGGER = logging.getLogger(__name__)
+
+GCM_IV = b"\x54\x40\x78\x44\x49\x67\x5a\x51\x6c\x5e\x63\x13"
+GCM_ADD = b"qualcomm-test"
+
+GREE_GENERIC_DEVICE_KEY = "a3K8Bx%2r8Y7#xDh"
+GREE_GENERIC_DEVICE_KEY_GCM = "{yxAHAY_Lm6pbC/<"
 
 
 class CipherBase:
@@ -109,5 +113,5 @@ class CipherV2(CipherBase):
         _LOGGER.debug("Verifying tag: %s", tag)
         cipher.verify(base64.b64decode(tag))
 
-        _LOGGER.debug("Decrypted data: %s", t)
+        _LOGGER.debug("Decrypted data successfully")
         return t

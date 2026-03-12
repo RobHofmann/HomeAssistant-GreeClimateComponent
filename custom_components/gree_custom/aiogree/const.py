@@ -1,11 +1,5 @@
 """Constants for the aiogree."""
 
-GCM_IV = b"\x54\x40\x78\x44\x49\x67\x5a\x51\x6c\x5e\x63\x13"
-GCM_ADD = b"qualcomm-test"
-
-GREE_GENERIC_DEVICE_KEY = "a3K8Bx%2r8Y7#xDh"
-GREE_GENERIC_DEVICE_KEY_GCM = "{yxAHAY_Lm6pbC/<"
-
 MIN_TEMP_C = 16
 MAX_TEMP_C = 30
 
