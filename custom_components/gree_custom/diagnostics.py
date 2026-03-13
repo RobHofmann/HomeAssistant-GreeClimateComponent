@@ -24,11 +24,13 @@ async def async_get_config_entry_diagnostics(
     for i, c in coordinators.items():
         data[i] = c.get_coordinator_diagnostics()
 
-    diagnostics = {"entry_data": dict(entry.data), "data": data}
-    diagnostics["entry_data"]["advanced"]["encryption_key"] = (
+    diagnostics = {"entry_data": dict(entry.data.copy()), "data": data}
+    redacted = diagnostics
+    redacted["entry_data"]["advanced"] = diagnostics["entry_data"]["advanced"].copy()
+    redacted["entry_data"]["advanced"]["encryption_key"] = (
         diagnostics["entry_data"]["advanced"]["encryption_key"][:5] + "[redacted]"
     )
-    return diagnostics
+    return redacted
 
 
 async def async_get_device_diagnostics(
