@@ -298,6 +298,11 @@ class GreeClimate(ClimateEntity):
         buzzer_command_value = 0 if self._beeper_enabled else 1
         filtered_opt.append('"Buzzer_ON_OFF"')
         filtered_p.append(str(buzzer_command_value))
+
+        # Newer firmwares use this, not inverted
+        filtered_opt.append('"BuzzerCtrl"')
+        filtered_p.append(str(1 if self._beeper_enabled else 0))
+
         _LOGGER.debug(f"{self._name}: Sending command with beeper {'enabled' if self._beeper_enabled else 'disabled'} (buzzer={buzzer_command_value})")
 
         statePackJson = '{"opt":[' + ",".join(filtered_opt) + '],"p":[' + ",".join(filtered_p) + '],"t":"cmd","sub":"' + self._sub_mac_addr + '"}'
