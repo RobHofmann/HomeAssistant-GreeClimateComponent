@@ -98,9 +98,9 @@ class GreeDevice:
         self._timeout: int = timeout
 
         self._props_to_update: list[GreeProp] = list(GreeProp)
-        self._props_to_update.remove(
-            GreeProp.BEEPER  # We don't need to poll the beeper state
-        )
+        # Don't poll the beeper state
+        self._props_to_update.remove(GreeProp.BEEPER)
+        self._props_to_update.remove(GreeProp.BEEPER_NEW)
 
         self._temp_processor_indoors: TempOffsetResolver | None = None
         self._temp_processor_outdoors: TempOffsetResolver | None = None
@@ -283,6 +283,7 @@ class GreeDevice:
             return
 
         self._new_raw_state[GreeProp.BEEPER] = 0 if self._beeper else 1
+        self._new_raw_state[GreeProp.BEEPER_NEW] = 1 if self._beeper else 0
 
         try:
             self._raw_state.update(

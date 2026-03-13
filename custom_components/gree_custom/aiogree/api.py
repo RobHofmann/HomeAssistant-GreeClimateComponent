@@ -76,6 +76,8 @@ class GreeProp(Enum):
     _UNKNOWN_HEAT_COOL_TYPE = "HeatCoolType"
     # If set to 0 the unit will beep on every command
     BEEPER = "Buzzer_ON_OFF"
+    # If set to 1 the unit will beep on every command (available on newer firmwares)
+    BEEPER_NEW = "BuzzerCtrl"
 
 
 @unique
