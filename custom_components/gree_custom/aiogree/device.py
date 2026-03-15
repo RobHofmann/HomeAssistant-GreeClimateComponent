@@ -12,19 +12,23 @@ from .api import (
     OperationMode,
     TemperatureUnits,
     VerticalSwingMode,
-    get_cipher,
-    gree_get_default_cipher,
     gree_get_device_info,
     gree_get_device_key,
     gree_get_status,
     gree_get_sub_devices_list,
     gree_set_status,
 )
-from .cipher import CipherBase
+from .cipher import CipherBase, get_cipher
 from .const import (
     DEFAULT_CONNECTION_MAX_ATTEMPTS,
     DEFAULT_CONNECTION_TIMEOUT,
     DEFAULT_DEVICE_UID,
+)
+from .errors import (
+    GreeAuthenticationError,
+    GreeAuthenticationErrorBadKey,
+    GreeError,
+    GreeProtocolError,
 )
 from .helpers import (
     TempOffsetResolver,
@@ -35,18 +39,6 @@ from .helpers import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-
-
-class GreeDeviceNotBoundError(BaseException):
-    """Raised when the device binding fails."""
-
-
-class GreeDeviceNotBoundErrorKey(BaseException):
-    """Raised when the device binding fails because of wrong key."""
-
-
-class CannotConnect(BaseException):
-    """Error to indicate we cannot connect."""
 
 
 class GreeDevice:
@@ -113,64 +105,71 @@ class GreeDevice:
 
     async def bind_device(self) -> bool:
         """Setup the device (async)."""
-        if not self._is_bound:
-            try:
-                (
-                    encryption_key,
-                    encryption_version,
-                ) = await gree_get_device_key(
-                    self._ip_addr,
-                    self._mac_addr,
-                    self._port,
-                    self._uid,
+
+        if self._is_bound:
+            return True
+
+        try:
+            key, version = await gree_get_device_key(
+                self._ip_addr,
+                self._mac_addr,
+                self._port,
+                self._uid,
+                self._encryption_version,
+                self._max_connection_attempts,
+                self._timeout,
+            )
+
+        except GreeAuthenticationError:
+            raise
+
+        except Exception as e:
+            raise GreeError(f"Failed binding to device {self._ip_addr}") from e
+
+        else:
+            if not self._encryption_key.strip() or not self._encryption_version:
+                _LOGGER.info("Using the obtained encryption key and version")
+                self._encryption_key = key
+                self._encryption_version = version
+            else:
+                if key != self._encryption_key:
+                    raise GreeAuthenticationErrorBadKey("Wrong encryption key provided")
+                _LOGGER.info(
+                    "Using the provided encryption key with version %d",
                     self._encryption_version,
-                    self._max_connection_attempts,
-                    self._timeout,
                 )
-            except Exception as e:
-                raise GreeDeviceNotBoundError("Unable to obtain device key") from e
-            else:
-                if not self._encryption_key.strip() or not self._encryption_version:
-                    _LOGGER.info("Using the obtained encryption key and version")
-                    self._encryption_key = encryption_key
-                    self._encryption_version = encryption_version
-                else:
-                    if encryption_key != self._encryption_key:
-                        raise GreeDeviceNotBoundErrorKey(
-                            "Wrong encryption key provided"
-                        )
-                    _LOGGER.info(
-                        "Using the provided encryption key with version %d",
-                        self._encryption_version,
-                    )
 
-                self._cipher = get_cipher(encryption_key, encryption_version)
-                self._is_available = True
-                self._is_bound = True
+            self._cipher = get_cipher(version, key)
+            self._is_available = True
+            self._is_bound = True
 
-            try:
-                # Used also as basic communication test
-                self._raw_info = await gree_get_device_info(
-                    self._ip_addr,
-                    self._max_connection_attempts,
-                    self._timeout,
-                )
-            except Exception as e:
-                _LOGGER.exception("Could not retrieve basic device info")
-                raise CannotConnect(
-                    f"Not able to connect to the device {self._ip_addr}"
-                ) from e
-            else:
-                if self._raw_info.get("mac", "") != self._mac_addr:
-                    raise CannotConnect(
-                        f"Not able to connect to the device {self._ip_addr}. MAC mismatch {self._raw_info.get('mac', '')} not {self._mac_addr}."
-                    )
-                self._firmware_version = self._raw_info.get("firmware_version")
-                self._firmware_code = self._raw_info.get("firmware_code")
-                self._subdevicesCount = int(
-                    self._raw_info.get("subdevices_count", 0) or 0
-                )
+        # Used also as basic communication test
+        await self.fetch_device_info()
+
         return self._is_bound
+
+    async def fetch_device_info(self):
+        """Updates the device info fields."""
+        try:
+            self._raw_info = await gree_get_device_info(
+                self._ip_addr,
+                self._max_connection_attempts,
+                self._timeout,
+            )
+
+        except Exception as e:
+            raise GreeProtocolError(
+                f"Failed fetching device info for {self._ip_addr}"
+            ) from e
+
+        else:
+            if self._raw_info.get("mac", "") != self._mac_addr:
+                raise GreeProtocolError(
+                    f"Wrong device info for {self._ip_addr}. MAC mismatch {self._raw_info.get('mac', '')} not {self._mac_addr}."
+                )
+            self._firmware_version = self._raw_info.get("firmware_version")
+            self._firmware_code = self._raw_info.get("firmware_code")
+            self._subdevicesCount = int(self._raw_info.get("subdevices_count", 0) or 0)
 
     async def fetch_sub_devices(self) -> list[GreeDiscoveredDevice]:
         """Get the sub devices list."""
@@ -192,13 +191,18 @@ class GreeDevice:
                 self._mac_addr,
                 self._port,
                 self._uid,
-                gree_get_default_cipher(self._encryption_version),
+                get_cipher(self._encryption_version),
                 self._max_connection_attempts,
                 self._timeout,
             )
+        except GreeProtocolError:
+            self._is_available = False
+            raise
+
         except Exception as err:
             self._is_available = False
-            raise ValueError("Error getting subdevices") from err
+            raise GreeError("Error getting subdevices") from err
+
         else:
             for sub_device in subs:
                 sub_mac = sub_device.get("mac", "")
@@ -218,8 +222,9 @@ class GreeDevice:
                         "Discovered sub-device: %s",
                         discovered_sub_device,
                     )
-                _LOGGER.debug("Subdevices of '%s': %s", self._mac_addr, subs)
-                self._is_available = True
+
+            _LOGGER.debug("Subdevices of '%s': %s", self._mac_addr, subs)
+            self._is_available = True
 
             return discovered_devices
 
@@ -233,7 +238,7 @@ class GreeDevice:
         assert self._cipher is not None
 
         try:
-            state, props_not_present = await gree_get_status(
+            state, _ = await gree_get_status(
                 self._ip_addr,
                 self._mac_addr,
                 self._mac_addr_sub,
@@ -246,24 +251,28 @@ class GreeDevice:
             )
             self._raw_state.update(state)
 
-            if self._mac_addr != self._mac_addr_sub:
-                sub_state, _ = await gree_get_status(
-                    self._ip_addr,
-                    self._mac_addr,
-                    self._mac_addr,
-                    self._port,
-                    self._uid,
-                    self._cipher,
-                    props_not_present,
-                    self._max_connection_attempts,
-                    self._timeout,
-                )
-                # self._raw_state.update(sub_state)
+            # if self._mac_addr != self._mac_addr_sub:
+            #     sub_state, _ = await gree_get_status(
+            #         self._ip_addr,
+            #         self._mac_addr,
+            #         self._mac_addr,
+            #         self._port,
+            #         self._uid,
+            #         self._cipher,
+            #         props_not_present,
+            #         self._max_connection_attempts,
+            #         self._timeout,
+            #     )
+            #     self._raw_state.update(sub_state)
 
             self._is_available = True
+
+        except GreeProtocolError:
+            raise
+
         except Exception as err:
             self._is_available = False
-            raise ValueError("Error getting device status") from err
+            raise GreeError("Error getting device status") from err
 
         self._remove_unsupported_props()
 
@@ -301,9 +310,13 @@ class GreeDevice:
             )
             self._new_raw_state.clear()
             self._is_available = True
+
+        except GreeProtocolError:
+            raise
+
         except Exception as err:
             self._is_available = False
-            raise ValueError("Error setting device status") from err
+            raise GreeError("Error setting device status") from err
 
     def _set_device_status(self, props: dict[GreeProp, int]) -> None:
         """Sets a new local device status. Use 'update_device_status' to update the device."""

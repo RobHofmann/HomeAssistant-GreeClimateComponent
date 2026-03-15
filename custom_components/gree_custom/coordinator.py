@@ -12,7 +12,8 @@ from homeassistant.helpers.update_coordinator import (
     timedelta,
 )
 
-from .aiogree.device import GreeDevice, GreeDeviceNotBoundError
+from .aiogree.device import GreeDevice
+from .aiogree.errors import GreeAuthenticationError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -61,10 +62,10 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         """
         try:
             await self.device.fetch_device_status()
-        except GreeDeviceNotBoundError as err:
+        except GreeAuthenticationError as err:
             _LOGGER.exception("Failed to initiate Gree device")
             raise ConfigEntryAuthFailed("Failed to initiate Gree device") from err
-        except ValueError as err:
+        except Exception as err:
             _LOGGER.exception("Error getting state from device")
             raise UpdateFailed("Error getting state from device") from err
 

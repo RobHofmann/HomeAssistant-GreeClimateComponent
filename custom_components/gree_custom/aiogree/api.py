@@ -1,19 +1,17 @@
 """Contains the API to interface with the Gree device."""
 
-import asyncio
 from enum import Enum, IntEnum, unique
 import json
 import logging
 import re
-import socket
-import time
 from typing import Any
 
-import asyncio_dgram
 from attr import dataclass
 
-from .cipher import CipherBase, CipherV1, CipherV2
+from .cipher import CipherBase, EncryptionVersion, get_cipher
 from .const import DEFAULT_DEVICE_PORT
+from .errors import GreeAuthenticationError, GreeProtocolError
+from .transport import udp_broadcast_request, udp_request
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -78,14 +76,6 @@ class GreeProp(Enum):
     BEEPER = "Buzzer_ON_OFF"
     # If set to 1 the unit will beep on every command (available on newer firmwares)
     BEEPER_NEW = "BuzzerCtrl"
-
-
-@unique
-class EncryptionVersion(IntEnum):
-    """Available encryption versions for the device."""
-
-    V1 = 1
-    V2 = 2
 
 
 @unique
@@ -174,228 +164,6 @@ class GreeDiscoveredDevice:
 propkey_to_enum = {prop.value: prop for prop in GreeProp}
 
 
-def pad(s: str):
-    """Pads a string so its length becomes a multiple of 16. For PKCS#7 padding."""
-    aesBlockSize = 16
-    requiredPaddingSize = aesBlockSize - len(s) % aesBlockSize
-    return s + requiredPaddingSize * chr(requiredPaddingSize)
-
-
-def udp_broadcast_request(
-    addresses: list[str], port: int, json_data: str, timeout: int
-):
-    """Sends a UDP message to the bradcast address and returns the responses."""
-    # Create UDP socket manually so we can enable broadcast
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    sock.settimeout(timeout)
-    sock.bind(("", 0))
-
-    responses: dict = {}
-
-    # Default broadcast addresses to try
-    default_broadcast_addresses = [
-        "255.255.255.255",  # Limited broadcast
-        "192.168.255.255",  # /16 broadcast for 192.168.x.x networks
-        "10.255.255.255",  # /8 broadcast for 10.x.x.x networks
-        "172.31.255.255",  # /12 broadcast for 172.16-31.x.x networks
-    ]
-    addresses.extend(default_broadcast_addresses)
-
-    # Remove duplicates
-    broadcast_addresses = list(dict.fromkeys(addresses))
-
-    try:
-        for broadcast_addr in broadcast_addresses:
-            try:
-                _LOGGER.debug("Sending broadcast to %s", broadcast_addr)
-                sock.sendto(json_data.encode("utf-8"), (broadcast_addr, port))
-            except Exception:
-                _LOGGER.exception("Failed to send to %s", broadcast_addr)
-
-        # Send broadcast
-        _LOGGER.debug("Sent broadcast packets, waiting for replies... ")
-
-        start_time: float = time.time()
-        while time.time() - start_time < timeout:
-            try:
-                response, addr = sock.recvfrom(1024)
-
-                try:
-                    response = response.decode(errors="ignore")
-                except Exception:
-                    _LOGGER.exception("Could not parse response from %s", addr)
-                else:
-                    responses[addr[0]] = response
-            except TimeoutError:
-                break
-    except Exception:
-        _LOGGER.exception("Error sending broadcast packet")
-    finally:
-        sock.close()
-
-    _LOGGER.debug(
-        "Got %d responses in %d seconds: %s", len(responses), timeout, responses
-    )
-    return responses
-
-
-async def udp_request_async(
-    ip_addr: str,
-    port: int,
-    json_data: str,
-    max_retries: int,
-    timeout: int,
-) -> str:
-    """Send a payload JSON data to the device and reads the response (async)."""
-    # _LOGGER.info(
-    #     "%s:%d max_r=%d t=%d json:\n%s", ip_addr, port, max_retries, timeout, json_data
-    # )
-
-    for attempt in range(max_retries):
-        stream: asyncio_dgram.DatagramClient | None = None
-        try:
-            stream = await asyncio_dgram.connect((ip_addr, port))
-            await stream.send(json_data.encode("utf-8"))
-            received_json, _ = await asyncio.wait_for(stream.recv(), timeout)
-            return received_json.decode("utf-8")
-        except Exception as err:  # noqa: BLE001
-            _LOGGER.warning(
-                "Error communicating with %s. Attempt %d/%d | %s",
-                ip_addr,
-                attempt + 1,
-                max_retries,
-                err,
-            )
-            # raise ValueError(f"Error communicating with {ip_addr}", ip_addr) from err
-        finally:
-            if stream:
-                try:
-                    stream.close()
-                except Exception as cerr:  # noqa: BLE001
-                    _LOGGER.warning(
-                        "Error communicating with %s. Attempt %d/%d | %s",
-                        ip_addr,
-                        attempt + 1,
-                        max_retries,
-                        repr(cerr),
-                    )
-
-        # Apply backoff before retrying
-        if attempt < max_retries - 1:
-            backoff = 0.5 + attempt * 0.3  # 0.5s, 0.8s, 1.1s, ...
-            await asyncio.sleep(backoff)
-
-    raise ValueError(
-        f"Failed to communicate with device '{ip_addr}:{port}' after {max_retries} attempts"
-    )
-
-
-async def udp_request_blocking(
-    ip_addr: str, port: int, json_data: str, max_retries: int, timeout: int
-) -> str:
-    """Send a payload JSON data to the device and reads the response (blocking)."""
-    _LOGGER.debug("Fetching(%s, %s, %s, %s)", ip_addr, port, timeout, json_data)
-
-    for attempt in range(max_retries):
-        clientSock = None
-
-        try:
-            clientSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            clientSock.settimeout(timeout)
-
-            clientSock.sendto(bytes(json_data, "utf-8"), (ip_addr, port))
-
-            data, _ = await asyncio.wait_for(
-                asyncio.get_event_loop().run_in_executor(
-                    None, clientSock.recvfrom, 64000
-                ),
-                timeout=timeout,
-            )
-
-            return data.decode("utf-8")
-
-        except Exception:  # noqa: BLE001
-            _LOGGER.warning(
-                "Error communicating with %s. Attempt %d/%d",
-                ip_addr,
-                attempt + 1,
-                max_retries,
-            )
-
-        finally:
-            if clientSock:
-                try:
-                    clientSock.close()
-                except Exception:  # noqa: BLE001
-                    _LOGGER.error("Error closing socket to %s", ip_addr)
-
-        if attempt < max_retries - 1:
-            await asyncio.sleep(
-                0.5 * (attempt * 0.3)
-            )  # 0.5s, 0.8s, 1.1s, 1.4s, 1.7s, 2.0s, 2.3s
-
-    raise ValueError(
-        f"Failed to communicate with device '{ip_addr}' after multiple attempts"
-    )
-
-
-async def fetch_result(
-    ip_addr: str,
-    port: int,
-    json_data: str,
-    cipher: CipherBase,
-    max_connection_attempts: int,
-    timeout: int,
-):
-    """Send a payload JSON data to the device and reads the response (async)."""
-
-    _LOGGER.debug("Fetching data from %s", ip_addr)
-
-    received_json: str = ""
-
-    try:
-        received_json = await udp_request_async(
-            ip_addr, port, json_data, max_connection_attempts, timeout
-        )
-    except Exception as err:
-        raise ValueError(f"Error communicating with {ip_addr}: {err}") from err
-
-    # try:
-    #     received_json = await udp_request_blocking(ip_addr, port, json_data)
-    # except Exception as err:
-    #     raise ValueError(f"Error communicating with {ip_addr}", ip_addr) from err
-
-    data = get_gree_response_data(received_json, cipher)
-
-    # Do not modify the original data
-    redacted = data.copy()
-    if "pack" in redacted and "key" in redacted["pack"]:
-        redacted["pack"] = redacted["pack"].copy()
-        redacted["pack"]["key"] = str(redacted["pack"]["key"])[:5] + "[redacted]"
-
-    _LOGGER.debug("Got data from %s: %s", ip_addr, redacted)
-
-    return data
-
-
-def get_gree_response_data(
-    received_json: str,
-    cipher: CipherBase,
-):
-    """Decodes a response from a gree device."""
-    data = json.loads(received_json)
-
-    encodedPack = data.get("pack", None)
-    tag = data.get("tag", None)
-
-    if encodedPack:
-        decodedPack = cipher.decrypt(encodedPack, tag)
-        data["pack"] = json.loads(decodedPack)
-
-    return data
-
-
 async def get_result_pack(
     ip_addr: str,
     port: int,
@@ -406,45 +174,46 @@ async def get_result_pack(
 ):
     """Get the result pack from the device (async)."""
 
-    data = await fetch_result(
-        ip_addr,
-        port,
-        json_data,
-        cipher,
-        max_connection_attempts,
-        timeout,
-    )
+    raw = await udp_request(ip_addr, port, json_data, max_connection_attempts, timeout)
 
-    if data is not None and data["pack"] is not None:
-        return data["pack"]
+    data = get_gree_response_data(raw, cipher)
 
-    raise ValueError("No pack received from device")
+    pack = data.get("pack", None)
 
+    if pack is None:
+        raise GreeProtocolError("Device response missing 'pack' field")
 
-def get_cipher(key: str, encryption_version: EncryptionVersion) -> CipherBase:
-    """Get AES cipher object based on encryption version."""
+    # Do not modify the original data
+    redacted = data.copy()
+    if "key" in redacted["pack"] and redacted["pack"]["key"]:
+        redacted["pack"] = redacted["pack"].copy()
+        redacted["pack"]["key"] = str(redacted["pack"]["key"])[:5] + "[redacted]"
 
-    if encryption_version == EncryptionVersion.V1:
-        return CipherV1(key)
+    _LOGGER.debug("Got data from %s: %s", ip_addr, redacted)
 
-    if encryption_version == EncryptionVersion.V2:
-        return CipherV2(key)
-
-    _LOGGER.error("Unsupported encryption version: %d", encryption_version)
-    return None
+    return pack
 
 
-def gree_get_default_cipher(encryption_version: EncryptionVersion) -> CipherBase:
-    """Get AES cipher object based on encryption version using default keys."""
+def get_gree_response_data(
+    received_json: str,
+    cipher: CipherBase,
+):
+    """Decodes a response from a gree device."""
 
-    if encryption_version == EncryptionVersion.V1:
-        return CipherV1()
+    try:
+        data = json.loads(received_json)
+    except json.JSONDecodeError as err:
+        raise GreeProtocolError("Invalid JSON response from device") from err
 
-    if encryption_version == EncryptionVersion.V2:
-        return CipherV2()
+    encoded_pack = data.get("pack", None)
+    tag = data.get("tag", None)
 
-    _LOGGER.error("Unsupported encryption version: %d", encryption_version)
-    return None
+    if encoded_pack:
+        decrypted_pack = cipher.decrypt(encoded_pack, tag)
+        # Replace encrypted pack with decrypted data
+        data["pack"] = json.loads(decrypted_pack)
+
+    return data
 
 
 def gree_create_encrypted_pack(
@@ -521,7 +290,7 @@ def gree_create_payload(
 ) -> str:
     """Create the full payload to send to the device."""
 
-    base_payload: dict[str, Any] = {
+    payload: dict[str, Any] = {
         "cid": "app",
         "i": i_command.value,
         "pack": pack,
@@ -531,10 +300,10 @@ def gree_create_payload(
     }
 
     if tag is not None:
-        base_payload["tag"] = tag
+        payload["tag"] = tag
 
-    _LOGGER.debug("Payload: %s", base_payload)
-    return json.dumps(base_payload)
+    _LOGGER.debug("Payload: %s", payload)
+    return json.dumps(payload)
 
 
 async def gree_get_device_key(
@@ -549,7 +318,7 @@ async def gree_get_device_key(
     """Get the device key by sending a bind request to the device using a generic key (async)."""
 
     key = ""
-    error: Exception = ValueError("Unknown error getting device encryption key")
+    error: Exception = Exception("Unknown error getting device encryption key")
 
     for enc_version in (
         [EncryptionVersion.V1, EncryptionVersion.V2]
@@ -558,11 +327,11 @@ async def gree_get_device_key(
     ):
         _LOGGER.info("Trying to retrieve device encryption key v%d", enc_version)
 
-        cipher = gree_get_default_cipher(enc_version)
-        pack, tag = gree_create_encrypted_pack(
-            gree_create_bind_pack(mac_addr, uid, enc_version), cipher
-        )
-        jsonPayloadToSend = gree_create_payload(
+        cipher = get_cipher(enc_version)
+
+        raw_pack = gree_create_bind_pack(mac_addr, uid, enc_version)
+        pack, tag = gree_create_encrypted_pack(raw_pack, cipher)
+        json_payload = gree_create_payload(
             pack, "pack", GreeCommand.BIND, mac_addr, uid, tag
         )
 
@@ -570,34 +339,36 @@ async def gree_get_device_key(
             result = await get_result_pack(
                 ip_addr,
                 port,
-                jsonPayloadToSend,
+                json_payload,
                 cipher,
                 max_connection_attempts,
                 timeout,
             )
             key = result.get("key", "")
-        except Exception as err:  # noqa: BLE001
-            error = err
-            _LOGGER.error(
-                "Error getting device encryption key with version %d:\n%s",
+
+        except Exception as err:
+            _LOGGER.exception(
+                "Error getting device encryption key with version %d",
                 enc_version,
-                err,
             )
-            # raise ValueError("Error getting device encryption key") from err
+            error = err
             continue
 
         if key.strip() == "":
-            error = ValueError("Received empty encryption key from device")
+            error = Exception("Received empty encryption key from device")
             continue
 
         _LOGGER.info(
             "Fetched device encryption key with version %d with success", enc_version
         )
+
         _LOGGER.debug("Fetched encryption key: %s[omitted]", key[:5])
 
         return key, enc_version
 
-    raise ValueError("Error getting device encryption key") from error
+    raise GreeAuthenticationError(
+        f"Error getting device encryption key from {ip_addr}"
+    ) from error
 
 
 async def gree_get_status(
@@ -617,10 +388,9 @@ async def gree_get_status(
 
     status_values_raw: dict[GreeProp, int | None] = {}
 
-    pack, tag = gree_create_encrypted_pack(
-        gree_create_status_pack(mac_addr_sub, [prop.value for prop in props]), cipher
-    )
-    jsonPayloadToSend = gree_create_payload(
+    raw_pack = gree_create_status_pack(mac_addr_sub, [prop.value for prop in props])
+    pack, tag = gree_create_encrypted_pack(raw_pack, cipher)
+    json_payload = gree_create_payload(
         pack, "pack", GreeCommand.STATUS, mac_addr, uid, tag
     )
 
@@ -628,16 +398,20 @@ async def gree_get_status(
         result = await get_result_pack(
             ip_addr,
             port,
-            jsonPayloadToSend,
+            json_payload,
             cipher,
             max_connection_attempts,
             timeout,
         )
+
+    except GreeProtocolError:
+        raise
+
     except Exception as err:
-        raise ValueError("Error getting device status") from err
+        raise GreeProtocolError("Error getting device status") from err
 
     if result["cols"] is None or result["dat"] is None:
-        raise ValueError("Error getting device status, no data received")
+        raise GreeProtocolError("No data received while getting device status")
 
     cols = [propkey_to_enum[c] for c in result["cols"] if c in propkey_to_enum]
     values = [int(x) if x != "" else None for x in result["dat"]]
@@ -666,8 +440,7 @@ async def gree_set_status(
 
     set_pack = gree_create_set_pack(mac_addr_sub, props)
     pack, tag = gree_create_encrypted_pack(set_pack, cipher)
-
-    jsonPayloadToSend = gree_create_payload(
+    json_payload = gree_create_payload(
         pack, "pack", GreeCommand.STATUS, mac_addr, uid, tag
     )
 
@@ -675,37 +448,43 @@ async def gree_set_status(
         result = await get_result_pack(
             ip_addr,
             port,
-            jsonPayloadToSend,
+            json_payload,
             cipher,
             max_connection_attempts,
             timeout,
         )
+
+    except GreeProtocolError:
+        raise
+
     except Exception as err:
-        raise ValueError("Error getting device status") from err
+        raise GreeProtocolError("Error getting device status") from err
 
     if result["r"] is None or result["r"] != 200:
-        raise ValueError(f"Error setting device status, response code: {result['r']}")
+        raise GreeProtocolError(
+            f"Error setting device status, response code: {result['r']}"
+        )
 
     options_set = [propkey_to_enum[c] for c in result["opt"] if c in propkey_to_enum]
     if options_set is None or len(options_set) == 0:
-        raise ValueError("No options were set, something went wrong")
+        raise GreeProtocolError("No options were set, something went wrong")
 
     values_set_1 = result.get("p", None)
     values_set_2 = result.get("val", None)  # this one is optional
 
     if values_set_1 is None:
-        raise ValueError("No values were set, something went wrong")
+        raise GreeProtocolError("No values were set, something went wrong")
     values_set_1 = list(map(int, values_set_1))
 
     if values_set_2 is not None:
         values_set_2 = list(map(int, values_set_2))
         if len(values_set_1) != len(values_set_2):
-            raise ValueError(
+            raise GreeProtocolError(
                 f"Wrong option values received: {values_set_1} {values_set_2}"
             )
 
     if len(values_set_1) != len(options_set):
-        raise ValueError(
+        raise GreeProtocolError(
             f"Options and values set mismatch {options_set} {values_set_1}"
         )
 
@@ -722,26 +501,24 @@ async def gree_get_device_info(
     timeout: int,
 ) -> dict[str, str | None]:
     """Tries to retrive the device info."""
-    try:
-        data: dict = await get_result_pack(
-            ip_addr,
-            DEFAULT_DEVICE_PORT,
-            json.dumps({"t": "scan"}),
-            gree_get_default_cipher(EncryptionVersion.V1),
-            max_connection_attempts,
-            timeout,
-        )
-    except Exception as err:
-        _LOGGER.exception("Error retrieving basic device info")
-        raise ValueError("Error retrieving basic device info") from err
-    else:
-        _LOGGER.debug("Got device info: %s", data)
-        info: dict[str, str | None] = {}
-        info["raw"] = data
-        info["firmware_version"], info["firmware_code"] = extract_version(data)
-        info["mac"] = data.get("mac", "")
-        info["subdevices_count"] = data.get("subCnt", 0)
-        return info
+
+    data: dict = await get_result_pack(
+        ip_addr,
+        DEFAULT_DEVICE_PORT,
+        json.dumps({"t": "scan"}),
+        get_cipher(EncryptionVersion.V1),
+        max_connection_attempts,
+        timeout,
+    )
+
+    _LOGGER.debug("Got device info: %s", data)
+
+    info: dict[str, str | None] = {}
+    info["raw"] = data
+    info["firmware_version"], info["firmware_code"] = extract_version(data)
+    info["mac"] = data.get("mac", "")
+    info["subdevices_count"] = data.get("subCnt", 0)
+    return info
 
 
 def extract_version(info: dict) -> tuple[str | None, str | None]:
@@ -773,7 +550,7 @@ async def discover_gree_devices(
     for address, response in responses.items():
         data = get_gree_response_data(
             response,
-            gree_get_default_cipher(EncryptionVersion.V1),
+            get_cipher(EncryptionVersion.V1),
         )
         if data is not None:
             pack = data.get("pack")
@@ -880,7 +657,9 @@ async def gree_get_sub_devices_list(
         return result.get("list", [])
 
     except Exception as err:
-        raise ValueError(f"Error fetching sub-device list for '{mac_addr}'") from err
+        raise GreeProtocolError(
+            f"Error fetching sub-device list for '{mac_addr}'"
+        ) from err
 
 
 async def get_sub_devices(
@@ -900,7 +679,7 @@ async def get_sub_devices(
 
         pack, tag = gree_create_encrypted_pack(
             gree_create_sub_bind_pack(mac_addr),
-            gree_get_default_cipher(version),
+            get_cipher(version),
             version,
         )
 
@@ -918,7 +697,7 @@ async def get_sub_devices(
             ip_addr,
             DEFAULT_DEVICE_PORT,
             jsonPayloadToSend,
-            gree_get_default_cipher(version),
+            get_cipher(version),
             version,
             max_connection_attempts,
             timeout,

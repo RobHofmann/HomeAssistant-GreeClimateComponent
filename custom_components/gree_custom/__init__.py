@@ -18,7 +18,9 @@ from .aiogree.const import (
     DEFAULT_DEVICE_PORT,
     DEFAULT_DEVICE_UID,
 )
-from .aiogree.device import GreeDevice, GreeDeviceNotBoundError
+from .aiogree.device import GreeDevice
+from .aiogree.errors import GreeAuthenticationError
+from .config_flow import build_main_schema
 
 # Local imports
 from .const import (
@@ -105,7 +107,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
         except TimeoutError as err:
             _LOGGER.debug("Conection to %s timed out", mac)
             raise ConfigEntryNotReady from err
-        except GreeDeviceNotBoundError as err:
+        except GreeAuthenticationError as err:
             _LOGGER.debug("Failed to bind to device %s", mac)
             raise ConfigEntryNotReady from err
 

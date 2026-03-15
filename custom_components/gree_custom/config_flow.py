@@ -30,23 +30,19 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
-from .aiogree.api import (
-    EncryptionVersion,
-    GreeDiscoveredDevice,
-    GreeProp,
-    discover_gree_devices,
-)
+from .aiogree.api import GreeDiscoveredDevice, GreeProp, discover_gree_devices
+from .aiogree.cipher import EncryptionVersion
 from .aiogree.const import (
     DEFAULT_CONNECTION_MAX_ATTEMPTS,
     DEFAULT_CONNECTION_TIMEOUT,
     DEFAULT_DEVICE_PORT,
     DEFAULT_DEVICE_UID,
 )
-from .aiogree.device import (
-    CannotConnect,
-    GreeDevice,
-    GreeDeviceNotBoundError,
-    GreeDeviceNotBoundErrorKey,
+from .aiogree.device import GreeDevice
+from .aiogree.errors import (
+    GreeAuthenticationError,
+    GreeAuthenticationErrorBadKey,
+    GreeConnectionError,
 )
 from .const import (
     ATTR_EXTERNAL_HUMIDITY_SENSOR,
@@ -702,15 +698,15 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     self._devices[subdev.mac_address_sub] = subdev
 
                 await self._devices[_main_device.mac_address_sub].fetch_device_status()
-            except CannotConnect:
-                errors["base"] = "cannot_connect"
-                _LOGGER.exception("Cannot connect")
-            except GreeDeviceNotBoundError:
-                errors["base"] = "cannot_connect"
-                _LOGGER.exception("Error while binding")
-            except GreeDeviceNotBoundErrorKey:
+            except GreeAuthenticationErrorBadKey:
                 errors["base"] = "cannot_connect_key"
                 _LOGGER.exception("Error while binding with wrong key")
+            except GreeAuthenticationError:
+                errors["base"] = "cannot_connect"
+                _LOGGER.exception("Error while binding")
+            except GreeConnectionError:
+                errors["base"] = "cannot_connect"
+                _LOGGER.exception("Cannot connect")
             except Exception:
                 errors["base"] = "unknown"
                 _LOGGER.exception("Unknown error while binding")

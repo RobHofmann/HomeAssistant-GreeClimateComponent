@@ -1,9 +1,11 @@
 """Encapsulates device encryption."""
 
 import base64
+from enum import IntEnum, unique
 import logging
 
 from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -12,6 +14,16 @@ GCM_ADD = b"qualcomm-test"
 
 GREE_GENERIC_DEVICE_KEY = "a3K8Bx%2r8Y7#xDh"
 GREE_GENERIC_DEVICE_KEY_GCM = "{yxAHAY_Lm6pbC/<"
+
+AES_BLOCK_SIZE = 16
+
+
+@unique
+class EncryptionVersion(IntEnum):
+    """Available encryption versions for the device."""
+
+    V1 = 1
+    V2 = 2
 
 
 class CipherBase:
@@ -22,8 +34,13 @@ class CipherBase:
         self.key = key
 
     @property
+    def version(self) -> EncryptionVersion:
+        """The encryption version of this cypher."""
+        raise NotImplementedError
+
+    @property
     def key(self) -> str:
-        """The encryprion key."""
+        """The encryption key."""
         return self._key.decode()
 
     @key.setter
@@ -40,78 +57,125 @@ class CipherBase:
 
 
 class CipherV1(CipherBase):
-    """Implements the V1 type encryption used by Gree."""
+    """Implements the V1 (AES-ECB) type encryption used by Gree."""
 
-    def __init__(self, key: str = GREE_GENERIC_DEVICE_KEY) -> None:
+    def __init__(self, key: str | None) -> None:
         """Initialize V1 Encryption."""
-        super().__init__(key)
+        super().__init__(key or GREE_GENERIC_DEVICE_KEY)
 
-    def __create_cipher(self) -> AES:
+    def _create_cipher(self):
         return AES.new(self._key, AES.MODE_ECB)
 
-    def __pad(self, s) -> str:
-        aesBlockSize = 16
-        requiredPaddingSize = aesBlockSize - len(s) % aesBlockSize
-        return s + requiredPaddingSize * chr(requiredPaddingSize)
+    @property
+    def version(self) -> EncryptionVersion:
+        """The encryption version of this cypher."""
+        return EncryptionVersion.V1
 
     def encrypt(self, data: str) -> tuple[str, str | None]:
         """Encrypt data with V1."""
-        _LOGGER.debug("Encrypting data: %s", data)
-        cipher = self.__create_cipher()
-        padded = self.__pad(data).encode("utf-8")
+        _LOGGER.debug("Encrypting data (V1): %s", data)
+
+        cipher = self._create_cipher()
+        padded = pad(data.encode("utf-8"), AES_BLOCK_SIZE)
+
         encrypted = cipher.encrypt(padded)
         encoded = base64.b64encode(encrypted).decode("utf-8")
-        _LOGGER.debug("Encrypted data: %s", encoded)
+
+        _LOGGER.debug("Encrypted data (V1): %s", encoded)
+
         return encoded, None
 
     def decrypt(self, data: str, tag: None) -> str:
         """Decrypt data with V1."""
-        _LOGGER.debug("Decrypting data: %s", data)
-        cipher = self.__create_cipher()
+        _LOGGER.debug("Decrypting data (V1): %s", data)
+
+        cipher = self._create_cipher()
         decoded = base64.b64decode(data)
-        decrypted = cipher.decrypt(decoded).decode("utf-8")
-        t = decrypted.replace("\x0f", "").replace(
-            decrypted[decrypted.rindex("}") + 1 :], ""
-        )
-        _LOGGER.debug("Decrypted data: %s", t)
-        return t
+
+        decrypted = cipher.decrypt(decoded)
+
+        try:
+            plaintext = unpad(decrypted, AES_BLOCK_SIZE).decode()
+        except ValueError:
+            # Fallback for some devices sending malformed padding
+            plaintext = decrypted.decode(errors="ignore")
+
+        _LOGGER.debug("Decrypted data successfully (V1)")
+
+        return _trim_json_payload(plaintext)
 
 
 class CipherV2(CipherBase):
     """Implements the V2 type encryption used by Gree."""
 
-    def __init__(self, key: str = GREE_GENERIC_DEVICE_KEY_GCM) -> None:
+    def __init__(self, key: str | None) -> None:
         """Initialize V2 Encryption."""
-        super().__init__(key)
+        super().__init__(key or GREE_GENERIC_DEVICE_KEY_GCM)
 
-    def __create_cipher(self) -> AES:
+    def _create_cipher(self) -> AES:
         cipher = AES.new(self._key, AES.MODE_GCM, nonce=GCM_IV)
         cipher.update(GCM_ADD)
         return cipher
 
+    @property
+    def version(self) -> EncryptionVersion:
+        """The encryption version of this cypher."""
+        return EncryptionVersion.V2
+
     def encrypt(self, data: str) -> tuple[str, str]:
         """Encrypt data with V2 and return the data with a tag."""
-        _LOGGER.debug("Encrypting data: %s", data)
-        cipher = self.__create_cipher()
+        _LOGGER.debug("Encrypting data (V2): %s", data)
+
+        cipher = self._create_cipher()
+
         encrypted, tag = cipher.encrypt_and_digest(data.encode("utf-8"))
+
         encoded = base64.b64encode(encrypted).decode("utf-8")
-        tag = base64.b64encode(tag).decode("utf-8")
-        _LOGGER.debug("Encrypted data: %s", encoded)
-        _LOGGER.debug("Cipher digest: %s", tag)
-        return encoded, tag
+        tag_encoded = base64.b64encode(tag).decode("utf-8")
+
+        _LOGGER.debug("Encrypted data (V2): %s, tag='%s'", encoded, tag)
+        return encoded, tag_encoded
 
     def decrypt(self, data: str, tag: str) -> str:
         """Decrypt data with V2 and verify the data with the tag."""
-        _LOGGER.debug("Decrypting data: %s", data)
-        cipher = self.__create_cipher()
+        _LOGGER.debug("Decrypting data (V2): %s", data)
+
+        cipher = self._create_cipher()
+
         decoded = base64.b64decode(data)
-        decrypted = cipher.decrypt(decoded).decode("utf-8")
-        t = decrypted.replace("\x0f", "").replace(
-            decrypted[decrypted.rindex("}") + 1 :], ""
-        )
+        decrypted = cipher.decrypt(decoded)
 
         _LOGGER.debug("Verifying tag: %s", tag)
         cipher.verify(base64.b64decode(tag))
 
-        _LOGGER.debug("Decrypted data successfully")
-        return t
+        plaintext = decrypted.decode("utf-8")
+
+        _LOGGER.debug("Decrypted data successfully (V2)")
+        return _trim_json_payload(plaintext)
+
+
+def _trim_json_payload(data: str) -> str:
+    """Trims JSON garbage.
+
+    Some devices append garbage after JSON payload.
+    This safely trims everything after the final '}'.
+    """
+
+    end = data.rfind("}")
+    if end != -1:
+        return data[: end + 1]
+    return data
+
+
+def get_cipher(
+    encryption_version: EncryptionVersion, key: str | None = None
+) -> CipherBase:
+    """Get AES cipher object based on encryption version using default keys."""
+
+    if encryption_version == EncryptionVersion.V1:
+        return CipherV1(key)
+
+    if encryption_version == EncryptionVersion.V2:
+        return CipherV2(key)
+
+    raise ValueError(f"Unsupported encryption version: {encryption_version}")
