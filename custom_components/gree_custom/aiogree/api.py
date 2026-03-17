@@ -171,10 +171,11 @@ async def get_result_pack(
 
     try:
         recv_json = await transport.request_json(json_data)
+        data = get_gree_response_data(recv_json, cipher)
     except json.JSONDecodeError as err:
         raise GreeProtocolError("Invalid JSON response from device") from err
-
-    data = get_gree_response_data(recv_json, cipher)
+    except Exception as err:
+        raise GreeProtocolError("Error in device response") from err
 
     pack = data.get("pack", None)
 
@@ -505,12 +506,14 @@ async def gree_set_status(
     return updated_props
 
 
-async def gree_get_device_info(transport: GreeTransport) -> dict[str, str | None]:
+async def gree_get_device_info(
+    transport: GreeTransport, cipher: CipherBase | None = None
+) -> dict[str, str | None]:
     """Tries to retrive the device info."""
 
     data: dict = await get_result_pack(
         {"t": "scan"},
-        get_cipher(EncryptionVersion.V1),
+        cipher or get_cipher(EncryptionVersion.V1),
         transport,
     )
 

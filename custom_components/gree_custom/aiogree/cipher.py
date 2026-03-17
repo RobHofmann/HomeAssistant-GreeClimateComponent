@@ -7,6 +7,8 @@ import logging
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 
+from .errors import GreeError
+
 _LOGGER = logging.getLogger(__name__)
 
 GCM_IV = b"\x54\x40\x78\x44\x49\x67\x5a\x51\x6c\x5e\x63\x13"
@@ -144,6 +146,9 @@ class CipherV2(CipherBase):
 
         decoded = base64.b64decode(data)
         decrypted = cipher.decrypt(decoded)
+
+        if not tag:
+            raise GreeError("Decrypting data (V2) failed: tag is needed")
 
         _LOGGER.debug("Verifying tag: %s", tag)
         cipher.verify(base64.b64decode(tag))

@@ -674,6 +674,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 # )
                 self._discovered_subdevices = await self._devices[
                     _main_device.mac_address_sub
+                ].bind_device()
+
+                self._discovered_subdevices = await self._devices[
+                    _main_device.mac_address_sub
                 ].fetch_sub_devices()
 
                 for d in self._discovered_subdevices:

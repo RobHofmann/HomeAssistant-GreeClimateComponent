@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
+from homeassistant.components.diagnostics.util import async_redact_data
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_MAC, CONF_PORT, Platform
 from homeassistant.core import HomeAssistant
@@ -72,7 +73,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
         entry.data[CONF_MAC],
         entry.data[CONF_HOST],
     )
-    _LOGGER.debug("Entry '%s' data: %s\n%s", entry.entry_id, entry, entry.data)
+    _LOGGER.debug(
+        "Entry '%s' data: %s\n%s",
+        entry.entry_id,
+        entry,
+        async_redact_data(entry.data, ["encryption_key"]),
+    )
 
     conf = entry.data
     if conf is None or conf[CONF_ADVANCED] is None:
