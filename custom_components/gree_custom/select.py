@@ -17,6 +17,7 @@ from homeassistant.helpers.typing import UNDEFINED
 from .aiogree.api import GreeProp, TemperatureUnits
 from .aiogree.device import GreeDevice
 from .const import (
+    CONF_ADVANCED,
     CONF_DEVICES,
     CONF_DISABLE_AVAILABLE_CHECK,
     CONF_RESTORE_STATES,
@@ -78,9 +79,9 @@ async def async_setup_entry(
             GreeSelect(
                 description,
                 coordinator,
-                entry.data.get(CONF_RESTORE_STATES, True),
+                d.get(CONF_RESTORE_STATES, True),
                 check_availability=(
-                    entry.data.get(CONF_DISABLE_AVAILABLE_CHECK, False) is False
+                    entry.data[CONF_ADVANCED].get(CONF_DISABLE_AVAILABLE_CHECK, False)
                 ),
             )
             for description in descriptions
@@ -136,7 +137,7 @@ class GreeSelect(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ignore[re
         self._attr_current_option = self.entity_description.value_func(self.device)
         _LOGGER.debug(
             "Initialized select: %s (check_availability=%s) Options: %s",
-            self._attr_unique_id,
+            self.unique_id,
             self.check_availability,
             self._attr_options,
         )
@@ -194,7 +195,7 @@ class GreeSelect(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ignore[re
             last_state = await self.async_get_last_state()
             if last_state is not None:
                 _LOGGER.debug(
-                    "Restoring state for %s: %s", self.entity_id, last_state.state
+                    "Restoring state for %s: %s", self.unique_id, last_state.state
                 )
                 if last_state.state not in ("unknown", "unavailable"):
                     try:

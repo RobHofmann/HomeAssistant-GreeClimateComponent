@@ -20,7 +20,6 @@ from .aiogree.const import (
 )
 from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeAuthenticationError
-from .config_flow import build_main_schema
 
 # Local imports
 from .const import (

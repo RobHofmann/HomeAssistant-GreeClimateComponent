@@ -229,7 +229,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         self._update_attributes()
         _LOGGER.debug(
             "Initialized climate: %s (check_availability=%s) Features:\n%s",
-            self._attr_unique_id,
+            self.unique_id,
             self.check_availability,
             repr(self._attr_supported_features),
         )
@@ -285,7 +285,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         if last_state is not None:
             _LOGGER.debug(
                 "Restoring state for %s:\n%s",
-                self.entity_id,
+                self.unique_id,
                 last_state,
             )
 

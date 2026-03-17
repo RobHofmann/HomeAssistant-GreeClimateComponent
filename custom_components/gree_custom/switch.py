@@ -21,6 +21,7 @@ from .aiogree.device import GreeDevice
 from .const import (
     ATTR_AUTO_LIGHT,
     ATTR_AUTO_XFAN,
+    CONF_ADVANCED,
     CONF_DEVICES,
     CONF_DISABLE_AVAILABLE_CHECK,
     CONF_FEATURES,
@@ -79,10 +80,12 @@ SWITCH_TYPES: list[GreeSwitchDescription] = [
         key=GATTR_FEAT_SLEEP_MODE,
         translation_key=GATTR_FEAT_SLEEP_MODE,
         available_func=(
-            lambda device: device.available
-            and device.supports_property(GreeProp.FEAT_SLEEP_MODE)
-            and device.operation_mode
-            in [OperationMode.cool, OperationMode.dry, OperationMode.heat]
+            lambda device: (
+                device.available
+                and device.supports_property(GreeProp.FEAT_SLEEP_MODE)
+                and device.operation_mode
+                in [OperationMode.cool, OperationMode.dry, OperationMode.heat]
+            )
         ),
         value_func=lambda device, _: device.feature_sleep,
         set_func=lambda device, _, value: device.set_feature_sleep(value),
@@ -221,12 +224,14 @@ async def async_setup_entry(
                     description,
                     coordinator,
                     restore_state=(
-                        entry.data.get(CONF_RESTORE_STATES, True)
+                        d.get(CONF_RESTORE_STATES, True)
                         if description.key != GATTR_BEEPER  # Always restore beeper
                         else True
                     ),
                     check_availability=(
-                        entry.data.get(CONF_DISABLE_AVAILABLE_CHECK, False) is False
+                        entry.data[CONF_ADVANCED].get(
+                            CONF_DISABLE_AVAILABLE_CHECK, False
+                        )
                         if description.key != GATTR_BEEPER  # Beeper is always available
                         else False
                     ),
@@ -242,16 +247,18 @@ async def async_setup_entry(
                         key=ATTR_AUTO_LIGHT,
                         translation_key=ATTR_AUTO_LIGHT,
                         available_func=(
-                            lambda device: device.available
-                            and device.supports_property(GreeProp.FEAT_LIGHT)
+                            lambda device: (
+                                device.available
+                                and device.supports_property(GreeProp.FEAT_LIGHT)
+                            )
                         ),
                         value_func=(
                             lambda _, coordinator: coordinator.feature_auto_light
                         ),
                         set_func=(
-                            lambda _,
-                            coordinator,
-                            value: coordinator.set_feature_auto_light(value)
+                            lambda _, coordinator, value: (
+                                coordinator.set_feature_auto_light(value)
+                            )
                         ),
                         updates_device=False,
                         entity_category=EntityCategory.CONFIG,
@@ -273,9 +280,9 @@ async def async_setup_entry(
                             and device.supports_property(GreeProp.FEAT_XFAN)
                         ),
                         value_func=lambda _, coordinator: coordinator.feature_auto_xfan,
-                        set_func=lambda _,
-                        coordinator,
-                        value: coordinator.set_feature_auto_xfan(value),
+                        set_func=lambda _, coordinator, value: (
+                            coordinator.set_feature_auto_xfan(value)
+                        ),
                         updates_device=False,
                         entity_category=EntityCategory.CONFIG,
                     ),
@@ -306,7 +313,7 @@ class GreeSwitch(GreeEntity, SwitchEntity, RestoreEntity):  # pyright: ignore[re
         self.entity_description = description  # pyright: ignore[reportIncompatibleVariableOverride]
         _LOGGER.debug(
             "Initialized switch: %s (check_availability=%s)",
-            self._attr_unique_id,
+            self.unique_id,
             self.check_availability,
         )
 
@@ -323,7 +330,7 @@ class GreeSwitch(GreeEntity, SwitchEntity, RestoreEntity):  # pyright: ignore[re
             last_state = await self.async_get_last_state()
             if last_state is not None:
                 _LOGGER.debug(
-                    "Restoring state for %s: %s", self.entity_id, last_state.state
+                    "Restoring state for %s: %s", self.unique_id, last_state.state
                 )
                 if last_state.state in ("on", "off"):
                     value: bool = last_state.state == "on"

@@ -18,6 +18,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from .aiogree.api import GreeProp
 from .aiogree.device import GreeDevice
 from .const import (
+    CONF_ADVANCED,
     CONF_DEVICES,
     CONF_DISABLE_AVAILABLE_CHECK,
     GATTR_HUMIDITY,
@@ -109,9 +110,9 @@ async def async_setup_entry(
             GreeSensor(
                 description,
                 coordinator,
-                restore_state=True,
+                restore_state=False,
                 check_availability=(
-                    entry.data.get(CONF_DISABLE_AVAILABLE_CHECK, False) is False
+                    entry.data[CONF_ADVANCED].get(CONF_DISABLE_AVAILABLE_CHECK, False)
                 ),
             )
             for description in descriptions
@@ -145,7 +146,7 @@ class GreeSensor(GreeEntity, SensorEntity, RestoreEntity):  # pyright: ignore[re
         self.entity_description = description  # pyright: ignore[reportIncompatibleVariableOverride]
         _LOGGER.debug(
             "Initialized sensor: %s (check_availability=%s)",
-            self._attr_unique_id,
+            self.unique_id,
             self.check_availability,
         )
 
@@ -162,7 +163,7 @@ class GreeSensor(GreeEntity, SensorEntity, RestoreEntity):  # pyright: ignore[re
             last_state = await self.async_get_last_state()
             if last_state is not None:
                 _LOGGER.debug(
-                    "Restoring state for %s: %s", self.entity_id, last_state.state
+                    "Restoring state for %s: %s", self.unique_id, last_state.state
                 )
                 if last_state.state not in (None, "unknown", "unavailable"):
                     try:
