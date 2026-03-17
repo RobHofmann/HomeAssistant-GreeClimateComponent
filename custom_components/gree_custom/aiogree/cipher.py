@@ -133,7 +133,7 @@ class CipherV2(CipherBase):
         encoded = base64.b64encode(encrypted).decode("utf-8")
         tag_encoded = base64.b64encode(tag).decode("utf-8")
 
-        _LOGGER.debug("Encrypted data (V2): %s, tag='%s'", encoded, tag)
+        _LOGGER.debug("Encrypted data (V2): %s, tag='%s'", encoded, tag_encoded)
         return encoded, tag_encoded
 
     def decrypt(self, data: str, tag: str) -> str:

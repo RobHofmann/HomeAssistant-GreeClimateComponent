@@ -39,11 +39,7 @@ from .aiogree.const import (
     DEFAULT_DEVICE_UID,
 )
 from .aiogree.device import GreeDevice
-from .aiogree.errors import (
-    GreeAuthenticationError,
-    GreeAuthenticationErrorBadKey,
-    GreeConnectionError,
-)
+from .aiogree.errors import GreeBindingError, GreeConnectionError
 from .const import (
     ATTR_EXTERNAL_HUMIDITY_SENSOR,
     ATTR_EXTERNAL_TEMPERATURE_SENSOR,
@@ -698,11 +694,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     self._devices[subdev.mac_address_sub] = subdev
 
                 await self._devices[_main_device.mac_address_sub].fetch_device_status()
-            except GreeAuthenticationErrorBadKey:
-                errors["base"] = "cannot_connect_key"
-                _LOGGER.exception("Error while binding with wrong key")
-            except GreeAuthenticationError:
-                errors["base"] = "cannot_connect"
+            except GreeBindingError:
+                errors["base"] = "cannot_bind"
                 _LOGGER.exception("Error while binding")
             except GreeConnectionError:
                 errors["base"] = "cannot_connect"

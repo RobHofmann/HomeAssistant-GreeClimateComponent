@@ -13,10 +13,10 @@ from .api import (
     TemperatureUnits,
     VerticalSwingMode,
     gree_get_device_info,
-    gree_get_device_key,
     gree_get_status,
     gree_get_sub_devices_list,
     gree_set_status,
+    gree_try_bind,
 )
 from .cipher import CipherBase, get_cipher
 from .const import (
@@ -24,12 +24,7 @@ from .const import (
     DEFAULT_CONNECTION_TIMEOUT,
     DEFAULT_DEVICE_UID,
 )
-from .errors import (
-    GreeAuthenticationError,
-    GreeAuthenticationErrorBadKey,
-    GreeError,
-    GreeProtocolError,
-)
+from .errors import GreeBindingError, GreeError, GreeProtocolError
 from .helpers import (
     TempOffsetResolver,
     gree_get_target_temp_props_from_c,
@@ -109,44 +104,45 @@ class GreeDevice:
         if self._is_bound:
             return True
 
+        # Use fetch info as basic communication test since it does not require V2
         try:
-            key, version = await gree_get_device_key(
+            await self.fetch_device_info()
+        except Exception as err:
+            raise GreeBindingError(
+                "Could not fetch device info before binding"
+            ) from err
+
+        try:
+            key, version = await gree_try_bind(
                 self._ip_addr,
                 self._mac_addr,
                 self._port,
                 self._uid,
                 self._encryption_version,
+                self._encryption_key,
                 self._max_connection_attempts,
                 self._timeout,
             )
 
-        except GreeAuthenticationError:
+        except GreeBindingError:
             raise
-
         except Exception as e:
-            raise GreeError(f"Failed binding to device {self._ip_addr}") from e
+            raise GreeBindingError(f"Failed binding to device {self._ip_addr}") from e
 
         else:
-            if not self._encryption_key.strip() or not self._encryption_version:
-                _LOGGER.info("Using the obtained encryption key and version")
-                self._encryption_key = key
-                self._encryption_version = version
-            else:
-                if key != self._encryption_key:
-                    raise GreeAuthenticationErrorBadKey("Wrong encryption key provided")
-                _LOGGER.info(
-                    "Using the provided encryption key with version %d",
-                    self._encryption_version,
-                )
+            self._encryption_key = key
+            self._encryption_version = version
+            _LOGGER.info(
+                "Device is bound with version %s and key %s",
+                version,
+                key[:5] + "[redacted]",
+            )
 
             self._cipher = get_cipher(version, key)
             self._is_available = True
             self._is_bound = True
 
-        # Used also as basic communication test
-        await self.fetch_device_info()
-
-        return self._is_bound
+        return True
 
     async def fetch_device_info(self):
         """Updates the device info fields."""

@@ -3,7 +3,7 @@
     "error": {
       "unknown": "Something went wrong, please try again. If the issue persists, please check the logs.",
       "cannot_connect": "Unable to connect to the device. Please check the device configuration and network connection and try again. If the issue persists, please check the logs.",
-      "cannot_connect_key": "Unable to connect to the device. The provided encryption key does not match the device key.",
+      "cannot_bind": "Unable to bind the device. It was not possible to find the device encryption version or key. If the issue persists, please check the logs.",
       "no_devices_found": "Couldn't find any Gree device in the network. Please add your device manually."
     },
     "abort": {

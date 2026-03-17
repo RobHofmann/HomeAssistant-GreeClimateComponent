@@ -10,7 +10,7 @@ from attr import dataclass
 
 from .cipher import CipherBase, EncryptionVersion, get_cipher
 from .const import DEFAULT_DEVICE_PORT
-from .errors import GreeAuthenticationError, GreeProtocolError
+from .errors import GreeBindingError, GreeProtocolError
 from .transport import udp_broadcast_request, udp_request
 
 _LOGGER = logging.getLogger(__name__)
@@ -230,16 +230,14 @@ def gree_create_encrypted_pack(
     return (encrypted_data, tag)
 
 
-def gree_create_bind_pack(
-    mac_addr: str, uid: int, encryption_version: EncryptionVersion
-) -> str:
+def gree_create_bind_pack(mac_addr: str, uid: int, cipher: CipherBase) -> str:
     """Create a bind pack to send to the device."""
 
     pack: str = ""
 
-    if encryption_version == EncryptionVersion.V1:
+    if cipher.version == EncryptionVersion.V1:
         pack = json.dumps({"mac": mac_addr, "t": "bind", "uid": uid})
-    elif encryption_version == EncryptionVersion.V2:
+    elif cipher.version == EncryptionVersion.V2:
         pack = json.dumps({"cid": mac_addr, "mac": mac_addr, "t": "bind", "uid": uid})
 
     _LOGGER.debug("Bind Pack: %s", pack)
@@ -306,30 +304,63 @@ def gree_create_payload(
     return json.dumps(payload)
 
 
-async def gree_get_device_key(
+async def gree_try_bind(
     ip_addr: str,
     mac_addr: str,
     port: int,
     uid: int,
-    encryption_version: EncryptionVersion | None,
+    version: EncryptionVersion | None,
+    key: str | None,
     max_connection_attempts: int,
     timeout: int,
 ) -> tuple[str, EncryptionVersion]:
-    """Get the device key by sending a bind request to the device using a generic key (async)."""
+    """Perform bind request to the device and return the valid version and key (async).
 
-    key = ""
-    error: Exception = Exception("Unknown error getting device encryption key")
+    Performs the bind with the provided key or version. Falls back to generic keys.
+    If the provided key or version do not match the device, the function will return the correct device key and version.
+    """
 
-    for enc_version in (
-        [EncryptionVersion.V1, EncryptionVersion.V2]
-        if encryption_version is None
-        else [encryption_version]
-    ):
-        _LOGGER.info("Trying to retrieve device encryption key v%d", enc_version)
+    ret_key: str = ""
+    error: Exception | None = Exception("Binding failed")
 
-        cipher = get_cipher(enc_version)
+    has_version = version is not None
+    has_key = key is not None and bool(key.strip())
 
-        raw_pack = gree_create_bind_pack(mac_addr, uid, enc_version)
+    ciphers: list[CipherBase] = []
+
+    if has_version:
+        ciphers.append(get_cipher(version))
+        if has_key:
+            _LOGGER.info(
+                "Trying to perform binding. Prefer provided version (%s) and key (%s)",
+                version,
+                key[:5] + "[redacted]",
+            )
+        else:
+            _LOGGER.info(
+                "Trying to perform binding. Prefer provided version (%s) and generic key ",
+                version,
+            )
+    elif has_key:
+        _LOGGER.info(
+            "Trying to perform binding. Prefering provided key (%s)",
+            key[:5] + "[redacted]",
+        )
+    else:
+        _LOGGER.info(
+            "Trying to perform binding. Testing both versions with generic keys"
+        )
+
+    # Fallback to both default ciphers
+    ciphers.append(get_cipher(EncryptionVersion.V1))
+    ciphers.append(get_cipher(EncryptionVersion.V2))
+
+    for cipher in ciphers:
+        _LOGGER.debug(
+            "Requesting bind to device with encryption key v%d", cipher.version
+        )
+
+        raw_pack = gree_create_bind_pack(mac_addr, uid, cipher)
         pack, tag = gree_create_encrypted_pack(raw_pack, cipher)
         json_payload = gree_create_payload(
             pack, "pack", GreeCommand.BIND, mac_addr, uid, tag
@@ -344,30 +375,48 @@ async def gree_get_device_key(
                 max_connection_attempts,
                 timeout,
             )
-            key = result.get("key", "")
 
         except Exception as err:
             _LOGGER.exception(
-                "Error getting device encryption key with version %d",
-                enc_version,
+                "Error in bind request using encryption key with version %d",
+                cipher.version,
             )
+
+            # In case we are testing multiple ciphers, don't raise,
+            # just save the error so we can continue testing the other ciphers
             error = err
             continue
 
-        if key.strip() == "":
-            error = Exception("Received empty encryption key from device")
-            continue
+        else:
+            ret_key = result.get("key", "")
 
-        _LOGGER.info(
-            "Fetched device encryption key with version %d with success", enc_version
-        )
+            if ret_key.strip() == "":
+                raise GreeBindingError(
+                    "Binding failed: Received empty encryption key from device"
+                )
 
-        _LOGGER.debug("Fetched encryption key: %s[omitted]", key[:5])
+            if has_key and ret_key != key:
+                _LOGGER.warning(
+                    "Binding successful with different key. Using retrieved key. Expected '%s', got '%s'",
+                    key[:5] + "[redacted]",
+                    ret_key[:5] + "[redacted]",
+                )
 
-        return key, enc_version
+            if has_version and cipher.version != version:
+                _LOGGER.warning(
+                    "Binding successful with different version. Using retrieved version. Expected '%s', got '%s'",
+                    version,
+                    cipher.version,
+                )
 
-    raise GreeAuthenticationError(
-        f"Error getting device encryption key from {ip_addr}"
+            _LOGGER.info("Bind request with version %d was successful", cipher.version)
+
+            _LOGGER.debug("Fetched encryption key: %s[omitted]", ret_key[:5])
+
+            return ret_key, cipher.version
+
+    raise GreeBindingError(
+        f"Binding failed: Unable to obtain valid encryption version and key pair for {ip_addr}"
     ) from error
 
 
@@ -667,7 +716,7 @@ async def get_sub_devices(
 ) -> list:
     """Fetch the list of sub-devices for a Gree device."""
     try:
-        _, version = await gree_get_device_key(
+        _, version = await gree_try_bind(
             ip_addr,
             mac_addr,
             DEFAULT_DEVICE_PORT,

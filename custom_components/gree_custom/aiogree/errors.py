@@ -13,9 +13,5 @@ class GreeProtocolError(GreeError):
     """Device returned invalid data."""
 
 
-class GreeAuthenticationError(GreeError):
+class GreeBindingError(GreeError):
     """Failed to obtain encryption key."""
-
-
-class GreeAuthenticationErrorBadKey(GreeError):
-    """Provided encryption key wrong."""

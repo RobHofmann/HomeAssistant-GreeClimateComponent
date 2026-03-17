@@ -3,7 +3,7 @@
     "error": {
       "unknown": "Ocorreu algo de errado, tente de novo. Se o problema persistir, verifique os registos.",
       "cannot_connect": "Não foi possível ligar ao dispositivo. Verifique as configurações do dispositivo e de rede e tente de novo.ain. Se o problema persistir, verifique os registos.",
-      "cannot_connect_key": "Não foi possível ligar ao dispositivo. A chave de encriptação definida não corresponde à chave do dispositivo.",
+      "cannot_bind": "Não foi possível encontrar uma combinação da versão de encriptação e chave do dispositivo válida. Se o problema persistir, verifique os registos.",
       "no_devices_found": "Não foram encontrados novos dispositivos Gree compatíveis na rede. Por favor, adicione o dispositivo manualmente."
     },
     "abort": {
