@@ -9,10 +9,7 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.components.network import (
-    IPv4Address,
-    async_get_ipv4_broadcast_addresses,
-)
+from homeassistant.components import network
 from homeassistant.const import CONF_HOST, CONF_MAC, CONF_PORT, CONF_TIMEOUT
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import section
@@ -868,8 +865,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         broadcast_addresses: list[str] = []
         try:
             ha_broadcast_addresses: set[
-                IPv4Address
-            ] = await async_get_ipv4_broadcast_addresses(hass)
+                network.IPv4Address
+            ] = await network.async_get_ipv4_broadcast_addresses(hass)
             ha_broadcast_strings: list[str] = [
                 str(addr) for addr in ha_broadcast_addresses
             ]
@@ -878,6 +875,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         except Exception:
             _LOGGER.exception("Could not get HA broadcast addresses")
+
+        # Default broadcast addresses to try
+        # default_broadcast_addresses = [
+        #     "255.255.255.255",  # Limited broadcast
+        #     "192.168.255.255",  # /16 broadcast for 192.168.x.x networks
+        #     "10.255.255.255",  # /8 broadcast for 10.x.x.x networks
+        #     "172.31.255.255",  # /12 broadcast for 172.16-31.x.x networks
+        # ]
+        # broadcast_addresses.extend(default_broadcast_addresses)
+        # NOTE: Try to use the ones from HA only. Uncomment if people report bugs.
 
         return await discover_gree_devices(broadcast_addresses, 5)
 

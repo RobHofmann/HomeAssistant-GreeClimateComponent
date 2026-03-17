@@ -3,8 +3,6 @@
 import asyncio
 import json
 import logging
-import socket
-import time
 
 import asyncio_dgram
 
@@ -86,62 +84,83 @@ class GreeTransport:
         return json.loads(raw.decode("utf-8"))
 
 
-def udp_broadcast_request(
-    addresses: list[str], port: int, json_data: str, timeout: int
-) -> dict[str, dict]:
-    """Sends a UDP message to the bradcast address and returns the responses."""
-    # Create UDP socket manually so we can enable broadcast
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    sock.settimeout(timeout)
-    sock.bind(("", 0))
+class UDPDiscoveryProtocol(asyncio.DatagramProtocol):
+    """Helper Protocol to handle incoming UDP discovery responses.
 
+    Responses will be added to a 'responses' field which can be queried.
+    """
+
+    def __init__(self, responses: dict[str, dict]) -> None:
+        """Setup Discovery Transport. Use the responses to query the received data."""
+        self.responses = responses
+        self.transport = None
+
+    def connection_made(self, transport: asyncio.DatagramTransport):
+        """Called when the UDP socket is set up."""
+        self.transport = transport
+
+    def datagram_received(self, data: bytes, addr: tuple[str, int]):
+        """Called when a UDP packet is received."""
+        try:
+            # Decode the payload
+            payload = json.loads(data.decode("utf-8", errors="ignore"))
+            ip_address = addr[0]
+
+            self.responses[ip_address] = payload
+            _LOGGER.debug("Received reply from %s", ip_address)
+
+        except json.JSONDecodeError:
+            _LOGGER.exception("Could not parse JSON response from %s: %s", addr, data)
+        except Exception:
+            _LOGGER.exception("Unexpected error processing packet from %s", addr)
+
+    def error_received(self, exc):
+        """Called on underlying network errors."""
+        _LOGGER.error("UDP network error received: %s", exc)
+
+    def connection_lost(self, exc):
+        """Called when the socket is closed."""
+
+
+async def async_udp_broadcast_request(
+    broadcast_addresses: list[str], port: int, json_data: str, timeout: int
+) -> dict[str, dict]:
+    """Sends an async UDP broadcast and waits for responses."""
+    loop = asyncio.get_running_loop()
     responses: dict[str, dict] = {}
 
-    # Default broadcast addresses to try
-    default_broadcast_addresses = [
-        "255.255.255.255",  # Limited broadcast
-        "192.168.255.255",  # /16 broadcast for 192.168.x.x networks
-        "10.255.255.255",  # /8 broadcast for 10.x.x.x networks
-        "172.31.255.255",  # /12 broadcast for 172.16-31.x.x networks
-    ]
-    addresses.extend(default_broadcast_addresses)
-
     # Remove duplicates
-    broadcast_addresses = list(dict.fromkeys(addresses))
+    broadcast_addresses = list(dict.fromkeys(broadcast_addresses))
 
     try:
-        for broadcast_addr in broadcast_addresses:
-            try:
-                _LOGGER.debug("Sending broadcast to %s", broadcast_addr)
-                sock.sendto(json_data.encode("utf-8"), (broadcast_addr, port))
-            except Exception:
-                _LOGGER.exception("Failed to send to %s", broadcast_addr)
-
-        # Send broadcast
-        _LOGGER.debug(
-            "Sent broadcast packets, waiting %d seconds for replies... ", timeout
+        transport, _ = await loop.create_datagram_endpoint(
+            lambda: UDPDiscoveryProtocol(responses),
+            local_addr=(
+                "0.0.0.0",
+                0,
+            ),  # Listen on all interfaces, random ephemeral port
+            allow_broadcast=True,
         )
+    except OSError as err:
+        _LOGGER.error("Failed to bind UDP socket: %s", err)
+        return responses
 
-        start_time: float = time.time()
-        while time.time() - start_time < timeout:
+    try:
+        # Send out the broadcast payload
+        payload = json_data.encode("utf-8")
+        for addr in broadcast_addresses:
             try:
-                response, addr = sock.recvfrom(1024)
+                _LOGGER.debug("Sending broadcast to %s:%s", addr, port)
+                transport.sendto(payload, (addr, port))
+            except Exception:
+                _LOGGER.exception("Failed sending to %s", addr)
 
-                try:
-                    response = json.loads(response.decode(errors="ignore"))
-                except Exception:
-                    _LOGGER.exception("Could not parse response from %s", addr)
-                else:
-                    responses[addr[0]] = response
-            except TimeoutError:
-                break
-    except Exception:
-        _LOGGER.exception("Error sending broadcast packet")
+        # Wait for devices to reply asynchronously
+        _LOGGER.debug("Waiting %d seconds for UDP replies... ", timeout)
+        await asyncio.sleep(timeout)
+
     finally:
-        sock.close()
+        transport.close()
 
-    _LOGGER.debug(
-        "Got %d responses in %d seconds: %s", len(responses), timeout, responses
-    )
+    _LOGGER.debug("Discovery finished. Got %d responses", len(responses))
     return responses

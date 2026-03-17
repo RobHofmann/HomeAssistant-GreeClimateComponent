@@ -183,7 +183,7 @@ class GreeDevice:
             subs = await gree_get_sub_devices_list(
                 self._mac_addr,
                 self._uid,
-                self._cipher,  # TODO: Check if this should use the generic or the device key
+                self._cipher,  # NOTE: Check if this should use the generic or the device key
                 self._transport,
             )
         except GreeProtocolError:

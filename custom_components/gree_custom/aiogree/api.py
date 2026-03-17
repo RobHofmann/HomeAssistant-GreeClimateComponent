@@ -11,7 +11,7 @@ from attr import dataclass
 from .cipher import CipherBase, EncryptionVersion, get_cipher
 from .const import DEFAULT_DEVICE_PORT
 from .errors import GreeBindingError, GreeError, GreeProtocolError
-from .transport import GreeTransport, udp_broadcast_request
+from .transport import GreeTransport, async_udp_broadcast_request
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -546,7 +546,7 @@ async def discover_gree_devices(
 
     discovered_devices: list[GreeDiscoveredDevice] = []
 
-    responses = udp_broadcast_request(
+    responses = await async_udp_broadcast_request(
         broadcast_addresses, DEFAULT_DEVICE_PORT, json.dumps({"t": "scan"}), timeout
     )
 
