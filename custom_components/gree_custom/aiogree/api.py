@@ -10,8 +10,8 @@ from attr import dataclass
 
 from .cipher import CipherBase, EncryptionVersion, get_cipher
 from .const import DEFAULT_DEVICE_PORT
-from .errors import GreeBindingError, GreeProtocolError
-from .transport import udp_broadcast_request, udp_request
+from .errors import GreeBindingError, GreeError, GreeProtocolError
+from .transport import GreeTransport, udp_broadcast_request
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -165,18 +165,16 @@ propkey_to_enum = {prop.value: prop for prop in GreeProp}
 
 
 async def get_result_pack(
-    ip_addr: str,
-    port: int,
-    json_data: str,
-    cipher: CipherBase,
-    max_connection_attempts: int,
-    timeout: int,
-):
+    json_data: dict, cipher: CipherBase, transport: GreeTransport
+) -> dict:
     """Get the result pack from the device (async)."""
 
-    raw = await udp_request(ip_addr, port, json_data, max_connection_attempts, timeout)
+    try:
+        recv_json = await transport.request_json(json_data)
+    except json.JSONDecodeError as err:
+        raise GreeProtocolError("Invalid JSON response from device") from err
 
-    data = get_gree_response_data(raw, cipher)
+    data = get_gree_response_data(recv_json, cipher)
 
     pack = data.get("pack", None)
 
@@ -189,90 +187,83 @@ async def get_result_pack(
         redacted["pack"] = redacted["pack"].copy()
         redacted["pack"]["key"] = str(redacted["pack"]["key"])[:5] + "[redacted]"
 
-    _LOGGER.debug("Got data from %s: %s", ip_addr, redacted)
+    _LOGGER.debug("Got data from %s: %s", transport.ip_addr, redacted)
 
     return pack
 
 
 def get_gree_response_data(
-    received_json: str,
+    recv_json: dict,
     cipher: CipherBase,
-):
+) -> dict:
     """Decodes a response from a gree device."""
 
-    try:
-        data = json.loads(received_json)
-    except json.JSONDecodeError as err:
-        raise GreeProtocolError("Invalid JSON response from device") from err
-
-    encoded_pack = data.get("pack", None)
-    tag = data.get("tag", None)
+    encoded_pack = recv_json.get("pack")
+    tag = recv_json.get("tag")
 
     if encoded_pack:
         decrypted_pack = cipher.decrypt(encoded_pack, tag)
         # Replace encrypted pack with decrypted data
-        data["pack"] = json.loads(decrypted_pack)
+        recv_json["pack"] = json.loads(decrypted_pack)
 
-    return data
+    return recv_json
 
 
-def gree_create_encrypted_pack(
-    data: str,
+def gree_encrypt_pack(
+    pack: dict,
     cipher: CipherBase,
 ) -> tuple[str, str | None]:
     """Create an encrypted pack to send to the device."""
 
     if cipher is None:
-        raise ValueError("Cipher must not be None")
+        raise GreeError("Cipher must not be None")
 
-    encrypted_data, tag = cipher.encrypt(data)
+    encrypted_data, tag = cipher.encrypt(json.dumps(pack))
 
     return (encrypted_data, tag)
 
 
-def gree_create_bind_pack(mac_addr: str, uid: int, cipher: CipherBase) -> str:
+def gree_create_bind_pack(mac_addr: str, uid: int, cipher: CipherBase) -> dict:
     """Create a bind pack to send to the device."""
 
-    pack: str = ""
+    pack: dict = {}
 
     if cipher.version == EncryptionVersion.V1:
-        pack = json.dumps({"mac": mac_addr, "t": "bind", "uid": uid})
+        pack = {"mac": mac_addr, "t": "bind", "uid": uid}
     elif cipher.version == EncryptionVersion.V2:
-        pack = json.dumps({"cid": mac_addr, "mac": mac_addr, "t": "bind", "uid": uid})
+        pack = {"cid": mac_addr, "mac": mac_addr, "t": "bind", "uid": uid}
 
     _LOGGER.debug("Bind Pack: %s", pack)
     return pack
 
 
-def gree_create_sub_bind_pack(mac_addr: str) -> str:
+def gree_create_sub_bind_pack(mac_addr: str) -> dict:
     """Create a bind pack to send to the device."""
 
-    pack: str = json.dumps({"mac": mac_addr, "i": 1})
+    pack: dict = {"mac": mac_addr, "i": 1}
 
     _LOGGER.debug("Sub Bind Pack: %s", pack)
     return pack
 
 
-def gree_create_status_pack(mac_addr: str, props: list[str]) -> str:
+def gree_create_status_pack(mac_addr: str, props: list[str]) -> dict:
     """Create a status pack to send to the device."""
 
-    pack: str = json.dumps({"cols": props, "mac": mac_addr, "t": "status"})
+    pack: dict = {"cols": props, "mac": mac_addr, "t": "status"}
 
     _LOGGER.debug("Status Pack: %s", pack)
     return pack
 
 
-def gree_create_set_pack(mac_addr: str, props: dict[GreeProp, int]) -> str:
+def gree_create_set_pack(mac_addr: str, props: dict[GreeProp, int]) -> dict:
     """Create a set pack to send to the device."""
 
-    pack: str = json.dumps(
-        {
-            "opt": [prop.value for prop in props],
-            "p": list(props.values()),
-            "t": "cmd",
-            "sub": mac_addr,
-        }
-    )
+    pack: dict = {
+        "opt": [prop.value for prop in props],
+        "p": list(props.values()),
+        "t": "cmd",
+        "sub": mac_addr,
+    }
 
     _LOGGER.debug("Status Pack: %s", pack)
     return pack
@@ -285,7 +276,7 @@ def gree_create_payload(
     mac_addr: str,
     uid: int,
     tag: str | None,
-) -> str:
+) -> dict:
     """Create the full payload to send to the device."""
 
     payload: dict[str, Any] = {
@@ -301,18 +292,15 @@ def gree_create_payload(
         payload["tag"] = tag
 
     _LOGGER.debug("Payload: %s", payload)
-    return json.dumps(payload)
+    return payload
 
 
 async def gree_try_bind(
-    ip_addr: str,
     mac_addr: str,
-    port: int,
     uid: int,
     version: EncryptionVersion | None,
     key: str | None,
-    max_connection_attempts: int,
-    timeout: int,
+    transport: GreeTransport,
 ) -> tuple[str, EncryptionVersion]:
     """Perform bind request to the device and return the valid version and key (async).
 
@@ -360,21 +348,14 @@ async def gree_try_bind(
             "Requesting bind to device with encryption key v%d", cipher.version
         )
 
-        raw_pack = gree_create_bind_pack(mac_addr, uid, cipher)
-        pack, tag = gree_create_encrypted_pack(raw_pack, cipher)
+        pack = gree_create_bind_pack(mac_addr, uid, cipher)
+        encrypted_pack, tag = gree_encrypt_pack(pack, cipher)
         json_payload = gree_create_payload(
-            pack, "pack", GreeCommand.BIND, mac_addr, uid, tag
+            encrypted_pack, "pack", GreeCommand.BIND, mac_addr, uid, tag
         )
 
         try:
-            result = await get_result_pack(
-                ip_addr,
-                port,
-                json_payload,
-                cipher,
-                max_connection_attempts,
-                timeout,
-            )
+            result = await get_result_pack(json_payload, cipher, transport)
 
         except Exception as err:
             _LOGGER.exception(
@@ -416,20 +397,17 @@ async def gree_try_bind(
             return ret_key, cipher.version
 
     raise GreeBindingError(
-        f"Binding failed: Unable to obtain valid encryption version and key pair for {ip_addr}"
+        f"Binding failed: Unable to obtain valid encryption version and key pair for {mac_addr} at {transport.ip_addr}"
     ) from error
 
 
 async def gree_get_status(
-    ip_addr: str,
     mac_addr: str,
     mac_addr_sub: str,
-    port: int,
     uid: int,
-    cipher: CipherBase,
     props: list[GreeProp],
-    max_connection_attempts: int,
-    timeout: int,
+    cipher: CipherBase,
+    transport: GreeTransport,
 ) -> tuple[dict[GreeProp, int], list[GreeProp]]:
     """Get the status of the device by sending a status request to the device (async). Also returns the props not present."""
 
@@ -437,21 +415,14 @@ async def gree_get_status(
 
     status_values_raw: dict[GreeProp, int | None] = {}
 
-    raw_pack = gree_create_status_pack(mac_addr_sub, [prop.value for prop in props])
-    pack, tag = gree_create_encrypted_pack(raw_pack, cipher)
+    pack = gree_create_status_pack(mac_addr_sub, [prop.value for prop in props])
+    encrypted_pack, tag = gree_encrypt_pack(pack, cipher)
     json_payload = gree_create_payload(
-        pack, "pack", GreeCommand.STATUS, mac_addr, uid, tag
+        encrypted_pack, "pack", GreeCommand.STATUS, mac_addr, uid, tag
     )
 
     try:
-        result = await get_result_pack(
-            ip_addr,
-            port,
-            json_payload,
-            cipher,
-            max_connection_attempts,
-            timeout,
-        )
+        result = await get_result_pack(json_payload, cipher, transport)
 
     except GreeProtocolError:
         raise
@@ -473,35 +444,25 @@ async def gree_get_status(
 
 
 async def gree_set_status(
-    ip_addr: str,
     mac_addr: str,
     mac_addr_sub: str,
-    port: int,
     uid: int,
-    cipher: CipherBase,
     props: dict[GreeProp, int],
-    max_connection_attempts: int,
-    timeout: int,
+    cipher: CipherBase,
+    transport: GreeTransport,
 ) -> dict[GreeProp, int]:
     """Set the status of the device by sending a status request to the device (async)."""
 
     _LOGGER.debug("Trying to set device status")
 
-    set_pack = gree_create_set_pack(mac_addr_sub, props)
-    pack, tag = gree_create_encrypted_pack(set_pack, cipher)
+    pack = gree_create_set_pack(mac_addr_sub, props)
+    encrypted_pack, tag = gree_encrypt_pack(pack, cipher)
     json_payload = gree_create_payload(
-        pack, "pack", GreeCommand.STATUS, mac_addr, uid, tag
+        encrypted_pack, "pack", GreeCommand.STATUS, mac_addr, uid, tag
     )
 
     try:
-        result = await get_result_pack(
-            ip_addr,
-            port,
-            json_payload,
-            cipher,
-            max_connection_attempts,
-            timeout,
-        )
+        result = await get_result_pack(json_payload, cipher, transport)
 
     except GreeProtocolError:
         raise
@@ -544,20 +505,13 @@ async def gree_set_status(
     return updated_props
 
 
-async def gree_get_device_info(
-    ip_addr: str,
-    max_connection_attempts: int,
-    timeout: int,
-) -> dict[str, str | None]:
+async def gree_get_device_info(transport: GreeTransport) -> dict[str, str | None]:
     """Tries to retrive the device info."""
 
     data: dict = await get_result_pack(
-        ip_addr,
-        DEFAULT_DEVICE_PORT,
-        json.dumps({"t": "scan"}),
+        {"t": "scan"},
         get_cipher(EncryptionVersion.V1),
-        max_connection_attempts,
-        timeout,
+        transport,
     )
 
     _LOGGER.debug("Got device info: %s", data)
@@ -670,23 +624,18 @@ async def discover_gree_devices(
 
 
 async def gree_get_sub_devices_list(
-    ip_addr: str,
-    mac_addr: str,
-    port: int,
-    uid: int,
-    cipher: CipherBase,
-    max_connection_attempts: int,
-    timeout: int,
+    mac_addr: str, uid: int, cipher: CipherBase, transport: GreeTransport
 ) -> list:
     """Fetch the list of sub-devices for a Gree device."""
     try:
-        pack, tag = gree_create_encrypted_pack(
-            gree_create_sub_bind_pack(mac_addr),
+        pack = gree_create_sub_bind_pack(mac_addr)
+        encrypted_pack, tag = gree_encrypt_pack(
+            pack,
             cipher,
         )
 
-        jsonPayloadToSend = gree_create_payload(
-            pack,
+        json_payload = gree_create_payload(
+            encrypted_pack,
             "subList",
             GreeCommand.BIND,
             mac_addr,
@@ -694,14 +643,7 @@ async def gree_get_sub_devices_list(
             tag,
         )
 
-        result = await get_result_pack(
-            ip_addr,
-            port,
-            jsonPayloadToSend,
-            cipher,
-            max_connection_attempts,
-            timeout,
-        )
+        result = await get_result_pack(json_payload, cipher, transport)
 
         return result.get("list", [])
 
@@ -709,71 +651,3 @@ async def gree_get_sub_devices_list(
         raise GreeProtocolError(
             f"Error fetching sub-device list for '{mac_addr}'"
         ) from err
-
-
-async def get_sub_devices(
-    mac_addr: str, ip_addr: str, uid: int, max_connection_attempts: int, timeout: int
-) -> list:
-    """Fetch the list of sub-devices for a Gree device."""
-    try:
-        _, version = await gree_try_bind(
-            ip_addr,
-            mac_addr,
-            DEFAULT_DEVICE_PORT,
-            uid,
-            None,
-            max_connection_attempts,
-            timeout,
-        )
-
-        pack, tag = gree_create_encrypted_pack(
-            gree_create_sub_bind_pack(mac_addr),
-            get_cipher(version),
-            version,
-        )
-
-        jsonPayloadToSend = gree_create_payload(
-            pack,
-            "subList",
-            GreeCommand.BIND,
-            mac_addr,
-            uid,
-            version,
-            tag,
-        )
-
-        result = await get_result_pack(
-            ip_addr,
-            DEFAULT_DEVICE_PORT,
-            jsonPayloadToSend,
-            get_cipher(version),
-            version,
-            max_connection_attempts,
-            timeout,
-        )
-
-    except Exception as err:
-        raise ValueError(f"Error fetching sub-device list for '{mac_addr}'") from err
-    else:
-        discovered_devices: list[GreeDiscoveredDevice] = []
-
-        for sub_device in result.get("list", []):
-            sub_mac = sub_device.get("mac", "")
-            if sub_mac:
-                discovered_sub_device = GreeDiscoveredDevice(
-                    name=f"{sub_device.get('name', '') or f'Gree {sub_mac[:4]}@{mac_addr[-4:]}'}",
-                    host=ip_addr,
-                    mac=sub_mac,
-                    port=DEFAULT_DEVICE_PORT,
-                    brand=sub_device.get("brand", "Gree"),
-                    model=sub_device.get("mid", "HVAC"),
-                    uid=0,
-                    subdevices=0,
-                )
-                discovered_devices.append(discovered_sub_device)
-                _LOGGER.debug(
-                    "Discovered sub-device: %s",
-                    discovered_sub_device,
-                )
-
-        return discovered_devices

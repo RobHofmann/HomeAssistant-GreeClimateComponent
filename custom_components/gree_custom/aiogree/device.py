@@ -32,6 +32,7 @@ from .helpers import (
     gree_get_target_temperature_c,
     gree_get_target_temperature_f,
 )
+from .transport import GreeTransport
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -66,11 +67,15 @@ class GreeDevice:
         self._name: str = name
         self._ip_addr: str = ip_addr
         self._port: int = port
+        self._max_connection_attempts: int = max_connection_attempts
+        self._timeout: int = timeout
         self._mac_addr = self._mac_addr_sub = (
             mac_addr.replace(":", "").replace("-", "").lower()
         )
         if "@" in self._mac_addr:
             self._mac_addr_sub, self._mac_addr = self._mac_addr.lower().split("@", 1)
+        self._transport = GreeTransport(ip_addr, port, max_connection_attempts, timeout)
+
         self._encryption_version: EncryptionVersion | None = encryption_version
         self._encryption_key: str = encryption_key
         self._cipher: CipherBase | None = None
@@ -81,8 +86,6 @@ class GreeDevice:
         self._is_bound: bool = False
         self._is_available: bool = False
         self._uniqueid: str = self._mac_addr_sub
-        self._max_connection_attempts: int = max_connection_attempts
-        self._timeout: int = timeout
 
         self._props_to_update: list[GreeProp] = list(GreeProp)
         # Don't poll the beeper state
@@ -114,14 +117,11 @@ class GreeDevice:
 
         try:
             key, version = await gree_try_bind(
-                self._ip_addr,
                 self._mac_addr,
-                self._port,
                 self._uid,
                 self._encryption_version,
                 self._encryption_key,
-                self._max_connection_attempts,
-                self._timeout,
+                self._transport,
             )
 
         except GreeBindingError:
@@ -148,9 +148,7 @@ class GreeDevice:
         """Updates the device info fields."""
         try:
             self._raw_info = await gree_get_device_info(
-                self._ip_addr,
-                self._max_connection_attempts,
-                self._timeout,
+                self._transport,
             )
 
         except Exception as e:
@@ -183,13 +181,10 @@ class GreeDevice:
 
         try:
             subs = await gree_get_sub_devices_list(
-                self._ip_addr,
                 self._mac_addr,
-                self._port,
                 self._uid,
-                get_cipher(self._encryption_version),
-                self._max_connection_attempts,
-                self._timeout,
+                self._cipher,  # TODO: Check if this should use the generic or the device key
+                self._transport,
             )
         except GreeProtocolError:
             self._is_available = False
@@ -235,15 +230,12 @@ class GreeDevice:
 
         try:
             state, _ = await gree_get_status(
-                self._ip_addr,
                 self._mac_addr,
                 self._mac_addr_sub,
-                self._port,
                 self._uid,
-                self._cipher,
                 self._props_to_update,
-                self._max_connection_attempts,
-                self._timeout,
+                self._cipher,
+                self._transport,
             )
             self._raw_state.update(state)
 
@@ -293,15 +285,12 @@ class GreeDevice:
         try:
             self._raw_state.update(
                 await gree_set_status(
-                    self._ip_addr,
                     self._mac_addr,
                     self._mac_addr_sub,
-                    self._port,
                     self._uid,
-                    self._cipher,
                     self._new_raw_state,
-                    self._max_connection_attempts,
-                    self._timeout,
+                    self._cipher,
+                    self._transport,
                 )
             )
             self._new_raw_state.clear()

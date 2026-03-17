@@ -1,6 +1,7 @@
 """Handles network connections."""
 
 import asyncio
+import json
 import logging
 import socket
 import time
@@ -12,68 +13,82 @@ from .errors import GreeConnectionError
 _LOGGER = logging.getLogger(__name__)
 
 
-async def udp_request(
-    ip_addr: str,
-    port: int,
-    data: str,
-    max_retries: int,
-    timeout: int,
-) -> str:
-    """Send a payload data to the device and reads the response (async)."""
+class GreeTransport:
+    """Handles the connection with the Gree device."""
 
-    last_error: Exception = None
+    def __init__(
+        self, ip_addr: str, port: int, max_retries: int = 3, timeout: float = 2.0
+    ) -> None:
+        """Initialize the connection object."""
+        self.ip_addr = ip_addr
+        self.port = port
+        self.max_retries = max_retries
+        self.timeout = timeout
 
-    for attempt in range(max_retries):
-        stream: asyncio_dgram.DatagramClient | None = None
+    async def udp_request(
+        self,
+        data: bytes,
+    ) -> bytes:
+        """Send a payload data to the device and reads the response."""
 
-        try:
-            stream = await asyncio_dgram.connect((ip_addr, port))
+        last_error: Exception = None
 
-            await stream.send(data.encode("utf-8"))
-
-            recv_task = asyncio.create_task(stream.recv())
+        for attempt in range(self.max_retries):
+            stream: asyncio_dgram.DatagramClient | None = None
 
             try:
-                received_json, _ = await asyncio.wait_for(recv_task, timeout)
-            except TimeoutError:
-                recv_task.cancel()
-                raise
+                stream = await asyncio_dgram.connect((self.ip_addr, self.port))
 
-            return received_json.decode("utf-8")
+                await stream.send(data)
 
-        except Exception as err1:  # noqa: BLE001
-            _LOGGER.warning(
-                "Error communicating with %s. Attempt %d/%d",
-                ip_addr,
-                attempt + 1,
-                max_retries,
-            )
-            last_error = err1
+                recv_task = asyncio.create_task(stream.recv())
 
-        finally:
-            if stream:
                 try:
-                    stream.close()
-                except Exception as err2:  # noqa: BLE001
-                    _LOGGER.warning(
-                        "Error communicating with %s. Attempt %d/%d",
-                        ip_addr,
-                        attempt + 1,
-                        max_retries,
-                    )
-                    last_error = err2
+                    received_data, _ = await asyncio.wait_for(recv_task, self.timeout)
+                except TimeoutError:
+                    recv_task.cancel()
+                    raise
+                else:
+                    return received_data
 
-        # Apply backoff before retrying
-        await asyncio.sleep(0.5 + attempt * 0.3)  # 0.5s, 0.8s, 1.1s, ...
+            except Exception as err1:  # noqa: BLE001
+                _LOGGER.warning(
+                    "Error communicating with %s. Attempt %d/%d",
+                    self.ip_addr,
+                    attempt + 1,
+                    self.max_retries,
+                )
+                last_error = err1
 
-    raise GreeConnectionError(
-        f"Failed to communicate with device '{ip_addr}:{port}' after {max_retries} attempts"
-    ) from last_error
+            finally:
+                if stream:
+                    try:
+                        stream.close()
+                    except Exception as err2:  # noqa: BLE001
+                        _LOGGER.warning(
+                            "Error communicating with %s. Attempt %d/%d",
+                            self.ip_addr,
+                            attempt + 1,
+                            self.max_retries,
+                        )
+                        last_error = err2
+
+            # Apply backoff before retrying
+            await asyncio.sleep(0.5 + attempt * 0.3)  # 0.5s, 0.8s, 1.1s, ...
+
+        raise GreeConnectionError(
+            f"Failed to communicate with device '{self.ip_addr}:{self.port}' after {self.max_retries} attempts"
+        ) from last_error
+
+    async def request_json(self, payload: dict) -> dict:
+        """Send and receive a JSON payload."""
+        raw = await self.udp_request(json.dumps(payload).encode("utf-8"))
+        return json.loads(raw.decode("utf-8"))
 
 
 def udp_broadcast_request(
     addresses: list[str], port: int, json_data: str, timeout: int
-) -> dict:
+) -> dict[str, dict]:
     """Sends a UDP message to the bradcast address and returns the responses."""
     # Create UDP socket manually so we can enable broadcast
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -81,7 +96,7 @@ def udp_broadcast_request(
     sock.settimeout(timeout)
     sock.bind(("", 0))
 
-    responses: dict = {}
+    responses: dict[str, dict] = {}
 
     # Default broadcast addresses to try
     default_broadcast_addresses = [
@@ -114,7 +129,7 @@ def udp_broadcast_request(
                 response, addr = sock.recvfrom(1024)
 
                 try:
-                    response = response.decode(errors="ignore")
+                    response = json.loads(response.decode(errors="ignore"))
                 except Exception:
                     _LOGGER.exception("Could not parse response from %s", addr)
                 else:
