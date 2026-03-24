@@ -3,9 +3,14 @@
 
 # HomeAssistant-GreeClimateComponent
 
-Custom Gree inetgration for Home Assistant written in Python3. Controls ACs supporting the Gree protocol.
+Custom Gree integration for Home Assistant written in Python3. Controls ACs supporting the Gree protocol.
 
 This integration connects directly to your HVAC devices via their IP address on the local network, unlike the official mobile app, which establish a direct connection only during initial setup and subsequently operate through Gree’s servers.
+
+> [!NOTE]
+> This integration only supports the Gree UDP protocol. If you have a newer firmware/device that only communicates using the new MQTT protocol, this integration will not work.
+
+For a comprehensive list of tested devices, see [Supported Devices](supported-devices.md).
 
 The integration attempts to obtain the encryption key by the initial setup protocol, which has been reverse-engineered.
 
@@ -13,7 +18,7 @@ The integration attempts to obtain the encryption key by the initial setup proto
 > If your HVAC device was previously set up for remote access using a mobile app, the integration may fail to retrieve the encryption key automatically. Find out more on methods of obtaining your device key bellow.
 
 
-For a comprehensive list of tested devices, see [Supported Devices](supported-devices.md).
+
 
 **If you are experiencing issues please read the [Debugging](#debugging) section**
 
@@ -153,4 +158,5 @@ The integration exposes various entities to configure additional features of you
 This project is based on the work of several contributors and projects:
 
 - [gree-remote](https://github.com/tomikaa87/gree-remote) - Gree air conditioner remote control protocol
+- [greeclimate](https://github.com/cmroche/greeclimate) - Python package for controlling Gree based minisplit systems
 - [Home Assistant Developer Documentation](https://developers.home-assistant.io/) - Official development guidelines and best practices
