@@ -39,11 +39,11 @@ from .const import (
 from .coordinator import GreeConfigEntry, GreeCoordinator
 
 PLATFORMS = [
+    Platform.BINARY_SENSOR,
     Platform.CLIMATE,
     Platform.SELECT,
     Platform.SENSOR,
     Platform.SWITCH,
-    Platform.BINARY_SENSOR,
 ]
 _LOGGER = logging.getLogger(__name__)
 

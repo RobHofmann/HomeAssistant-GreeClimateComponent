@@ -364,9 +364,9 @@ class GreeSwitch(GreeEntity, SwitchEntity, RestoreEntity):  # pyright: ignore[re
             # notify coordinator listeners of state change so that dependent entities are updated immediately
             self.coordinator.async_update_listeners()
 
-            if self.entity_description.key not in [
-                GATTR_BEEPER
-            ]:  # ignore HA-only dependent entities
+            if (
+                self.entity_description.key != GATTR_BEEPER
+            ):  # ignore HA-only dependent entities
                 await self.coordinator.async_request_refresh()
         except Exception as err:
             raise HomeAssistantError("Failed to turn on switch") from err
@@ -387,9 +387,9 @@ class GreeSwitch(GreeEntity, SwitchEntity, RestoreEntity):  # pyright: ignore[re
             # notify coordinator listeners of state change so that dependent entities are updated immediately
             self.coordinator.async_update_listeners()
 
-            if self.entity_description.key not in [
-                GATTR_BEEPER
-            ]:  # ignore HA-only dependent entities
+            if (
+                self.entity_description.key != GATTR_BEEPER
+            ):  # ignore HA-only dependent entities
                 await self.coordinator.async_request_refresh()
         except Exception as err:
             raise HomeAssistantError("Failed to turn off switch") from err

@@ -13,7 +13,6 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.const import CONF_MAC, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.typing import UNDEFINED
 
 from .aiogree.api import GreeProp
 from .aiogree.device import GreeDevice
