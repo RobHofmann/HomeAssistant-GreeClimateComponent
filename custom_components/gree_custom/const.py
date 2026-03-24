@@ -65,6 +65,8 @@ GATTR_INDOOR_TEMPERATURE = "indoor_temperature"
 GATTR_OUTDOOR_TEMPERATURE = "outdoor_temperature"
 GATTR_HUMIDITY = "rooom_humidity"
 
+GATTR_FAULTS = "faults"
+
 ATTR_EXTERNAL_TEMPERATURE_SENSOR = "external_temperature_sensor"
 ATTR_EXTERNAL_HUMIDITY_SENSOR = "external_humidity_sensor"
 ATTR_AUTO_XFAN = "auto_xfan"
@@ -81,6 +83,7 @@ CONF_TO_PROP_FEATURE_MAP = {
     GATTR_ANTI_DIRECT_BLOW: GreeProp.FEAT_ANTI_DIRECT_BLOW,
     GATTR_FEAT_ENERGY_SAVING: GreeProp.FEAT_ENERGY_SAVING,
     GATTR_FEAT_LIGHT: GreeProp.FEAT_LIGHT,
+    GATTR_FAULTS: GreeProp.FAULT,
 }
 
 # HVAC modes - these come from Home Assistant and are standard
@@ -155,6 +158,7 @@ DEFAULT_SUPPORTED_FEATURES = [
     GATTR_ANTI_DIRECT_BLOW,
     GATTR_FEAT_ENERGY_SAVING,
     GATTR_FEAT_SENSOR_LIGHT,
+    GATTR_FAULTS,
 ]
 
 UNITS_GREE_TO_HA = {

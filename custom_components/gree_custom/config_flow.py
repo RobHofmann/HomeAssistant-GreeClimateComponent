@@ -10,6 +10,7 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.components import network
+from homeassistant.components.diagnostics.util import async_redact_data
 from homeassistant.const import CONF_HOST, CONF_MAC, CONF_PORT, CONF_TIMEOUT
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import section
@@ -63,6 +64,7 @@ from .const import (
     DOMAIN,
     GATTR_ANTI_DIRECT_BLOW,
     GATTR_BEEPER,
+    GATTR_FAULTS,
     GATTR_FEAT_ENERGY_SAVING,
     GATTR_FEAT_FRESH_AIR,
     GATTR_FEAT_HEALTH,
@@ -280,6 +282,8 @@ def build_options_schema(
         valid_features.append(GATTR_ANTI_DIRECT_BLOW)
     if device.supports_property(GreeProp.FEAT_ENERGY_SAVING):
         valid_features.append(GATTR_FEAT_ENERGY_SAVING)
+    if device.supports_property(GreeProp.FAULT):
+        valid_features.append(GATTR_FAULTS)
 
     schema.update(
         {

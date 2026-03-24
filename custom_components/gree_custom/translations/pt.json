@@ -168,7 +168,8 @@
         "health": "Saúde",
         "anti_direct_blow": "Anti Sopro Direto",
         "powersave": "Poupança de Energia",
-        "light_sensor": "Brilho Automático do Visor"
+        "light_sensor": "Brilho Automático do Visor",
+        "faults": "Falha de Operação"
       }
     }
   },
@@ -184,8 +185,21 @@
         "name": "Humidade Interior"
       }
     },
+    "binary_sensor": {
+      "faults": {
+        "name": "Falha de Operação"
+      }
+    },
     "climate": {
       "hvac": {
+        "state": {
+          "auto": "Automático",
+          "cool": "Arrefecer",
+          "dry": "Secar",
+          "fan_only": "Ventilação",
+          "heat": "Aquecer",
+          "off": "Desligado"
+        },
         "state_attributes": {
           "fan_mode": {
             "state": {

@@ -63,7 +63,8 @@
           "external_temperature_sensor": "External Temperature Sensor",
           "external_humidity_sensor": "External Humidity Sensor",
           "restore_states": "Restore Entities",
-          "target_temp_step": "Temperature Step"
+          "target_temp_step": "Temperature Step",
+          "faults": "Fault Detection"
         },
         "data_description": {
           "external_temperature_sensor": "If set will replace the built-in HVAC temperature sensor",
@@ -168,7 +169,8 @@
         "health": "Health",
         "anti_direct_blow": "Anti Direct Blow",
         "powersave": "Energy Saving",
-        "light_sensor": "Display Auto Brightness"
+        "light_sensor": "Display Auto Brightness",
+        "faults": "Fault Detection"
       }
     }
   },
@@ -182,6 +184,11 @@
       },
       "room_humidity": {
         "name": "Indoor Humidity"
+      }
+    },
+    "binary_sensor": {
+      "faults": {
+        "name": "Fault Detection"
       }
     },
     "climate": {

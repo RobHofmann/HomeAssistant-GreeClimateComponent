@@ -308,7 +308,9 @@ class GreeDevice:
         """Sets a new local device status. Use 'update_device_status' to update the device."""
         self._new_raw_state.update(props)
 
-    def _bool_from_raw_state(self, prop: GreeProp) -> bool:
+    def _bool_from_raw_state(
+        self, prop: GreeProp, default: int | None = 0
+    ) -> bool | None:
         return self._get_prop_raw(prop, 0) != 0
 
     def _remove_unsupported_props(self):
@@ -478,6 +480,11 @@ class GreeDevice:
     def available(self) -> bool:
         """Return True if the device is bouund and last connection was successful."""
         return self._is_bound and self._is_available
+
+    @property
+    def has_hvac_error(self) -> bool | None:
+        """Return if there is an error with the device."""
+        return self._bool_from_raw_state(GreeProp.FAULT, None)
 
     @property
     def beeper(self) -> bool:

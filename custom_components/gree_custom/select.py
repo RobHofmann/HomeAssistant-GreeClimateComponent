@@ -101,7 +101,7 @@ class GreeSelectDescription(GreeEntityDescription, SelectEntityDescription, Gene
     force_update = False
     icon = None
     has_entity_name = True
-    name = UNDEFINED
+    name = None
     translation_key = None
     translation_placeholders = None
     unit_of_measurement = None

@@ -77,6 +77,11 @@ class GreeProp(Enum):
     # If set to 1 the unit will beep on every command (available on newer firmwares)
     BEEPER_NEW = "BuzzerCtrl"
 
+    # EXPERIMENTAL
+    # error display. 0 if no error, otherwise error
+    FAULT = "FaultDisplay"
+    # MODEL = "ModelType"
+
 
 @unique
 class TemperatureUnits(IntEnum):
