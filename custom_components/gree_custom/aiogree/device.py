@@ -61,7 +61,7 @@ class GreeDevice:
             port,
         )
         _LOGGER.debug(
-            "Version: %s, Key: %s[omitted]", encryption_version, encryption_key[:5]
+            "Version: %s, Key: %s[redacted]", encryption_version, encryption_key[:5]
         )
 
         self._name: str = name
@@ -107,12 +107,14 @@ class GreeDevice:
         if self._is_bound:
             return True
 
-        # Use fetch info as basic communication test since it does not require V2
-        # TODO: Bug with device not fetching info with normal V1 cipher, temporary not raise
+        # Use a targeted fetch_device_info (scan) to the device
+        # since binding only succeeds after a scan
         try:
             await self.fetch_device_info()
-        except Exception:
-            _LOGGER.exception("Could not fetch device info before binding")
+        except Exception as err:
+            raise GreeBindingError(
+                "Could not fetch device info before binding"
+            ) from err
 
         try:
             key, version = await gree_try_bind(
@@ -140,22 +142,6 @@ class GreeDevice:
             self._cipher = get_cipher(version, key)
             self._is_available = True
             self._is_bound = True
-
-            # Tests for fetch_device_info()
-            for c in (
-                self._cipher,
-                get_cipher(EncryptionVersion.V1),
-                get_cipher(EncryptionVersion.V2),
-            ):
-                try:
-                    _LOGGER.debug(
-                        "Trying fetch_device_info with cipher v%s and key '%s'",
-                        c.version,
-                        c.key[:5],
-                    )
-                    await self.fetch_device_info(c)
-                except Exception:
-                    _LOGGER.exception("Could not fetch device info")
 
         return True
 

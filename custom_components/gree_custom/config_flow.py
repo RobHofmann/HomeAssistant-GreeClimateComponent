@@ -906,7 +906,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         data[CONF_DEVICES] = devices
 
-        _LOGGER.debug("New entry with config: %s", data)
+        _LOGGER.debug(
+            "New entry with config: %s",
+            async_redact_data(data, ["encryption_key"]),
+        )
         return self.async_create_entry(
             title=f"Gree System at {data[CONF_HOST]}", data=data
         )

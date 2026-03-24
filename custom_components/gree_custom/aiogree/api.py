@@ -393,7 +393,7 @@ async def gree_try_bind(
 
             _LOGGER.info("Bind request with version %d was successful", cipher.version)
 
-            _LOGGER.debug("Fetched encryption key: %s[omitted]", ret_key[:5])
+            _LOGGER.debug("Fetched encryption key: %s[redacted]", ret_key[:5])
 
             return ret_key, cipher.version
 
