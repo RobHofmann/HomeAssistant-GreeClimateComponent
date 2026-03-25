@@ -1,9 +1,38 @@
 {
   "config": {
+    "error": {
+      "cannot_connect": "Nie można połączyć się z urządzeniem. Sprawdź połączenie sieciowe i spróbuj ponownie."
+    },
+    "abort": {
+      "already_configured": "Urządzenie z tym adresem MAC jest już skonfigurowane."
+    },
     "title": "Klimatyzajca Gree",
     "description": "Skonfiguruj swój klimatyzator Gree",
     "step": {
       "user": {
+        "title": "Konfiguracja Gree Climate",
+        "description": "Wybierz sposób dodania klimatyzatora Gree",
+        "data": {
+          "discovery": "Metoda konfiguracji"
+        }
+      },
+      "discovery": {
+        "title": "Wykryte urządzenia",
+        "description": "Znaleziono {devices_found} urządzeń Gree. Wybierz urządzenie do dodania lub przejdź do konfiguracji ręcznej.",
+        "data": {
+          "device": "Urządzenie"
+        }
+      },
+      "detect_encryption": {
+        "title": "Konfiguracja urządzenia",
+        "description": "Połączenie z urządzeniem działa. Podaj nazwę urządzenia.",
+        "data": {
+          "name": "Nazwa urządzenia"
+        }
+      },
+      "manual": {
+        "title": "Konfiguracja ręczna",
+        "description": "Wprowadź parametry klimatyzatora Gree",
         "data": {
           "name": "Nazwa",
           "host": "Adres IP",
@@ -47,6 +76,12 @@
     }
   },
   "selector": {
+    "discovery_method": {
+      "options": {
+        "discover": "Wykryj urządzenia automatycznie",
+        "manual": "Dodaj urządzenie ręcznie"
+      }
+    },
     "hvac_modes": {
       "options": {
         "auto": "Auto",
