@@ -294,10 +294,10 @@
   },
   "exceptions": {
     "turbo_availability": {
-      "message": "Modo Turbo não está disponível nos modo de Desumidificar e Ventoinha."
+      "message": "Modo Turbo não está disponível nos modos de Secar e Ventilação."
     },
     "quiet_availability": {
-      "message": "Modo Silencioso apenas disponível nos modo de Desumidificar e Ventoinha."
+      "message": "Modo Silencioso apenas disponível nos modos de Secar e Ventilação."
     },
     "entity_unavailable": {
       "message": "A entidade não está disponível."
