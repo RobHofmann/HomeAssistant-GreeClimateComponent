@@ -172,11 +172,12 @@ async def async_setup_entry(
     entities: list[GreeSwitch] = []
 
     for d in entry.data.get(CONF_DEVICES, []):
-        coordinator: GreeCoordinator = entry.runtime_data[d.get(CONF_MAC, "")]
+        mac = d.get(CONF_MAC, "") + "@" + entry.data.get(CONF_MAC)
+        coordinator: GreeCoordinator = entry.runtime_data[mac]
         if not coordinator:
             _LOGGER.error(
                 "Cannot create Gree Switches. No coordinator found for device '%s'",
-                d.get(CONF_MAC, ""),
+                mac,
             )
 
         descriptions: list[GreeSwitchDescription] = []

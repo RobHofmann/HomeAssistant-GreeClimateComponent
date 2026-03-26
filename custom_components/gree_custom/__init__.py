@@ -8,7 +8,7 @@ import logging
 
 from homeassistant.components.diagnostics.util import async_redact_data
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_MAC, CONF_PORT, Platform
+from homeassistant.const import CONF_HOST, CONF_MAC, CONF_PORT, CONF_TIMEOUT, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
@@ -16,6 +16,7 @@ from homeassistant.helpers.typing import ConfigType
 
 from .aiogree.const import (
     DEFAULT_CONNECTION_MAX_ATTEMPTS,
+    DEFAULT_CONNECTION_TIMEOUT,
     DEFAULT_DEVICE_PORT,
     DEFAULT_DEVICE_UID,
 )
@@ -69,52 +70,67 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
     """Set up Gree from a config entry."""
 
     _LOGGER.info(
-        "Setting up entry '%s' for: %s at %s",
+        "Setup entry '%s': %s at %s",
         entry.entry_id,
         entry.data[CONF_MAC],
         entry.data[CONF_HOST],
     )
     _LOGGER.debug(
-        "Entry '%s' data: %s\n%s",
+        "Setup entry '%s': %s\ndata=%s",
         entry.entry_id,
         entry,
         async_redact_data(entry.data, ["encryption_key"]),
     )
 
     conf = entry.data
-    if conf is None or conf[CONF_ADVANCED] is None:
+    if (
+        conf is None
+        or conf[CONF_MAC] is None
+        or conf[CONF_HOST] is None
+        or conf[CONF_ADVANCED] is None
+    ):
         _LOGGER.error("Bad config entry, this should not happen")
         return False
 
     coordinators: dict[str, GreeCoordinator] = {}
     for d in conf.get(CONF_DEVICES, []):
-        mac = str(d.get(CONF_MAC, ""))
+        mac = str(d.get(CONF_MAC, "")) + "@" + conf.get(CONF_MAC)
         device = GreeDevice(
-            d.get(CONF_DEV_NAME, "Gree HVAC"),
-            conf.get(CONF_HOST, ""),
-            mac,
-            conf[CONF_ADVANCED].get(CONF_PORT, DEFAULT_DEVICE_PORT),
-            conf[CONF_ADVANCED].get(CONF_ENCRYPTION_KEY, ""),
-            conf[CONF_ADVANCED].get(
+            name=d.get(CONF_DEV_NAME, "Gree HVAC"),
+            ip_addr=conf.get(CONF_HOST),
+            mac_addr=mac,
+            port=conf[CONF_ADVANCED].get(CONF_PORT, DEFAULT_DEVICE_PORT),
+            encryption_key=conf[CONF_ADVANCED].get(CONF_ENCRYPTION_KEY, ""),
+            encryption_version=conf[CONF_ADVANCED].get(
                 CONF_ENCRYPTION_VERSION, DEFAULT_ENCRYPTION_VERSION
             ),
-            conf[CONF_ADVANCED].get(CONF_UID, DEFAULT_DEVICE_UID),
+            uid=conf[CONF_ADVANCED].get(CONF_UID, DEFAULT_DEVICE_UID),
             max_connection_attempts=conf[CONF_ADVANCED].get(
                 CONF_MAX_ONLINE_ATTEMPTS, DEFAULT_CONNECTION_MAX_ATTEMPTS
             ),
+            timeout=conf[CONF_ADVANCED].get(CONF_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT),
         )
         try:
-            async with asyncio.timeout(30):
-                await device.bind_device()
+            _LOGGER.debug(
+                "Setup entry '%s': GreeDevice(%s, %s)",
+                entry.entry_id,
+                mac,
+                conf.get(CONF_HOST),
+            )
+            await device.bind_device()
             # TODO: Add scan interval to config
             coordinators[mac] = GreeCoordinator(hass, entry, device)
             await coordinators[mac].async_config_entry_first_refresh()
-            _LOGGER.debug("Bound to device %s", mac)
+            _LOGGER.debug("Setup entry '%s': Bound to device %s", entry.entry_id, mac)
         except TimeoutError as err:
-            _LOGGER.debug("Conection to %s timed out", mac)
+            _LOGGER.exception(
+                "Setup entry '%s': Conection to %s timed out", entry.entry_id, mac
+            )
             raise ConfigEntryNotReady from err
         except GreeBindingError as err:
-            _LOGGER.debug("Failed to bind to device %s", mac)
+            _LOGGER.exception(
+                "Setup entry '%s': Failed to bind to device %s", entry.entry_id, mac
+            )
             raise ConfigEntryNotReady from err
 
     entry.runtime_data = coordinators

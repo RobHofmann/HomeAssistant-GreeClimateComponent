@@ -81,11 +81,12 @@ async def async_setup_entry(
     entities: list[GreeClimate] = []
 
     for d in entry.data.get(CONF_DEVICES, []):
-        coordinator: GreeCoordinator = entry.runtime_data[d.get(CONF_MAC, "")]
+        mac = d.get(CONF_MAC, "") + "@" + entry.data.get(CONF_MAC)
+        coordinator: GreeCoordinator = entry.runtime_data[mac]
         if not coordinator:
             _LOGGER.error(
                 "Cannot create Gree Climate. No coordinator found for device '%s'",
-                d.get(CONF_MAC, ""),
+                mac,
             )
 
         hvac_modes: list[HVACMode] = [
