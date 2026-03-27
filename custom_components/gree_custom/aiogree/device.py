@@ -69,11 +69,19 @@ class GreeDevice:
         self._port: int = port
         self._max_connection_attempts: int = max_connection_attempts
         self._timeout: int = timeout
-        self._mac_addr = self._mac_addr_sub = (
-            mac_addr.replace(":", "").replace("-", "").lower()
-        )
-        if "@" in self._mac_addr:
-            self._mac_addr_sub, self._mac_addr = self._mac_addr.lower().split("@", 1)
+
+        # For VRF units, the mac will be in the sub_device@main_device format
+        # where the sub_device is the device we are controling and
+        # main_device is the controller for that sub_device
+        mac_addr = mac_addr.replace(":", "").replace("-", "").lower()
+
+        if "@" in mac_addr:
+            self._mac_addr, self._mac_addr_controller = self._mac_addr_controller.split(
+                "@", 1
+            )
+        else:
+            self._mac_addr = self._mac_addr_controller = mac_addr
+
         self._transport = GreeTransport(ip_addr, port, max_connection_attempts, timeout)
 
         self._encryption_version: EncryptionVersion | None = encryption_version
@@ -85,7 +93,7 @@ class GreeDevice:
         self._new_raw_state: dict[GreeProp, int] = {}
         self._is_bound: bool = False
         self._is_available: bool = False
-        self._uniqueid: str = self._mac_addr_sub
+        self._uniqueid: str = self._mac_addr
 
         self._props_to_update: list[GreeProp] = list(GreeProp)
         # Don't poll the beeper state
@@ -118,7 +126,7 @@ class GreeDevice:
 
         try:
             key, version = await gree_try_bind(
-                self._mac_addr,
+                self._mac_addr_controller,
                 self._uid,
                 self._encryption_version,
                 self._encryption_key,
@@ -158,9 +166,9 @@ class GreeDevice:
             ) from e
 
         else:
-            if self._raw_info.get("mac", "") != self._mac_addr:
+            if self._raw_info.get("mac", "") != self._mac_addr_controller:
                 raise GreeProtocolError(
-                    f"Wrong device info for {self._ip_addr}. MAC mismatch {self._raw_info.get('mac', '')} not {self._mac_addr}."
+                    f"Wrong device info for {self._ip_addr}. MAC mismatch {self._raw_info.get('mac', '')} not {self._mac_addr_controller}."
                 )
             self._firmware_version = self._raw_info.get("firmware_version")
             self._firmware_code = self._raw_info.get("firmware_code")
@@ -178,11 +186,14 @@ class GreeDevice:
         if not self._subdevicesCount:
             return []
 
+        if self._mac_addr != self._mac_addr_controller:
+            return []  # For VRF, a non main device does not have subdevices
+
         discovered_devices: list[GreeDiscoveredDevice] = []
 
         try:
             subs = await gree_get_sub_devices_list(
-                self._mac_addr,
+                self._mac_addr_controller,
                 self._uid,
                 self._cipher,  # NOTE: Check if this should use the generic or the device key
                 self._transport,
@@ -200,7 +211,7 @@ class GreeDevice:
                 sub_mac = sub_device.get("mac", "")
                 if sub_mac:
                     discovered_sub_device = GreeDiscoveredDevice(
-                        name=f"{sub_device.get('name', '') or f'Gree {sub_mac[:4]}@{self.mac_address[-4:]}'}",
+                        name=f"{sub_device.get('name', '') or f'Gree {sub_mac[:4]}@{self.mac_address_controller[-4:]}'}",
                         host=self._ip_addr,
                         mac=sub_mac,
                         port=self._port,
@@ -215,7 +226,7 @@ class GreeDevice:
                         discovered_sub_device,
                     )
 
-            _LOGGER.debug("Subdevices of '%s': %s", self._mac_addr, subs)
+            _LOGGER.debug("Subdevices of '%s': %s", self._mac_addr_controller, subs)
             self._is_available = True
 
             return discovered_devices
@@ -231,8 +242,8 @@ class GreeDevice:
 
         try:
             state, _ = await gree_get_status(
+                self._mac_addr_controller,
                 self._mac_addr,
-                self._mac_addr_sub,
                 self._uid,
                 self._props_to_update,
                 self._cipher,
@@ -286,8 +297,8 @@ class GreeDevice:
         try:
             self._raw_state.update(
                 await gree_set_status(
+                    self._mac_addr_controller,
                     self._mac_addr,
-                    self._mac_addr_sub,
                     self._uid,
                     self._new_raw_state,
                     self._cipher,
@@ -411,7 +422,7 @@ class GreeDevice:
         info = {
             "ip": self._ip_addr,
             "mac": self._mac_addr,
-            "mac_sub": self._mac_addr_sub,
+            "mac_controller": self._mac_addr_controller,
             "port": self._port,
             "timeout": self._timeout,
             "max_connections": self._max_connection_attempts,
@@ -461,9 +472,9 @@ class GreeDevice:
         return self._mac_addr
 
     @property
-    def mac_address_sub(self) -> str:
-        """Return the secondary MAC address of the device. For non VRF is the same as MAC otherwise is the MAC of the subdevice (same as MAC for the main device)."""
-        return self._mac_addr_sub
+    def mac_address_controller(self) -> str:
+        """Return the secondary MAC address of the device. For non VRF is the same as MAC otherwise is the MAC of the main controller (same as MAC for the main device)."""
+        return self._mac_addr_controller
 
     @property
     def firmware_version(self) -> str | None:

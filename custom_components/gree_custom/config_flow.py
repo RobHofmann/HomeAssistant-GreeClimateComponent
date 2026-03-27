@@ -497,7 +497,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
         await device.fetch_device_status()
 
-        data[CONF_MAC] = device.mac_address
+        data[CONF_MAC] = device.mac_address_controller
         data[CONF_ADVANCED][CONF_ENCRYPTION_VERSION] = (
             int(device.encryption_version) if device.encryption_version else 0
         )
@@ -507,9 +507,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         # add the main device to the configs if not present
         if not self._get_device_conf(
-            import_config, device.mac_address_sub
+            import_config, device.mac_address
         ) and not self._get_device_conf(import_config, import_config[CONF_MAC]):
-            device_configs.append({CONF_MAC: device.mac_address_sub})
+            device_configs.append({CONF_MAC: device.mac_address})
 
         data[CONF_DEVICES] = []
         for dev_config in device_configs:
@@ -536,11 +536,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data[CONF_DEVICES].append(
                 {
                     **apply_schema_defaults(schema_dev, import_config),
-                    CONF_MAC: dev.mac_address_sub,
+                    CONF_MAC: dev.mac_address,
                 }
             )
 
-        unique_id = format_mac_id(device.mac_address)
+        unique_id = format_mac_id(device.mac_address_controller)
         entry = next(
             (
                 e
@@ -663,7 +663,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     max_connection_attempts=2,  # Use fewer attempts for testing the device
                     timeout=2,  # Use smaller timeout for testing the device
                 )
-                self._main_mac = _main_device.mac_address
+                self._main_mac = _main_device.mac_address_controller
                 await self.async_set_unique_id(format_mac_id(self._main_mac))
 
                 if self._is_reconfigure:
@@ -671,24 +671,24 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 else:
                     self._abort_if_unique_id_configured()
 
-                self._devices[_main_device.mac_address_sub] = _main_device
+                self._devices[_main_device.mac_address] = _main_device
 
                 # self._discovered_subdevices = await get_sub_devices(
                 #     _main_device.mac_address, user_input[CONF_HOST], 0, 2, 2
                 # )
                 self._discovered_subdevices = await self._devices[
-                    _main_device.mac_address_sub
+                    _main_device.mac_address
                 ].bind_device()
 
                 self._discovered_subdevices = await self._devices[
-                    _main_device.mac_address_sub
+                    _main_device.mac_address
                 ].fetch_sub_devices()
 
                 for d in self._discovered_subdevices:
                     subdev = GreeDevice(
                         d.name,
                         user_input[CONF_HOST],
-                        f"{d.mac}@{_main_device.mac_address}",
+                        f"{d.mac}@{_main_device.mac_address_controller}",
                         user_input[CONF_ADVANCED][CONF_PORT],
                         _main_device.encryption_key,
                         _main_device.encryption_version,
@@ -696,9 +696,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         max_connection_attempts=2,  # Use fewer attempts for testing the device
                         timeout=2,  # Use smaller timeout for testing the device
                     )
-                    self._devices[subdev.mac_address_sub] = subdev
+                    self._devices[subdev.mac_address] = subdev
 
-                await self._devices[_main_device.mac_address_sub].fetch_device_status()
+                await self._devices[_main_device.mac_address].fetch_device_status()
             except GreeBindingError:
                 errors["base"] = "cannot_bind"
                 _LOGGER.exception("Error while binding")
@@ -713,7 +713,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     self._step_main_data.update(user_input)
                 else:
                     self._step_main_data = user_input
-                self._step_main_data[CONF_MAC] = _main_device.mac_address
+                self._step_main_data[CONF_MAC] = _main_device.mac_address_controller
                 self._step_main_data[CONF_ADVANCED].update(
                     {
                         CONF_ENCRYPTION_VERSION: _main_device.encryption_version,
@@ -811,9 +811,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         conf_input = user_input
         if self._is_reconfigure:
-            conf_input = self._get_device_conf(
-                self._step_main_data, device.mac_address_sub
-            )
+            conf_input = self._get_device_conf(self._step_main_data, device.mac_address)
 
         schema = build_options_schema(self.hass, device, conf_input)
 

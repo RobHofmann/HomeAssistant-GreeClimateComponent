@@ -103,7 +103,7 @@ async def async_setup_entry(
 
         _LOGGER.debug(
             "Adding Sensor Entities for device '%s': %s",
-            coordinator.device.mac_address_sub,
+            coordinator.device.mac_address,
             [d.key for d in descriptions],
         )
 

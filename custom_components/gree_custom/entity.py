@@ -38,22 +38,22 @@ class GreeEntity(CoordinatorEntity[GreeCoordinator]):
     @property
     def unique_id(self) -> str | None:
         """Returns a unique id for the entity."""
-        return f"{self.device.mac_address_sub}_{self.entity_description.key}"
+        return f"{self.device.mac_address}_{self.entity_description.key}"
 
     @property
     def device_info(self) -> DeviceInfo:
         """Return the device info."""
-        if self.device.mac_address_sub != self.device.mac_address:
+        if self.device.mac_address != self.device.mac_address_controller:
             return DeviceInfo(
-                connections={(CONNECTION_NETWORK_MAC, self.device.mac_address_sub)},
+                connections={(CONNECTION_NETWORK_MAC, self.device.mac_address)},
                 identifiers={(DOMAIN, self.device.unique_id)},
                 name=self.device.name,
                 manufacturer="Gree",
                 sw_version=self.device.firmware_version,
-                via_device=(DOMAIN, self.device.mac_address),
+                via_device=(DOMAIN, self.device.mac_address_controller),
             )
         return DeviceInfo(
-            connections={(CONNECTION_NETWORK_MAC, self.device.mac_address_sub)},
+            connections={(CONNECTION_NETWORK_MAC, self.device.mac_address)},
             identifiers={(DOMAIN, self.device.unique_id)},
             name=self.device.name,
             manufacturer="Gree",

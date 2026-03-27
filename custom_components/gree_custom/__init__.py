@@ -112,7 +112,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
         )
         try:
             _LOGGER.debug(
-                "Setup entry '%s': GreeDevice(%s, %s)",
+                "Setup entry '%s': Configuring Gree Device (%s, %s)",
                 entry.entry_id,
                 mac,
                 conf.get(CONF_HOST),

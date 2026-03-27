@@ -408,8 +408,8 @@ async def gree_try_bind(
 
 
 async def gree_get_status(
+    mac_addr_controller: str,
     mac_addr: str,
-    mac_addr_sub: str,
     uid: int,
     props: list[GreeProp],
     cipher: CipherBase,
@@ -421,10 +421,10 @@ async def gree_get_status(
 
     status_values_raw: dict[GreeProp, int | None] = {}
 
-    pack = gree_create_status_pack(mac_addr_sub, [prop.value for prop in props])
+    pack = gree_create_status_pack(mac_addr, [prop.value for prop in props])
     encrypted_pack, tag = gree_encrypt_pack(pack, cipher)
     json_payload = gree_create_payload(
-        encrypted_pack, "pack", GreeCommand.STATUS, mac_addr, uid, tag
+        encrypted_pack, "pack", GreeCommand.STATUS, mac_addr_controller, uid, tag
     )
 
     try:
@@ -450,8 +450,8 @@ async def gree_get_status(
 
 
 async def gree_set_status(
+    mac_addr_controller: str,
     mac_addr: str,
-    mac_addr_sub: str,
     uid: int,
     props: dict[GreeProp, int],
     cipher: CipherBase,
@@ -461,10 +461,10 @@ async def gree_set_status(
 
     _LOGGER.debug("Trying to set device status")
 
-    pack = gree_create_set_pack(mac_addr_sub, props)
+    pack = gree_create_set_pack(mac_addr, props)
     encrypted_pack, tag = gree_encrypt_pack(pack, cipher)
     json_payload = gree_create_payload(
-        encrypted_pack, "pack", GreeCommand.STATUS, mac_addr, uid, tag
+        encrypted_pack, "pack", GreeCommand.STATUS, mac_addr_controller, uid, tag
     )
 
     try:

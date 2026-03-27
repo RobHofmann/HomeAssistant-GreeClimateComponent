@@ -122,7 +122,7 @@ async def async_setup_entry(
 
         _LOGGER.debug(
             "Adding Climate Entity for device '%s'",
-            coordinator.device.mac_address_sub,
+            coordinator.device.mac_address,
         )
 
         entities.append(
