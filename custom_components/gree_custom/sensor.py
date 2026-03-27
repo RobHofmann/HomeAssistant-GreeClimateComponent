@@ -41,7 +41,7 @@ async def async_setup_entry(
     entities: list[GreeSensor] = []
 
     for d in entry.data.get(CONF_DEVICES, []):
-        mac = d.get(CONF_MAC, "") + "@" + entry.data.get(CONF_MAC)
+        mac = d.get(CONF_MAC, "")
         coordinator: GreeCoordinator = entry.runtime_data[mac]
         if not coordinator:
             _LOGGER.error(

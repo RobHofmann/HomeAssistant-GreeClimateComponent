@@ -12,7 +12,7 @@ from homeassistant.const import CONF_HOST, CONF_MAC, CONF_PORT, CONF_TIMEOUT, Pl
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.typing import ConfigType
+from homeassistant.helpers.typing import Any, ConfigType
 
 from .aiogree.const import (
     DEFAULT_CONNECTION_MAX_ATTEMPTS,
@@ -119,8 +119,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
             )
             await device.bind_device()
             # TODO: Add scan interval to config
-            coordinators[mac] = GreeCoordinator(hass, entry, device)
-            await coordinators[mac].async_config_entry_first_refresh()
+            coordinators[device.mac_address] = GreeCoordinator(hass, entry, device)
+            await coordinators[device.mac_address].async_config_entry_first_refresh()
             _LOGGER.debug("Setup entry '%s': Bound to device %s", entry.entry_id, mac)
         except TimeoutError as err:
             _LOGGER.exception(
@@ -150,12 +150,14 @@ async def async_remove_config_entry_device(
     """Remove a device from a config entry."""
 
     # Find MAC address for this device (from identifiers)
-    identifiers = device_entry.identifiers
-    mac: str | None = None
-    for domain, identifier in identifiers:
-        if domain == DOMAIN:
-            mac = identifier
-            break
+    mac: str | None = next(
+        (
+            identifier
+            for domain, identifier in device_entry.identifiers
+            if domain == DOMAIN
+        ),
+        None,
+    )
 
     if mac is None:
         return False
@@ -165,22 +167,24 @@ async def async_remove_config_entry_device(
     if not runtime_data:
         return False
 
-    data: dict = dict(config_entry.data)
+    await runtime_data.async_shutdown()
+
+    data: dict[str, Any] = dict(config_entry.data)
     device_configs: list[dict] = data.get(CONF_DEVICES, [])
-    for dconf in list(device_configs):
-        if dconf.get(CONF_MAC, "") != mac:
-            continue
+    new_device_configs = [d for d in device_configs if d.get(CONF_MAC) != mac]
 
-        device_configs.remove(dconf)
+    if len(new_device_configs) == len(device_configs):
+        # Nothing to remove
+        return False
 
-    data[CONF_DEVICES] = device_configs
+    data[CONF_DEVICES] = new_device_configs
 
     device_registry = dr.async_get(hass)
     device_registry.async_remove_device(device_entry.id)
 
-    if device_configs:
+    if new_device_configs:
         # There are still other devices, update the entry
-        hass.config_entries.async_update_entry(config_entry, data=data)
+        await hass.config_entries.async_update_entry(config_entry, data=data)
     else:
         # No other devices, remove the entry
         await hass.config_entries.async_remove(config_entry.entry_id)
