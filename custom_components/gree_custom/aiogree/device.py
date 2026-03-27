@@ -76,9 +76,7 @@ class GreeDevice:
         mac_addr = mac_addr.replace(":", "").replace("-", "").lower()
 
         if "@" in mac_addr:
-            self._mac_addr, self._mac_addr_controller = self._mac_addr_controller.split(
-                "@", 1
-            )
+            self._mac_addr, self._mac_addr_controller = mac_addr.split("@", 1)
         else:
             self._mac_addr = self._mac_addr_controller = mac_addr
 
