@@ -1,10 +1,13 @@
 """Encapsulates device encryption."""
 
+from abc import ABC, abstractmethod
 import base64
 from enum import IntEnum, unique
 import logging
 
 from Crypto.Cipher import AES
+from Crypto.Cipher._mode_ecb import EcbMode
+from Crypto.Cipher._mode_gcm import GcmMode
 from Crypto.Util.Padding import pad, unpad
 
 from .errors import GreeError
@@ -14,7 +17,7 @@ _LOGGER = logging.getLogger(__name__)
 GCM_IV = b"\x54\x40\x78\x44\x49\x67\x5a\x51\x6c\x5e\x63\x13"
 GCM_ADD = b"qualcomm-test"
 
-GREE_GENERIC_DEVICE_KEY = "a3K8Bx%2r8Y7#xDh"
+GREE_GENERIC_DEVICE_KEY_ECB = "a3K8Bx%2r8Y7#xDh"
 GREE_GENERIC_DEVICE_KEY_GCM = "{yxAHAY_Lm6pbC/<"
 
 AES_BLOCK_SIZE = 16
@@ -28,7 +31,7 @@ class EncryptionVersion(IntEnum):
     V2 = 2
 
 
-class CipherBase:
+class CipherBase(ABC):
     """Base class for the encryprion module."""
 
     def __init__(self, key: str) -> None:
@@ -36,6 +39,7 @@ class CipherBase:
         self.key = key
 
     @property
+    @abstractmethod
     def version(self) -> EncryptionVersion:
         """The encryption version of this cypher."""
         raise NotImplementedError
@@ -49,10 +53,12 @@ class CipherBase:
     def key(self, value: str) -> None:
         self._key = value.encode()
 
+    @abstractmethod
     def encrypt(self, data: str) -> tuple[str, str | None]:
         """Encrypts the data. Returns the encrypted data and an optional tag."""
         raise NotImplementedError
 
+    @abstractmethod
     def decrypt(self, data: str, tag: str | None) -> str:
         """Decrypts the data. Optionally checks integrity if tag is provided."""
         raise NotImplementedError
@@ -63,9 +69,9 @@ class CipherV1(CipherBase):
 
     def __init__(self, key: str | None) -> None:
         """Initialize V1 Encryption."""
-        super().__init__(key or GREE_GENERIC_DEVICE_KEY)
+        super().__init__(key or GREE_GENERIC_DEVICE_KEY_ECB)
 
-    def _create_cipher(self):
+    def _create_cipher(self) -> EcbMode:
         return AES.new(self._key, AES.MODE_ECB)
 
     @property
@@ -92,14 +98,14 @@ class CipherV1(CipherBase):
         _LOGGER.debug("Decrypting data (V1): %s", data)
 
         cipher = self._create_cipher()
-        decoded = base64.b64decode(data)
 
+        decoded = base64.b64decode(data)
         decrypted = cipher.decrypt(decoded)
 
         try:
             plaintext = unpad(decrypted, AES_BLOCK_SIZE).decode()
         except ValueError:
-            # Fallback for some devices sending malformed padding
+            # GREE PROTOCOL: Fallback for some devices sending malformed padding
             plaintext = decrypted.decode(errors="ignore")
 
         _LOGGER.debug("Decrypted data successfully (V1)")
@@ -108,13 +114,13 @@ class CipherV1(CipherBase):
 
 
 class CipherV2(CipherBase):
-    """Implements the V2 type encryption used by Gree."""
+    """Implements the V2 (AES-GCM) type encryption used by Gree."""
 
     def __init__(self, key: str | None) -> None:
         """Initialize V2 Encryption."""
         super().__init__(key or GREE_GENERIC_DEVICE_KEY_GCM)
 
-    def _create_cipher(self) -> AES:
+    def _create_cipher(self) -> GcmMode:
         cipher = AES.new(self._key, AES.MODE_GCM, nonce=GCM_IV)
         cipher.update(GCM_ADD)
         return cipher
@@ -140,19 +146,17 @@ class CipherV2(CipherBase):
 
     def decrypt(self, data: str, tag: str) -> str:
         """Decrypt data with V2 and verify the data with the tag."""
-        _LOGGER.debug("Decrypting data (V2): %s", data)
-
-        cipher = self._create_cipher()
-
-        decoded = base64.b64decode(data)
-        decrypted = cipher.decrypt(decoded)
+        _LOGGER.debug("Decrypting data (V2): %s, tag=%s", data, tag)
 
         if not tag:
             raise GreeError("Decrypting data (V2) failed: tag is needed")
 
-        _LOGGER.debug("Verifying tag: %s", tag)
-        cipher.verify(base64.b64decode(tag))
+        cipher = self._create_cipher()
 
+        decoded = base64.b64decode(data)
+        decoded_tag = base64.b64decode(tag)
+
+        decrypted = cipher.decrypt_and_verify(decoded, decoded_tag)
         plaintext = decrypted.decode("utf-8")
 
         _LOGGER.debug("Decrypted data successfully (V2)")
@@ -167,9 +171,14 @@ def _trim_json_payload(data: str) -> str:
     """
 
     end = data.rfind("}")
-    if end != -1:
-        return data[: end + 1]
-    return data
+
+    if end == -1:
+        raise GreeError("Malformed JSON payload without closing character")
+
+    if end + 1 < len(data):
+        _LOGGER.debug("Trimmed JSON payload garbage: %s", data[end + 1 :])
+
+    return data[: end + 1]
 
 
 def get_cipher(
