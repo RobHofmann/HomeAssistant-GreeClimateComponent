@@ -151,7 +151,7 @@ Depending on the device configuration, specific Gree AC model and firmware versi
 - **Auto X-Fan**: Automatically controls the X-Fan mode based on HVAC operations. When enabled, X-Fan will automatically turn on in cooling and dry modes. *Note: This is an integration feature, not an actual AC unit state*
 - **Temperature Step**: Sets the increment step for adjusting the target temperature. This allows you to configure how much the temperature changes when using the up/down controls in Home Assistant
 
-## Diagnostics
+### Diagnostics
 
 - **Fault Detection**: Sensor that shows if there is a problem with the device operation
 
