@@ -64,13 +64,14 @@
           "external_humidity_sensor": "External Humidity Sensor",
           "restore_states": "Restore Entities",
           "target_temp_step": "Temperature Step",
-          "faults": "Fault Detection"
+          "scan_interval": "Scan Interval"
         },
         "data_description": {
           "external_temperature_sensor": "If set will replace the built-in HVAC temperature sensor",
           "external_humidity_sensor": "If set will replace the built-in HVAC humidity sensor",
           "restore_states": "If set to true, when the integration is started the device will be overriden by previous states of the integration instead of using the current device state.",
-          "target_temp_step": "Sets the increment step for adjusting the target temperature. Fahrenheit degrees are clamped to the nearest integer."
+          "target_temp_step": "Sets the increment step for adjusting the target temperature. Fahrenheit degrees are clamped to the nearest integer.",
+          "scan_interval": "Frequency of the device data polling (in seconds)"
         }
       },
       "reconfigure": {

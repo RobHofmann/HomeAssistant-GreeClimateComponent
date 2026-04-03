@@ -11,7 +11,13 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.components import network
 from homeassistant.components.diagnostics.util import async_redact_data
-from homeassistant.const import CONF_HOST, CONF_MAC, CONF_PORT, CONF_TIMEOUT
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_MAC,
+    CONF_PORT,
+    CONF_SCAN_INTERVAL,
+    CONF_TIMEOUT,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import section
 from homeassistant.helpers import config_validation as cv
@@ -60,6 +66,7 @@ from .const import (
     DEFAULT_FAN_MODES,
     DEFAULT_HVAC_MODES,
     DEFAULT_RESTORE_STATES,
+    DEFAULT_SCAN_INTERVAL,
     DEFAULT_SWING_HORIZONTAL_MODES,
     DEFAULT_SWING_MODES,
     DEFAULT_TARGET_TEMP_STEP,
@@ -77,6 +84,7 @@ from .const import (
     GATTR_FEAT_SMART_HEAT_8C,
     GATTR_FEAT_TURBO,
     GATTR_FEAT_XFAN,
+    MIN_SCAN_INTERVAL,
 )
 from .coordinator import GreeConfigEntry
 
@@ -108,7 +116,7 @@ def build_main_schema(data: Mapping | None) -> vol.Schema:
                             else data[CONF_ADVANCED].get(
                                 CONF_PORT, DEFAULT_DEVICE_PORT
                             ),
-                        ): int,
+                        ): cv.port,
                         vol.Required(
                             CONF_ENCRYPTION_VERSION,
                             default="Auto-Detect"
@@ -365,6 +373,12 @@ def build_options_schema(
                 if data is None
                 else data.get(CONF_RESTORE_STATES, DEFAULT_RESTORE_STATES),
             ): cv.boolean,
+            vol.Required(
+                CONF_SCAN_INTERVAL,
+                default=DEFAULT_SCAN_INTERVAL
+                if data is None
+                else data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+            ): vol.All(vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL)),
         }
     )
     return vol.Schema(schema)

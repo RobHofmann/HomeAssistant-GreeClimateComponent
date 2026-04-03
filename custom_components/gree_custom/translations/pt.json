@@ -63,13 +63,15 @@
           "external_temperature_sensor": "Sensor de Temperatura",
           "external_humidity_sensor": "Sensor de Humidade",
           "restore_states": "Restaurar Entidades",
-          "target_temp_step": "Incremento de Temperatura"
+          "target_temp_step": "Incremento de Temperatura",
+          "scan_interval": "Taxa de Atualização"
         },
         "data_description": {
           "external_temperature_sensor": "Se definido, substitui o sensor integrado de temperatura interior do dispositivo",
           "external_humidity_sensor": "Se definido, substitui o sensor integrado de humidade interior do dispositivo",
           "restore_states": "Se ativo, quando a integração é iniciada, o estado do dispositivo será reposto para o último estado observado na integração.",
-          "target_temp_step": "Define o incremento da temperatura quando esta é ajustada. Graus Fahrenheit são arredondados para às unidades."
+          "target_temp_step": "Define o incremento da temperatura quando esta é ajustada. Graus Fahrenheit são arredondados para às unidades.",
+          "scan_interval": "Frequência de atualização dos dados do dispositivo (em segundos)"
         }
       },
       "reconfigure": {

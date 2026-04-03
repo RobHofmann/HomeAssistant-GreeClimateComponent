@@ -28,7 +28,7 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         hass: HomeAssistant,
         config_entry: GreeConfigEntry,
         device: GreeDevice,
-        scan_interval: int = 30,
+        scan_interval: int,
     ) -> None:
         """Initialize coordinator."""
         super().__init__(

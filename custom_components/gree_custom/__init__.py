@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 # Standard library imports
-import asyncio
 import logging
 
 from homeassistant.components.diagnostics.util import async_redact_data
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_MAC, CONF_PORT, CONF_TIMEOUT, Platform
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_MAC,
+    CONF_PORT,
+    CONF_SCAN_INTERVAL,
+    CONF_TIMEOUT,
+    Platform,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
@@ -33,6 +39,7 @@ from .const import (
     CONF_MAX_ONLINE_ATTEMPTS,
     CONF_UID,
     DEFAULT_ENCRYPTION_VERSION,
+    DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
 
@@ -118,15 +125,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
                 conf.get(CONF_HOST),
             )
             await device.bind_device()
-            # TODO: Add scan interval to config
-            coordinators[device.mac_address] = GreeCoordinator(hass, entry, device)
+
+            coordinators[device.mac_address] = GreeCoordinator(
+                hass, entry, device, d.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+            )
             await coordinators[device.mac_address].async_config_entry_first_refresh()
+
             _LOGGER.debug("Setup entry '%s': Bound to device %s", entry.entry_id, mac)
+
         except TimeoutError as err:
             _LOGGER.exception(
                 "Setup entry '%s': Conection to %s timed out", entry.entry_id, mac
             )
             raise ConfigEntryNotReady from err
+
         except GreeBindingError as err:
             _LOGGER.exception(
                 "Setup entry '%s': Failed to bind to device %s", entry.entry_id, mac
