@@ -21,6 +21,7 @@ from .const import (
     CONF_ADVANCED,
     CONF_DEVICES,
     CONF_DISABLE_AVAILABLE_CHECK,
+    DEFAULT_DISABLE_AVAILABLE_CHECK,
     GATTR_HUMIDITY,
     GATTR_INDOOR_TEMPERATURE,
     GATTR_OUTDOOR_TEMPERATURE,
@@ -48,6 +49,7 @@ async def async_setup_entry(
                 "Cannot create Gree Sensors. No coordinator found for device '%s'",
                 mac,
             )
+            continue
 
         descriptions: list[GreeSensorDescription] = []
         if coordinator.device.supports_property(GreeProp.SENSOR_TEMPERATURE):
@@ -60,10 +62,6 @@ async def async_setup_entry(
                     native_unit_of_measurement=UnitOfTemperature.CELSIUS,
                     suggested_display_precision=0,
                     value_func=lambda device: device.indoors_temperature_c,
-                    available_func=lambda device: (
-                        device.available
-                        and device.supports_property(GreeProp.SENSOR_TEMPERATURE)
-                    ),
                 )
             )
         if coordinator.device.supports_property(GreeProp.SENSOR_OUTSIDE_TEMPERATURE):
@@ -76,12 +74,6 @@ async def async_setup_entry(
                     native_unit_of_measurement=UnitOfTemperature.CELSIUS,
                     suggested_display_precision=0,
                     value_func=lambda device: device.outdoors_temperature_c,
-                    available_func=lambda device: (
-                        device.available
-                        and device.supports_property(
-                            GreeProp.SENSOR_OUTSIDE_TEMPERATURE
-                        )
-                    ),
                 )
             )
         if coordinator.device.supports_property(GreeProp.SENSOR_HUMIDITY):
@@ -94,10 +86,6 @@ async def async_setup_entry(
                     native_unit_of_measurement=PERCENTAGE,
                     suggested_display_precision=0,
                     value_func=lambda device: device.humidity,
-                    available_func=lambda device: (
-                        device.available
-                        and device.supports_property(GreeProp.SENSOR_HUMIDITY)
-                    ),
                 )
             )
 
@@ -113,7 +101,9 @@ async def async_setup_entry(
                 coordinator,
                 restore_state=False,
                 check_availability=(
-                    entry.data[CONF_ADVANCED].get(CONF_DISABLE_AVAILABLE_CHECK, False)
+                    not entry.data[CONF_ADVANCED].get(
+                        CONF_DISABLE_AVAILABLE_CHECK, DEFAULT_DISABLE_AVAILABLE_CHECK
+                    )
                 ),
             )
             for description in descriptions

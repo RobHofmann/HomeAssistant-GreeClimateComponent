@@ -56,8 +56,10 @@ from .const import (
     CONF_SWING_MODES,
     CONF_TEMPERATURE_STEP,
     CONF_UID,
+    DEFAULT_DISABLE_AVAILABLE_CHECK,
     DEFAULT_FAN_MODES,
     DEFAULT_HVAC_MODES,
+    DEFAULT_RESTORE_STATES,
     DEFAULT_SWING_HORIZONTAL_MODES,
     DEFAULT_SWING_MODES,
     DEFAULT_TARGET_TEMP_STEP,
@@ -133,7 +135,10 @@ def build_main_schema(data: Mapping | None) -> vol.Schema:
                             CONF_DISABLE_AVAILABLE_CHECK,
                             default=False
                             if data is None
-                            else data.get(CONF_DISABLE_AVAILABLE_CHECK, False),
+                            else data.get(
+                                CONF_DISABLE_AVAILABLE_CHECK,
+                                DEFAULT_DISABLE_AVAILABLE_CHECK,
+                            ),
                         ): cv.boolean,
                         vol.Required(
                             CONF_MAX_ONLINE_ATTEMPTS,
@@ -356,7 +361,9 @@ def build_options_schema(
             ),
             vol.Required(
                 CONF_RESTORE_STATES,
-                default=True if data is None else data.get(CONF_RESTORE_STATES, True),
+                default=True
+                if data is None
+                else data.get(CONF_RESTORE_STATES, DEFAULT_RESTORE_STATES),
             ): cv.boolean,
         }
     )

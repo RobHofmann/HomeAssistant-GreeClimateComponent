@@ -8,5 +8,5 @@
   "integration_type": "hub",
   "iot_class": "local_polling",
   "requirements": ["pycryptodome", "asyncio_dgram"],
-  "version": "4.0.0-alpha.88"
+  "version": "4.0.0-alpha.89"
 }

@@ -27,6 +27,8 @@ from .const import (
     CONF_FEATURES,
     CONF_RESTORE_STATES,
     CONF_TO_PROP_FEATURE_MAP,
+    DEFAULT_DISABLE_AVAILABLE_CHECK,
+    DEFAULT_RESTORE_STATES,
     DEFAULT_SUPPORTED_FEATURES,
     GATTR_ANTI_DIRECT_BLOW,
     GATTR_BEEPER,
@@ -59,19 +61,14 @@ SWITCH_TYPES: list[GreeSwitchDescription] = [
     GreeSwitchDescription(
         key=GATTR_FEAT_FRESH_AIR,
         translation_key=GATTR_FEAT_FRESH_AIR,
-        available_func=lambda device: (
-            device.available and device.supports_property(GreeProp.FEAT_FRESH_AIR)
-        ),
         value_func=lambda device, _: device.feature_fresh_air,
         set_func=lambda device, _, value: device.set_feature_fresh_air(value),
     ),
     GreeSwitchDescription(
         key=GATTR_FEAT_XFAN,
         translation_key=GATTR_FEAT_XFAN,
-        available_func=lambda device: (
-            device.available
-            and device.supports_property(GreeProp.FEAT_XFAN)
-            and device.operation_mode in [OperationMode.cool, OperationMode.dry]
+        additional_available_func=lambda device: (
+            device.operation_mode in [OperationMode.cool, OperationMode.dry]
         ),
         value_func=lambda device, _: device.feature_x_fan,
         set_func=lambda device, _, value: device.set_feature_xfan(value),
@@ -79,11 +76,9 @@ SWITCH_TYPES: list[GreeSwitchDescription] = [
     GreeSwitchDescription(
         key=GATTR_FEAT_SLEEP_MODE,
         translation_key=GATTR_FEAT_SLEEP_MODE,
-        available_func=(
+        additional_available_func=(
             lambda device: (
-                device.available
-                and device.supports_property(GreeProp.FEAT_SLEEP_MODE)
-                and device.operation_mode
+                device.operation_mode
                 in [OperationMode.cool, OperationMode.dry, OperationMode.heat]
             )
         ),
@@ -93,46 +88,30 @@ SWITCH_TYPES: list[GreeSwitchDescription] = [
     GreeSwitchDescription(
         key=GATTR_FEAT_SMART_HEAT_8C,
         translation_key=GATTR_FEAT_SMART_HEAT_8C,
-        available_func=lambda device: (
-            device.available and device.supports_property(GreeProp.FEAT_SMART_HEAT_8C)
-        ),
         value_func=lambda device, _: device.feature_smart_heat,
         set_func=lambda device, _, value: device.set_feature_smart_heat(value),
     ),
     GreeSwitchDescription(
         key=GATTR_FEAT_HEALTH,
         translation_key=GATTR_FEAT_HEALTH,
-        available_func=lambda device: (
-            device.available and device.supports_property(GreeProp.FEAT_HEALTH)
-        ),
         value_func=lambda device, _: device.feature_health,
         set_func=lambda device, _, value: device.set_feature_health(value),
     ),
     GreeSwitchDescription(
         key=GATTR_ANTI_DIRECT_BLOW,
         translation_key=GATTR_ANTI_DIRECT_BLOW,
-        available_func=lambda device: (
-            device.available
-            and device.supports_property(GreeProp.FEAT_ANTI_DIRECT_BLOW)
-        ),
         value_func=lambda device, _: device.feature_anti_direct_blow,
         set_func=lambda device, _, value: device.set_feature_anti_direct_blow(value),
     ),
     GreeSwitchDescription(
         key=GATTR_FEAT_ENERGY_SAVING,
         translation_key=GATTR_FEAT_ENERGY_SAVING,
-        available_func=lambda device: (
-            device.available and device.supports_property(GreeProp.FEAT_ENERGY_SAVING)
-        ),
         value_func=lambda device, _: device.feature_energy_saving,
         set_func=lambda device, _, value: device.set_feature_energy_saving(value),
     ),
     GreeSwitchDescription(
         key=GATTR_FEAT_LIGHT,
         translation_key=GATTR_FEAT_LIGHT,
-        available_func=lambda device: (
-            device.available and device.supports_property(GreeProp.FEAT_LIGHT)
-        ),
         value_func=lambda device, _: device.feature_light,
         set_func=lambda device, _, value: device.set_feature_light(value),
         entity_category=EntityCategory.CONFIG,
@@ -140,12 +119,7 @@ SWITCH_TYPES: list[GreeSwitchDescription] = [
     GreeSwitchDescription(
         key=GATTR_FEAT_SENSOR_LIGHT,
         translation_key=GATTR_FEAT_SENSOR_LIGHT,
-        available_func=lambda device: (
-            device.available
-            and device.supports_property(GreeProp.FEAT_SENSOR_LIGHT)
-            and device.supports_property(GreeProp.FEAT_LIGHT)
-            and device.feature_light
-        ),
+        additional_available_func=lambda device: device.feature_light,
         value_func=lambda device, _: device.feature_light_sensor,
         set_func=lambda device, _, value: device.set_feature_light_sensor(value),
         entity_category=EntityCategory.CONFIG,
@@ -153,13 +127,30 @@ SWITCH_TYPES: list[GreeSwitchDescription] = [
     GreeSwitchDescription(
         key=GATTR_BEEPER,
         translation_key=GATTR_BEEPER,
-        available_func=lambda device: device.available,
         value_func=lambda device, _: device.beeper,
         set_func=lambda device, _, value: device.set_beeper(value),
         entity_category=EntityCategory.CONFIG,
         updates_device=False,  # Local entity
     ),
 ]
+
+SWITCH_TYPE_AUTO_LIGHT = GreeSwitchDescription(
+    key=ATTR_AUTO_LIGHT,
+    translation_key=ATTR_AUTO_LIGHT,
+    value_func=(lambda _, coordinator: coordinator.feature_auto_light),
+    set_func=(lambda _, coordinator, value: coordinator.set_feature_auto_light(value)),
+    updates_device=False,
+    entity_category=EntityCategory.CONFIG,
+)
+
+SWITCH_TYPE_AUTO_XFAN = GreeSwitchDescription(
+    key=ATTR_AUTO_XFAN,
+    translation_key=ATTR_AUTO_XFAN,
+    value_func=lambda _, coordinator: coordinator.feature_auto_xfan,
+    set_func=lambda _, coordinator, value: coordinator.set_feature_auto_xfan(value),
+    updates_device=False,
+    entity_category=EntityCategory.CONFIG,
+)
 
 
 async def async_setup_entry(
@@ -179,19 +170,23 @@ async def async_setup_entry(
                 "Cannot create Gree Switches. No coordinator found for device '%s'",
                 mac,
             )
+            continue
 
         descriptions: list[GreeSwitchDescription] = []
 
-        conf_supported_features: list[str] = []
+        conf_restore_states: bool = d.get(CONF_RESTORE_STATES, DEFAULT_RESTORE_STATES)
+        conf_check_availability: bool = not entry.data[CONF_ADVANCED].get(
+            CONF_DISABLE_AVAILABLE_CHECK, DEFAULT_DISABLE_AVAILABLE_CHECK
+        )
+
         supported_features: list[str] = []
 
-        if d.get(CONF_FEATURES, None) is None:
+        if not d.get(CONF_FEATURES):
             _LOGGER.warning("Undefined supported features")
-            conf_supported_features = DEFAULT_SUPPORTED_FEATURES
-        else:
-            conf_supported_features = d.get(CONF_FEATURES, [])
 
-        # Double check features with device support, just in case
+        conf_supported_features = d.get(CONF_FEATURES, DEFAULT_SUPPORTED_FEATURES)
+
+        # Check features with device support before adding the entities
         for feature in conf_supported_features:
             if feature == GATTR_FEAT_SENSOR_LIGHT:
                 if coordinator.device.supports_property(
@@ -225,14 +220,12 @@ async def async_setup_entry(
                     description,
                     coordinator,
                     restore_state=(
-                        d.get(CONF_RESTORE_STATES, True)
+                        conf_restore_states
                         if description.key != GATTR_BEEPER  # Always restore beeper
                         else True
                     ),
                     check_availability=(
-                        entry.data[CONF_ADVANCED].get(
-                            CONF_DISABLE_AVAILABLE_CHECK, False
-                        )
+                        conf_check_availability
                         if description.key != GATTR_BEEPER  # Beeper is always available
                         else False
                     ),
@@ -241,55 +234,25 @@ async def async_setup_entry(
             ]
         )
 
+        # Add Auto Light if device supports Light
         if GATTR_FEAT_LIGHT in supported_features:
             entities.append(
                 GreeSwitch(
-                    GreeSwitchDescription(
-                        key=ATTR_AUTO_LIGHT,
-                        translation_key=ATTR_AUTO_LIGHT,
-                        available_func=(
-                            lambda device: (
-                                device.available
-                                and device.supports_property(GreeProp.FEAT_LIGHT)
-                            )
-                        ),
-                        value_func=(
-                            lambda _, coordinator: coordinator.feature_auto_light
-                        ),
-                        set_func=(
-                            lambda _, coordinator, value: (
-                                coordinator.set_feature_auto_light(value)
-                            )
-                        ),
-                        updates_device=False,
-                        entity_category=EntityCategory.CONFIG,
-                    ),
+                    SWITCH_TYPE_AUTO_LIGHT,
                     coordinator,
-                    restore_state=True,
-                    check_availability=True,
+                    restore_state=True,  # Always restore Auto Light
+                    check_availability=conf_check_availability,
                 )
             )
 
+        # Add XFan if device supports XFan
         if GATTR_FEAT_XFAN in supported_features:
             entities.append(
                 GreeSwitch(
-                    GreeSwitchDescription(
-                        key=ATTR_AUTO_XFAN,
-                        translation_key=ATTR_AUTO_XFAN,
-                        available_func=lambda device: (
-                            device.available
-                            and device.supports_property(GreeProp.FEAT_XFAN)
-                        ),
-                        value_func=lambda _, coordinator: coordinator.feature_auto_xfan,
-                        set_func=lambda _, coordinator, value: (
-                            coordinator.set_feature_auto_xfan(value)
-                        ),
-                        updates_device=False,
-                        entity_category=EntityCategory.CONFIG,
-                    ),
+                    SWITCH_TYPE_AUTO_XFAN,
                     coordinator,
-                    restore_state=True,
-                    check_availability=True,
+                    restore_state=True,  # Always restore Auto XFan
+                    check_availability=conf_check_availability,
                 )
             )
 

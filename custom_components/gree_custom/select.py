@@ -20,6 +20,8 @@ from .const import (
     CONF_DEVICES,
     CONF_DISABLE_AVAILABLE_CHECK,
     CONF_RESTORE_STATES,
+    DEFAULT_DISABLE_AVAILABLE_CHECK,
+    DEFAULT_RESTORE_STATES,
     GATTR_TEMP_UNITS,
 )
 from .coordinator import GreeConfigEntry, GreeCoordinator
@@ -47,6 +49,7 @@ async def async_setup_entry(
                 "Cannot create Gree Selectors. No coordinator found for device '%s'",
                 mac,
             )
+            continue
 
         descriptions: list[GreeSelectDescription] = []
 
@@ -57,10 +60,6 @@ async def async_setup_entry(
                     translation_key=GATTR_TEMP_UNITS,
                     entity_category=EntityCategory.CONFIG,
                     options=[f"º{member.name}" for member in TemperatureUnits],
-                    available_func=lambda device: (
-                        device.available
-                        and device.supports_property(GreeProp.TARGET_TEMPERATURE_UNIT)
-                    ),
                     value_func=lambda device: f"º{device.target_temperature_unit.name}",
                     set_func=lambda device, value: device.set_target_temperature_unit(
                         TemperatureUnits[value.replace("º", "")]
@@ -79,9 +78,11 @@ async def async_setup_entry(
             GreeSelect(
                 description,
                 coordinator,
-                d.get(CONF_RESTORE_STATES, True),
+                d.get(CONF_RESTORE_STATES, DEFAULT_RESTORE_STATES),
                 check_availability=(
-                    entry.data[CONF_ADVANCED].get(CONF_DISABLE_AVAILABLE_CHECK, False)
+                    not entry.data[CONF_ADVANCED].get(
+                        CONF_DISABLE_AVAILABLE_CHECK, DEFAULT_DISABLE_AVAILABLE_CHECK
+                    )
                 ),
             )
             for description in descriptions
@@ -94,6 +95,7 @@ async def async_setup_entry(
 class GreeSelectDescription(GreeEntityDescription, SelectEntityDescription, Generic[T]):
     """Description of a Gree switch."""
 
+    additional_available_func = lambda _: True
     device_class = None
     entity_category = None
     entity_registry_enabled_default = True

@@ -22,6 +22,7 @@ from .const import (
     CONF_DISABLE_AVAILABLE_CHECK,
     CONF_FEATURES,
     CONF_TO_PROP_FEATURE_MAP,
+    DEFAULT_DISABLE_AVAILABLE_CHECK,
     DEFAULT_SUPPORTED_FEATURES,
     GATTR_FAULTS,
 )
@@ -35,6 +36,7 @@ _LOGGER = logging.getLogger(__name__)
 class GreeBinarySensorDescription(GreeEntityDescription, BinarySensorEntityDescription):
     """Description of a Gree binary sensor."""
 
+    additional_available_func = lambda _: True
     value_func: Callable[[GreeDevice], bool | None]
 
 
@@ -44,9 +46,6 @@ SENSOR_TYPES: list[GreeBinarySensorDescription] = [
         translation_key=GATTR_FAULTS,
         device_class=BinarySensorDeviceClass.PROBLEM,
         entity_category=EntityCategory.DIAGNOSTIC,
-        available_func=lambda device: (
-            device.available and device.supports_property(GreeProp.FAULT)
-        ),
         value_func=lambda device: device.has_hvac_error,
         entity_registry_enabled_default=True,
         entity_registry_visible_default=True,
@@ -77,6 +76,7 @@ async def async_setup_entry(
                 "Cannot create Gree Binary Sensors. No coordinator found for device '%s'",
                 mac,
             )
+            continue
 
         descriptions: list[GreeBinarySensorDescription] = []
 
@@ -85,13 +85,11 @@ async def async_setup_entry(
 
         if d.get(CONF_FEATURES, None) is None:
             _LOGGER.warning("Undefined supported features")
-            conf_supported_features = DEFAULT_SUPPORTED_FEATURES
-        else:
-            conf_supported_features = d.get(CONF_FEATURES, [])
 
-        # Double check features with device support, just in case
+        conf_supported_features = d.get(CONF_FEATURES, DEFAULT_SUPPORTED_FEATURES)
+
+        # Check features with device support before addinig entities
         for feature in conf_supported_features:
-            # For all other mapped features
             prop = CONF_TO_PROP_FEATURE_MAP.get(feature)
             if prop and coordinator.device.supports_property(prop):
                 supported_features.append(feature)
@@ -116,8 +114,9 @@ async def async_setup_entry(
                     description,
                     coordinator,
                     check_availability=(
-                        entry.data[CONF_ADVANCED].get(
-                            CONF_DISABLE_AVAILABLE_CHECK, False
+                        not entry.data[CONF_ADVANCED].get(
+                            CONF_DISABLE_AVAILABLE_CHECK,
+                            DEFAULT_DISABLE_AVAILABLE_CHECK,
                         )
                     ),
                 )

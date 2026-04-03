@@ -51,8 +51,10 @@ from .const import (
     CONF_SWING_HORIZONTAL_MODES,
     CONF_SWING_MODES,
     CONF_TEMPERATURE_STEP,
+    DEFAULT_DISABLE_AVAILABLE_CHECK,
     DEFAULT_FAN_MODES,
     DEFAULT_HVAC_MODES,
+    DEFAULT_RESTORE_STATES,
     DEFAULT_SWING_HORIZONTAL_MODES,
     DEFAULT_SWING_MODES,
     DEFAULT_TARGET_TEMP_STEP,
@@ -69,6 +71,24 @@ from .entity import GreeEntity, GreeEntityDescription
 _LOGGER = logging.getLogger(__name__)
 
 GATTR_CLIMATE = "hvac"
+
+
+@dataclass(frozen=True, kw_only=True)
+class GreeClimateDescription(GreeEntityDescription, ClimateEntityDescription):
+    """Description of a Gree Climate entity."""
+
+    additional_available_func = lambda _: True
+    device_class = None
+    entity_category = None
+    entity_registry_enabled_default = True
+    entity_registry_visible_default = True
+    force_update = False
+    icon = None
+    has_entity_name = True
+    name = UNDEFINED
+    translation_key = None
+    translation_placeholders = None
+    unit_of_measurement = None
 
 
 async def async_setup_entry(
@@ -88,6 +108,7 @@ async def async_setup_entry(
                 "Cannot create Gree Climate. No coordinator found for device '%s'",
                 mac,
             )
+            continue
 
         hvac_modes: list[HVACMode] = [
             HVACMode[mode.upper()]
@@ -130,7 +151,6 @@ async def async_setup_entry(
                 GreeClimateDescription(
                     key=GATTR_CLIMATE,
                     translation_key=GATTR_CLIMATE,
-                    available_func=lambda device: device.available,
                 ),
                 coordinator,
                 hvac_modes,
@@ -138,10 +158,11 @@ async def async_setup_entry(
                 swing_modes,
                 swing_horizontal_modes,
                 temperature_step=d.get(CONF_TEMPERATURE_STEP, DEFAULT_TARGET_TEMP_STEP),
-                restore_state=(d.get(CONF_RESTORE_STATES, True)),
+                restore_state=d.get(CONF_RESTORE_STATES, DEFAULT_RESTORE_STATES),
                 check_availability=(
-                    entry.data[CONF_ADVANCED].get(CONF_DISABLE_AVAILABLE_CHECK, False)
-                    is False
+                    not entry.data[CONF_ADVANCED].get(
+                        CONF_DISABLE_AVAILABLE_CHECK, DEFAULT_DISABLE_AVAILABLE_CHECK
+                    )
                 ),
                 external_temperature_sensor_id=d.get(ATTR_EXTERNAL_TEMPERATURE_SENSOR),
                 external_humidity_sensor_id=d.get(ATTR_EXTERNAL_HUMIDITY_SENSOR),
@@ -149,23 +170,6 @@ async def async_setup_entry(
         )
 
     async_add_entities(entities)
-
-
-@dataclass(frozen=True, kw_only=True)
-class GreeClimateDescription(GreeEntityDescription, ClimateEntityDescription):
-    """Description of a Gree Climate entity."""
-
-    device_class = None
-    entity_category = None
-    entity_registry_enabled_default = True
-    entity_registry_visible_default = True
-    force_update = False
-    icon = None
-    has_entity_name = True
-    name = UNDEFINED
-    translation_key = None
-    translation_placeholders = None
-    unit_of_measurement = None
 
 
 class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[reportIncompatibleVariableOverride]

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.helpers.entity import DeviceInfo, EntityDescription
@@ -62,13 +62,23 @@ class GreeEntity(CoordinatorEntity[GreeCoordinator]):
 
     @property
     def available(self):  # pyright: ignore[reportIncompatibleVariableOverride]
-        """Return True if entity is available."""
-        if self.check_availability:
-            return (
-                self.coordinator.last_update_success
-                and self.entity_description.available_func(self.device)
-            )
-        return True
+        """Return True if entity is available.
+
+        If entity has 'check_availability' enabled this uses the device available state
+        Otherwise, it only uses the 'additional_available_func'
+        """
+
+        custom_available = self.entity_description.additional_available_func(
+            self.device
+        )
+
+        if not self.check_availability:
+            return custom_available
+
+        coordinator_ok = self.coordinator.last_update_success
+        device_ok = self.device.available
+
+        return custom_available and coordinator_ok and device_ok
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -80,4 +90,7 @@ class GreeEntityDescription(EntityDescription):
     # This will be overridden by entry configuration
     # restore_state: bool = True
 
-    available_func: Callable[[GreeDevice], bool]
+    # Use this to conditionally block the entity availability independent of the device availability
+    additional_available_func: Callable[[GreeDevice], bool] = field(
+        default=lambda _: True
+    )
