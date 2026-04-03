@@ -14,9 +14,9 @@ from .errors import GreeError
 
 _LOGGER = logging.getLogger(__name__)
 
+# GREE PROTOCOL: Fixed parameters obtained by reverse-engineering the Gree protocol spec
 GCM_IV = b"\x54\x40\x78\x44\x49\x67\x5a\x51\x6c\x5e\x63\x13"
 GCM_ADD = b"qualcomm-test"
-
 GREE_GENERIC_DEVICE_KEY_ECB = "a3K8Bx%2r8Y7#xDh"
 GREE_GENERIC_DEVICE_KEY_GCM = "{yxAHAY_Lm6pbC/<"
 
@@ -32,7 +32,7 @@ class EncryptionVersion(IntEnum):
 
 
 class CipherBase(ABC):
-    """Base class for the encryprion module."""
+    """Base class for the encryption module."""
 
     def __init__(self, key: str) -> None:
         """Initialize the class."""
@@ -42,7 +42,6 @@ class CipherBase(ABC):
     @abstractmethod
     def version(self) -> EncryptionVersion:
         """The encryption version of this cypher."""
-        raise NotImplementedError
 
     @property
     def key(self) -> str:
@@ -56,12 +55,10 @@ class CipherBase(ABC):
     @abstractmethod
     def encrypt(self, data: str) -> tuple[str, str | None]:
         """Encrypts the data. Returns the encrypted data and an optional tag."""
-        raise NotImplementedError
 
     @abstractmethod
     def decrypt(self, data: str, tag: str | None) -> str:
         """Decrypts the data. Optionally checks integrity if tag is provided."""
-        raise NotImplementedError
 
 
 class CipherV1(CipherBase):
@@ -93,7 +90,7 @@ class CipherV1(CipherBase):
 
         return encoded, None
 
-    def decrypt(self, data: str, tag: None) -> str:
+    def decrypt(self, data: str, tag: str | None = None) -> str:
         """Decrypt data with V1."""
         _LOGGER.debug("Decrypting data (V1): %s", data)
 
@@ -186,10 +183,10 @@ def get_cipher(
 ) -> CipherBase:
     """Get AES cipher object based on encryption version using default keys."""
 
-    if encryption_version == EncryptionVersion.V1:
-        return CipherV1(key)
-
-    if encryption_version == EncryptionVersion.V2:
-        return CipherV2(key)
-
-    raise ValueError(f"Unsupported encryption version: {encryption_version}")
+    match encryption_version:
+        case EncryptionVersion.V1:
+            return CipherV1(key)
+        case EncryptionVersion.V2:
+            return CipherV2(key)
+        case _:
+            raise ValueError(f"Unsupported encryption version: {encryption_version}")
