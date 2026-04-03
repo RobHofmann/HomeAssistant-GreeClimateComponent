@@ -11,7 +11,7 @@
 # MAC address Format can be XX:XX:XX:XX:XX:XX, XX-XX-XX-XX-XX-XX, xxxxxxxxxxxx 
 #
 # For VRF units the MAC is usually xxxxxxxxxxxx@yyyyyyyyyyyy where 
-# the first part (x) is the sub device MAC and the second (y) the main device MAC
+# the first part (x) is the device MAC and the second (y) the main device MAC which controls the device
 # In this case it is preferred to place the main device MAC on the top config and 
 # the sub device MAC on the device list config
 
@@ -67,7 +67,7 @@ gree_custom:
           - "Center"
           - "RightCenter"
           - "Right"
-        features: # Supported device features | list | options = ["beeper", "air", "xfan", "sleep", "eightdegheat", "lights", "health", "anti_direct_blow", "powersave", "light_sensor"] | default = all options
+        features: # Supported device features | list | options = ["beeper", "air", "xfan", "sleep", "eightdegheat", "lights", "health", "anti_direct_blow", "powersave", "light_sensor", "faults"] | default = all options
           - "beeper"
           - "air"
           - "xfan"
@@ -78,10 +78,12 @@ gree_custom:
           - "anti_direct_blow"
           - "powersave"
           - "light_sensor"
+          - "faults"
         target_temp_step: 1 # Number of degrees increase or decrease when changing the temperature | 0.5 < int < 5, 0.5 increments | default = 1
         external_temperature_sensor: "None" # Sets a given temperature sensor as the sensor for the AC | str (Entity ID) | default = "None"
         external_humidity_sensor: "None" # Sets a given humidity sensor as the sensor for the AC | str (Entity ID) | default = "None"
         restore_states: true # Wether to restore the last HA state to device when HA starts | bool | default = true
+        scan_interval: 30 # Device polling rate | int > 5 | default = 30
 
 
 # Example for multiple AC units:

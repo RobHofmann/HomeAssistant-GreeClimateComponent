@@ -1,5 +1,5 @@
 [![HACS](https://img.shields.io/badge/HACS-Default-orange.svg)](https://hacs.xyz)
-[![Home Assistant](https://img.shields.io/badge/Compatible-Home_Assistant_2026.4-blue.svg)](https://www.home-assistant.io)
+[![Home Assistant](https://img.shields.io/badge/Compatible-Home_Assistant_2026.4+-blue.svg)](https://www.home-assistant.io)
 
 # HomeAssistant-GreeClimateComponent
 
@@ -129,29 +129,31 @@ If your AC unit has a built-in room humidity sensor, it will be automatically de
 
 ## Available Switches and Controls
 
-The integration exposes various entities to configure additional features of your Gree AC unit. All entities are created by default when the integration is set up, but their availability depends on the current HVAC mode and status. Entity availability may also vary depending on your specific Gree AC model and firmware version. These controls allow you to toggle special modes and adjust settings:
+Depending on the device configuration, specific Gree AC model and firmware version, the integration exposes various entities to configure additional features of your Gree AC unit. Entity availability depends on the current HVAC mode and status. These controls allow you to toggle special modes and adjust settings:
 
-### Basic Control Switches
-- **X-Fan**: Enables or disables the X-Fan mode for extra drying when turning off
-- **Lights**: Controls the display lights on the air conditioner unit  
+### Feature Switches
+
 - **Health**: Enables or disables the Health mode for air ionization and purification
-- **Beeper**: Controls the beeper sounds from the air conditioner unit. When enabled, the unit will make sounds for button presses and status changes
-
-### Energy and Comfort Switches
 - **Power Save**: Enables or disables the power saving mode for energy efficiency. Only available in cooling mode
-- **8°C Heat**: Enables or disables the 8°C heating mode for frost protection. Only available in heating mode
+- **Smart 8°C Heat**: Enables or disables the 8°C heating mode for frost protection. Only available in heating mode
 - **Sleep**: Enables or disables the sleep mode for comfortable overnight operation. Only available in cooling or heating mode
-- **Air**: Enables or disables the fresh air circulation mode
-
-### Advanced Control Switches
+- **Fresh Air**: Enables or disables the fresh air circulation mode
+- **X-Fan**: Enables or disables the X-Fan mode that keeps the fan working for a few moments after turning the device off in cooling and dry modes, preventing condensation in the unit
 - **Anti Direct Blow**: Prevents direct air flow from blowing on people by adjusting the air deflector position
-- **Light Sensor**: Enables or disables light sensor for automatic brightness. Requires lights to be enabled
+  
 
 ### Configuration Controls
-- **Auto X-Fan**: Automatically controls the X-Fan mode based on HVAC operations. When enabled, X-Fan will automatically turn on in cooling and dry modes. *Note: This is an integration feature, not an actual AC unit state*
+
+- **Beeper**: Controls the beeper sounds from the air conditioner unit. When enabled, the unit will make sounds for button presses and status changes
+- **Lights**: Controls the display lights on the air conditioner unit  
 - **Auto Light**: Automatically controls the display lights based on HVAC operations. When enabled, lights will turn on/off with the AC unit. *Note: This is an integration feature, not an actual AC unit state*
+- **Light Sensor**: Enables or disables light sensor for automatic brightness. Requires lights to be enabled
+- **Auto X-Fan**: Automatically controls the X-Fan mode based on HVAC operations. When enabled, X-Fan will automatically turn on in cooling and dry modes. *Note: This is an integration feature, not an actual AC unit state*
 - **Temperature Step**: Sets the increment step for adjusting the target temperature. This allows you to configure how much the temperature changes when using the up/down controls in Home Assistant
-- **External Temperature Sensor**: Select a temperature sensor entity to use instead of the built-in AC sensor. Choose 'None' to use the built-in sensor. This is useful if you have a more accurate room temperature sensor that you want the AC to use for temperature readings
+
+## Diagnostics
+
+- **Fault Detection**: Sensor that shows if there is a problem with the device operation
 
 ## Credits
 
