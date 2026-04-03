@@ -7,6 +7,7 @@
   "documentation": "https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent",
   "integration_type": "hub",
   "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues",
   "requirements": ["pycryptodome", "asyncio_dgram"],
   "version": "4.0.0-alpha.90"
 }
