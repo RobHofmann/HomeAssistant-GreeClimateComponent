@@ -168,7 +168,7 @@ class GreeSelect(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ignore[re
             self.entity_description.set_func(self.device, option)
 
             if self.entity_description.updates_device:
-                await self.device.update_device_status()
+                await self.coordinator.push_device_status()
 
             # notify coordinator listeners of state change so that dependent entities are updated immediately
             self.coordinator.async_update_listeners()
@@ -204,7 +204,7 @@ class GreeSelect(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ignore[re
                         self.entity_description.set_func(self.device, last_state.state)
 
                         if self.entity_description.updates_device:
-                            await self.device.update_device_status()
+                            await self.coordinator.push_device_status()
 
                         self._attr_current_option = last_state.state
                     except Exception as err:  # noqa: BLE001

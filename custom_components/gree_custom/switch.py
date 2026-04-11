@@ -304,7 +304,7 @@ class GreeSwitch(GreeEntity, SwitchEntity, RestoreEntity):  # pyright: ignore[re
                         )
 
                         if self.entity_description.updates_device:
-                            await self.device.update_device_status()
+                            await self.coordinator.push_device_status()
 
                         self._attr_is_on = value
                     except Exception as err:  # noqa: BLE001
@@ -323,7 +323,7 @@ class GreeSwitch(GreeEntity, SwitchEntity, RestoreEntity):  # pyright: ignore[re
             self.entity_description.set_func(self.device, self.coordinator, True)
 
             if self.entity_description.updates_device:
-                await self.device.update_device_status()
+                await self.coordinator.push_device_status()
 
             # notify coordinator listeners of state change so that dependent entities are updated immediately
             self.coordinator.async_update_listeners()
@@ -346,7 +346,7 @@ class GreeSwitch(GreeEntity, SwitchEntity, RestoreEntity):  # pyright: ignore[re
             self.entity_description.set_func(self.device, self.coordinator, False)
 
             if self.entity_description.updates_device:
-                await self.device.update_device_status()
+                await self.coordinator.push_device_status()
 
             # notify coordinator listeners of state change so that dependent entities are updated immediately
             self.coordinator.async_update_listeners()

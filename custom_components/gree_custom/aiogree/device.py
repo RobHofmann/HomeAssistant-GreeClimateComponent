@@ -274,7 +274,7 @@ class GreeDevice:
 
         self._remove_unsupported_props()
 
-    async def update_device_status(self):
+    async def push_device_status(self):
         """Send the new local device state to the device and updates local state if successfull."""
         if not self._is_bound:
             await self.bind_device()

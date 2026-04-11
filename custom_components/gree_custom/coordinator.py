@@ -69,6 +69,10 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
             _LOGGER.exception("Error getting state from device")
             raise UpdateFailed("Error getting state from device") from err
 
+    async def push_device_status(self):
+        """Pushes the transient state to the device."""
+        await self.device.push_device_status()
+
     def get_coordinator_diagnostics(self) -> dict[str, Any]:
         """Returns diagnostic data for the coordinator."""
         data = self.device.gather_diagnostics()

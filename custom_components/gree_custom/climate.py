@@ -569,7 +569,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             if self.coordinator.feature_auto_light:
                 self.device.set_feature_light(True)
 
-            await self.device.update_device_status()
+            await self.coordinator.push_device_status()
 
             self.async_write_ha_state()
 
@@ -600,7 +600,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             if self.coordinator.feature_auto_light:
                 self.device.set_feature_light(False)
 
-            await self.device.update_device_status()
+            await self.coordinator.push_device_status()
 
             self.async_write_ha_state()
 
@@ -711,7 +711,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             if fan_mode not in (GATTR_FEAT_QUIET_MODE, GATTR_FEAT_TURBO):
                 self.device.set_fan_speed(FanSpeed[fan_mode])
 
-            await self.device.update_device_status()
+            await self.coordinator.push_device_status()
 
             # notify coordinator listeners of state change so that dependent entities are updated immediately
             self.coordinator.async_update_listeners()
@@ -740,7 +740,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
         try:
             self.device.set_vertical_swing_mode(VerticalSwingMode[swing_mode])
-            await self.device.update_device_status()
+            await self.coordinator.push_device_status()
 
             # notify coordinator listeners of state change so that dependent entities are updated immediately
             self.coordinator.async_update_listeners()
@@ -775,7 +775,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             self.device.set_horizontal_swing_mode(
                 HorizontalSwingMode[swing_horizontal_mode]
             )
-            await self.device.update_device_status()
+            await self.coordinator.push_device_status()
 
             # notify coordinator listeners of state change so that dependent entities are updated immediately
             self.coordinator.async_update_listeners()
@@ -864,7 +864,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                 # This will call the set_hvac_mode which internally will send to device
                 await self.async_set_hvac_mode(hvac_mode)
             else:
-                await self.device.update_device_status()
+                await self.coordinator.push_device_status()
 
                 # notify coordinator listeners of state change so that dependent entities are updated immediately
                 self.coordinator.async_update_listeners()
