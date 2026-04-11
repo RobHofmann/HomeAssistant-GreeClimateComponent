@@ -77,7 +77,7 @@ GATTR_CLIMATE = "hvac"
 class GreeClimateDescription(GreeEntityDescription, ClimateEntityDescription):
     """Description of a Gree Climate entity."""
 
-    additional_available_func = lambda _: True
+    additional_available_func = lambda _: True  # noqa: E731
     device_class = None
     entity_category = None
     entity_registry_enabled_default = True

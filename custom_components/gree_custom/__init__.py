@@ -5,7 +5,7 @@ from __future__ import annotations
 # Standard library imports
 import logging
 
-from homeassistant.components.diagnostics.util import async_redact_data
+from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_HOST,
@@ -27,7 +27,7 @@ from .aiogree.const import (
     DEFAULT_DEVICE_UID,
 )
 from .aiogree.device import GreeDevice
-from .aiogree.errors import GreeBindingError
+from .aiogree.errors import GreeBindingError, GreeConnectionError
 
 # Local imports
 from .const import (
@@ -45,6 +45,7 @@ from .const import (
 
 # Home Assistant imports
 from .coordinator import GreeConfigEntry, GreeCoordinator
+from .helpers import try_find_new_ip
 
 PLATFORMS = [
     Platform.BINARY_SENSOR,
@@ -124,7 +125,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
                 mac,
                 conf.get(CONF_HOST),
             )
-            await device.bind_device()
+
+            try:
+                await device.bind_device()
+            except GreeConnectionError:
+                # TODO: Ensure this is not a problem since it updates the config_entry inside on success.
+                if not await try_find_new_ip(hass, device, entry):
+                    raise
+                await device.bind_device()
 
             coordinators[device.mac_address] = GreeCoordinator(
                 hass, entry, device, d.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
@@ -135,7 +143,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
 
         except TimeoutError as err:
             _LOGGER.exception(
-                "Setup entry '%s': Conection to %s timed out", entry.entry_id, mac
+                "Setup entry '%s': Connection to %s timed out", entry.entry_id, mac
             )
             raise ConfigEntryNotReady from err
 

@@ -24,7 +24,7 @@ from .const import (
     DEFAULT_CONNECTION_TIMEOUT,
     DEFAULT_DEVICE_UID,
 )
-from .errors import GreeBindingError, GreeError, GreeProtocolError
+from .errors import GreeBindingError, GreeConnectionError, GreeError, GreeProtocolError
 from .helpers import (
     TempOffsetResolver,
     gree_get_target_temp_props_from_c,
@@ -117,6 +117,10 @@ class GreeDevice:
         # since binding only succeeds after a scan
         try:
             await self.fetch_device_info()
+
+        except GreeConnectionError:
+            raise
+
         except Exception as err:
             raise GreeBindingError(
                 "Could not fetch device info before binding"
@@ -157,6 +161,8 @@ class GreeDevice:
             self._raw_info = await gree_get_device_info(
                 self._transport, cipher or self._cipher
             )
+        except GreeConnectionError:
+            raise
 
         except Exception as e:
             raise GreeProtocolError(
@@ -265,7 +271,8 @@ class GreeDevice:
 
             self._is_available = True
 
-        except GreeProtocolError:
+        except GreeConnectionError, GreeProtocolError:
+            self._is_available = False
             raise
 
         except Exception as err:
@@ -306,7 +313,8 @@ class GreeDevice:
             self._new_raw_state.clear()
             self._is_available = True
 
-        except GreeProtocolError:
+        except GreeConnectionError, GreeProtocolError:
+            self._is_available = False
             raise
 
         except Exception as err:
@@ -445,6 +453,16 @@ class GreeDevice:
         return property in self._raw_state if property is not GreeProp.BEEPER else True
 
     @property
+    def ip(self) -> str:
+        """The IP address assigned to the device."""
+        return self._ip_addr
+
+    def set_ip(self, ip_addr: str):
+        """Updates the IP the device uses for communication."""
+        self._ip_addr = ip_addr
+        self._transport.ip_addr = ip_addr
+
+    @property
     def name(self) -> str:
         """Returns the friendly name of the device."""
         return self._name
@@ -487,8 +505,13 @@ class GreeDevice:
 
     @property
     def available(self) -> bool:
-        """Return True if the device is bouund and last connection was successful."""
+        """Return True if the device is bound and last connection was successful."""
         return self._is_bound and self._is_available
+
+    @property
+    def is_bound(self) -> bool:
+        """Return True if the device is bound."""
+        return self._is_bound
 
     @property
     def has_hvac_error(self) -> bool | None:

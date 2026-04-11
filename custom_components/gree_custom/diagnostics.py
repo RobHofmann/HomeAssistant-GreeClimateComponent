@@ -49,9 +49,7 @@ async def async_get_device_diagnostics(
 
     coordinator = entry.runtime_data.get(mac, None)
 
-    diagnostics = {
+    return {
         "device": device.dict_repr,
         "data": coordinator.get_coordinator_diagnostics() if coordinator else "",
     }
-
-    return diagnostics

@@ -13,7 +13,8 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .aiogree.device import GreeDevice
-from .aiogree.errors import GreeBindingError
+from .aiogree.errors import GreeBindingError, GreeConnectionError
+from .helpers import try_find_new_ip
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -62,16 +63,35 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         """
         try:
             await self.device.fetch_device_status()
+
+        except GreeConnectionError as err:
+            if not await try_find_new_ip(self.hass, self.device, self.config_entry):
+                raise UpdateFailed("Error getting state from device") from err
+
+            # retry once after IP recovery
+            try:
+                await self.device.fetch_device_status()
+            except Exception as err_inner:
+                raise UpdateFailed("Error getting state from device") from err_inner
+
         except GreeBindingError as err:
             _LOGGER.exception("Failed to initiate Gree device")
             raise ConfigEntryAuthFailed("Failed to initiate Gree device") from err
+
         except Exception as err:
             _LOGGER.exception("Error getting state from device")
             raise UpdateFailed("Error getting state from device") from err
 
     async def push_device_status(self):
         """Pushes the transient state to the device."""
-        await self.device.push_device_status()
+        try:
+            await self.device.push_device_status()
+        except GreeConnectionError:
+            if not await try_find_new_ip(self.hass, self.device, self.config_entry):
+                raise  # propagate original error if recovery fails
+
+            # retry once after recovering IP
+            await self.device.push_device_status()
 
     def get_coordinator_diagnostics(self) -> dict[str, Any]:
         """Returns diagnostic data for the coordinator."""

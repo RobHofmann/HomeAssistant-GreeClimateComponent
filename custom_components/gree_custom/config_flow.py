@@ -9,8 +9,7 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.components import network
-from homeassistant.components.diagnostics.util import async_redact_data
+from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.const import (
     CONF_HOST,
     CONF_MAC,
@@ -63,6 +62,7 @@ from .const import (
     CONF_TEMPERATURE_STEP,
     CONF_UID,
     DEFAULT_DISABLE_AVAILABLE_CHECK,
+    DEFAULT_DISCOVERY_TIMEOUT,
     DEFAULT_FAN_MODES,
     DEFAULT_HVAC_MODES,
     DEFAULT_RESTORE_STATES,
@@ -87,6 +87,7 @@ from .const import (
     MIN_SCAN_INTERVAL,
 )
 from .coordinator import GreeConfigEntry
+from .helpers import get_hass_broadcast_addr
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -887,33 +888,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def _discover_devices(
         self, hass: HomeAssistant
     ) -> list[GreeDiscoveredDevice]:
-        """Debug for discovering devices."""
-        # Get broadcast addresses from Home Assistant's network helper
-        broadcast_addresses: list[str] = []
-        try:
-            ha_broadcast_addresses: set[
-                network.IPv4Address
-            ] = await network.async_get_ipv4_broadcast_addresses(hass)
-            ha_broadcast_strings: list[str] = [
-                str(addr) for addr in ha_broadcast_addresses
-            ]
-            broadcast_addresses.extend(ha_broadcast_strings)
-            _LOGGER.debug("Found broadcast addresses from HA: %s", ha_broadcast_strings)
+        """Discover devices in the network."""
 
-        except Exception:
-            _LOGGER.exception("Could not get HA broadcast addresses")
-
-        # Default broadcast addresses to try
-        # default_broadcast_addresses = [
-        #     "255.255.255.255",  # Limited broadcast
-        #     "192.168.255.255",  # /16 broadcast for 192.168.x.x networks
-        #     "10.255.255.255",  # /8 broadcast for 10.x.x.x networks
-        #     "172.31.255.255",  # /12 broadcast for 172.16-31.x.x networks
-        # ]
-        # broadcast_addresses.extend(default_broadcast_addresses)
-        # NOTE: Try to use the ones from HA only. Uncomment if people report bugs.
-
-        return await discover_gree_devices(broadcast_addresses, 5)
+        return await discover_gree_devices(
+            await get_hass_broadcast_addr(hass), DEFAULT_DISCOVERY_TIMEOUT
+        )
 
     def _create_final_entry(self):
         """Build final entry data."""

@@ -1,4 +1,4 @@
-"""Helpers for the Gree integration."""
+"""Helpers for the Gree device API."""
 
 TEMSEN_OFFSET = 40
 

@@ -10,7 +10,7 @@ from attr import dataclass
 
 from .cipher import CipherBase, EncryptionVersion, get_cipher
 from .const import DEFAULT_DEVICE_PORT
-from .errors import GreeBindingError, GreeError, GreeProtocolError
+from .errors import GreeBindingError, GreeConnectionError, GreeError, GreeProtocolError
 from .transport import GreeTransport, async_udp_broadcast_request
 
 _LOGGER = logging.getLogger(__name__)
@@ -177,6 +177,8 @@ async def get_result_pack(
     try:
         recv_json = await transport.request_json(json_data)
         data = get_gree_response_data(recv_json, cipher)
+    except GreeConnectionError:
+        raise
     except json.JSONDecodeError as err:
         raise GreeProtocolError("Invalid JSON response from device") from err
     except Exception as err:
@@ -430,7 +432,7 @@ async def gree_get_status(
     try:
         result = await get_result_pack(json_payload, cipher, transport)
 
-    except GreeProtocolError:
+    except GreeConnectionError, GreeProtocolError:
         raise
 
     except Exception as err:
@@ -470,7 +472,7 @@ async def gree_set_status(
     try:
         result = await get_result_pack(json_payload, cipher, transport)
 
-    except GreeProtocolError:
+    except GreeConnectionError, GreeProtocolError:
         raise
 
     except Exception as err:

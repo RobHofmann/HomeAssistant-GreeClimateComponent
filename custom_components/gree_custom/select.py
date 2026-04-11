@@ -95,7 +95,7 @@ async def async_setup_entry(
 class GreeSelectDescription(GreeEntityDescription, SelectEntityDescription, Generic[T]):
     """Description of a Gree switch."""
 
-    additional_available_func = lambda _: True
+    additional_available_func = lambda _: True  # noqa: E731
     device_class = None
     entity_category = None
     entity_registry_enabled_default = True

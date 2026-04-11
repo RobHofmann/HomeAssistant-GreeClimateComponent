@@ -14,7 +14,6 @@ from homeassistant.const import CONF_MAC, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .aiogree.api import GreeProp
 from .aiogree.device import GreeDevice
 from .const import (
     CONF_ADVANCED,
@@ -36,7 +35,7 @@ _LOGGER = logging.getLogger(__name__)
 class GreeBinarySensorDescription(GreeEntityDescription, BinarySensorEntityDescription):
     """Description of a Gree binary sensor."""
 
-    additional_available_func = lambda _: True
+    additional_available_func = lambda _: True  # noqa: E731
     value_func: Callable[[GreeDevice], bool | None]
 
 
