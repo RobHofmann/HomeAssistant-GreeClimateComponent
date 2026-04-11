@@ -113,7 +113,7 @@ class GreeDevice:
         if self._is_bound:
             return True
 
-        # Use a targeted fetch_device_info (scan) to the device
+        # Use fetch_device_info (targeted scan) to the device
         # since binding only succeeds after a scan
         try:
             await self.fetch_device_info()

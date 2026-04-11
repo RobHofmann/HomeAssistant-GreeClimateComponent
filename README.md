@@ -3,24 +3,22 @@
 
 # HomeAssistant-GreeClimateComponent
 
-Custom Gree integration for Home Assistant written in Python3. Controls ACs supporting the Gree protocol.
+Custom Gree integration for Home Assistant written in Python 3. Controls ACs supporting the Gree UDP protocol.
 
-This integration connects directly to your HVAC devices via their IP address on the local network, unlike the official mobile app, which establish a direct connection only during initial setup and subsequently operate through Gree’s servers.
+This integration connects directly to your HVAC devices via their IP address on the local network, unlike the official mobile app, which establishes a direct connection only during initial setup and subsequently operates through Gree’s servers.
 
 > [!NOTE]
 > This integration only supports the Gree UDP protocol. If you have a newer firmware/device that only communicates using the new MQTT protocol, this integration will not work.
 
 For a comprehensive list of tested devices, see [Supported Devices](supported-devices.md).
 
-The integration attempts to obtain the encryption key by the initial setup protocol, which has been reverse-engineered.
+The integration attempts to obtain the encryption key through the initial setup protocol, which has been reverse-engineered.
 
 > [!WARNING]
-> If your HVAC device was previously set up for remote access using a mobile app, the integration may fail to retrieve the encryption key automatically. Find out more on methods of obtaining your device key bellow.
+> If your HVAC device was previously set up for remote access using a mobile app, the integration may fail to retrieve the encryption key automatically. Find out more about methods of obtaining your device key below.
 
 
-
-
-**If you are experiencing issues please read the [Debugging](#debugging) section**
+**If you are experiencing issues, please read the [Debugging](#debugging) section.**
 
 
 Official mobile applications:
@@ -36,7 +34,7 @@ To configure HVAC wifi (without the mobile app): https://github.com/arthurkrupa/
 
 ### HACS (recommended)
 
-This integration is added to HACS default repository list. Search for 'Gree' in the HACS dashboard to find and install it.
+This integration is added to the HACS default repository list. Search for 'Gree' in the HACS dashboard to find and install it.
 
 ### Manual
 
@@ -51,10 +49,10 @@ The integration can be added from the Home Assistant UI.
 
 1. Navigate to **Settings** > **Devices & Services** and click **Add Integration**.
 2. Search for **Gree Climate**
-3. Choose automatic discovery or manual setup and fill in the desired `name`, `host` and `MAC address`.
-4. After a successfull connection with the device, you will be asked to configure the device options.
+3. Choose automatic discovery or manual setup and fill in the desired `name`, `host`, and `MAC address`.
+4. After a successful connection with the device, you will be asked to configure the device options.
 
-Your can also **Reconfigure** a device by changing its options. Saving any changes in the options dialog automatically reloads the integration, so new settings take effect immediately without restarting Home Assistant.
+You can also **Reconfigure** a device by changing its options. Saving any changes in the options dialog automatically reloads the integration, so new settings take effect immediately without restarting Home Assistant.
 
 ### Manual - YAML Configuration
 
@@ -71,7 +69,7 @@ See [`manual-configuration.yaml`](manual-configuration.yaml) for a complete conf
 
 ### Obtaining the Encryption Key
 
-The integration has the capability of automatically retrieve the encryption version and key of a device using the gree protocol which has been reverse-engineered.
+The integration has the capability of automatically retrieve the encryption version and key of a device using the gree protocol, which has been reverse-engineered.
 
 However, if your HVAC device was previously set up for remote access using a mobile app, the integration may fail to retrieve the encryption key automatically.
 
@@ -81,7 +79,7 @@ To extract encryption keys from an account on Gree’s cloud server, follow the 
 
 #### Method 2: From the Android app
 
-One way is to pull the sqlite db from android device like described here:
+One way is to pull the sqlite db from an Android device, as described here:
 
 https://stackoverflow.com/questions/9997976/android-pulling-sqlite-database-android-device
 
@@ -92,19 +90,19 @@ sqlite3 data.ab 'select privateKey from db_device_20170503;' # but table name ca
 ```
 
 > [!TIP]
-> If you are getting an UTF-8  error (like: "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xda in position 1: invalid continuation byte"), see https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues/318.
+> If you are getting a UTF-8  error (like: "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xda in position 1: invalid continuation byte"), see https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues/318.
 
 Optionally, you can also sniff the `uid` parameter. This is not needed for all devices.
 
 ### Icon configuration
 
-You can set custom icons for the climate enity by modifying the icon translation file `icons.json`. Refer to this documentation: https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/icon-translations/
+You can set custom icons for the climate entity by modifying the icon translation file `icons.json`. Refer to this documentation: https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/icon-translations/
 
 ## Debugging
 
-If you are having problems with your device, whenever you write a bug report, be sure to provide details about your device, Home Assistant version and what exactly went wrong.
+If you are having problems with your device, whenever you write a bug report, be sure to provide details about your device, Home Assistant version, and what exactly went wrong.
 
-It also helps tremendously if you include debug logs directly in your issue (otherwise we will just ask for them and it will take longer). So please enable debug logs in the integration UI or like this:
+It also helps tremendously if you include debug logs directly in your issue (otherwise, we will just ask for them, and it will take longer). So please enable debug logs in the integration UI, or like this:
 
 ```yaml
 logger:
@@ -113,23 +111,35 @@ logger:
       custom_components.gree_custom: debug
 ```
 
-## Additional Sensors
+## Device Sensors
 
-The integration supports additional sensors if your Gree device has them:
+The integration supports sensors if your Gree device has them:
 
-### Outside Temperature Sensor
-If your AC unit has an outside temperature sensor, it will be automatically detected and exposed as:
+### Indoor Temperature
+
+If your AC unit has a built-in room temperature sensor, it will be automatically detected and exposed as:
+- **Separate sensor entity**: `sensor.your_ac_indoor_temperature`
+- **Climate entity attribute**: `current_temperature` (accessible via `{{ state_attr('climate.your_ac', 'current_temperature') }}`).
+
+### Outdoor Temperature
+
+If your AC unit has an outdoor temperature sensor, it will be automatically detected and exposed as:
+- **Separate sensor entity**: `sensor.your_ac_outdoor_temperature`
 - **Climate entity attribute**: `outside_temperature` (accessible via `{{ state_attr('climate.your_ac', 'outside_temperature') }}`)
-- **Separate sensor entity**: `sensor.your_ac_outside_temperature`
 
-### Humidity Sensor  
+### Indoor Humidity
+
 If your AC unit has a built-in room humidity sensor, it will be automatically detected and exposed as:
-- **Climate entity attribute**: `room_humidity` (accessible via `{{ state_attr('climate.your_ac', 'room_humidity') }}`)
 - **Separate sensor entity**: `sensor.your_ac_room_humidity`
+- **Climate entity attribute**: `current_humidity` (accessible via `{{ state_attr('climate.your_ac', 'current_humidity') }}`).
+
+### Sensor Overrides
+
+The indoor _temperature_ (`current_temperature`) and _humidity_ (`current_humidity`) values exposed by the Climate entity (`climate.your_ac`) can be overridden during configuration by another HA entity. This is helpful for obtaining a more comprehensive climate entity when the AC does not provide the respective sensors. However, please note that the AC operation is not driven by these values, as they are only exposed for information purposes.
 
 ## Available Switches and Controls
 
-Depending on the device configuration, specific Gree AC model and firmware version, the integration exposes various entities to configure additional features of your Gree AC unit. Entity availability depends on the current HVAC mode and status. These controls allow you to toggle special modes and adjust settings:
+Depending on the device configuration, specific Gree AC model, and firmware version, the integration exposes various entities to configure additional features of your Gree AC unit. Entity availability depends on the current HVAC mode and status. These controls allow you to toggle special modes and adjust settings:
 
 ### Feature Switches
 
@@ -153,7 +163,7 @@ Depending on the device configuration, specific Gree AC model and firmware versi
 
 ### Diagnostics
 
-- **Fault Detection**: Sensor that shows if there is a problem with the device operation
+- **Fault Detection**: Sensor that shows if there is a problem with the device's operation
 
 ## Credits
 
