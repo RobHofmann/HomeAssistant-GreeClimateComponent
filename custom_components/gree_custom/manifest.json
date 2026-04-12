@@ -9,5 +9,5 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues",
   "requirements": ["pycryptodome", "asyncio_dgram"],
-  "version": "4.0.0-alpha.92"
+  "version": "4.0.0-alpha.93"
 }

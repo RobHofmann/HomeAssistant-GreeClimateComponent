@@ -72,7 +72,8 @@ class GreeTransport:
                         last_error = err2
 
             # Apply backoff before retrying
-            await asyncio.sleep(0.5 + attempt * 0.3)  # 0.5s, 0.8s, 1.1s, ...
+            if attempt < self.max_retries - 1:
+                await asyncio.sleep(0.5 + attempt * 0.3)  # 0.5s, 0.8s, 1.1s, ...
 
         raise GreeConnectionError(
             f"Failed to communicate with device '{self.ip_addr}:{self.port}' after {self.max_retries} attempts"

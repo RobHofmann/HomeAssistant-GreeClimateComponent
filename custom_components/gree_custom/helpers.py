@@ -58,7 +58,7 @@ async def try_find_new_ip(
 
     # Perform device discovery
     discovered_devices: list[GreeDiscoveredDevice] = await discover_gree_devices(
-        get_hass_broadcast_addr(hass), DEFAULT_DISCOVERY_TIMEOUT
+        await get_hass_broadcast_addr(hass), DEFAULT_DISCOVERY_TIMEOUT
     )
 
     # Search for a match device
@@ -81,12 +81,13 @@ async def try_find_new_ip(
         )
         return False
 
-    # Update config entry to save the new IP
-    new_data = {**config_entry.data, CONF_HOST: device.ip}
-    await hass.config_entries.async_update_entry(config_entry, data=new_data)
-
     # Update the device IP
     device.set_ip(match_device.host)
+
+    # Update config entry to save the new IP
+    new_data = {**config_entry.data, CONF_HOST: device.ip}
+    if not hass.config_entries.async_update_entry(config_entry, data=new_data):
+        _LOGGER.debug("Failed to save new IP in config entry data")
 
     _LOGGER.info(
         "IP for device with mac '%s' updated: %s -> %s",

@@ -20,12 +20,6 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.typing import Any, ConfigType
 
-from .aiogree.const import (
-    DEFAULT_CONNECTION_MAX_ATTEMPTS,
-    DEFAULT_CONNECTION_TIMEOUT,
-    DEFAULT_DEVICE_PORT,
-    DEFAULT_DEVICE_UID,
-)
 from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeBindingError, GreeConnectionError
 
@@ -38,6 +32,10 @@ from .const import (
     CONF_ENCRYPTION_VERSION,
     CONF_MAX_ONLINE_ATTEMPTS,
     CONF_UID,
+    DEFAULT_CONNECTION_MAX_ATTEMPTS,
+    DEFAULT_CONNECTION_TIMEOUT,
+    DEFAULT_DEVICE_PORT,
+    DEFAULT_DEVICE_UID,
     DEFAULT_ENCRYPTION_VERSION,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
@@ -128,10 +126,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
 
             try:
                 await device.bind_device()
-            except GreeConnectionError:
-                # TODO: Ensure this is not a problem since it updates the config_entry inside on success.
+            except GreeConnectionError as err_inner:
                 if not await try_find_new_ip(hass, device, entry):
-                    raise
+                    raise ConfigEntryNotReady from err_inner
                 await device.bind_device()
 
             coordinators[device.mac_address] = GreeCoordinator(

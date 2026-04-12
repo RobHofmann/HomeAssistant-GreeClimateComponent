@@ -35,12 +35,6 @@ from homeassistant.helpers.selector import (
 
 from .aiogree.api import GreeDiscoveredDevice, GreeProp, discover_gree_devices
 from .aiogree.cipher import EncryptionVersion
-from .aiogree.const import (
-    DEFAULT_CONNECTION_MAX_ATTEMPTS,
-    DEFAULT_CONNECTION_TIMEOUT,
-    DEFAULT_DEVICE_PORT,
-    DEFAULT_DEVICE_UID,
-)
 from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeBindingError, GreeConnectionError
 from .const import (
@@ -61,6 +55,10 @@ from .const import (
     CONF_SWING_MODES,
     CONF_TEMPERATURE_STEP,
     CONF_UID,
+    DEFAULT_CONNECTION_MAX_ATTEMPTS,
+    DEFAULT_CONNECTION_TIMEOUT,
+    DEFAULT_DEVICE_PORT,
+    DEFAULT_DEVICE_UID,
     DEFAULT_DISABLE_AVAILABLE_CHECK,
     DEFAULT_DISCOVERY_TIMEOUT,
     DEFAULT_FAN_MODES,

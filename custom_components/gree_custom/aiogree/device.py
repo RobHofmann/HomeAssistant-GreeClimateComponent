@@ -19,11 +19,7 @@ from .api import (
     gree_try_bind,
 )
 from .cipher import CipherBase, get_cipher
-from .const import (
-    DEFAULT_CONNECTION_MAX_ATTEMPTS,
-    DEFAULT_CONNECTION_TIMEOUT,
-    DEFAULT_DEVICE_UID,
-)
+from .const import DEFAULT_DEVICE_UID
 from .errors import GreeBindingError, GreeConnectionError, GreeError, GreeProtocolError
 from .helpers import (
     TempOffsetResolver,
@@ -49,8 +45,8 @@ class GreeDevice:
         encryption_key: str,
         encryption_version: EncryptionVersion | None = None,
         uid: int = DEFAULT_DEVICE_UID,
-        max_connection_attempts: int = DEFAULT_CONNECTION_MAX_ATTEMPTS,
-        timeout: int = DEFAULT_CONNECTION_TIMEOUT,
+        max_connection_attempts: int = 5,
+        timeout: int = 10,
     ) -> None:
         """Initialize the Gree device."""
 
