@@ -1,6 +1,12 @@
 """Helpers for the Gree device API."""
 
+import logging
+
+from .const import MAX_TEMP_C, MAX_TEMP_F, MIN_TEMP_C, MIN_TEMP_F
+
 TEMSEN_OFFSET = 40
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class TempOffsetResolver:
@@ -70,6 +76,22 @@ def gree_get_target_temp_props_from_f(desired_temp_f: int) -> tuple[int, int]:
     """Get SetTem and TemRec for a given Fahrenheit temperature. Only integer values supported."""
     # See: https://github.com/tomikaa87/gree-remote
 
+    if desired_temp_f > MAX_TEMP_F:
+        _LOGGER.warning(
+            "The desired temperature is greater than allowed. Clamping to highest value: %d > %d",
+            desired_temp_f,
+            MAX_TEMP_F,
+        )
+        desired_temp_f = MAX_TEMP_F
+
+    if desired_temp_f < MIN_TEMP_F:
+        _LOGGER.warning(
+            "The desired temperature is lower than allowed. Clamping to lowest value: %d < %d",
+            desired_temp_f,
+            MIN_TEMP_F,
+        )
+        desired_temp_f = MIN_TEMP_F
+
     celsius = (desired_temp_f - 32.0) * 5.0 / 9.0
     SetTem = round(celsius)
     TemRec = int((celsius - SetTem) > -0.001)
@@ -79,6 +101,22 @@ def gree_get_target_temp_props_from_f(desired_temp_f: int) -> tuple[int, int]:
 
 def gree_get_target_temp_props_from_c(desired_temp_c: float) -> tuple[int, int]:
     """Get SetTem and TemRec for a given 1/2 degree Celsius temperature."""
+
+    if desired_temp_c > MAX_TEMP_C:
+        _LOGGER.warning(
+            "The desired temperature is greater than allowed. Clamping to highest value: %d > %d",
+            desired_temp_c,
+            MAX_TEMP_C,
+        )
+        desired_temp_c = MAX_TEMP_C
+
+    if desired_temp_c < MIN_TEMP_C:
+        _LOGGER.warning(
+            "The desired temperature is lower than allowed. Clamping to lowest value: %d < %d",
+            desired_temp_c,
+            MIN_TEMP_C,
+        )
+        desired_temp_c = MIN_TEMP_C
 
     # Encode any floating‐point temperature T into:
     #   ‣ temp_int: the integer (°C) portion of the nearest 0.0/0.5 step,
