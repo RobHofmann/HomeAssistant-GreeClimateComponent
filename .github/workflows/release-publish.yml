@@ -2,7 +2,7 @@ name: Release publish
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths:
       - 'custom_components/gree/manifest.json'
 
@@ -13,7 +13,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout main
+      - name: Checkout master
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -32,8 +32,8 @@ jobs:
           V: ${{ steps.ver.outputs.version }}
         run: |
           set -euo pipefail
-          if git rev-parse "v${V}" >/dev/null 2>&1; then
-            echo "Tag v${V} already exists, nothing to publish."
+          if git rev-parse "${V}" >/dev/null 2>&1; then
+            echo "Tag ${V} already exists, nothing to publish."
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
@@ -47,8 +47,8 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "v${V}" -m "Release v${V}"
-          git push origin "v${V}"
+          git tag -a "${V}" -m "Release ${V}"
+          git push origin "${V}"
 
       - name: Create GitHub release
         if: steps.tag.outputs.exists == 'false'
@@ -61,7 +61,7 @@ jobs:
           if [[ "$V" == *-* ]]; then
             PRE_FLAG=(--prerelease)
           fi
-          gh release create "v${V}" \
-            --title "v${V}" \
+          gh release create "${V}" \
+            --title "${V}" \
             --generate-notes \
             "${PRE_FLAG[@]}"

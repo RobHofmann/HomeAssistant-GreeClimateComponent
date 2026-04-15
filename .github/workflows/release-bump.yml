@@ -33,10 +33,10 @@ jobs:
   bump:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout main
+      - name: Checkout master
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: master
           fetch-depth: 0
 
       - name: Compute next version
@@ -71,7 +71,7 @@ jobs:
           BRANCH="release/${NEW}"
           git checkout -b "$BRANCH"
           git add custom_components/gree/manifest.json
-          git commit -m "Release v${NEW}"
+          git commit -m "Release ${NEW}"
           git push origin "$BRANCH"
 
       - name: Open pull request
@@ -81,9 +81,9 @@ jobs:
         run: |
           set -euo pipefail
           gh pr create \
-            --base main \
+            --base master \
             --head "release/${NEW}" \
-            --title "Release v${NEW}" \
+            --title "Release ${NEW}" \
             --body "Bumps manifest version to \`${NEW}\`.
 
-          Merging this PR will tag \`v${NEW}\` and publish a GitHub Release with auto-generated notes."
+          Merging this PR will tag \`${NEW}\` and publish a GitHub Release with auto-generated notes."
