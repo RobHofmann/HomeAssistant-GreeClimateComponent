@@ -15,6 +15,9 @@ Tested on the following hardware:
 - AC Gree Clivia (encryption version 2)
 - Ac Gree Pulsar GWH09AGAXB-K6DNA1B (encryption version 2)
 - Gree KFR-26G(26564)FNhAg-B1(WIFI)
+- Gree FGR7.2Pd/KNh-N1 — ECB encryption, basic functions work; some entities may not respond.
+- Gree KFR-26GW/(26549)FNhAc-B1 — ECB encryption, basic functions work; some entities may not respond.
+- Gree KFR-35GW/(35549)FNhAc-B1 — ECB encryption, basic functions work; Wi‑Fi setup may require Bluetooth/Gree+ app pairing.
 - Gree MC31-00/F Central Air Conditioner Remote Control Module
 - Gree GWH18AGD-K6DNA1D/I (encryption version 1)
 
