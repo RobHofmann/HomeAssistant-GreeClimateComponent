@@ -12,10 +12,11 @@ Tested on the following hardware:
 ## Gree Brand Devices
 - AC Gree GWH12ACC-K6DNA1D
 - AC Gree 3VIR24HP230V1AH
+- AC Gree Clivia (encryption version 2)
 - Ac Gree Pulsar GWH09AGAXB-K6DNA1B (encryption version 2)
 - Gree KFR-26G(26564)FNhAg-B1(WIFI)
 - Gree MC31-00/F Central Air Conditioner Remote Control Module
-- AC Gree Clivia (encryption version 2)
+- Gree GWH18AGD-K6DNA1D/I (encryption version 1)
 
 ## Kolin
 - Kolin KAG-100WCINV (encryption version 2)
