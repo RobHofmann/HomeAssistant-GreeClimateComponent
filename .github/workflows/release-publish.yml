@@ -1,0 +1,67 @@
+name: Release publish
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'custom_components/gree/manifest.json'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read manifest version
+        id: ver
+        run: |
+          set -euo pipefail
+          V=$(jq -r '.version' custom_components/gree/manifest.json)
+          echo "Version: $V"
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether tag already exists
+        id: tag
+        env:
+          V: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          if git rev-parse "v${V}" >/dev/null 2>&1; then
+            echo "Tag v${V} already exists, nothing to publish."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create tag
+        if: steps.tag.outputs.exists == 'false'
+        env:
+          V: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${V}" -m "Release v${V}"
+          git push origin "v${V}"
+
+      - name: Create GitHub release
+        if: steps.tag.outputs.exists == 'false'
+        env:
+          V: ${{ steps.ver.outputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          PRE_FLAG=()
+          if [[ "$V" == *-* ]]; then
+            PRE_FLAG=(--prerelease)
+          fi
+          gh release create "v${V}" \
+            --title "v${V}" \
+            --generate-notes \
+            "${PRE_FLAG[@]}"
