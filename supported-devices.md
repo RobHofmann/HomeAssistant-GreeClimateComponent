@@ -42,7 +42,8 @@ Tested on the following hardware:
 - CASCADE BORA-CWH09AAB
 - Cooper&Hunter CH-S12FTXQ2-NG
 - Cooper&Hunter Alpha Inverter Series CH-S12FTXE-NG(I)
-- Cooper&Hunter Vital Inverter Series CH-S07FTXF2-NG, CH-S09FTXF2-NG, CH-S18FTXF2-NG (encryption version 2)
+- Cooper&Hunter Vital Inverter Series CH-S07FTXF2-NG, CH-S09FTX-NG, CH-S09FTXF2-NG, CH-S18FTXF2-NG (encryption version 2)
+- Cooper&Hunter Vital Inverter Series 
 - Cooper&Hunter CH-RH12MASTWM-230VI
 - Copmax Air-Air Heatpump GWH12QC-K6DNA5F 3.5kW
 - Heiwa Essentiel ZEN+ HMIS2-25P-V2 with WI-FI module GRJWB04-J (encryption version 2)
