@@ -31,6 +31,8 @@ Tested on the following hardware:
 - Sinclair ASH-12BIV
 - Sinclair ASH-13BIF2
 - Sinclair SIH-09BITW
+- Sinclair SIH-09BIM (firmware 2.10, encryption version 2)
+- Sinclair SOH-18BIM (firmware 1.03, encryption version 1)
 
 ## TOSOT
 - TOSOT BORA-GWH09AAB
