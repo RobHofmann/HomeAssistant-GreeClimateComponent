@@ -1,5 +1,10 @@
 {
   "config": {
+    "error": {
+      "invalid_network": "Ungültiges CIDR. Beispiel: 192.168.30.0/24",
+      "invalid_host": "Ungültige IP-Adresse. Beispiel: 192.168.30.50",
+      "network_too_large": "Netzwerk überschreitet das Maximum von 65536 Hosts (/16). Teilen Sie es in mehrere CIDRs auf oder listen Sie einzelne Hosts."
+    },
     "title": "Gree Klima",
     "description": "Konfigurieren Sie Ihre Gree Klimaanlage",
     "step": {
@@ -13,6 +18,14 @@
           "uid": "UID",
           "encryption_version": "Verschlüsselungsversion"
         }
+      },
+      "discovery_options": {
+        "title": "VLAN-übergreifende Erkennung",
+        "description": "Geräte in einem anderen Subnetz oder VLAN? Geben Sie ein oder mehrere Netzwerke und/oder IP-Adressen ein, die per Unicast geprüft werden sollen. Inter-VLAN-Routing und Firewall-Regeln müssen UDP-Port 7000 von Home Assistant zum Zielsubnetz zulassen.",
+        "data": {
+          "extra_scan_networks": "Netzwerke (kommagetrennte CIDRs, z. B. 192.168.30.0/24)",
+          "extra_scan_hosts": "Hosts (kommagetrennte IPs, z. B. 192.168.30.50,192.168.30.51)"
+        }
       }
     },
     "data": {
@@ -20,10 +33,10 @@
       "host": "IP-Adresse",
       "port": "Port",
       "mac": "MAC-Adresse",
-      "hvac_modes" : "HVAC-Modi",
-      "fan_modes" : "Lüftermodi",
-      "swing_modes" : "Vertikale Swing-Modi",
-      "swing_horizontal_modes" : "Horizontale Swing-Modi",
+      "hvac_modes": "HVAC-Modi",
+      "fan_modes": "Lüftermodi",
+      "swing_modes": "Vertikale Swing-Modi",
+      "swing_horizontal_modes": "Horizontale Swing-Modi",
       "encryption_key": "Verschlüsselungsschlüssel",
       "uid": "UID",
       "encryption_version": "Verschlüsselungsversion",
@@ -36,10 +49,10 @@
       "init": {
         "title": "Gree Klima Optionen",
         "data": {
-          "hvac_modes" : "HVAC-Modi",
-          "fan_modes" : "Lüftermodi",
-          "swing_modes" : "Vertikale Swing-Modi",
-          "swing_horizontal_modes" : "Horizontale Swing-Modi",
+          "hvac_modes": "HVAC-Modi",
+          "fan_modes": "Lüftermodi",
+          "swing_modes": "Vertikale Swing-Modi",
+          "swing_horizontal_modes": "Horizontale Swing-Modi",
           "disable_available_check": "Verfügbarkeitsprüfung deaktivieren",
           "temp_sensor_offset": "Temperatursensor-Offset"
         }
@@ -47,6 +60,13 @@
     }
   },
   "selector": {
+    "discovery_method": {
+      "options": {
+        "discover": "Geräte im lokalen Netzwerk suchen",
+        "discover_extended": "Geräte in anderen VLANs/Subnetzen suchen",
+        "manual": "Gerät manuell hinzufügen"
+      }
+    },
     "hvac_modes": {
       "options": {
         "auto": "Auto",

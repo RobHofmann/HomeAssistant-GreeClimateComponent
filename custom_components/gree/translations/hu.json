@@ -1,5 +1,10 @@
 {
   "config": {
+    "error": {
+      "invalid_network": "Érvénytelen CIDR. Példa: 192.168.30.0/24",
+      "invalid_host": "Érvénytelen IP-cím. Példa: 192.168.30.50",
+      "network_too_large": "A hálózat meghaladja a 65536 hoszt (/16) maximumot. Ossza több CIDR-re, vagy soroljon fel konkrét hosztokat."
+    },
     "title": "Gree Klíma",
     "description": "Állítsa be a Gree légkondicionálóját",
     "step": {
@@ -13,6 +18,14 @@
           "uid": "UID",
           "encryption_version": "Titkosítási verzió"
         }
+      },
+      "discovery_options": {
+        "title": "VLAN-közi felderítés",
+        "description": "Másik alhálózaton vagy VLAN-on lévő eszközök? Adjon meg egy vagy több hálózatot és/vagy konkrét IP-címet unicast lekérdezéshez. A VLAN-ok közötti útválasztásnak és a tűzfalszabályoknak engedélyezniük kell az UDP 7000-es portot a Home Assistant-tól a cél alhálózat felé.",
+        "data": {
+          "extra_scan_networks": "Hálózatok (vesszővel elválasztott CIDR-ek, pl. 192.168.30.0/24)",
+          "extra_scan_hosts": "Hosztok (vesszővel elválasztott IP-k, pl. 192.168.30.50,192.168.30.51)"
+        }
       }
     },
     "data": {
@@ -20,10 +33,10 @@
       "host": "IP-cím",
       "port": "Port",
       "mac": "MAC-cím",
-      "hvac_modes" : "HVAC módok",
-      "fan_modes" : "Ventilátor módok",
-      "swing_modes" : "Függőleges lengési módok",
-      "swing_horizontal_modes" : "Vízszintes lengési módok",
+      "hvac_modes": "HVAC módok",
+      "fan_modes": "Ventilátor módok",
+      "swing_modes": "Függőleges lengési módok",
+      "swing_horizontal_modes": "Vízszintes lengési módok",
       "encryption_key": "Titkosítási kulcs",
       "uid": "UID",
       "encryption_version": "Titkosítási verzió",
@@ -36,10 +49,10 @@
       "init": {
         "title": "Gree Klíma Beállítások",
         "data": {
-          "hvac_modes" : "HVAC módok",
-          "fan_modes" : "Ventilátor módok",
-          "swing_modes" : "Függőleges lengési módok",
-          "swing_horizontal_modes" : "Vízszintes lengési módok",
+          "hvac_modes": "HVAC módok",
+          "fan_modes": "Ventilátor módok",
+          "swing_modes": "Függőleges lengési módok",
+          "swing_horizontal_modes": "Vízszintes lengési módok",
           "disable_available_check": "Elérhetőség ellenőrzésének letiltása",
           "temp_sensor_offset": "Hőmérséklet érzékelő eltolás"
         }
@@ -47,6 +60,13 @@
     }
   },
   "selector": {
+    "discovery_method": {
+      "options": {
+        "discover": "Eszközök keresése a helyi hálózaton",
+        "discover_extended": "Eszközök keresése más VLAN-okon/alhálózatokon",
+        "manual": "Eszköz hozzáadása kézzel"
+      }
+    },
     "hvac_modes": {
       "options": {
         "auto": "Auto",

@@ -1,5 +1,10 @@
 {
   "config": {
+    "error": {
+      "invalid_network": "CIDR inválido. Exemplo: 192.168.30.0/24",
+      "invalid_host": "Endereço IP inválido. Exemplo: 192.168.30.50",
+      "network_too_large": "A rede excede o máximo de 65536 hosts (um /16). Divida em vários CIDRs ou liste hosts específicos."
+    },
     "title": "Gree Climate",
     "description": "Configure seu ar-condicionado Gree",
     "step": {
@@ -13,6 +18,14 @@
           "uid": "UID",
           "encryption_version": "Versão da Criptografia"
         }
+      },
+      "discovery_options": {
+        "title": "Descoberta entre VLANs",
+        "description": "Dispositivos em uma sub-rede ou VLAN diferente? Informe uma ou mais redes e/ou endereços IP específicos para sondar via unicast. O roteamento inter-VLAN e as regras de firewall devem permitir a porta UDP 7000 do Home Assistant até a sub-rede de destino.",
+        "data": {
+          "extra_scan_networks": "Redes (CIDRs separados por vírgula, ex. 192.168.30.0/24)",
+          "extra_scan_hosts": "Hosts (IPs separados por vírgula, ex. 192.168.30.50,192.168.30.51)"
+        }
       }
     },
     "data": {
@@ -20,10 +33,10 @@
       "host": "Endereço IP",
       "port": "Porta",
       "mac": "Endereço MAC",
-      "hvac_modes" : "Climatização",
-      "fan_modes" : "Ventilação",
-      "swing_modes" : "Oscilação Vertical",
-      "swing_horizontal_modes" : "Oscilação Horizontal",
+      "hvac_modes": "Climatização",
+      "fan_modes": "Ventilação",
+      "swing_modes": "Oscilação Vertical",
+      "swing_horizontal_modes": "Oscilação Horizontal",
       "encryption_key": "Chave de Criptografia",
       "uid": "UID",
       "encryption_version": "Versão da Criptografia",
@@ -36,10 +49,10 @@
       "init": {
         "title": "Opções do Gree Climate",
         "data": {
-          "hvac_modes" : "Climatização",
-          "fan_modes" : "Ventilação",
-          "swing_modes" : "Oscilação Vertical",
-          "swing_horizontal_modes" : "Oscilação Horizontal",
+          "hvac_modes": "Climatização",
+          "fan_modes": "Ventilação",
+          "swing_modes": "Oscilação Vertical",
+          "swing_horizontal_modes": "Oscilação Horizontal",
           "disable_available_check": "Desativar Verificação de Disponibilidade",
           "temp_sensor_offset": "Ajuste do Sensor de Temperatura"
         }
@@ -47,6 +60,13 @@
     }
   },
   "selector": {
+    "discovery_method": {
+      "options": {
+        "discover": "Descobrir dispositivos na rede local",
+        "discover_extended": "Descobrir dispositivos em outras VLANs/sub-redes",
+        "manual": "Adicionar dispositivo manualmente"
+      }
+    },
     "hvac_modes": {
       "options": {
         "auto": "Auto",

@@ -1,5 +1,10 @@
 {
   "config": {
+    "error": {
+      "invalid_network": "CIDR non valido. Esempio: 192.168.30.0/24",
+      "invalid_host": "Indirizzo IP non valido. Esempio: 192.168.30.50",
+      "network_too_large": "La rete supera il massimo di 65536 host (un /16). Suddividila in più CIDR o elenca host specifici."
+    },
     "title": "Clima Gree",
     "description": "Configura il tuo condizionatore Gree",
     "step": {
@@ -13,6 +18,14 @@
           "uid": "UID",
           "encryption_version": "Versione crittografia"
         }
+      },
+      "discovery_options": {
+        "title": "Rilevamento cross-VLAN",
+        "description": "Dispositivi su una subnet o VLAN diversa? Inserisci una o più reti e/o indirizzi IP specifici da sondare tramite unicast. Il routing inter-VLAN e le regole del firewall devono consentire la porta UDP 7000 da Home Assistant alla subnet di destinazione.",
+        "data": {
+          "extra_scan_networks": "Reti (CIDR separati da virgole, es. 192.168.30.0/24)",
+          "extra_scan_hosts": "Host (IP separati da virgole, es. 192.168.30.50,192.168.30.51)"
+        }
       }
     },
     "data": {
@@ -20,10 +33,10 @@
       "host": "Indirizzo IP",
       "port": "Porta",
       "mac": "Indirizzo MAC",
-      "hvac_modes" : "Modalità HVAC",
-      "fan_modes" : "Modalità ventola",
-      "swing_modes" : "Modalità oscillazione verticale",
-      "swing_horizontal_modes" : "Modalità oscillazione orizzontale",
+      "hvac_modes": "Modalità HVAC",
+      "fan_modes": "Modalità ventola",
+      "swing_modes": "Modalità oscillazione verticale",
+      "swing_horizontal_modes": "Modalità oscillazione orizzontale",
       "encryption_key": "Chiave di crittografia",
       "uid": "UID",
       "encryption_version": "Versione crittografia",
@@ -36,10 +49,10 @@
       "init": {
         "title": "Opzioni Clima Gree",
         "data": {
-          "hvac_modes" : "Modalità HVAC",
-          "fan_modes" : "Modalità ventola",
-          "swing_modes" : "Modalità oscillazione verticale",
-          "swing_horizontal_modes" : "Modalità oscillazione orizzontale",
+          "hvac_modes": "Modalità HVAC",
+          "fan_modes": "Modalità ventola",
+          "swing_modes": "Modalità oscillazione verticale",
+          "swing_horizontal_modes": "Modalità oscillazione orizzontale",
           "disable_available_check": "Disabilita controllo disponibilità",
           "temp_sensor_offset": "Offset sensore temperatura"
         }
@@ -47,6 +60,13 @@
     }
   },
   "selector": {
+    "discovery_method": {
+      "options": {
+        "discover": "Rileva dispositivi nella rete locale",
+        "discover_extended": "Rileva dispositivi in altre VLAN/subnet",
+        "manual": "Aggiungi dispositivo manualmente"
+      }
+    },
     "hvac_modes": {
       "options": {
         "auto": "Auto",

@@ -36,6 +36,19 @@ The integration can be added from the Home Assistant UI.
    integration, so new settings take effect immediately without
    restarting Home Assistant.
 
+### Cross-VLAN Discovery
+Standard discovery relies on UDP broadcast, which routers do not forward between VLANs. If your AC is in a different subnet than Home Assistant, pick **Discover devices on other VLANs/subnets** on the first setup screen and enter one or both of the following:
+
+- **Networks**: comma-separated CIDRs to sweep via unicast, e.g. `192.168.30.0/24` or `10.10.20.0/24, 10.10.30.0/24`.
+- **Hosts**: comma-separated individual IPs, e.g. `192.168.30.50, 192.168.30.51`.
+
+Each address is probed directly with a UDP unicast packet on port 7000, so inter-VLAN routing and any firewall between Home Assistant and the target subnet must allow UDP/7000.
+
+Limits and notes:
+- A single network (and the combined total across networks + hosts) may contain at most 65,536 addresses — i.e. a `/16` like `192.168.0.0/16`. Anything larger (e.g. `10.0.0.0/8`, `172.16.0.0/12`) must be split into multiple CIDRs or covered by the hosts field. Scanning a whole /16 fires tens of thousands of UDP packets and can stress consumer routers — prefer the narrowest CIDR you can identify.
+- Values entered during one setup are remembered for the duration of the Home Assistant session, so adding several devices in a row does not require retyping.
+- Broadcast discovery on the local VLAN still runs alongside the unicast scan, so units on the same subnet as Home Assistant are also found.
+
 ## Manual Installation
 
 
