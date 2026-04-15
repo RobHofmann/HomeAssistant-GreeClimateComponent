@@ -1,0 +1,89 @@
+name: Release bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type'
+        type: choice
+        required: true
+        options:
+          - patch
+          - minor
+          - major
+          - prerelease
+          - graduate
+        default: patch
+      prerelease_label:
+        description: 'Pre-release label (leave empty for stable)'
+        type: choice
+        required: false
+        options:
+          - ''
+          - alpha
+          - beta
+          - rc
+        default: ''
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Compute next version
+        id: ver
+        run: |
+          set -euo pipefail
+          chmod +x .github/scripts/next_version.sh
+          CUR=$(jq -r '.version' custom_components/gree/manifest.json)
+          NEW=$(.github/scripts/next_version.sh "$CUR" "${{ inputs.bump_type }}" "${{ inputs.prerelease_label }}")
+          echo "Current: $CUR"
+          echo "Next:    $NEW"
+          echo "new_version=$NEW" >> "$GITHUB_OUTPUT"
+
+      - name: Write manifest.json
+        env:
+          NEW: ${{ steps.ver.outputs.new_version }}
+        run: |
+          set -euo pipefail
+          tmp=$(mktemp)
+          jq --indent 2 --arg v "$NEW" '.version = $v' custom_components/gree/manifest.json > "$tmp"
+          mv "$tmp" custom_components/gree/manifest.json
+          echo "manifest.json updated:"
+          cat custom_components/gree/manifest.json
+
+      - name: Create branch and commit
+        env:
+          NEW: ${{ steps.ver.outputs.new_version }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          BRANCH="release/${NEW}"
+          git checkout -b "$BRANCH"
+          git add custom_components/gree/manifest.json
+          git commit -m "Release v${NEW}"
+          git push origin "$BRANCH"
+
+      - name: Open pull request
+        env:
+          NEW: ${{ steps.ver.outputs.new_version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh pr create \
+            --base main \
+            --head "release/${NEW}" \
+            --title "Release v${NEW}" \
+            --body "Bumps manifest version to \`${NEW}\`.
+
+          Merging this PR will tag \`v${NEW}\` and publish a GitHub Release with auto-generated notes."
