@@ -5,9 +5,18 @@ Gree protocol/network logic for Home Assistant integration.
 # Standard library imports
 import asyncio
 import base64
+import ipaddress
 import logging
+import select
 import socket
+import struct
 import time
+from contextlib import suppress
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 
 # Third-party imports
 try:
@@ -24,6 +33,7 @@ from homeassistant.components.network import async_get_ipv4_broadcast_addresses
 from .const import (
     CONF_ENCRYPTION_VERSION,
     CONF_ENCRYPTION_KEY,
+    MAX_UNICAST_SCAN_HOSTS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -32,6 +42,11 @@ GCM_IV = b"\x54\x40\x78\x44\x49\x67\x5a\x51\x6c\x5e\x63\x13"
 GCM_ADD = b"qualcomm-test"
 GENERIC_GREE_DEVICE_KEY = "a3K8Bx%2r8Y7#xDh"
 GENERIC_GREE_DEVICE_KEY_GCM = b"{yxAHAY_Lm6pbC/<"
+IFF_UP = 0x1
+IFF_LOOPBACK = 0x8
+SIOCGIFFLAGS = 0x8913
+SIOCGIFADDR = 0x8915
+SIOCGIFBRDADDR = 0x8919
 
 
 async def FetchResult(cipher, ip_addr, port, json_data, encryption_version=1, max_retries=8):
@@ -96,6 +111,100 @@ async def FetchResult(cipher, ip_addr, port, json_data, encryption_version=1, ma
 def Pad(s):
     aesBlockSize = 16
     return s + (aesBlockSize - len(s) % aesBlockSize) * chr(aesBlockSize - len(s) % aesBlockSize)
+
+
+def _get_ioctl_ipv4_address(sock: socket.socket, ifname: str, request: int) -> str | None:
+    """Fetch an IPv4 address for an interface using ioctl."""
+    if fcntl is None:
+        return None
+
+    ifreq = struct.pack("256s", ifname[:15].encode("utf-8"))
+    try:
+        result = fcntl.ioctl(sock.fileno(), request, ifreq)
+    except OSError:
+        return None
+
+    return socket.inet_ntoa(result[20:24])
+
+
+def _get_linux_ipv4_bind_targets() -> list[tuple[str, str, str]]:
+    """Return (source_ip, broadcast_ip, interface_name) for active IPv4 interfaces."""
+    if fcntl is None or not hasattr(socket, "if_nameindex"):
+        return []
+
+    targets: list[tuple[str, str, str]] = []
+    probe_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    try:
+        for _, ifname in socket.if_nameindex():
+            ifreq = struct.pack("256s", ifname[:15].encode("utf-8"))
+            try:
+                flags = struct.unpack(
+                    "H",
+                    fcntl.ioctl(probe_socket.fileno(), SIOCGIFFLAGS, ifreq)[16:18],
+                )[0]
+            except OSError:
+                continue
+
+            if not (flags & IFF_UP) or (flags & IFF_LOOPBACK):
+                continue
+
+            source_ip = _get_ioctl_ipv4_address(probe_socket, ifname, SIOCGIFADDR)
+            broadcast_ip = _get_ioctl_ipv4_address(probe_socket, ifname, SIOCGIFBRDADDR)
+            if not source_ip or not broadcast_ip:
+                continue
+
+            targets.append((source_ip, broadcast_ip, ifname))
+    finally:
+        probe_socket.close()
+
+    return targets
+
+
+def _broadcast_matches_source(source_ip: str, broadcast_ip: str) -> bool:
+    """Check if a broadcast address belongs to a source interface's private range."""
+    try:
+        source = ipaddress.ip_address(source_ip)
+        broadcast = ipaddress.ip_address(broadcast_ip)
+    except ValueError:
+        return False
+
+    if source.version != 4 or broadcast.version != 4:
+        return False
+
+    if int(broadcast) == 0xFFFFFFFF:
+        return True
+
+    if source in ipaddress.ip_network("10.0.0.0/8"):
+        return broadcast in ipaddress.ip_network("10.0.0.0/8")
+    if source in ipaddress.ip_network("172.16.0.0/12"):
+        return broadcast in ipaddress.ip_network("172.16.0.0/12")
+    if source in ipaddress.ip_network("192.168.0.0/16"):
+        return broadcast in ipaddress.ip_network("192.168.0.0/16")
+
+    return False
+
+
+def _build_discovery_sockets(
+    interface_targets: list[tuple[str, str, str]],
+) -> list[tuple[socket.socket, list[str], str]]:
+    """Create one UDP broadcast socket per interface target."""
+    sockets: list[tuple[socket.socket, list[str], str]] = []
+
+    for source_ip, interface_broadcast, ifname in interface_targets:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        sock.bind((source_ip, 0))
+        sockets.append((sock, [interface_broadcast, "255.255.255.255"], ifname))
+
+    if sockets:
+        return sockets
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    sock.bind(("", 0))
+    sockets.append((sock, ["255.255.255.255"], "default"))
+    return sockets
 
 
 async def test_connection(config):
@@ -172,22 +281,56 @@ async def GetDeviceKeyGCM(mac_addr, ip_addr, port, max_retries=8):
         return key
 
 
-async def discover_gree_devices(hass, timeout=5):
-    """Discover Gree devices on the local network using UDP broadcast."""
+def _expand_unicast_targets(networks, hosts, max_hosts):
+    """Expand CIDRs + individual IPs into a deduplicated list of unicast host IPs.
+
+    Raises ValueError if any single network or the combined total exceeds max_hosts.
+    """
+    targets: list[str] = []
+    seen: set[str] = set()
+
+    for cidr in (networks or []):
+        net = ipaddress.ip_network(cidr, strict=False)
+        usable = net.num_addresses - 2 if net.num_addresses > 2 else net.num_addresses
+        if usable > max_hosts:
+            raise ValueError(f"Network {cidr} has {usable} hosts, exceeds limit of {max_hosts}")
+        for host in net.hosts():  # excludes network + broadcast
+            ip_str = str(host)
+            if ip_str not in seen:
+                seen.add(ip_str)
+                targets.append(ip_str)
+
+    for ip_str in (hosts or []):
+        addr = str(ipaddress.ip_address(ip_str))  # validates
+        if addr not in seen:
+            seen.add(addr)
+            targets.append(addr)
+
+    if len(targets) > max_hosts:
+        raise ValueError(f"Total unicast targets ({len(targets)}) exceed limit of {max_hosts}")
+    return targets
+
+
+async def discover_gree_devices(hass, timeout=5, extra_networks=None, extra_hosts=None):
+    """Discover Gree devices on the local network using UDP broadcast.
+
+    Optional cross-VLAN unicast scan:
+        extra_networks: list[str] | None -- CIDRs to sweep via unicast (e.g. ["192.168.30.0/24"])
+        extra_hosts:    list[str] | None -- specific IPs to probe (e.g. ["192.168.30.50"])
+    """
     _LOGGER.debug("Starting Gree device discovery...")
 
     BROADCAST_PORT = 7000
     DISCOVERY_MESSAGE = b'{"t":"scan"}'
 
-    # Set up UDP socket for broadcast
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    sock.settimeout(timeout)
-    sock.bind(("", 0))
-
     devices = []
+    seen_device_ids: set[tuple[str, str]] = set()
+    sockets: list[tuple[socket.socket, list[str], str]] = []
 
     try:
+        interface_targets = _get_linux_ipv4_bind_targets()
+        _LOGGER.debug(f"Discovered IPv4 interfaces for scan: {interface_targets}")
+
         # Default broadcast addresses to try
         broadcast_addresses = [
             "255.255.255.255",  # Limited broadcast
@@ -208,99 +351,164 @@ async def discover_gree_devices(hass, timeout=5):
         # Remove duplicates
         broadcast_addresses = list(dict.fromkeys(broadcast_addresses))
 
-        # Send to all broadcast addresses
-        for broadcast_addr in broadcast_addresses:
+        sockets = _build_discovery_sockets(interface_targets)
+        for sock, _, ifname in sockets:
+            sock.setblocking(False)
+            _LOGGER.debug(f"Using discovery socket bound for interface '{ifname}': {sock.getsockname()}")
+
+        # Send discovery through each available interface socket
+        for sock, preferred_broadcasts, ifname in sockets:
+            target_broadcasts = list(dict.fromkeys(
+                preferred_broadcasts
+                + [
+                    broadcast_addr
+                    for broadcast_addr in broadcast_addresses
+                    if _broadcast_matches_source(sock.getsockname()[0], broadcast_addr)
+                ]
+            ))
+            for broadcast_addr in target_broadcasts:
+                try:
+                    _LOGGER.debug(
+                        f"Sending discovery to {broadcast_addr} via interface '{ifname}' from {sock.getsockname()[0]}"
+                    )
+                    sock.sendto(DISCOVERY_MESSAGE, (broadcast_addr, BROADCAST_PORT))
+                except Exception as e:
+                    _LOGGER.debug(f"Failed to send to {broadcast_addr} via {ifname}: {e}")
+
+        # Cross-VLAN unicast scan
+        if extra_networks or extra_hosts:
             try:
-                _LOGGER.debug(f"Sending discovery to {broadcast_addr}")
-                sock.sendto(DISCOVERY_MESSAGE, (broadcast_addr, BROADCAST_PORT))
-            except Exception as e:
-                _LOGGER.debug(f"Failed to send to {broadcast_addr}: {e}")
+                unicast_targets = _expand_unicast_targets(
+                    extra_networks, extra_hosts, MAX_UNICAST_SCAN_HOSTS
+                )
+            except ValueError as e:
+                _LOGGER.error(f"Skipping unicast scan: {e}")
+                unicast_targets = []
+
+            if unicast_targets:
+                unicast_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                unicast_sock.bind(("", 0))  # INADDR_ANY: kernel picks source per-route
+                unicast_sock.setblocking(False)
+                sockets.append((unicast_sock, [], "unicast"))
+                _LOGGER.debug(
+                    f"Sending unicast scan to {len(unicast_targets)} hosts from {unicast_sock.getsockname()}"
+                )
+                for idx, target_ip in enumerate(unicast_targets):
+                    try:
+                        unicast_sock.sendto(DISCOVERY_MESSAGE, (target_ip, BROADCAST_PORT))
+                    except Exception as e:
+                        _LOGGER.debug(f"Unicast send to {target_ip} failed: {e}")
+                    if (idx + 1) % 100 == 0:
+                        await asyncio.sleep(0)  # yield to event loop
 
         _LOGGER.debug("Sent discovery packets, waiting for replies...")
 
         start = time.time()
         while time.time() - start < timeout:
-            try:
-                data, addr = sock.recvfrom(1024)
+            remaining = timeout - (time.time() - start)
+            if remaining <= 0:
+                break
+
+            ready_sockets, _, _ = select.select(
+                [sock for sock, _, _ in sockets],
+                [],
+                [],
+                min(remaining, 0.5),
+            )
+            if not ready_sockets:
+                continue
+
+            for sock in ready_sockets:
+                ifname = next(interface_name for current_sock, _, interface_name in sockets if current_sock is sock)
                 try:
-                    # Try to parse as JSON and decrypt if possible
-                    response = simplejson.loads(data.decode(errors="ignore"))
-                    if "pack" in response:
-                        pack = response["pack"]
-                        decoded_pack = base64.b64decode(pack)
+                    data, addr = sock.recvfrom(1024)
+                    try:
+                        # Try to parse as JSON and decrypt if possible
+                        response = simplejson.loads(data.decode(errors="ignore"))
+                        if "pack" in response:
+                            pack = response["pack"]
+                            decoded_pack = base64.b64decode(pack)
 
-                        # Discovery responses typically use level 1 encryption (ECB mode)
-                        # But we need to test which encryption the device actually uses for communication
-                        pack_json = None
+                            # Discovery responses typically use level 1 encryption (ECB mode)
+                            # But we need to test which encryption the device actually uses for communication
+                            pack_json = None
 
-                        try:
-                            cipher = AES.new(GENERIC_GREE_DEVICE_KEY.encode("utf-8"), AES.MODE_ECB)
-                            decrypted_pack = cipher.decrypt(decoded_pack)
-                            # Remove null bytes and trailing data after last }
-                            decoded_text = decrypted_pack.decode("utf-8", errors="ignore").replace("\x0f", "")
-                            last_brace = decoded_text.rfind("}")
-                            if last_brace != -1:
-                                clean_text = decoded_text[: last_brace + 1]
-                            else:
-                                clean_text = decoded_text
-                            pack_json = simplejson.loads(clean_text)
-                            _LOGGER.debug(f"Decrypted discovery response from {addr}")
-                        except Exception as e:
-                            _LOGGER.debug(f"Could not decrypt discovery response from {addr}: {e}")
-                            continue
-
-                        # If we successfully decrypted and got device info
-                        if pack_json and pack_json.get("t") == "dev":
-                            mac_addr = pack_json.get("mac", "")
-                            sub_cnt = pack_json.get("subCnt", 0)
-                            if not mac_addr:
-                                _LOGGER.debug(f"No MAC address in response from {addr}")
+                            try:
+                                cipher = AES.new(GENERIC_GREE_DEVICE_KEY.encode("utf-8"), AES.MODE_ECB)
+                                decrypted_pack = cipher.decrypt(decoded_pack)
+                                # Remove null bytes and trailing data after last }
+                                decoded_text = decrypted_pack.decode("utf-8", errors="ignore").replace("\x0f", "")
+                                last_brace = decoded_text.rfind("}")
+                                if last_brace != -1:
+                                    clean_text = decoded_text[: last_brace + 1]
+                                else:
+                                    clean_text = decoded_text
+                                pack_json = simplejson.loads(clean_text)
+                                _LOGGER.debug(f"Decrypted discovery response from {addr} on interface '{ifname}'")
+                            except Exception as e:
+                                _LOGGER.debug(f"Could not decrypt discovery response from {addr}: {e}")
                                 continue
 
-                            # Just collect basic device info for now - encryption detection happens later
-                            device_info = {
-                                "name": pack_json.get("name", "") or f"Gree {mac_addr[-4:]}",
-                                "host": addr[0],
-                                "port": BROADCAST_PORT,
-                                "mac": mac_addr,
-                                "brand": pack_json.get("brand", "gree"),
-                                "model": pack_json.get("model", "gree"),
-                                "version": pack_json.get("ver", ""),
-                            }
-                            # If subCnt > 1, fetch sub-device list
-                            if sub_cnt > 1:
-                                try:
-                                    _LOGGER.debug(f"Fetching sub-devices for {mac_addr} (subCnt={sub_cnt})")
-                                    sub_devices = await get_subunits_list(mac_addr, addr[0], BROADCAST_PORT)
-                                    for sub_device in sub_devices.get("list", []):
-                                        sub_mac = sub_device.get("mac", "")
-                                        if sub_mac:
-                                            sub_device_info = {
-                                                "name": f"{device_info['name']}_{sub_mac[:4]}",
-                                                "host": addr[0],
-                                                "port": BROADCAST_PORT,
-                                                "mac": f"{sub_mac}@{mac_addr}",
-                                                "brand": device_info["brand"],
-                                                "model": sub_device.get("mid", device_info["model"]),
-                                                "version": device_info["version"],
-                                            }
-                                            devices.append(sub_device_info)
-                                            _LOGGER.debug(f"Discovered sub-device: {sub_device_info}")
-                                except Exception as e:
-                                    _LOGGER.error(f"Error fetching sub-devices for {mac_addr}: {e}")
+                            # If we successfully decrypted and got device info
+                            if pack_json and pack_json.get("t") == "dev":
+                                mac_addr = pack_json.get("mac", "")
+                                sub_cnt = pack_json.get("subCnt", 0)
+                                if not mac_addr:
+                                    _LOGGER.debug(f"No MAC address in response from {addr}")
+                                    continue
+
+                                # Just collect basic device info for now - encryption detection happens later
+                                device_info = {
+                                    "name": pack_json.get("name", "") or f"Gree {mac_addr[-4:]}",
+                                    "host": addr[0],
+                                    "port": BROADCAST_PORT,
+                                    "mac": mac_addr,
+                                    "brand": pack_json.get("brand", "gree"),
+                                    "model": pack_json.get("model", "gree"),
+                                    "version": pack_json.get("ver", ""),
+                                }
+                                # If subCnt > 1, fetch sub-device list
+                                if sub_cnt > 1:
+                                    try:
+                                        _LOGGER.debug(f"Fetching sub-devices for {mac_addr} (subCnt={sub_cnt})")
+                                        sub_devices = await get_subunits_list(mac_addr, addr[0], BROADCAST_PORT)
+                                        for sub_device in sub_devices.get("list", []):
+                                            sub_mac = sub_device.get("mac", "")
+                                            if sub_mac:
+                                                sub_device_info = {
+                                                    "name": f"{device_info['name']}_{sub_mac[:4]}",
+                                                    "host": addr[0],
+                                                    "port": BROADCAST_PORT,
+                                                    "mac": f"{sub_mac}@{mac_addr}",
+                                                    "brand": device_info["brand"],
+                                                    "model": sub_device.get("mid", device_info["model"]),
+                                                    "version": device_info["version"],
+                                                }
+                                                device_key = (sub_device_info["host"], sub_device_info["mac"])
+                                                if device_key not in seen_device_ids:
+                                                    seen_device_ids.add(device_key)
+                                                    devices.append(sub_device_info)
+                                                    _LOGGER.debug(f"Discovered sub-device: {sub_device_info}")
+                                    except Exception as e:
+                                        _LOGGER.error(f"Error fetching sub-devices for {mac_addr}: {e}")
+                                else:
+                                    device_key = (device_info["host"], device_info["mac"])
+                                    if device_key not in seen_device_ids:
+                                        seen_device_ids.add(device_key)
+                                        devices.append(device_info)
+                                        _LOGGER.debug(f"Discovered Gree device: {device_info}")
                             else:
-                                devices.append(device_info)
-                                _LOGGER.debug(f"Discovered Gree device: {device_info}")
+                                _LOGGER.debug(f"Invalid or missing device info from {addr}")
                         else:
-                            _LOGGER.debug(f"Invalid or missing device info from {addr}")
-                    else:
-                        _LOGGER.debug(f"Received response without pack from {addr}: {response}")
-                except Exception as e:
-                    _LOGGER.debug(f"Could not parse response from {addr}: {e}")
-            except socket.timeout:
-                break
+                            _LOGGER.debug(f"Received response without pack from {addr}: {response}")
+                    except Exception as e:
+                        _LOGGER.debug(f"Could not parse response from {addr}: {e}")
+                except BlockingIOError:
+                    continue
     finally:
-        sock.close()
+        for sock, _, _ in sockets:
+            with suppress(Exception):
+                sock.close()
 
     _LOGGER.debug(f"Discovery completed, found {len(devices)} devices")
     return devices

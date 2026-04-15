@@ -1,5 +1,10 @@
 {
   "config": {
+    "error": {
+      "invalid_network": "CIDR invalid. Exemplu: 192.168.30.0/24",
+      "invalid_host": "Adresă IP invalidă. Exemplu: 192.168.30.50",
+      "network_too_large": "Rețeaua depășește maximul de 65536 de hosturi (/16). Împarte în mai multe CIDR-uri sau listează hosturi specifice."
+    },
     "title": "Climatizare Gree",
     "description": "Configurează aparatul de aer condiționat Gree",
     "step": {
@@ -13,6 +18,14 @@
           "uid": "UID",
           "encryption_version": "Versiune criptare"
         }
+      },
+      "discovery_options": {
+        "title": "Descoperire cross-VLAN",
+        "description": "Dispozitive într-o subrețea sau VLAN diferit? Introdu una sau mai multe rețele și/sau adrese IP specifice pentru a fi sondate prin unicast. Rutarea între VLAN-uri și regulile firewall trebuie să permită portul UDP 7000 de la Home Assistant către subrețeaua țintă.",
+        "data": {
+          "extra_scan_networks": "Rețele (CIDR-uri separate prin virgulă, ex. 192.168.30.0/24)",
+          "extra_scan_hosts": "Hosturi (IP-uri separate prin virgulă, ex. 192.168.30.50,192.168.30.51)"
+        }
       }
     },
     "data": {
@@ -20,10 +33,10 @@
       "host": "Adresă IP",
       "port": "Port",
       "mac": "Adresă MAC",
-      "hvac_modes" : "Moduri HVAC",
-      "fan_modes" : "Moduri ventilator",
-      "swing_modes" : "Moduri balansare verticală",
-      "swing_horizontal_modes" : "Moduri balansare orizontală",
+      "hvac_modes": "Moduri HVAC",
+      "fan_modes": "Moduri ventilator",
+      "swing_modes": "Moduri balansare verticală",
+      "swing_horizontal_modes": "Moduri balansare orizontală",
       "encryption_key": "Cheie de criptare",
       "uid": "UID",
       "encryption_version": "Versiune criptare",
@@ -36,10 +49,10 @@
       "init": {
         "title": "Opțiuni Climatizare Gree",
         "data": {
-          "hvac_modes" : "Moduri HVAC",
-          "fan_modes" : "Moduri ventilator",
-          "swing_modes" : "Moduri balansare verticală",
-          "swing_horizontal_modes" : "Moduri balansare orizontală",
+          "hvac_modes": "Moduri HVAC",
+          "fan_modes": "Moduri ventilator",
+          "swing_modes": "Moduri balansare verticală",
+          "swing_horizontal_modes": "Moduri balansare orizontală",
           "disable_available_check": "Dezactivează verificarea disponibilității",
           "temp_sensor_offset": "Offset senzor temperatură"
         }
@@ -47,6 +60,13 @@
     }
   },
   "selector": {
+    "discovery_method": {
+      "options": {
+        "discover": "Descoperă dispozitive în rețeaua locală",
+        "discover_extended": "Descoperă dispozitive în alte VLAN-uri/subrețele",
+        "manual": "Adaugă dispozitiv manual"
+      }
+    },
     "hvac_modes": {
       "options": {
         "auto": "Auto",

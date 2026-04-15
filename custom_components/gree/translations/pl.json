@@ -1,5 +1,10 @@
 {
   "config": {
+    "error": {
+      "invalid_network": "Nieprawidłowy CIDR. Przykład: 192.168.30.0/24",
+      "invalid_host": "Nieprawidłowy adres IP. Przykład: 192.168.30.50",
+      "network_too_large": "Sieć przekracza maksymalną liczbę 65536 hostów (/16). Podziel na kilka CIDR lub wymień konkretne hosty."
+    },
     "title": "Klimatyzajca Gree",
     "description": "Skonfiguruj swój klimatyzator Gree",
     "step": {
@@ -13,6 +18,14 @@
           "uid": "UID",
           "encryption_version": "Wersja szyfrowania"
         }
+      },
+      "discovery_options": {
+        "title": "Wykrywanie między VLAN",
+        "description": "Urządzenia w innej podsieci lub VLAN? Podaj jedną lub więcej sieci i/lub konkretnych adresów IP do sprawdzenia za pomocą unicast. Routing między VLAN i reguły zapory muszą zezwalać na port UDP 7000 z Home Assistant do docelowej podsieci.",
+        "data": {
+          "extra_scan_networks": "Sieci (CIDR oddzielone przecinkami, np. 192.168.30.0/24)",
+          "extra_scan_hosts": "Hosty (adresy IP oddzielone przecinkami, np. 192.168.30.50,192.168.30.51)"
+        }
       }
     },
     "data": {
@@ -20,10 +33,10 @@
       "host": "Adres IP",
       "port": "Port",
       "mac": "Adres MAC",
-      "hvac_modes" : "Tryby pracy",
-      "fan_modes" : "Tryby wentylatora",
-      "swing_modes" : "Tryby pionowego ruchu",
-      "swing_horizontal_modes" : "Tryby poziomego ruchu",
+      "hvac_modes": "Tryby pracy",
+      "fan_modes": "Tryby wentylatora",
+      "swing_modes": "Tryby pionowego ruchu",
+      "swing_horizontal_modes": "Tryby poziomego ruchu",
       "encryption_key": "Klucz szyfrowania",
       "uid": "UID",
       "encryption_version": "Wersja szyfrowania",
@@ -36,10 +49,10 @@
       "init": {
         "title": "Opcje klimatyzacji Gree",
         "data": {
-          "hvac_modes" : "Tryby pracy",
-          "fan_modes" : "Tryby wentylatora",
-          "swing_modes" : "Tryby pionowego ruchu",
-          "swing_horizontal_modes" : "Tryby poziomego ruchu",
+          "hvac_modes": "Tryby pracy",
+          "fan_modes": "Tryby wentylatora",
+          "swing_modes": "Tryby pionowego ruchu",
+          "swing_horizontal_modes": "Tryby poziomego ruchu",
           "disable_available_check": "Wyłącz sprawdzanie dostępności",
           "temp_sensor_offset": "Offset czujnika temperatury"
         }
@@ -47,6 +60,13 @@
     }
   },
   "selector": {
+    "discovery_method": {
+      "options": {
+        "discover": "Wykryj urządzenia w sieci lokalnej",
+        "discover_extended": "Wykryj urządzenia w innych VLAN/podsieciach",
+        "manual": "Dodaj urządzenie ręcznie"
+      }
+    },
     "hvac_modes": {
       "options": {
         "auto": "Auto",

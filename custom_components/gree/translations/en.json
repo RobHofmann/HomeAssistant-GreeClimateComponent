@@ -1,7 +1,10 @@
 {
   "config": {
     "error": {
-      "cannot_connect": "Unable to connect to the device. Please check the network connection and try again."
+      "cannot_connect": "Unable to connect to the device. Please check the network connection and try again.",
+      "invalid_network": "Invalid CIDR. Example: 192.168.30.0/24",
+      "invalid_host": "Invalid IP address. Example: 192.168.30.50",
+      "network_too_large": "Network exceeds the maximum of 65536 hosts (a /16). Split into multiple CIDRs or list specific hosts."
     },
     "abort": {
       "already_configured": "A device with this MAC address is already configured."
@@ -14,6 +17,14 @@
         "description": "Choose how to add your Gree air conditioner",
         "data": {
           "discovery": "Setup Method"
+        }
+      },
+      "discovery_options": {
+        "title": "Cross-VLAN Discovery",
+        "description": "Devices on a different subnet or VLAN? Enter one or more networks and/or specific IP addresses to probe via unicast. Inter-VLAN routing and firewall rules must allow UDP port 7000 from Home Assistant to the target subnet.",
+        "data": {
+          "extra_scan_networks": "Networks (comma-separated CIDRs, e.g. 192.168.30.0/24)",
+          "extra_scan_hosts": "Hosts (comma-separated IPs, e.g. 192.168.30.50,192.168.30.51)"
         }
       },
       "discovery": {
@@ -78,7 +89,8 @@
   "selector": {
     "discovery_method": {
       "options": {
-        "discover": "Discover devices automatically",
+        "discover": "Discover devices on the local network",
+        "discover_extended": "Discover devices on other VLANs/subnets",
         "manual": "Add device manually"
       }
     },

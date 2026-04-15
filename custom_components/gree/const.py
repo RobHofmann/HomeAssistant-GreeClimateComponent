@@ -9,6 +9,10 @@ CONF_SWING_HORIZONTAL_MODES = 'swing_horizontal_modes'
 CONF_ENCRYPTION_VERSION = 'encryption_version'
 CONF_DISABLE_AVAILABLE_CHECK  = 'disable_available_check'
 CONF_TEMP_SENSOR_OFFSET = 'temp_sensor_offset'
+CONF_EXTRA_SCAN_NETWORKS = 'extra_scan_networks'
+CONF_EXTRA_SCAN_HOSTS = 'extra_scan_hosts'
+
+MAX_UNICAST_SCAN_HOSTS = 65536
 
 DEFAULT_PORT = 7000
 DEFAULT_TARGET_TEMP_STEP = 1

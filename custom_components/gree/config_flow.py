@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 # Standard library imports
+import ipaddress
 import logging
 
 # Third-party imports
@@ -25,6 +26,8 @@ from .const import (
     CONF_DISABLE_AVAILABLE_CHECK,
     CONF_ENCRYPTION_KEY,
     CONF_ENCRYPTION_VERSION,
+    CONF_EXTRA_SCAN_HOSTS,
+    CONF_EXTRA_SCAN_NETWORKS,
     CONF_FAN_MODES,
     CONF_HVAC_MODES,
     CONF_SWING_HORIZONTAL_MODES,
@@ -37,6 +40,7 @@ from .const import (
     DEFAULT_SWING_HORIZONTAL_MODES,
     DEFAULT_SWING_MODES,
     DOMAIN,
+    MAX_UNICAST_SCAN_HOSTS,
     OPTION_KEYS,
 )
 from .gree_protocol import test_connection, discover_gree_devices, detect_device_encryption
@@ -53,27 +57,91 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._data: dict[str, any] = {}
         self._discovered_devices: list[dict] = []
         self._selected_device: dict | None = None
+        self._extra_networks: list[str] | None = None
+        self._extra_hosts: list[str] | None = None
 
     async def async_step_user(self, user_input: dict | None = None) -> FlowResult:
         """Handle the initial step - show discovery or manual entry."""
         if user_input is not None:
-            if user_input.get("discovery") == "discover":
+            choice = user_input.get("discovery")
+            if choice == "discover":
                 return await self.async_step_discovery()
-            else:
-                return await self.async_step_manual()
+            if choice == "discover_extended":
+                return await self.async_step_discovery_options()
+            return await self.async_step_manual()
 
         # Show discovery vs manual choice
         data_schema = vol.Schema(
             {
                 vol.Required("discovery", default="discover"): selector.SelectSelector(
                     selector.SelectSelectorConfig(
-                        options=["discover", "manual"],
+                        options=["discover", "discover_extended", "manual"],
                         translation_key="discovery_method",
                     )
                 )
             }
         )
         return self.async_show_form(step_id="user", data_schema=data_schema)
+
+    async def async_step_discovery_options(self, user_input: dict | None = None) -> FlowResult:
+        """Collect optional cross-VLAN scan ranges before running discovery."""
+        errors: dict[str, str] = {}
+        networks_raw = ""
+        hosts_raw = ""
+
+        if user_input is not None:
+            networks_raw = (user_input.get(CONF_EXTRA_SCAN_NETWORKS) or "").strip()
+            hosts_raw = (user_input.get(CONF_EXTRA_SCAN_HOSTS) or "").strip()
+
+            extra_networks = [s.strip() for s in networks_raw.split(",") if s.strip()] if networks_raw else []
+            extra_hosts = [s.strip() for s in hosts_raw.split(",") if s.strip()] if hosts_raw else []
+
+            for cidr in extra_networks:
+                try:
+                    net = ipaddress.ip_network(cidr, strict=False)
+                except ValueError:
+                    errors[CONF_EXTRA_SCAN_NETWORKS] = "invalid_network"
+                    break
+                usable = net.num_addresses - 2 if net.num_addresses > 2 else net.num_addresses
+                if usable > MAX_UNICAST_SCAN_HOSTS:
+                    errors[CONF_EXTRA_SCAN_NETWORKS] = "network_too_large"
+                    break
+
+            if not errors:
+                for ip in extra_hosts:
+                    try:
+                        ipaddress.ip_address(ip)
+                    except ValueError:
+                        errors[CONF_EXTRA_SCAN_HOSTS] = "invalid_host"
+                        break
+
+            if not errors:
+                # Persist last-used values for this HA session
+                store = self.hass.data.setdefault(DOMAIN, {})
+                store["_discovery_prefs"] = {
+                    CONF_EXTRA_SCAN_NETWORKS: networks_raw,
+                    CONF_EXTRA_SCAN_HOSTS: hosts_raw,
+                }
+                self._extra_networks = extra_networks or None
+                self._extra_hosts = extra_hosts or None
+                return await self.async_step_discovery()
+
+        # Prefill from previous run (if any) or from current submission
+        prefs = self.hass.data.get(DOMAIN, {}).get("_discovery_prefs", {})
+        default_networks = networks_raw or prefs.get(CONF_EXTRA_SCAN_NETWORKS, "")
+        default_hosts = hosts_raw or prefs.get(CONF_EXTRA_SCAN_HOSTS, "")
+
+        data_schema = vol.Schema(
+            {
+                vol.Optional(CONF_EXTRA_SCAN_NETWORKS, default=default_networks): str,
+                vol.Optional(CONF_EXTRA_SCAN_HOSTS, default=default_hosts): str,
+            }
+        )
+        return self.async_show_form(
+            step_id="discovery_options",
+            data_schema=data_schema,
+            errors=errors,
+        )
 
     async def async_step_discovery(self, user_input: dict | None = None) -> FlowResult:
         """Handle device discovery."""
@@ -96,7 +164,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return await self.async_step_manual()
 
         # Discover devices
-        self._discovered_devices = await discover_gree_devices(self.hass)
+        self._discovered_devices = await discover_gree_devices(
+            self.hass,
+            extra_networks=self._extra_networks,
+            extra_hosts=self._extra_hosts,
+        )
 
         if not self._discovered_devices:
             # No devices found, go to manual entry

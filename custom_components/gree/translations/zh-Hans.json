@@ -1,5 +1,10 @@
 {
   "config": {
+    "error": {
+      "invalid_network": "CIDR 无效。示例：192.168.30.0/24",
+      "invalid_host": "IP 地址无效。示例：192.168.30.50",
+      "network_too_large": "网络超过 65536 个主机的最大值（/16）。请拆分为多个 CIDR 或列出特定主机。"
+    },
     "title": "格力空调",
     "description": "配置您的格力空调",
     "step": {
@@ -12,6 +17,14 @@
           "encryption_key": "加密密钥",
           "uid": "UID",
           "encryption_version": "加密版本"
+        }
+      },
+      "discovery_options": {
+        "title": "跨 VLAN 发现",
+        "description": "设备位于其他子网或 VLAN？输入一个或多个网络和/或特定 IP 地址，通过 unicast 进行探测。VLAN 间路由和防火墙规则必须允许 Home Assistant 通过 UDP 端口 7000 访问目标子网。",
+        "data": {
+          "extra_scan_networks": "网络（逗号分隔的 CIDR，例如 192.168.30.0/24）",
+          "extra_scan_hosts": "主机（逗号分隔的 IP，例如 192.168.30.50,192.168.30.51）"
         }
       }
     },
@@ -47,6 +60,13 @@
     }
   },
   "selector": {
+    "discovery_method": {
+      "options": {
+        "discover": "发现本地网络中的设备",
+        "discover_extended": "发现其他 VLAN/子网中的设备",
+        "manual": "手动添加设备"
+      }
+    },
     "hvac_modes": {
       "options": {
         "auto": "自动",
