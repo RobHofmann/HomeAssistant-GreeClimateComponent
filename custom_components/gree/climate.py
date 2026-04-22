@@ -108,6 +108,12 @@ async def create_gree_device(hass, config):
 # update() interval
 SCAN_INTERVAL = timedelta(seconds=60)
 
+# After this many consecutive update failures, discard the cached encryption
+# key so the next update re-binds. Recovers from device-side key rotation
+# (power outage, router restart, WiFi re-association) without a manual reload.
+# Only applied to auto-acquired keys; user-configured keys are never cleared.
+STALE_KEY_THRESHOLD = 3
+
 
 async def async_setup_entry(hass, entry, async_add_devices):
     """Set up Gree climate from a config entry."""
@@ -201,6 +207,12 @@ class GreeClimate(ClimateEntity):
 
         self.encryption_version = encryption_version
         self.CIPHER = None
+
+        # Tracks whether the user explicitly configured the key. Auto-acquired
+        # keys may be discarded after repeated failures (see STALE_KEY_THRESHOLD);
+        # user-configured keys are preserved even under persistent timeouts.
+        self._user_provided_key = bool(encryption_key)
+        self._consecutive_update_failures = 0
 
         if encryption_key:
             _LOGGER.info(f"{self._name}: Using configured encryption key: {encryption_key}")
@@ -466,6 +478,28 @@ class GreeClimate(ClimateEntity):
         self.UpdateHAOutsideTemperature()
         self.UpdateHARoomHumidity()
 
+    def _handle_comms_failure(self):
+        # Discard an auto-acquired key after repeated failures so the next update
+        # re-binds and recovers from a device-side key rotation. User-provided
+        # keys are preserved — a silent override would surprise the user.
+        self._consecutive_update_failures += 1
+        if self._consecutive_update_failures < STALE_KEY_THRESHOLD:
+            return
+        if self._user_provided_key:
+            _LOGGER.warning(
+                f"{self._name}: {self._consecutive_update_failures} consecutive update failures "
+                f"with a user-configured encryption key. Not auto-clearing; reload the integration "
+                f"or update the key in options if the device has rotated its key."
+            )
+            return
+        _LOGGER.warning(
+            f"{self._name}: {self._consecutive_update_failures} consecutive update failures; "
+            f"discarding cached encryption key to trigger re-bind on next update."
+        )
+        self._encryption_key = None
+        self.CIPHER = None
+        self._consecutive_update_failures = 0
+
     async def SyncState(self, acOptions={}):
         # Fetch current settings from HVAC
         _LOGGER.debug(f"{self._name}: Starting device state sync")
@@ -563,7 +597,9 @@ class GreeClimate(ClimateEntity):
             if not self._disable_available_check:
                 _LOGGER.info(f"{self._name}: Device marked offline after failed communication")
                 self._device_online = False
+            self._handle_comms_failure()
         else:
+            self._consecutive_update_failures = 0
             if not self._disable_available_check:
                 if not self._device_online:
                     self._device_online = True
@@ -586,6 +622,7 @@ class GreeClimate(ClimateEntity):
                         if not self._disable_available_check:
                             _LOGGER.info(f"{self._name}: Device marked offline after failed send attempt")
                             self._device_online = False
+                        self._handle_comms_failure()
             else:
                 # loop used once for Gree Climate initialisation only
                 self._firstTimeRun = False
