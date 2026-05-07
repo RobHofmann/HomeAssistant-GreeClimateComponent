@@ -1,0 +1,266 @@
+{
+  "config": {
+    "error": {
+      "cannot_connect": "Impossible de se connecter à l'appareil. Veuillez vérifier la connexion réseau et réessayer.",
+      "invalid_network": "CIDR invalide. Exemple : 192.168.30.0/24",
+      "invalid_host": "Adresse IP invalide. Exemple : 192.168.30.50",
+      "network_too_large": "Le réseau dépasse le maximum de 65536 hôtes (/16). Divisez en plusieurs CIDR ou énumérez des hôtes spécifiques."
+    },
+    "abort": {
+      "already_configured": "Un appareil avec cette adresse MAC est déjà configuré."
+    },
+    "title": "Gree Climate",
+    "description": "Configurez votre climatiseur Gree",
+    "step": {
+      "user": {
+        "title": "Configuration de Gree Climate",
+        "description": "Choisissez comment ajouter votre climatiseur Gree",
+        "data": {
+          "discovery": "Méthode de configuration"
+        }
+      },
+      "discovery_options": {
+        "title": "Découverte multi-VLAN",
+        "description": "Appareils sur un sous-réseau ou VLAN différent ? Entrez un ou plusieurs réseaux et/ou adresses IP spécifiques pour les sonder via unicast. Le routage inter-VLAN et les règles de pare-feu doivent autoriser le port UDP 7000.",
+        "data": {
+          "extra_scan_networks": "Réseaux (CIDR séparés par des virgules, ex. 192.168.30.0/24)",
+          "extra_scan_hosts": "Hôtes (IPs séparées par des virgules, ex. 192.168.30.50,192.168.30.51)"
+        }
+      },
+      "discovery": {
+        "title": "Appareils découverts",
+        "description": "{devices_found} appareil(s) Gree trouvé(s). Sélectionnez-en un à ajouter ou choisissez la configuration manuelle.",
+        "data": {
+          "device": "Appareil"
+        }
+      },
+      "detect_encryption": {
+        "title": "Configurer l'appareil",
+        "description": "Connexion à l'appareil réussie. Entrez un nom pour cet appareil.",
+        "data": {
+          "name": "Nom de l'appareil"
+        }
+      },
+      "manual": {
+        "title": "Configuration manuelle",
+        "description": "Entrez les détails de votre climatiseur Gree",
+        "data": {
+          "name": "Nom",
+          "host": "Adresse IP",
+          "port": "Port",
+          "mac": "Adresse MAC",
+          "encryption_key": "Clé de chiffrement",
+          "uid": "UID",
+          "encryption_version": "Version de chiffrement"
+        }
+      }
+    },
+    "data": {
+      "name": "Nom",
+      "host": "Adresse IP",
+      "port": "Port",
+      "mac": "Adresse MAC",
+      "hvac_modes": "Modes HVAC",
+      "fan_modes": "Modes du ventilateur",
+      "swing_modes": "Modes de balancement vertical",
+      "swing_horizontal_modes": "Modes de balancement horizontal",
+      "encryption_key": "Clé de chiffrement",
+      "uid": "UID",
+      "encryption_version": "Version de chiffrement",
+      "disable_available_check": "Désactiver la vérification de disponibilité",
+      "temp_sensor_offset": "Décalage du capteur de température"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options de Gree Climate",
+        "data": {
+          "hvac_modes": "Modes HVAC",
+          "fan_modes": "Modes du ventilateur",
+          "swing_modes": "Modes de balancement vertical",
+          "swing_horizontal_modes": "Modes de balancement horizontal",
+          "disable_available_check": "Désactiver la vérification de disponibilité",
+          "temp_sensor_offset": "Décalage du capteur de température"
+        }
+      }
+    }
+  },
+  "selector": {
+    "discovery_method": {
+      "options": {
+        "discover": "Découvrir les appareils sur le réseau local",
+        "discover_extended": "Découvrir les appareils sur d'autres VLAN/sous-réseaux",
+        "manual": "Ajouter un appareil manuellement"
+      }
+    },
+    "hvac_modes": {
+      "options": {
+        "auto": "Auto",
+        "cool": "Refroidissement",
+        "dry": "Déshumidification",
+        "fan_only": "Ventilateur seul",
+        "heat": "Chauffage",
+        "off": "Arrêt"
+      }
+    },
+    "fan_modes": {
+      "options": {
+        "auto": "Auto",
+        "low": "Faible",
+        "medium_low": "Moyen-Faible",
+        "medium": "Moyen",
+        "medium_high": "Moyen-Élevé",
+        "high": "Élevé",
+        "turbo": "Turbo",
+        "quiet": "Silencieux"
+      }
+    },
+    "swing_modes": {
+      "options": {
+        "default": "Par défaut",
+        "swing_full": "Balancement sur toute la plage",
+        "fixed_upmost": "Fixé en position supérieure",
+        "fixed_middle_up": "Fixé en position médiane-supérieure",
+        "fixed_middle": "Fixé en position médiane",
+        "fixed_middle_low": "Fixé en position médiane-inférieure",
+        "fixed_lowest": "Fixé en position inférieure",
+        "swing_downmost": "Balancement dans la région inférieure",
+        "swing_middle_low": "Balancement dans la région médiane-inférieure",
+        "swing_middle": "Balancement dans la région médiane",
+        "swing_middle_up": "Balancement dans la région médiane-supérieure",
+        "swing_upmost": "Balancement dans la région supérieure"
+      }
+    },
+    "swing_horizontal_modes": {
+      "options": {
+        "default": "Par défaut",
+        "swing_full": "Balancement complet",
+        "fixed_leftmost": "Fixé en position gauche",
+        "fixed_middle_left": "Fixé en position gauche-médiane",
+        "fixed_middle": "Fixé en position médiane",
+        "fixed_middle_right": "Fixé en position droite-médiane",
+        "fixed_rightmost": "Fixé en position droite"
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "gree": {
+        "state_attributes": {
+          "fan_mode": {
+            "state": {
+              "auto": "Auto",
+              "low": "Faible",
+              "medium_low": "Moyen-Faible",
+              "medium": "Moyen",
+              "medium_high": "Moyen-Élevé",
+              "high": "Élevé",
+              "turbo": "Turbo",
+              "quiet": "Silencieux"
+            }
+          },
+          "swing_mode": {
+            "state": {
+              "default": "Par défaut",
+              "swing_full": "Balancement sur toute la plage",
+              "fixed_upmost": "Fixé en position supérieure",
+              "fixed_middle_up": "Fixé en position médiane-supérieure",
+              "fixed_middle": "Fixé en position médiane",
+              "fixed_middle_low": "Fixé en position médiane-inférieure",
+              "fixed_lowest": "Fixé en position inférieure",
+              "swing_downmost": "Balancement dans la région inférieure",
+              "swing_middle_low": "Balancement dans la région médiane-inférieure",
+              "swing_middle": "Balancement dans la région médiane",
+              "swing_middle_up": "Balancement dans la région médiane-supérieure",
+              "swing_upmost": "Balancement dans la région supérieure"
+            }
+          },
+          "swing_horizontal_mode": {
+            "state": {
+              "default": "Par défaut",
+              "swing_full": "Balancement complet",
+              "fixed_leftmost": "Fixé en position gauche",
+              "fixed_middle_left": "Fixé en position gauche-médiane",
+              "fixed_middle": "Fixé en position médiane",
+              "fixed_middle_right": "Fixé en position droite-médiane",
+              "fixed_rightmost": "Fixé en position droite"
+            }
+          }
+        }
+      }
+    },
+    "number": {
+      "target_temp_step": {
+        "name": "Pas de température",
+        "description": "Définit l'incrément pour ajuster la température cible."
+      }
+    },
+    "select": {
+      "external_temperature_sensor": {
+        "name": "Capteur de température externe",
+        "description": "Sélectionnez une entité capteur de température à utiliser à la place du capteur de la climatisation intégré. Choisissez « Aucun » pour utiliser le capteur intégré."
+      }
+    },
+    "sensor": {
+      "outside_temperature": {
+        "name": "Température extérieure",
+        "description": "Affiche la température extérieure mesurée par le capteur externe du climatiseur."
+      },
+      "room_humidity": {
+        "name": "Humidité de la pièce",
+        "description": "Affiche le niveau d'humidité de la pièce mesurée par le capteur interne du climatiseur."
+      }
+    },
+    "switch": {
+      "xfan": {
+        "name": "X-Fan",
+        "description": "Active ou désactive le mode X-Fan pour un séchage supplémentaire à l'arrêt."
+      },
+      "lights": {
+        "name": "Lumières",
+        "description": "Contrôle l'éclairage de l'écran de la climatisation."
+      },
+      "health": {
+        "name": "Santé",
+        "description": "Active ou désactive le mode Santé pour l'ionisation et la purification de l'air."
+      },
+      "powersave": {
+        "name": "Économie d'énergie",
+        "description": "Active ou désactive le mode économie d'énergie pour l'efficacité énergétique. Disponible uniquement en mode refroidissement."
+      },
+      "eightdegheat": {
+        "name": "Chauffage 8°C",
+        "description": "Active ou désactive le mode chauffage 8°C pour la protection contre le gel. Disponible uniquement en mode chauffage."
+      },
+      "sleep": {
+        "name": "Veille",
+        "description": "Active ou désactive le mode veille pour un fonctionnement confortable la nuit. Disponible uniquement en mode refroidissement ou chauffage."
+      },
+      "air": {
+        "name": "Air",
+        "description": "Active ou désactive le mode circulation d'air frais."
+      },
+      "auto_xfan": {
+        "name": "X-Fan Auto",
+        "description": "Contrôle automatiquement le mode X-Fan en fonction des opérations HVAC. Lorsqu'activé, X-Fan s'activera automatiquement en modes refroidissement et déshumidification."
+      },
+      "auto_light": {
+        "name": "Lumière Auto",
+        "description": "Contrôle automatiquement l'éclairage de l'écran en fonction des opérations HVAC. Lorsqu'activé, les lumières s'allument/s'éteignent avec la climatisation."
+      },
+      "anti_direct_blow": {
+        "name": "Anti-Jet direct",
+        "description": "Prévient le flux d'air direct en soufflant sur les gens en ajustant la position du déflecteur d'air."
+      },
+      "light_sensor": {
+        "name": "Capteur de lumière",
+        "description": "Active ou désactive le capteur de lumière pour la luminosité automatique. Nécessite que les lumières soient activées."
+      },
+      "beeper": {
+        "name": "Buzzer",
+        "description": "Contrôle les sons du buzzer de la climatisation. Lorsqu'activé, l'appareil fera des sons pour les appuis de bouton et les changements d'état."
+      }
+    }
+  }
+}
