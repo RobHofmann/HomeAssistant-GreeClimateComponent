@@ -759,7 +759,7 @@ class GreeClimate(ClimateEntity):
     def device_info(self) -> DeviceInfo:
         """Return device information."""
         return DeviceInfo(
-            identifiers={(DOMAIN, self._mac_addr)},
+            identifiers={(DOMAIN, self._sub_mac_addr)},
             name=self._name,
             manufacturer="Gree",
         )
