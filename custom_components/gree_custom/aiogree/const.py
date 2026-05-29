@@ -1,0 +1,10 @@
+"""Constants for the aiogree."""
+
+MIN_TEMP_C = 16
+MAX_TEMP_C = 30
+
+MIN_TEMP_F = 61
+MAX_TEMP_F = 86
+
+DEFAULT_DEVICE_UID = 0
+DEFAULT_DEVICE_PORT = 7000

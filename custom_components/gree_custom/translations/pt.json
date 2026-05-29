@@ -1,0 +1,324 @@
+{
+  "config": {
+    "error": {
+      "unknown": "Ocorreu algo de errado, tente de novo. Se o problema persistir, verifique os registos.",
+      "cannot_connect": "Não foi possível ligar ao dispositivo. Verifique as configurações do dispositivo e de rede e tente de novo.ain. Se o problema persistir, verifique os registos.",
+      "cannot_bind": "Não foi possível encontrar uma combinação da versão de encriptação e chave do dispositivo válida. Se o problema persistir, verifique os registos.",
+      "no_devices_found": "Não foram encontrados novos dispositivos Gree compatíveis na rede. Por favor, adicione o dispositivo manualmente.",
+      "invalid_network": "CIDR Inválido. Exemplo: 192.168.30.0/24",
+      "invalid_host": "Endereço IP Inválido. Exemplo: 192.168.30.50",
+      "network_too_large": "Uma das redes introduzidas excede o número máximo de dispositivos (65536, rede /16). Divida a rede em múltiplos CIDRs ou especifique os dispositivos.",
+      "too_many_targets": "O conjunto de redes e dispositivos introduzidos excede o número máximo de dispositivos (65536, rede /16). Divida a rede em múltiplos CIDRs ou especifique os dispositivos."
+    },
+    "abort": {
+      "already_configured": "Um dispositivo com este endereço MAC já foi configurado previamente."
+    },
+    "step": {
+      "user": {
+        "title": "Configuração Gree",
+        "description": "Escolha como adicionar o seu dispositivo Gree",
+        "data": {
+          "discovery": "Método"
+        }
+      },
+      "manual_discovery": {
+        "title": "Dispositivos Encontrados",
+        "description": "Foram encontrado(s) {devices_found} dispositivo(s) Gree. Selecione um para adicionar ou escolha a configuração manual.",
+        "data": {
+          "device": "Dispositivo"
+        }
+      },
+      "discovery_options": {
+        "title": "Procura Expandida",
+        "description": "Tem dispositivos numa VLAN? Introduza uma ou mais redes e/ou IP de dispositivos para expandir a procura automática. Rotas Inter-VLAN e regras de firewall devem existir para permitir tráfego UDP na porta 7000 desde o Home Assistant até às redes e dispositivos especificados.",
+        "data": {
+          "extra_scan_networks": "Redes (CIDRs separados por vírgula, e.g. 192.168.20.0/24,192.168.30.0/24)",
+          "extra_scan_hosts": "Dispositivos (IPs separados por vírgula, e.g. 192.168.30.50,192.168.30.51)"
+        }
+      },
+      "manual_add": {
+        "title": "Configuração do dispositivo",
+        "data": {
+          "host": "Endereço IP",
+          "mac": "Endereço MAC"
+        },
+        "sections": {
+          "advanced": {
+            "name": "Definições Avançadas",
+            "description": "Configure as definições avançadas do dispositivo",
+            "data": {
+              "port": "Porta",
+              "encryption_key": "Chave de Encriptação",
+              "encryption_version": "Versão de Encriptação",
+              "uid": "UID",
+              "disable_available_check": "Desativar Verificação de Disponibilidade",
+              "max_online_attempts": "Máximo de Tentativas de Ligação",
+              "timeout": "Tempo Limite de Ligação"
+            },
+            "data_description": {
+              "max_online_attempts": "Número máximo de tentativas de comunicação com o dispositivo antes de ele ser marcado como indisponível",
+              "timeout": "Tempo limite de espera das respostas de cada ligação ao dispositivo"
+            }
+          }
+        }
+      },
+      "device_options": {
+        "title": "Funcionalidades do dispositivo",
+        "description": "A API da Gree não fornece um método robusto para obter as funcionalidades de um dispositivo. Por favor, use as opções abaixo com base nos seus conhecimentos sobre o dispositivo.",
+        "data": {
+          "device_name": "Nome do Dispositivo",
+          "hvac_modes": "Modos de Climatização",
+          "fan_modes": "Velocidades da Ventoinha",
+          "swing_modes": "Modos de Oscilamento Vertical",
+          "swing_horizontal_modes": "Modos de Oscilamento Horizontal",
+          "features": "Outas Funcionalidades e Modos",
+          "external_temperature_sensor": "Sensor de Temperatura",
+          "external_humidity_sensor": "Sensor de Humidade",
+          "restore_states": "Restaurar Entidades",
+          "target_temp_step": "Incremento de Temperatura",
+          "scan_interval": "Taxa de Atualização"
+        },
+        "data_description": {
+          "external_temperature_sensor": "Se definido, substitui o sensor integrado de temperatura interior do dispositivo",
+          "external_humidity_sensor": "Se definido, substitui o sensor integrado de humidade interior do dispositivo",
+          "restore_states": "Se ativo, quando a integração é iniciada, o estado do dispositivo será reposto para o último estado observado na integração.",
+          "target_temp_step": "Define o incremento da temperatura quando esta é ajustada. Graus Fahrenheit são arredondados para às unidades.",
+          "scan_interval": "Frequência de atualização dos dados do dispositivo (em segundos)"
+        }
+      },
+      "reconfigure": {
+        "title": "Configuração do dispositivo",
+        "data": {
+          "name": "Nomw",
+          "host": "Endereço IP",
+          "mac": "Endereço MAC"
+        },
+        "sections": {
+          "advanced": {
+            "name": "Definições Avançadas",
+            "description": "Configure as definições avançadas do dispositivo",
+            "data": {
+              "port": "Porta",
+              "encryption_key": "Chave de Encriptação",
+              "encryption_version": "Versão de Encriptação",
+              "uid": "UID",
+              "disable_available_check": "Desativar Verificação de Disponibilidade",
+              "max_online_attempts": "Máximo de Tentativas de Ligação",
+              "timeout": "Tempo Limite de Ligação"
+            },
+            "data_description": {
+              "max_online_attempts": "Número máximo de tentativas de comunicação com o dispositivo antes de ele ser marcado como indisponível",
+              "timeout": "Tempo limite de espera das respostas de cada ligação ao dispositivo"
+            }
+          }
+        }
+      }
+    }
+  },
+  "selector": {
+    "discovery_method": {
+      "options": {
+        "discover": "Procura automática de dispositivos",
+        "discover_extended": "Procura automática de dispositivos expandida",
+        "manual": "Adicionar manualmente"
+      }
+    },
+    "hvac_modes": {
+      "options": {
+        "auto": "Automático",
+        "cool": "Arrefecer",
+        "dry": "Secar",
+        "fan_only": "Ventilação",
+        "heat": "Aquecer",
+        "off": "Desligado"
+      }
+    },
+    "fan_modes": {
+      "options": {
+        "auto": "Automática",
+        "low": "Baixa",
+        "medium_low": "Média-Baixa",
+        "medium": "Média",
+        "medium_high": "Média-Alta",
+        "high": "Alta",
+        "turbo": "Turbo",
+        "quiet": "Silenciosa"
+      }
+    },
+    "swing_modes": {
+      "options": {
+        "default": "Por defeito",
+        "full_swing": "Oscilação completa",
+        "fixed_upper": "Fixo no topo",
+        "fixed_upper_middle": "Fixo entre o meio e topo",
+        "fixed_middle": "Fixo no meio",
+        "fixed_lower_middle": "Fixo entre o meio e baixo",
+        "fixed_lower": "Fixo em baixo",
+        "swing_lower": "Oscilação na região inferior",
+        "swing_lower_middle": "Oscilação na região média-inferior",
+        "swing_middle": "Oscilação na região intermédia",
+        "swing_upper_middle": "Oscilação na região média-superior",
+        "swing_upper": "Oscilação na região superior"
+      }
+    },
+    "swing_horizontal_modes": {
+      "options": {
+        "default": "Por defeito",
+        "full_swing": "Oscilação completa",
+        "left": "Fixo à esquerda",
+        "left_center": "Fixo entre o meio e a esquerda",
+        "center": "Fixo no meio",
+        "right_center": "Fixo entre o meio e a direita",
+        "right": "Fixo à direita"
+      }
+    },
+    "features": {
+      "options": {
+        "beeper": "Aviso Sonoro",
+        "air": "Ar Fresco",
+        "xfan": "X-Fan",
+        "sleep": "Dormir",
+        "eightdegheat": "Fora de Casa",
+        "lights": "Visor",
+        "health": "Saúde",
+        "anti_direct_blow": "Anti Sopro Direto",
+        "powersave": "Poupança de Energia",
+        "light_sensor": "Brilho Automático do Visor",
+        "faults": "Falha de Operação"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "indoor_temperature": {
+        "name": "Temperatura Interior"
+      },
+      "outdoor_temperature": {
+        "name": "Temperatura Exterior"
+      },
+      "room_humidity": {
+        "name": "Humidade Interior"
+      }
+    },
+    "binary_sensor": {
+      "faults": {
+        "name": "Falha de Operação"
+      }
+    },
+    "climate": {
+      "hvac": {
+        "state": {
+          "auto": "Automático",
+          "cool": "Arrefecer",
+          "dry": "Secar",
+          "fan_only": "Ventilação",
+          "heat": "Aquecer",
+          "off": "Desligado"
+        },
+        "state_attributes": {
+          "fan_mode": {
+            "state": {
+              "auto": "Automática",
+              "low": "Baixa",
+              "medium_low": "Média-Baixa",
+              "medium": "Média",
+              "medium_high": "Média-Alta",
+              "high": "Alta",
+              "turbo": "Turbo",
+              "quiet": "Silenciosa"
+            }
+          },
+          "swing_mode": {
+            "state": {
+              "default": "Por defeito",
+              "full_swing": "Oscilação completa",
+              "fixed_upper": "Fixo no topo",
+              "fixed_upper_middle": "Fixo entre o meio e topo",
+              "fixed_middle": "Fixo no meio",
+              "fixed_lower_middle": "Fixo entre o meio e baixo",
+              "fixed_lower": "Fixo em baixo",
+              "swing_lower": "Oscilação na região inferior",
+              "swing_lower_middle": "Oscilação na região média-inferior",
+              "swing_middle": "Oscilação na região intermédia",
+              "swing_upper_middle": "Oscilação na região média-superior",
+              "swing_upper": "Oscilação na região superior"
+            }
+          },
+          "swing_horizontal_mode": {
+            "state": {
+              "default": "Por defeito",
+              "full_swing": "Oscilação completa",
+              "left": "Fixo à esquerda",
+              "left_center": "Fixo entre o meio e a esquerda",
+              "center": "Fixo no meio",
+              "right_center": "Fixo entre o meio e a direita",
+              "right": "Fixo à direita"
+            }
+          }
+        }
+      }
+    },
+    "number": {
+      "target_temp_step": {
+        "name": "Incremento de Temperatura"
+      }
+    },
+    "select": {
+      "temperature_units": {
+        "name": "Unidade de Temperatura"
+      }
+    },
+    "switch": {
+      "auto_light": {
+        "name": "Visor Automático"
+      },
+      "auto_xfan": {
+        "name": "X-Fan Automática"
+      },
+      "lights": {
+        "name": "Visor"
+      },
+      "xfan": {
+        "name": "X-Fan"
+      },
+      "health": {
+        "name": "Saúde"
+      },
+      "powersave": {
+        "name": "Poupança de Energia"
+      },
+      "eightdegheat": {
+        "name": "Fora de Casa"
+      },
+      "sleep": {
+        "name": "Dormir"
+      },
+      "air": {
+        "name": "Ar Fresco"
+      },
+      "anti_direct_blow": {
+        "name": "Anti Sopro Direto"
+      },
+      "light_sensor": {
+        "name": "Brilho Automático do Visor"
+      },
+      "beeper": {
+        "name": "Aviso Sonoro"
+      }
+    }
+  },
+  "exceptions": {
+    "turbo_availability": {
+      "message": "Modo Turbo não está disponível nos modos de Secar e Ventilação."
+    },
+    "quiet_availability": {
+      "message": "Modo Silencioso apenas disponível nos modos de Secar e Ventilação."
+    },
+    "entity_unavailable": {
+      "message": "A entidade não está disponível."
+    },
+    "generic": {
+      "message": "Ocorreu um erro a realizar a ação pretendida, consulto os registos da integração."
+    }
+  }
+}

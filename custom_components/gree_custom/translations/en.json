@@ -1,0 +1,316 @@
+{
+  "config": {
+    "error": {
+      "unknown": "Something went wrong, please try again. If the issue persists, please check the logs.",
+      "cannot_connect": "Unable to connect to the device. Please check the device configuration and network connection and try again. If the issue persists, please check the logs.",
+      "cannot_bind": "Unable to bind the device. It was not possible to find the device encryption version or key. If the issue persists, please check the logs.",
+      "no_devices_found": "Couldn't find any Gree device in the network. Please add your device manually.",
+      "invalid_network": "Invalid CIDR. Example: 192.168.30.0/24",
+      "invalid_host": "Invalid IP address. Example: 192.168.30.50",
+      "network_too_large": "Network exceeds the maximum of 65536 hosts (a /16). Split into multiple CIDRs or list specific hosts.",
+      "too_many_targets": "The specified networks and hosts exceed the maximum of 65536 hosts (a /16). Split into multiple CIDRs or list specific hosts."
+    },
+    "abort": {
+      "already_configured": "A device with this MAC address is already configured."
+    },
+    "step": {
+      "user": {
+        "title": "Gree Climate Setup",
+        "description": "Choose how to add your Gree air conditioner",
+        "data": {
+          "discovery": "Setup Method"
+        }
+      },
+      "manual_discovery": {
+        "title": "Discovered Devices",
+        "description": "Found {devices_found} Gree device(s). Select one to add or choose manual setup.",
+        "data": {
+          "device": "Device"
+        }
+      },
+      "discovery_options": {
+        "title": "Extended Discovery",
+        "description": "Devices on a different subnet or VLAN? Enter one or more networks and/or specific IP addresses to probe via unicast. Inter-VLAN routing and firewall rules must allow UDP port 7000 from Home Assistant to the target subnet.",
+        "data": {
+          "extra_scan_networks": "Networks (comma-separated CIDRs, e.g. 192.168.20.0/24,192.168.30.0/24)",
+          "extra_scan_hosts": "Hosts (comma-separated IPs, e.g. 192.168.30.50,192.168.30.51)"
+        }
+      },
+      "manual_add": {
+        "title": "Device configuration",
+        "data": {
+          "host": "IP Address",
+          "mac": "MAC Address"
+        },
+        "sections": {
+          "advanced": {
+            "name": "Advanced Settings",
+            "description": "Configure advanced setting of the device",
+            "data": {
+              "port": "Port",
+              "encryption_key": "Encryption Key",
+              "encryption_version": "Encryption Version",
+              "uid": "UID",
+              "disable_available_check": "Disable Available Check",
+              "max_online_attempts": "Max Connection Attempts",
+              "timeout": "Connection Timeout"
+            },
+            "data_description": {
+              "max_online_attempts": "The number of attempts to communicate with the device before it is marked as unavailable",
+              "timeout": "The timeout for each of the connection attempts"
+            }
+          }
+        }
+      },
+      "device_options": {
+        "title": "Device features",
+        "description": "The Gree API doesn't have a reliable method of getting the supported features of a device. Please use the options bellow to the best of your knowledge about your device.",
+        "data": {
+          "device_name": "Device Name",
+          "hvac_modes": "HVAC Modes",
+          "fan_modes": "Fan Speeds",
+          "swing_modes": "Vertical Swing Modes",
+          "swing_horizontal_modes": "Horizontal Swing Modes",
+          "features": "Device Features and Modes",
+          "external_temperature_sensor": "External Temperature Sensor",
+          "external_humidity_sensor": "External Humidity Sensor",
+          "restore_states": "Restore Entities",
+          "target_temp_step": "Temperature Step",
+          "scan_interval": "Scan Interval"
+        },
+        "data_description": {
+          "external_temperature_sensor": "If set will replace the built-in HVAC temperature sensor",
+          "external_humidity_sensor": "If set will replace the built-in HVAC humidity sensor",
+          "restore_states": "If set to true, when the integration is started the device will be overriden by previous states of the integration instead of using the current device state.",
+          "target_temp_step": "Sets the increment step for adjusting the target temperature. Fahrenheit degrees are clamped to the nearest integer.",
+          "scan_interval": "Frequency of the device data polling (in seconds)"
+        }
+      },
+      "reconfigure": {
+        "title": "Device configuration",
+        "data": {
+          "name": "Name",
+          "host": "IP Address",
+          "mac": "MAC Address"
+        },
+        "sections": {
+          "advanced": {
+            "name": "Advanced Settings",
+            "description": "Configure advanced setting of the device",
+            "data": {
+              "port": "Port",
+              "encryption_key": "Encryption Key",
+              "encryption_version": "Encryption Version",
+              "uid": "UID",
+              "disable_available_check": "Disable Available Check",
+              "max_online_attempts": "Max Connection Attempts",
+              "timeout": "Connection Timeout"
+            },
+            "data_description": {
+              "max_online_attempts": "The number of attempts to communicate with the device before it is marked as unavailable",
+              "timeout": "The timeout for each of the connection attempts"
+            }
+          }
+        }
+      }
+    }
+  },
+  "selector": {
+    "discovery_method": {
+      "options": {
+        "discover": "Discover devices on the local network",
+        "discover_extended": "Discover devices on the local network and other VLANs/subnets",
+        "manual": "Add device manually"
+      }
+    },
+    "hvac_modes": {
+      "options": {
+        "auto": "Auto",
+        "cool": "Cool",
+        "dry": "Dry",
+        "fan_only": "Fan only",
+        "heat": "Heat",
+        "off": "Off"
+      }
+    },
+    "fan_modes": {
+      "options": {
+        "auto": "Auto",
+        "low": "Low",
+        "medium_low": "Medium-Low",
+        "medium": "Medium",
+        "medium_high": "Medium-High",
+        "high": "High",
+        "turbo": "Turbo",
+        "quiet": "Quiet"
+      }
+    },
+    "swing_modes": {
+      "options": {
+        "default": "Default",
+        "full_swing": "Swing in full range",
+        "fixed_upper": "Fixed in the upmost position",
+        "fixed_upper_middle": "Fixed in the middle-up position",
+        "fixed_middle": "Fixed in the middle position",
+        "fixed_lower_middle": "Fixed in the middle-low position",
+        "fixed_lower": "Fixed in the lowest position",
+        "swing_lower": "Swing in the downmost region",
+        "swing_lower_middle": "Swing in the middle-low region",
+        "swing_middle": "Swing in the middle region",
+        "swing_upper_middle": "Swing in the middle-up region",
+        "swing_upper": "Swing in the upmost region"
+      }
+    },
+    "swing_horizontal_modes": {
+      "options": {
+        "default": "Default",
+        "full_swing": "Swing in full range",
+        "left": "Fixed in the leftmost position",
+        "left_center": "Fixed in the middle-left position",
+        "center": "Fixed in the middle position",
+        "right_center": "Fixed in the middle-right position",
+        "right": "Fixed in the rightmost position"
+      }
+    },
+    "features": {
+      "options": {
+        "beeper": "Beeper",
+        "air": "Fresh Air",
+        "xfan": "X-Fan",
+        "sleep": "Sleep",
+        "eightdegheat": "8ºC Smart Heat",
+        "lights": "Display Light",
+        "health": "Health",
+        "anti_direct_blow": "Anti Direct Blow",
+        "powersave": "Energy Saving",
+        "light_sensor": "Display Auto Brightness",
+        "faults": "Fault Detection"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "indoor_temperature": {
+        "name": "Indoor Temperature"
+      },
+      "outdoor_temperature": {
+        "name": "Outdoor Temperature"
+      },
+      "room_humidity": {
+        "name": "Indoor Humidity"
+      }
+    },
+    "binary_sensor": {
+      "faults": {
+        "name": "Fault Detection"
+      }
+    },
+    "climate": {
+      "hvac": {
+        "state_attributes": {
+          "fan_mode": {
+            "state": {
+              "auto": "Auto",
+              "low": "Low",
+              "medium_low": "Medium-Low",
+              "medium": "Medium",
+              "medium_high": "Medium-High",
+              "high": "High",
+              "turbo": "Turbo",
+              "quiet": "Quiet"
+            }
+          },
+          "swing_mode": {
+            "state": {
+              "default": "Default",
+              "full_swing": "Swing in full range",
+              "fixed_upper": "Fixed in the upmost position",
+              "fixed_upper_middle": "Fixed in the middle-up position",
+              "fixed_middle": "Fixed in the middle position",
+              "fixed_lower_middle": "Fixed in the middle-low position",
+              "fixed_lower": "Fixed in the lowest position",
+              "swing_lower": "Swing in the downmost region",
+              "swing_lower_middle": "Swing in the middle-low region",
+              "swing_middle": "Swing in the middle region",
+              "swing_upper_middle": "Swing in the middle-up region",
+              "swing_upper": "Swing in the upmost region"
+            }
+          },
+          "swing_horizontal_mode": {
+            "state": {
+              "default": "Default",
+              "full_swing": "Swing in full range",
+              "left": "Fixed in the leftmost position",
+              "left_center": "Fixed in the middle-left position",
+              "center": "Fixed in the middle position",
+              "right_center": "Fixed in the middle-right position",
+              "right": "Fixed in the rightmost position"
+            }
+          }
+        }
+      }
+    },
+    "number": {
+      "target_temp_step": {
+        "name": "Temperature Step"
+      }
+    },
+    "select": {
+      "temperature_units": {
+        "name": "Temperature Units"
+      }
+    },
+    "switch": {
+      "auto_light": {
+        "name": "Auto Display Light"
+      },
+      "auto_xfan": {
+        "name": "Auto X-Fan"
+      },
+      "lights": {
+        "name": "Display Light"
+      },
+      "xfan": {
+        "name": "X-Fan"
+      },
+      "health": {
+        "name": "Health"
+      },
+      "powersave": {
+        "name": "Power Save"
+      },
+      "eightdegheat": {
+        "name": "Smart Heat 8ºC"
+      },
+      "sleep": {
+        "name": "Sleep"
+      },
+      "air": {
+        "name": "Fresh Air"
+      },
+      "anti_direct_blow": {
+        "name": "Anti Direct Blow"
+      },
+      "light_sensor": {
+        "name": "Display Auto Brightness"
+      },
+      "beeper": {
+        "name": "Beeper"
+      }
+    }
+  },
+  "exceptions": {
+    "turbo_availability": {
+      "message": "Turbo mode is not available in Dry and Fan-only modes."
+    },
+    "quiet_availability": {
+      "message": "Quiet mode is only available in Dry and Cool modes."
+    },
+    "entity_unavailable": {
+      "message": "The entity is unavailable."
+    },
+    "generic": {
+      "message": "There was a problem performing the requested change, please consult the integration log."
+    }
+  }
+}

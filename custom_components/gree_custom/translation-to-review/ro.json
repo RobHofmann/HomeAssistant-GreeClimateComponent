@@ -1,0 +1,199 @@
+{
+  "config": {
+    "title": "Climatizare Gree",
+    "description": "Configurează aparatul de aer condiționat Gree",
+    "step": {
+      "user": {
+        "data": {
+          "name": "Nume",
+          "host": "Adresă IP",
+          "port": "Port",
+          "mac": "Adresă MAC",
+          "timeout": "Timp de așteptare",
+          "encryption_key": "Cheie de criptare",
+          "uid": "UID",
+          "encryption_version": "Versiune criptare"
+        }
+      }
+    },
+    "data": {
+      "name": "Nume",
+      "host": "Adresă IP",
+      "port": "Port",
+      "mac": "Adresă MAC",
+      "timeout": "Timp de așteptare",
+      "hvac_modes" : "Moduri HVAC",
+      "fan_modes" : "Moduri ventilator",
+      "swing_modes" : "Moduri balansare verticală",
+      "swing_horizontal_modes" : "Moduri balansare orizontală",
+      "encryption_key": "Cheie de criptare",
+      "uid": "UID",
+      "encryption_version": "Versiune criptare",
+      "disable_available_check": "Dezactivează verificarea disponibilității",
+      "max_online_attempts": "Număr maxim de încercări online",
+      "temp_sensor_offset": "Offset senzor temperatură"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opțiuni Climatizare Gree",
+        "data": {
+          "hvac_modes" : "Moduri HVAC",
+          "fan_modes" : "Moduri ventilator",
+          "swing_modes" : "Moduri balansare verticală",
+          "swing_horizontal_modes" : "Moduri balansare orizontală",
+          "disable_available_check": "Dezactivează verificarea disponibilității",
+          "max_online_attempts": "Număr maxim de încercări online",
+          "temp_sensor_offset": "Offset senzor temperatură"
+        }
+      }
+    }
+  },
+  "selector": {
+    "hvac_modes": {
+      "options": {
+        "auto": "Auto",
+        "cool": "Răcire",
+        "dry": "Uscare",
+        "fan_only": "Doar ventilator",
+        "heat": "Încălzire",
+        "off": "Oprit"
+      }
+    },
+    "fan_modes": {
+      "options": {
+        "auto": "Auto",
+        "low": "Scăzut",
+        "medium_low": "Mediu-scăzut",
+        "medium": "Mediu",
+        "medium_high": "Mediu-ridicat",
+        "high": "Ridicat",
+        "turbo": "Turbo",
+        "quiet": "Silențios"
+      }
+    },
+    "swing_modes": {
+      "options": {
+        "default": "Implicit",
+        "swing_full": "Balansare pe toată gama",
+        "fixed_upmost": "Fixat în poziția cea mai sus",
+        "fixed_middle_up": "Fixat în poziția mijloc-sus",
+        "fixed_middle": "Fixat în poziția de mijloc",
+        "fixed_middle_low": "Fixat în poziția mijloc-jos",
+        "fixed_lowest": "Fixat în poziția cea mai jos",
+        "swing_downmost": "Balansare în regiunea cea mai de jos",
+        "swing_middle_low": "Balansare în regiunea mijloc-jos",
+        "swing_middle": "Balansare în regiunea de mijloc",
+        "swing_middle_up": "Balansare în regiunea mijloc-sus",
+        "swing_upmost": "Balansare în regiunea cea mai sus"
+      }
+    },
+    "swing_horizontal_modes": {
+      "options": {
+        "default": "Implicit",
+        "swing_full": "Balansare completă",
+        "fixed_leftmost": "Fixat în poziția cea mai la stânga",
+        "fixed_middle_left": "Fixat în poziția mijloc-stânga",
+        "fixed_middle": "Fixat în poziția de mijloc",
+        "fixed_middle_right": "Fixat în poziția mijloc-dreapta",
+        "fixed_rightmost": "Fixat în poziția cea mai la dreapta"
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "gree": {
+        "state_attributes": {
+          "fan_mode": {
+            "state": {
+              "auto": "Auto",
+              "low": "Scăzut",
+              "medium_low": "Mediu-scăzut",
+              "medium": "Mediu",
+              "medium_high": "Mediu-ridicat",
+              "high": "Ridicat",
+              "turbo": "Turbo",
+              "quiet": "Silențios"
+            }
+          },
+          "swing_mode": {
+            "state": {
+              "default": "Implicit",
+              "swing_full": "Balansare pe toată gama",
+              "fixed_upmost": "Fixat în poziția cea mai sus",
+              "fixed_middle_up": "Fixat în poziția mijloc-sus",
+              "fixed_middle": "Fixat în poziția de mijloc",
+              "fixed_middle_low": "Fixat în poziția mijloc-jos",
+              "fixed_lowest": "Fixat în poziția cea mai jos",
+              "swing_downmost": "Balansare în regiunea cea mai de jos",
+              "swing_middle_low": "Balansare în regiunea mijloc-jos",
+              "swing_middle": "Balansare în regiunea de mijloc",
+              "swing_middle_up": "Balansare în regiunea mijloc-sus",
+              "swing_upmost": "Balansare în regiunea cea mai sus"
+            }
+          },
+          "swing_horizontal_mode": {
+            "state": {
+              "default": "Implicit",
+              "swing_full": "Balansare completă",
+              "fixed_leftmost": "Fixat în poziția cea mai la stânga",
+              "fixed_middle_left": "Fixat în poziția mijloc-stânga",
+              "fixed_middle": "Fixat în poziția de mijloc",
+              "fixed_middle_right": "Fixat în poziția mijloc-dreapta",
+              "fixed_rightmost": "Fixat în poziția cea mai la dreapta"
+            }
+          }
+        }
+      }
+    },
+    "number": {
+      "target_temp_step": {
+        "name": "Pas temperatură"
+      }
+    },
+    "select": {
+      "external_temperature_sensor": {
+        "name": "Senzor temperatură extern"
+      }
+    },
+    "switch": {
+      "xfan": {
+        "name": "X-Fan"
+      },
+      "lights": {
+        "name": "Lumini"
+      },
+      "health": {
+        "name": "Sănătate"
+      },
+      "powersave": {
+        "name": "Economisire energie"
+      },
+      "eightdegheat": {
+        "name": "Încălzire 8°C"
+      },
+      "sleep": {
+        "name": "Somn"
+      },
+      "air": {
+        "name": "Aer"
+      },
+      "auto_xfan": {
+        "name": "X-Fan automat"
+      },
+      "auto_light": {
+        "name": "Lumină automată"
+      },
+      "anti_direct_blow": {
+        "name": "Anti-suflare directă"
+      },
+      "light_sensor": {
+        "name": "Senzor lumină"
+      },
+      "beeper": {
+        "name": "Sonerie"
+      }
+    }
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "entity": {
+    "climate": {
+      "hvac": {
+        "state_attributes": {
+          "fan_mode": {
+            "state": {
+              "auto": "mdi:fan-auto",
+              "low": "mdi:fan-chevron-down",
+              "medium_low": "mdi:fan-minus",
+              "medium": "mdi:fan",
+              "medium_high": "mdi:fan-plus",
+              "high": "mdi:fan-chevron-up",
+              "turbo": "mdi:weather-windy",
+              "quiet": "mdi:sleep"
+            }
+          },
+          "swing_horizontal_mode": {
+            "state": {
+              "default": "mdi:arrow-oscillating",
+              "full_swing": "mdi:arrow-oscillating",
+              "left": "mdi:arrow-left",
+              "left_center": "mdi:arrow-bottom-left",
+              "center": "mdi:arrow-down",
+              "right_center": "mdi:arrow-bottom-right",
+              "right": "mdi:arrow-left"
+            }
+          },
+          "swing_mode": {
+            "state": {
+              "default": "mdi:arrow-up-down",
+              "full_swing": "mdi:arrow-up-down",
+              "fixed_upper": "mdi:arrow-up",
+              "fixed_upper_middle": "mdi:arrow-top-left",
+              "fixed_middle": "mdi:arrow-left",
+              "fixed_lower_middle": "mdi:arrow-bottom-left",
+              "fixed_lower": "mdi:arrow-down",
+              "swing_lower": "mdi:arrow-up-down",
+              "swing_lower_middle": "mdi:arrow-up-down",
+              "swing_middle": "mdi:arrow-up-down",
+              "swing_upper_middle": "mdi:arrow-up-down",
+              "swing_upper": "mdi:arrow-up-down"
+            }
+          }
+        }
+      }
+    },
+    "select": {
+      "temperature_units": {
+        "default": "mdi:thermometer-alert"
+      }
+    },
+    "switch": {
+      "air": {
+        "default": "mdi:air-filter"
+      },
+      "xfan": {
+        "default": "mdi:fan"
+      },
+      "sleep": {
+        "default": "mdi:sleep"
+      },
+      "eightdegheat": {
+        "default": "mdi:thermometer-low"
+      },
+      "health": {
+        "default": "mdi:shield-check"
+      },
+      "anti_direct_blow": {
+        "default": "mdi:weather-windy"
+      },
+      "powersave": {
+        "default": "mdi:leaf"
+      },
+      "lights": {
+        "default": "mdi:lightbulb"
+      },
+      "light_sensor": {
+        "default": "mdi:brightness-auto"
+      },
+      "auto_xfan": {
+        "default": "mdi:fan-auto"
+      },
+      "auto_light": {
+        "default": "mdi:lightbulb-auto"
+      },
+      "beeper": {
+        "default": "mdi:volume-high"
+      }
+    }
+  }
+}
