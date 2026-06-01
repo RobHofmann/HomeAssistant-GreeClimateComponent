@@ -1,0 +1,199 @@
+{
+  "config": {
+    "title": "Clima Gree",
+    "description": "Configura il tuo condizionatore Gree",
+    "step": {
+      "user": {
+        "data": {
+          "name": "Nome",
+          "host": "Indirizzo IP",
+          "port": "Porta",
+          "mac": "Indirizzo MAC",
+          "timeout": "Timeout",
+          "encryption_key": "Chiave di crittografia",
+          "uid": "UID",
+          "encryption_version": "Versione crittografia"
+        }
+      }
+    },
+    "data": {
+      "name": "Nome",
+      "host": "Indirizzo IP",
+      "port": "Porta",
+      "mac": "Indirizzo MAC",
+      "timeout": "Timeout",
+      "hvac_modes" : "Modalità HVAC",
+      "fan_modes" : "Modalità ventola",
+      "swing_modes" : "Modalità oscillazione verticale",
+      "swing_horizontal_modes" : "Modalità oscillazione orizzontale",
+      "encryption_key": "Chiave di crittografia",
+      "uid": "UID",
+      "encryption_version": "Versione crittografia",
+      "disable_available_check": "Disabilita controllo disponibilità",
+      "max_online_attempts": "Tentativi massimi online",
+      "temp_sensor_offset": "Offset sensore temperatura"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opzioni Clima Gree",
+        "data": {
+          "hvac_modes" : "Modalità HVAC",
+          "fan_modes" : "Modalità ventola",
+          "swing_modes" : "Modalità oscillazione verticale",
+          "swing_horizontal_modes" : "Modalità oscillazione orizzontale",
+          "disable_available_check": "Disabilita controllo disponibilità",
+          "max_online_attempts": "Tentativi massimi online",
+          "temp_sensor_offset": "Offset sensore temperatura"
+        }
+      }
+    }
+  },
+  "selector": {
+    "hvac_modes": {
+      "options": {
+        "auto": "Auto",
+        "cool": "Raffreddamento",
+        "dry": "Deumidificazione",
+        "fan_only": "Solo ventola",
+        "heat": "Riscaldamento",
+        "off": "Spento"
+      }
+    },
+    "fan_modes": {
+      "options": {
+        "auto": "Auto",
+        "low": "Basso",
+        "medium_low": "Medio-basso",
+        "medium": "Medio",
+        "medium_high": "Medio-alto",
+        "high": "Alto",
+        "turbo": "Turbo",
+        "quiet": "Silenzioso"
+      }
+    },
+    "swing_modes": {
+      "options": {
+        "default": "Predefinito",
+        "swing_full": "Oscillazione completa",
+        "fixed_upmost": "Fisso in posizione più alta",
+        "fixed_middle_up": "Fisso in posizione medio-alta",
+        "fixed_middle": "Fisso in posizione centrale",
+        "fixed_middle_low": "Fisso in posizione medio-bassa",
+        "fixed_lowest": "Fisso in posizione più bassa",
+        "swing_downmost": "Oscillazione nella regione più bassa",
+        "swing_middle_low": "Oscillazione nella regione medio-bassa",
+        "swing_middle": "Oscillazione nella regione centrale",
+        "swing_middle_up": "Oscillazione nella regione medio-alta",
+        "swing_upmost": "Oscillazione nella regione più alta"
+      }
+    },
+    "swing_horizontal_modes": {
+      "options": {
+        "default": "Predefinito",
+        "swing_full": "Oscillazione completa",
+        "fixed_leftmost": "Fisso in posizione più a sinistra",
+        "fixed_middle_left": "Fisso in posizione medio-sinistra",
+        "fixed_middle": "Fisso in posizione centrale",
+        "fixed_middle_right": "Fisso in posizione medio-destra",
+        "fixed_rightmost": "Fisso in posizione più a destra"
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "gree": {
+        "state_attributes": {
+          "fan_mode": {
+            "state": {
+              "auto": "Auto",
+              "low": "Basso",
+              "medium_low": "Medio-basso",
+              "medium": "Medio",
+              "medium_high": "Medio-alto",
+              "high": "Alto",
+              "turbo": "Turbo",
+              "quiet": "Silenzioso"
+            }
+          },
+          "swing_mode": {
+            "state": {
+              "default": "Predefinito",
+              "swing_full": "Oscillazione completa",
+              "fixed_upmost": "Fisso in posizione più alta",
+              "fixed_middle_up": "Fisso in posizione medio-alta",
+              "fixed_middle": "Fisso in posizione centrale",
+              "fixed_middle_low": "Fisso in posizione medio-bassa",
+              "fixed_lowest": "Fisso in posizione più bassa",
+              "swing_downmost": "Oscillazione nella regione più bassa",
+              "swing_middle_low": "Oscillazione nella regione medio-bassa",
+              "swing_middle": "Oscillazione nella regione centrale",
+              "swing_middle_up": "Oscillazione nella regione medio-alta",
+              "swing_upmost": "Oscillazione nella regione più alta"
+            }
+          },
+          "swing_horizontal_mode": {
+            "state": {
+              "default": "Predefinito",
+              "swing_full": "Oscillazione completa",
+              "fixed_leftmost": "Fisso in posizione più a sinistra",
+              "fixed_middle_left": "Fisso in posizione medio-sinistra",
+              "fixed_middle": "Fisso in posizione centrale",
+              "fixed_middle_right": "Fisso in posizione medio-destra",
+              "fixed_rightmost": "Fisso in posizione più a destra"
+            }
+          }
+        }
+      }
+    },
+    "number": {
+      "target_temp_step": {
+        "name": "Passo temperatura"
+      }
+    },
+    "select": {
+      "external_temperature_sensor": {
+        "name": "Sensore temperatura esterno"
+      }
+    },
+    "switch": {
+      "xfan": {
+        "name": "X-Fan"
+      },
+      "lights": {
+        "name": "Luci"
+      },
+      "health": {
+        "name": "Salute"
+      },
+      "powersave": {
+        "name": "Risparmio energetico"
+      },
+      "eightdegheat": {
+        "name": "Riscaldamento 8°C"
+      },
+      "sleep": {
+        "name": "Sonno"
+      },
+      "air": {
+        "name": "Aria"
+      },
+      "auto_xfan": {
+        "name": "X-Fan automatico"
+      },
+      "auto_light": {
+        "name": "Luce automatica"
+      },
+      "anti_direct_blow": {
+        "name": "Anti-soffio diretto"
+      },
+      "light_sensor": {
+        "name": "Sensore luce"
+      },
+      "beeper": {
+        "name": "Cicalino"
+      }
+    }
+  }
+}

@@ -1,0 +1,199 @@
+{
+  "config": {
+    "title": "Gree Klíma",
+    "description": "Állítsa be a Gree légkondicionálóját",
+    "step": {
+      "user": {
+        "data": {
+          "name": "Név",
+          "host": "IP-cím",
+          "port": "Port",
+          "mac": "MAC-cím",
+          "timeout": "Időtúllépés",
+          "encryption_key": "Titkosítási kulcs",
+          "uid": "UID",
+          "encryption_version": "Titkosítási verzió"
+        }
+      }
+    },
+    "data": {
+      "name": "Név",
+      "host": "IP-cím",
+      "port": "Port",
+      "mac": "MAC-cím",
+      "timeout": "Időtúllépés",
+      "hvac_modes" : "HVAC módok",
+      "fan_modes" : "Ventilátor módok",
+      "swing_modes" : "Függőleges lengési módok",
+      "swing_horizontal_modes" : "Vízszintes lengési módok",
+      "encryption_key": "Titkosítási kulcs",
+      "uid": "UID",
+      "encryption_version": "Titkosítási verzió",
+      "disable_available_check": "Elérhetőség ellenőrzésének letiltása",
+      "max_online_attempts": "Maximális online próbálkozások",
+      "temp_sensor_offset": "Hőmérséklet érzékelő eltolás"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Gree Klíma Beállítások",
+        "data": {
+          "hvac_modes" : "HVAC módok",
+          "fan_modes" : "Ventilátor módok",
+          "swing_modes" : "Függőleges lengési módok",
+          "swing_horizontal_modes" : "Vízszintes lengési módok",
+          "disable_available_check": "Elérhetőség ellenőrzésének letiltása",
+          "max_online_attempts": "Maximális online próbálkozások",
+          "temp_sensor_offset": "Hőmérséklet érzékelő eltolás"
+        }
+      }
+    }
+  },
+  "selector": {
+    "hvac_modes": {
+      "options": {
+        "auto": "Auto",
+        "cool": "Hűtés",
+        "dry": "Szárítás",
+        "fan_only": "Csak ventilátor",
+        "heat": "Fűtés",
+        "off": "Ki"
+      }
+    },
+    "fan_modes": {
+      "options": {
+        "auto": "Auto",
+        "low": "Alacsony",
+        "medium_low": "Közepesen alacsony",
+        "medium": "Közepes",
+        "medium_high": "Közepesen magas",
+        "high": "Magas",
+        "turbo": "Turbó",
+        "quiet": "Csendes"
+      }
+    },
+    "swing_modes": {
+      "options": {
+        "default": "Alapértelmezett",
+        "swing_full": "Lengés teljes tartományban",
+        "fixed_upmost": "Rögzített legfelső pozíció",
+        "fixed_middle_up": "Rögzített közép-felső pozíció",
+        "fixed_middle": "Rögzített középső pozíció",
+        "fixed_middle_low": "Rögzített közép-alsó pozíció",
+        "fixed_lowest": "Rögzített legalsó pozíció",
+        "swing_downmost": "Lengés a legalsó régióban",
+        "swing_middle_low": "Lengés a közép-alsó régióban",
+        "swing_middle": "Lengés a középső régióban",
+        "swing_middle_up": "Lengés a közép-felső régióban",
+        "swing_upmost": "Lengés a legfelső régióban"
+      }
+    },
+    "swing_horizontal_modes": {
+      "options": {
+        "default": "Alapértelmezett",
+        "swing_full": "Teljes lengés",
+        "fixed_leftmost": "Rögzített bal szélső pozíció",
+        "fixed_middle_left": "Rögzített közép-bal pozíció",
+        "fixed_middle": "Rögzített középső pozíció",
+        "fixed_middle_right": "Rögzített közép-jobb pozíció",
+        "fixed_rightmost": "Rögzített jobb szélső pozíció"
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "gree": {
+        "state_attributes": {
+          "fan_mode": {
+            "state": {
+              "auto": "Auto",
+              "low": "Alacsony",
+              "medium_low": "Közepesen alacsony",
+              "medium": "Közepes",
+              "medium_high": "Közepesen magas",
+              "high": "Magas",
+              "turbo": "Turbó",
+              "quiet": "Csendes"
+            }
+          },
+          "swing_mode": {
+            "state": {
+              "default": "Alapértelmezett",
+              "swing_full": "Lengés teljes tartományban",
+              "fixed_upmost": "Rögzített legfelső pozíció",
+              "fixed_middle_up": "Rögzített közép-felső pozíció",
+              "fixed_middle": "Rögzített középső pozíció",
+              "fixed_middle_low": "Rögzített közép-alsó pozíció",
+              "fixed_lowest": "Rögzített legalsó pozíció",
+              "swing_downmost": "Lengés a legalsó régióban",
+              "swing_middle_low": "Lengés a közép-alsó régióban",
+              "swing_middle": "Lengés a középső régióban",
+              "swing_middle_up": "Lengés a közép-felső régióban",
+              "swing_upmost": "Lengés a legfelső régióban"
+            }
+          },
+          "swing_horizontal_mode": {
+            "state": {
+              "default": "Alapértelmezett",
+              "swing_full": "Teljes lengés",
+              "fixed_leftmost": "Rögzített bal szélső pozíció",
+              "fixed_middle_left": "Rögzített közép-bal pozíció",
+              "fixed_middle": "Rögzített középső pozíció",
+              "fixed_middle_right": "Rögzített közép-jobb pozíció",
+              "fixed_rightmost": "Rögzített jobb szélső pozíció"
+            }
+          }
+        }
+      }
+    },
+    "number": {
+      "target_temp_step": {
+        "name": "Hőmérséklet lépés"
+      }
+    },
+    "select": {
+      "external_temperature_sensor": {
+        "name": "Külső hőmérséklet érzékelő"
+      }
+    },
+    "switch": {
+      "xfan": {
+        "name": "X-Fan"
+      },
+      "lights": {
+        "name": "Fény"
+      },
+      "health": {
+        "name": "Egészség"
+      },
+      "powersave": {
+        "name": "Energiatakarékosság"
+      },
+      "eightdegheat": {
+        "name": "8°C Fűtés"
+      },
+      "sleep": {
+        "name": "Alvás"
+      },
+      "air": {
+        "name": "Levegő"
+      },
+      "auto_xfan": {
+        "name": "Automatikus X-Fan"
+      },
+      "auto_light": {
+        "name": "Automatikus fény"
+      },
+      "anti_direct_blow": {
+        "name": "Közvetlen fújás ellen"
+      },
+      "light_sensor": {
+        "name": "Fényérzékelő"
+      },
+      "beeper": {
+        "name": "Csipogó"
+      }
+    }
+  }
+}
