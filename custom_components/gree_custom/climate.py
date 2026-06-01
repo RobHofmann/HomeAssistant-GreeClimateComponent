@@ -122,17 +122,39 @@ async def async_setup_entry(
         fan_modes: list[str] = (
             d[CONF_FAN_MODES] if d[CONF_FAN_MODES] is not None else DEFAULT_FAN_MODES
         )
+        fan_modes = sorted(
+            fan_modes,
+            key=lambda mode: (
+                FanSpeed[mode].value if mode in FanSpeed.__members__ else 999
+            ),
+        )
 
         swing_modes: list[str] = (
             d[CONF_SWING_MODES]
             if d[CONF_SWING_MODES] is not None
             else DEFAULT_SWING_MODES
         )
+        swing_modes = sorted(
+            swing_modes,
+            key=lambda mode: (
+                VerticalSwingMode[mode]
+                if mode in VerticalSwingMode.__members__
+                else 999
+            ),
+        )
 
         swing_horizontal_modes: list[str] = (
             d[CONF_SWING_HORIZONTAL_MODES]
             if d[CONF_SWING_HORIZONTAL_MODES] is not None
             else DEFAULT_SWING_HORIZONTAL_MODES
+        )
+        swing_horizontal_modes = sorted(
+            swing_horizontal_modes,
+            key=lambda mode: (
+                HorizontalSwingMode[mode]
+                if mode in HorizontalSwingMode.__members__
+                else 999
+            ),
         )
 
         if not hvac_modes:
