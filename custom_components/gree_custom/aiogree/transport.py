@@ -29,7 +29,7 @@ class GreeTransport:
     ) -> bytes:
         """Send a payload data to the device and reads the response."""
 
-        last_error: Exception = None
+        last_error: Exception | None = None
 
         for attempt in range(self.max_retries):
             stream: asyncio_dgram.DatagramClient | None = None
