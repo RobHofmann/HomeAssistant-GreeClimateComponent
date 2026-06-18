@@ -515,7 +515,7 @@ async def gree_set_status(
 
 async def gree_get_device_info(
     transport: GreeTransport, cipher: CipherBase | None = None
-) -> dict[str, str | None]:
+) -> dict[str, str | dict | None]:
     """Tries to retrive the device info."""
 
     data: dict = await get_result_pack(
@@ -526,7 +526,7 @@ async def gree_get_device_info(
 
     _LOGGER.debug("Got device info: %s", data)
 
-    info: dict[str, str | None] = {}
+    info: dict[str, str | dict | None] = {}
     info["raw"] = data
     info["firmware_version"], info["firmware_code"] = extract_version(data)
     info["mac"] = data.get("mac", "")

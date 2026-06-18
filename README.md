@@ -9,6 +9,7 @@ This integration connects directly to your HVAC devices via their IP address on 
 
 > [!NOTE]
 > This integration only supports the Gree UDP protocol. If you have a newer firmware/device that only communicates using the new MQTT protocol, this integration will not work.
+> Use [this](https://github.com/davo22/homeassistant-gree-cloud) for a different feature set and support for Gree Cloud
 
 For a comprehensive list of tested devices, see [Supported Devices](supported-devices.md).
 
@@ -58,14 +59,14 @@ You can also **Reconfigure** a device by changing its options. Saving any change
 
 See [`manual-configuration.yaml`](manual-configuration.yaml) for a complete configuration example with all available options and detailed comments.
 
-   Basic example:
-   ```yaml
-   gree:
-     - name: "First AC"
-       host: "192.168.1.101"
-       mac: "20-FA-BB-12-34-56"
-       encryption_version: 2
-   ```
+Basic example:
+```yaml
+gree_custom:
+  - host: "192.168.1.100"
+    mac: "20-FA-BB-12-34-56"
+    devices:
+      - device_name: "Gree AC"
+```
 
 ### Obtaining the Encryption Key
 
