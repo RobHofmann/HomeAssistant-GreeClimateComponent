@@ -141,7 +141,7 @@ class CipherV2(CipherBase):
         _LOGGER.debug("Encrypted data (V2): %s, tag='%s'", encoded, tag_encoded)
         return encoded, tag_encoded
 
-    def decrypt(self, data: str, tag: str) -> str:
+    def decrypt(self, data: str, tag: str | None) -> str:
         """Decrypt data with V2 and verify the data with the tag."""
         _LOGGER.debug("Decrypting data (V2): %s, tag=%s", data, tag)
 

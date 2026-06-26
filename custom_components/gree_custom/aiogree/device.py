@@ -333,7 +333,7 @@ class GreeDevice:
         """Sets a new local device status. Use 'update_device_status' to update the device."""
         self._new_raw_state.update(props)
 
-    def _bool_from_raw_state(self, prop: GreeProp, default: int | None = 0) -> bool:
+    def _bool_from_raw_state(self, prop: GreeProp, default: int = 0) -> bool:
         prop_value: int | None = self._get_prop_raw(prop, default)
 
         return bool(prop_value)

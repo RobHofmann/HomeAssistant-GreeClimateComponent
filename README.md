@@ -62,14 +62,14 @@ You can also **Reconfigure** a device by changing its options. Saving any change
 
 See [`manual-configuration.yaml`](manual-configuration.yaml) for a complete configuration example with all available options and detailed comments.
 
-   Basic example:
-   ```yaml
-   gree:
-     - name: "First AC"
-       host: "192.168.1.101"
-       mac: "20-FA-BB-12-34-56"
-       encryption_version: 2
-   ```
+Basic example:
+```yaml
+gree_custom:
+  - host: "192.168.1.100"
+    mac: "20-FA-BB-12-34-56"
+    devices:
+      - device_name: "Gree AC"
+```
 
 ### Obtaining the Encryption Key
 
