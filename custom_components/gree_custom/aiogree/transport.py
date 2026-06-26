@@ -23,57 +23,74 @@ class GreeTransport:
         self.max_retries = max_retries
         self.timeout = timeout
 
+        self._stream: asyncio_dgram.DatagramClient | None = None
+        self._lock: asyncio.Lock = asyncio.Lock()
+
+    async def _get_stream(self) -> asyncio_dgram.DatagramClient:
+        """Create stream once and reuse it while possible."""
+        if self._stream is None:
+            _LOGGER.debug("Creating stream for %s", self.ip_addr)
+            self._stream = await asyncio_dgram.connect((self.ip_addr, self.port))
+
+        return self._stream
+
+    async def _reset_stream(self) -> None:
+        """Safely reset UDP stream if it gets into a bad state."""
+        _LOGGER.debug("Reseting stream for %s", self.ip_addr)
+        if self._stream is not None:
+            try:
+                self._stream.close()
+            except Exception:
+                _LOGGER.exception("Could not close stream")
+            self._stream = None
+
     async def udp_request(
         self,
         data: bytes,
     ) -> bytes:
         """Send a payload data to the device and reads the response."""
 
-        last_error: Exception = None
+        last_error: Exception | None = None
 
-        for attempt in range(self.max_retries):
-            stream: asyncio_dgram.DatagramClient | None = None
-
-            try:
-                stream = await asyncio_dgram.connect((self.ip_addr, self.port))
-
-                await stream.send(data)
-
-                recv_task = asyncio.create_task(stream.recv())
+        async with self._lock:  # prevents concurrent recv/send corruption
+            for attempt in range(self.max_retries):
+                stream: asyncio_dgram.DatagramClient | None = None
 
                 try:
-                    received_data, _ = await asyncio.wait_for(recv_task, self.timeout)
-                except TimeoutError:
-                    recv_task.cancel()
-                    raise
+                    stream = await self._get_stream()
+
+                    await stream.send(data)
+
+                    received_data, _ = await asyncio.wait_for(
+                        stream.recv(), timeout=self.timeout
+                    )
+
+                except TimeoutError as err:
+                    last_error = err
+                    _LOGGER.warning(
+                        "Error communicating with %s. Attempt %d/%d",
+                        self.ip_addr,
+                        attempt + 1,
+                        self.max_retries,
+                    )
+                    await self._reset_stream()
+
+                except Exception as err:  # noqa: BLE001
+                    last_error = err
+                    _LOGGER.warning(
+                        "Error communicating with %s. Attempt %d/%d",
+                        self.ip_addr,
+                        attempt + 1,
+                        self.max_retries,
+                    )
+                    await self._reset_stream()
+
                 else:
                     return received_data
 
-            except Exception as err1:  # noqa: BLE001
-                _LOGGER.warning(
-                    "Error communicating with %s. Attempt %d/%d",
-                    self.ip_addr,
-                    attempt + 1,
-                    self.max_retries,
-                )
-                last_error = err1
-
-            finally:
-                if stream:
-                    try:
-                        stream.close()
-                    except Exception as err2:  # noqa: BLE001
-                        _LOGGER.warning(
-                            "Error communicating with %s. Attempt %d/%d",
-                            self.ip_addr,
-                            attempt + 1,
-                            self.max_retries,
-                        )
-                        last_error = err2
-
-            # Apply backoff before retrying
-            if attempt < self.max_retries - 1:
-                await asyncio.sleep(0.5 + attempt * 0.3)  # 0.5s, 0.8s, 1.1s, ...
+                # Apply backoff before retrying
+                if attempt < self.max_retries - 1:
+                    await asyncio.sleep(0.5 + attempt * 0.3)  # 0.5s, 0.8s, 1.1s, ...
 
         raise GreeConnectionError(
             f"Failed to communicate with device '{self.ip_addr}:{self.port}' after {self.max_retries} attempts"
