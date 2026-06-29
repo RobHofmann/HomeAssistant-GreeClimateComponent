@@ -1,12 +1,11 @@
 """Contains the API to interface with the Gree device."""
 
-from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import IntEnum, StrEnum, unique
 import json
 import logging
 import re
-from typing import Any, TypeVar
+from typing import Any
 
 from .cipher import CipherBase, EncryptionVersion, get_cipher
 from .const import DEFAULT_DEVICE_PORT
@@ -14,9 +13,6 @@ from .errors import GreeBindingError, GreeConnectionError, GreeError, GreeProtoc
 from .transport import GreeTransport, async_udp_broadcast_request
 
 _LOGGER = logging.getLogger(__name__)
-
-PropT = TypeVar("PropT", bound=StrEnum)
-PropValueT = TypeVar("PropValueT")
 
 
 class GreeProp(StrEnum):
@@ -89,41 +85,9 @@ class GreeProp(StrEnum):
 PROP_KEY_TO_ENUM = {prop.value: prop for prop in GreeProp}
 
 
-class AllProps(StrEnum):
-    """Enumeration of Gree device properties."""
+class OtherProps(StrEnum):
+    """Enumeration of other Gree device properties."""
 
-    POWER = "Pow"
-    OP_MODE = "Mod"
-    BEEPER = "Buzzer_ON_OFF"
-    BEEPER_NEW = "BuzzerCtrl"
-
-    FAN_SPEED = "WdSpd"
-    SWING_HORIZONTAL = "SwingLfRig"
-    SWING_VERTICAL = "SwUpDn"
-
-    TARGET_TEMPERATURE = "SetTem"
-    TARGET_TEMPERATURE_BIT = "TemRec"
-    TARGET_TEMPERATURE_UNIT = "TemUn"
-
-    FEAT_QUIET_MODE = "Quiet"
-    FEAT_TURBO_MODE = "Tur"
-    FEAT_FRESH_AIR = "Air"
-    FEAT_XFAN = "Blo"
-    FEAT_HEALTH = "Health"
-    FEAT_SLEEP_MODE_SWING = "SwhSlp"
-    FEAT_SLEEP_MODE = "SlpMod"
-    FEAT_LIGHT = "Lig"
-    FEAT_SMART_HEAT_8C = "StHt"
-    FEAT_ENERGY_SAVING = "SvSt"
-    FEAT_ANTI_DIRECT_BLOW = "AntiDirectBlow"
-    FEAT_SENSOR_LIGHT = "LigSen"
-
-    SENSOR_TEMPERATURE = "TemSen"
-    SENSOR_OUTSIDE_TEMPERATURE = "OutEnvTem"
-    SENSOR_HUMIDITY = "DwatSen"
-    SENSOR_FAULT = "FaultDisplay"
-
-    _UNKN_HEAT_COOL_TYPE = "HeatCoolType"
     _UNKN_MODEL = "ModelType"
     _UNKN_ACStupPos = "ACStupPos"
     _UNKN_ActiveTime = "ActiveTime"
@@ -364,9 +328,6 @@ class AllProps(StrEnum):
     # # INVALID
     # _INV_MafIdf = "MafIdf"
     # _INV_DevId = "DevID"
-
-
-ALLPROP_KEY_TO_ENUM = {prop.value: prop for prop in AllProps}
 
 
 @unique
@@ -696,12 +657,10 @@ async def gree_get_status(
     mac_addr_controller: str,
     mac_addr: str,
     uid: int,
-    props: list[PropT],
-    propkey_to_enum: Mapping[str, PropT],
+    props: list[str],
     cipher: CipherBase,
     transport: GreeTransport,
-    value_parser: Callable[[str], PropValueT] = int,
-) -> tuple[dict[PropT, PropValueT], list[PropT]]:
+) -> tuple[dict[str, str], list[str]]:
     """Get the status of the device by sending a status request to the device (async). Also returns the props not present.
 
     Gree Protocol is a best-effort key/value response with no guaranteed completeness
@@ -719,11 +678,15 @@ async def gree_get_status(
     As such, it is only safe to batch props that are known to work.
     """
 
-    _LOGGER.debug("Trying to get device status")
+    _LOGGER.debug("Getting status for device '%s'", mac_addr)
 
-    pack = gree_create_status_pack(mac_addr, [prop.value for prop in props])
+    pack = gree_create_status_pack(mac_addr, props)
     encrypted_pack, tag = gree_encrypt_pack(pack, cipher)
+
     # WARNING: My device does not respond if the encrypted_pack is more that 1024 bytes
+    if len(encrypted_pack.encode("utf-8")) > 1024:
+        _LOGGER.warning("Pack length is over 1024 bytes")
+
     json_payload = gree_create_payload(
         encrypted_pack, "pack", GreeCommand.STATUS, mac_addr_controller, uid, tag
     )
@@ -746,30 +709,28 @@ async def gree_get_status(
     if len(cols) != len(dat):
         if len(cols) == 1:
             # if there is a single prop without value, add to missing
+            _LOGGER.error(
+                "Device '%s' was queried for invalid prop: %s", mac_addr, cols
+            )
             return {}, [cols]
 
         raise GreeProtocolError(f"Malformed response: cols={len(cols)} dat={len(dat)}")
 
-    status_values: dict[PropT, PropValueT] = {}
-    returned_props: set[PropT] = set()
+    status_values: dict[str, str] = {}
+    returned_props: set[str] = set()
 
-    for key, raw in zip(cols, dat, strict=True):
-        if key not in propkey_to_enum:
-            _LOGGER.debug("Ignoring unknown property key: %s", key)
-            continue
-
-        prop = propkey_to_enum[key]
+    for prop, value in zip(cols, dat, strict=True):
         returned_props.add(prop)
-
-        try:
-            status_values[prop] = value_parser(raw)
-        except Exception:
-            _LOGGER.exception("Failed to parse %s=%r. Skipping", prop, raw)
+        status_values[prop] = value
 
     invalid_props = [p for p in props if p not in returned_props]
 
-    _LOGGER.debug("Device status values: %s", status_values)
+    _LOGGER.debug("Got status for device '%s': %s", mac_addr, status_values)
 
+    if len(invalid_props) > 0:
+        _LOGGER.error(
+            "Device '%s' was queried for invalid props: %s", mac_addr, invalid_props
+        )
     return status_values, invalid_props
 
 
