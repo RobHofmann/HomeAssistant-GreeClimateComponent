@@ -1,9 +1,13 @@
 """Contains the API to interface with the Gree device."""
 
+from itertools import islice
 import logging
 from typing import Any
 
 from .api import (
+    ALLPROP_KEY_TO_ENUM,
+    PROP_KEY_TO_ENUM,
+    AllProps,
     EncryptionVersion,
     FanSpeed,
     GreeDiscoveredDevice,
@@ -31,6 +35,13 @@ from .helpers import (
 from .transport import GreeTransport
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def chunked(iterable, size):
+    """Creates chunks of data."""
+    it = iter(iterable)
+    while chunk := list(islice(it, size)):
+        yield chunk
 
 
 class GreeDevice:
@@ -151,7 +162,7 @@ class GreeDevice:
 
         return True
 
-    async def fetch_device_info(self, cipher: CipherBase = None):
+    async def fetch_device_info(self, cipher: CipherBase | None = None):
         """Updates the device info fields."""
         try:
             self._raw_info = await gree_get_device_info(
@@ -246,6 +257,7 @@ class GreeDevice:
                 self._mac_addr,
                 self._uid,
                 self._props_to_update,
+                PROP_KEY_TO_ENUM,
                 self._cipher,
                 self._transport,
             )
@@ -324,7 +336,7 @@ class GreeDevice:
     def _bool_from_raw_state(self, prop: GreeProp, default: int = 0) -> bool:
         prop_value: int | None = self._get_prop_raw(prop, default)
 
-        return None if prop_value is None else bool(prop_value)
+        return bool(prop_value)
 
     def _remove_unsupported_props(self):
         """Remove unsupported properties from the list to update."""
@@ -442,6 +454,36 @@ class GreeDevice:
 
         return data
 
+    async def gather_prop_dump(
+        self, request_batch: int = 50
+    ) -> tuple[dict[AllProps, str], list[AllProps]]:
+        """Dumps all possible props to the log."""
+        props_to_update: list[AllProps] = list(AllProps)
+        combined_state: dict[AllProps, str] = {}
+        combined_missing: list[AllProps] = []
+
+        assert self._cipher is not None
+
+        for props_chunk in chunked(props_to_update, request_batch):
+            state, missing = await gree_get_status(
+                self._mac_addr_controller,
+                self._mac_addr,
+                self._uid,
+                props_chunk,
+                ALLPROP_KEY_TO_ENUM,
+                self._cipher,
+                self._transport,
+                str,
+            )
+            combined_state.update(state)
+            if len(missing) != 0:
+                combined_missing.extend(missing)
+
+        _LOGGER.info("%s STATE: %s", self._mac_addr, combined_state)
+        _LOGGER.info("%s MISSING_PROPS: %s", self._mac_addr, combined_missing)
+
+        return combined_state, combined_missing
+
     def supports_property(self, property: GreeProp) -> bool:
         """Returns True if the device endpoint supports the property."""
         # We consider a property as unsupported if it is not present in the raw state list
@@ -510,9 +552,9 @@ class GreeDevice:
         return self._is_bound
 
     @property
-    def has_hvac_error(self) -> bool | None:
+    def has_hvac_error(self) -> bool:
         """Return if there is an error with the device."""
-        return self._bool_from_raw_state(GreeProp.FAULT, None)
+        return self._bool_from_raw_state(GreeProp.SENSOR_FAULT)
 
     @property
     def beeper(self) -> bool:

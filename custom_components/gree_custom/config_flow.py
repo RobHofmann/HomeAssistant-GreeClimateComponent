@@ -301,7 +301,7 @@ def build_options_schema(
         valid_features.append(GATTR_ANTI_DIRECT_BLOW)
     if device.supports_property(GreeProp.FEAT_ENERGY_SAVING):
         valid_features.append(GATTR_FEAT_ENERGY_SAVING)
-    if device.supports_property(GreeProp.FAULT):
+    if device.supports_property(GreeProp.SENSOR_FAULT):
         valid_features.append(GATTR_FAULTS)
 
     schema.update(
