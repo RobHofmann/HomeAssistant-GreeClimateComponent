@@ -1,12 +1,12 @@
 """Contains the API to interface with the Gree device."""
 
-from collections.abc import Callable, Mapping
-from dataclasses import dataclass
-from enum import IntEnum, StrEnum, unique
+from enum import Enum, IntEnum, unique
 import json
 import logging
 import re
-from typing import Any, TypeVar
+from typing import Any
+
+from attr import dataclass
 
 from .cipher import CipherBase, EncryptionVersion, get_cipher
 from .const import DEFAULT_DEVICE_PORT
@@ -15,11 +15,8 @@ from .transport import GreeTransport, async_udp_broadcast_request
 
 _LOGGER = logging.getLogger(__name__)
 
-PropT = TypeVar("PropT", bound=StrEnum)
-PropValueT = TypeVar("PropValueT")
 
-
-class GreeProp(StrEnum):
+class GreeProp(Enum):
     """Enumeration of Gree device properties."""
 
     # HVAC CONTROLS
@@ -27,25 +24,23 @@ class GreeProp(StrEnum):
     POWER = "Pow"
     # mode of operation
     OP_MODE = "Mod"
-
     # fan speed mode
     FAN_SPEED = "WdSpd"
-    # the swing mode of the horizontal air blades (available on limited number of devices)
-    SWING_HORIZONTAL = "SwingLfRig"
-    # the swing mode of the vertical air blades
-    SWING_VERTICAL = "SwUpDn"
-
     # target temperature
     TARGET_TEMPERATURE = "SetTem"
     # used to distinguish between Fahrenheit values
     TARGET_TEMPERATURE_BIT = "TemRec"
     # defines the unit of temperature for the target temperature
     TARGET_TEMPERATURE_UNIT = "TemUn"
-
+    # the swing mode of the horizontal air blades (available on limited number of devices)
+    SWING_HORIZONTAL = "SwingLfRig"
+    # the swing mode of the vertical air blades
+    SWING_VERTICAL = "SwUpDn"
     # Quiet mode which slows down the fan to its most quiet speed. Not available in Dry and Fan mode.
     FEAT_QUIET_MODE = "Quiet"
     # Turbo mode sets fan speed to the maximum. Fan speed cannot be changed while active and only available in Dry and Cool mode
     FEAT_TURBO_MODE = "Tur"
+
     # OPTIONAL FEATURES/MODES
     # controls the state of the fresh air valve (not available on all units)
     FEAT_FRESH_AIR = "Air"
@@ -74,299 +69,18 @@ class GreeProp(StrEnum):
     SENSOR_OUTSIDE_TEMPERATURE = "OutEnvTem"
     # indoor humidity sensor, used to read the current room humidity, if available
     SENSOR_HUMIDITY = "DwatSen"
-    # error display. 0 if no error, otherwise error
-    SENSOR_FAULT = "FaultDisplay"
 
     # OTHER
     _UNKNOWN_HEAT_COOL_TYPE = "HeatCoolType"
-
     # If set to 0 the unit will beep on every command
     BEEPER = "Buzzer_ON_OFF"
     # If set to 1 the unit will beep on every command (available on newer firmwares)
     BEEPER_NEW = "BuzzerCtrl"
 
-
-PROP_KEY_TO_ENUM = {prop.value: prop for prop in GreeProp}
-
-
-class AllProps(StrEnum):
-    """Enumeration of Gree device properties."""
-
-    POWER = "Pow"
-    OP_MODE = "Mod"
-    BEEPER = "Buzzer_ON_OFF"
-    BEEPER_NEW = "BuzzerCtrl"
-
-    FAN_SPEED = "WdSpd"
-    SWING_HORIZONTAL = "SwingLfRig"
-    SWING_VERTICAL = "SwUpDn"
-
-    TARGET_TEMPERATURE = "SetTem"
-    TARGET_TEMPERATURE_BIT = "TemRec"
-    TARGET_TEMPERATURE_UNIT = "TemUn"
-
-    FEAT_QUIET_MODE = "Quiet"
-    FEAT_TURBO_MODE = "Tur"
-    FEAT_FRESH_AIR = "Air"
-    FEAT_XFAN = "Blo"
-    FEAT_HEALTH = "Health"
-    FEAT_SLEEP_MODE_SWING = "SwhSlp"
-    FEAT_SLEEP_MODE = "SlpMod"
-    FEAT_LIGHT = "Lig"
-    FEAT_SMART_HEAT_8C = "StHt"
-    FEAT_ENERGY_SAVING = "SvSt"
-    FEAT_ANTI_DIRECT_BLOW = "AntiDirectBlow"
-    FEAT_SENSOR_LIGHT = "LigSen"
-
-    SENSOR_TEMPERATURE = "TemSen"
-    SENSOR_OUTSIDE_TEMPERATURE = "OutEnvTem"
-    SENSOR_HUMIDITY = "DwatSen"
-    SENSOR_FAULT = "FaultDisplay"
-
-    _UNKN_HEAT_COOL_TYPE = "HeatCoolType"
-    _UNKN_MODEL = "ModelType"
-    _UNKN_ACStupPos = "ACStupPos"
-    _UNKN_ActiveTime = "ActiveTime"
-    _UNKN_Add0_1 = "Add0.1"
-    _UNKN_Add0_5 = "Add0.5"
-    _UNKN_AirQ = "AirQ"
-    _UNKN_AllErr = "AllErr"
-    _UNKN_Antifreeze = "Antifreeze"
-    _UNKN_AssHt = "AssHt"
-    _UNKN_AutoClean = "AutoClean"
-    _UNKN_AutoComnCloud = "AutoComnCloud"
-    _UNKN_AutoUpdate = "AutoUpdate"
-    _UNKN_BlkTemCom = "BlkTemCom"
-    _UNKN_ChildLock = "ChildLock"
-    _UNKN_CO2 = "CO2"
-    _UNKN_CO2Level = "CO2Level"
-    _UNKN_CommErr = "CommErr"
-    _UNKN_CompressorFqy = "CompressorFqy"
-    _UNKN_CompressorTem = "CompressorTem"
-    _UNKN_Coolmod = "Coolmod"
-    _UNKN_CoolNoise = "CoolNoise"
-    _UNKN_CoolSvStTemMin = "CoolSvStTemMin"
-    _UNKN_CpsTem = "CpsTem"
-    _UNKN_CurTmHor = "CurTmHor"
-    _UNKN_CurTmMin = "CurTmMin"
-    _UNKN_Dazzling = "Dazzling"
-    _UNKN_Defrost = "Defrost"
-    _UNKN_Dfltr = "Dfltr"
-    _UNKN_DFPoint = "DFPoint"
-    _UNKN_DIYGra1PoiAmo = "DIYGra1PoiAmo"
-    _UNKN_Dmod = "Dmod"
-    _UNKN_DnPLLRSwing = "DnPLLRSwing"
-    _UNKN_DnPRLRSwing = "DnPRLRSwing"
-    _UNKN_DnPUDSwing = "DnPUDSwing"
-    _UNKN_Dpump = "Dpump"
-    _UNKN_DsplySt = "DsplySt"
-    _UNKN_DwatFul = "DwatFul"
-    _UNKN_Dwet = "Dwet"
-    _UNKN_Elc1Kwh = "Elc1Kwh"
-    _UNKN_ElcAllKwhClr = "ElcAllKwhClr"
-    _UNKN_ElcAllKwhH = "ElcAllKwhH"
-    _UNKN_ElcAllKwhL = "ElcAllKwhL"
-    _UNKN_ElcDatDte = "ElcDatDte"
-    _UNKN_ElcDatHor = "ElcDatHor"
-    _UNKN_ElcDatMth = "ElcDatMth"
-    _UNKN_ElcErg = "ElcErg"
-    _UNKN_ElcGear = "ElcGear"
-    _UNKN_ElcOnKwh = "ElcOnKwh"
-    _UNKN_ElcP = "ElcP"
-    _UNKN_Emod = "Emod"
-    _UNKN_EnergyFlow = "EnergyFlow"
-    _UNKN_EnvArea1St = "EnvArea1St"
-    _UNKN_EnvArea2St = "EnvArea2St"
-    _UNKN_EnvArea3St = "EnvArea3St"
-    _UNKN_EnvArea4St = "EnvArea4St"
-    _UNKN_EnvArea5St = "EnvArea5St"
-    _UNKN_EnvArea6St = "EnvArea6St"
-    _UNKN_EnvArea7St = "EnvArea7St"
-    _UNKN_EnvArea8St = "EnvArea8St"
-    _UNKN_EnvArea9St = "EnvArea9St"
-    _UNKN_EnvFun = "EnvFun"
-    _UNKN_EvapClr = "EvapClr"
-    _UNKN_FanMod = "FanMod"
-    _UNKN_FavorMode = "FavorMode"
-    _UNKN_FbidBloPer = "FbidBloPer"
-    _UNKN_GasAvail = "GasAvail"
-    _UNKN_GasLED = "GasLED"
-    _UNKN_GasMas = "GasMas"
-    _UNKN_GasMod = "GasMod"
-    _UNKN_GasN = "GasN"
-    _UNKN_GetEr = "GetEr"
-    _UNKN_HabitLearn = "HabitLearn"
-    _UNKN_HandCtl = "HandCtl"
-    _UNKN_HasTmr = "HasTmr"
-    _UNKN_HeatCool = "HeatCool"
-    _UNKN_HeatNoise = "HeatNoise"
-    _UNKN_HeatSvStTemMax = "HeatSvStTemMax"
-    _UNKN_HumiSvStTemMin = "HumiSvStTemMin"
-    _UNKN_HumSen = "HumSen"
-    _UNKN_HumSor = "HumSor"
-    _UNKN_IDUAirQu = "IDUAirQu"
-    _UNKN_ImageRecovery = "ImageRecovery"
-    _UNKN_ImgUpdateCol = "ImgUpdateCol"
-    _UNKN_ImgUpdateFail = "ImgUpdateFail"
-    _UNKN_ImgUpdateSta = "ImgUpdateSta"
-    _UNKN_ImgUpdateSucs = "ImgUpdateSucs"
-    _UNKN_ImgVerSta = "ImgVerSta"
-    _UNKN_InEvaTem = "InEvaTem"
-    _UNKN_InHid = "InHid"
-    _UNKN_InHidDownPer = "InHidDownPer"
-    _UNKN_InHidSvrVer = "InHidSvrVer"
-    _UNKN_JFErrorCode = "JFErrorCode"
-    _UNKN_LedLig = "LedLig"
-    _UNKN_LTemDry = "LTemDry"
-    _UNKN_MaeS = "MaeS"
-    _UNKN_MakeWat = "MakeWat"
-    _UNKN_MasIDUMod = "MasIDUMod"
-    _UNKN_MasSub = "MasSub"
-    _UNKN_MicroSen = "MicroSen"
-    _UNKN_MidType = "MidType"
-    _UNKN_ModS = "ModS"
-    _UNKN_NewTimer = "NewTimer"
-    _UNKN_NewTimerSet = "NewTimerSet"
-    _UNKN_NobodySave = "NobodySave"
-    _UNKN_NoD = "NoD"
-    _UNKN_NoiseSet = "NoiseSet"
-    _UNKN_ODUViti = "ODUViti"
-    _UNKN_OEEPHid = "OEEPHid"
-    _UNKN_OEEPHidDownPer = "OEEPHidDownPer"
-    _UNKN_OEEPHidSvrVer = "OEEPHidSvrVer"
-    _UNKN_PctCle = "PctCle"
-    _UNKN_PctCleOnTm = "PctCleOnTm"
-    _UNKN_PctCleSetTm = "PctCleSetTm"
-    _UNKN_PctRe = "PctRe"
-    _UNKN_PM2P5 = "PM2P5"
-    _UNKN_PM2P5Sta = "PM2P5Sta"
-    _UNKN_PM2P5V = "PM2P5V"
-    _UNKN_PMVComfort = "PMVComfort"
-    _UNKN_Purify = "Purify"
-    _UNKN_RemWarnLig = "RemWarnLig"
-    _UNKN_ReplaceHEPA = "ReplaceHEPA"
-    _UNKN_ReportCtrl = "ReportCtrl"
-    _UNKN_ReportFreq = "ReportFreq"
-    _UNKN_ReportInterval = "ReportInterval"
-    _UNKN_RoomHigh = "RoomHigh"
-    _UNKN_RoomLen = "RoomLen"
-    _UNKN_RoomWid = "RoomWid"
-    _UNKN_SaveGuid = "SaveGuid"
-    _UNKN_Security = "Security"
-    _UNKN_SecurityMode = "SecurityMode"
-    _UNKN_Sfog = "Sfog"
-    _UNKN_Slp1H1 = "Slp1H1"
-    _UNKN_Slp1H2 = "Slp1H2"
-    _UNKN_Slp1H3 = "Slp1H3"
-    _UNKN_Slp1H4 = "Slp1H4"
-    _UNKN_Slp1H5 = "Slp1H5"
-    _UNKN_Slp1H6 = "Slp1H6"
-    _UNKN_Slp1H7 = "Slp1H7"
-    _UNKN_Slp1H8 = "Slp1H8"
-    _UNKN_Slp1L1 = "Slp1L1"
-    _UNKN_Slp1L2 = "Slp1L2"
-    _UNKN_Slp1L3 = "Slp1L3"
-    _UNKN_Slp1L4 = "Slp1L4"
-    _UNKN_Slp1L5 = "Slp1L5"
-    _UNKN_Slp1L6 = "Slp1L6"
-    _UNKN_Slp1L7 = "Slp1L7"
-    _UNKN_Slp1L8 = "Slp1L8"
-    _UNKN_SmartMod = "SmartMod"
-    _UNKN_SmartSlpMod = "SmartSlpMod"
-    _UNKN_SmartSlpModEx = "SmartSlpModEx"
-    _UNKN_SmartWind = "SmartWind"
-    _UNKN_Smod = "Smod"
-    _UNKN_SorErr = "SorErr"
-    _UNKN_Srst = "Srst"
-    _UNKN_SrstAF = "SrstAF"
-    _UNKN_SrstCF = "SrstCF"
-    _UNKN_SrstPF = "SrstPF"
-    _UNKN_SrstPP = "SrstPP"
-    _UNKN_SrstRF = "SrstRF"
-    _UNKN_StSlp1C = "StSlp1C"
-    _UNKN_StSlp1CInc = "StSlp1CInc"
-    _UNKN_StSlp1CSp = "StSlp1CSp"
-    _UNKN_StSlp1H = "StSlp1H"
-    _UNKN_StSlp1HInc = "StSlp1HInc"
-    _UNKN_StSlp1HSp = "StSlp1HSp"
-    _UNKN_StSlp2C = "StSlp2C"
-    _UNKN_StSlp2CInc = "StSlp2CInc"
-    _UNKN_StSlp2CSp = "StSlp2CSp"
-    _UNKN_StSlp2H = "StSlp2H"
-    _UNKN_StSlp2HInc = "StSlp2HInc"
-    _UNKN_StSlp2HSp = "StSlp2HSp"
-    _UNKN_StSlp3C = "StSlp3C"
-    _UNKN_StSlp3CInc = "StSlp3CInc"
-    _UNKN_StSlp3CSp = "StSlp3CSp"
-    _UNKN_StSlp3H = "StSlp3H"
-    _UNKN_StSlp3HInc = "StSlp3HInc"
-    _UNKN_StSlp3HSp = "StSlp3HSp"
-    _UNKN_StSlp4C = "StSlp4C"
-    _UNKN_StSlp4CInc = "StSlp4CInc"
-    _UNKN_StSlp4CSp = "StSlp4CSp"
-    _UNKN_StSlp4H = "StSlp4H"
-    _UNKN_StSlp4HInc = "StSlp4HInc"
-    _UNKN_StSlp4HSp = "StSlp4HSp"
-    _UNKN_StTmr = "StTmr"
-    _UNKN_Swash = "Swash"
-    _UNKN_Swat = "Swat"
-    _UNKN_SwhDIYGra1 = "SwhDIYGra1"
-    _UNKN_SwhFreAir = "SwhFreAir"
-    _UNKN_SwhSw = "SwhSw"
-    _UNKN_SwhWifi = "SwhWifi"
-    _UNKN_SwhWifiCo = "SwhWifiCo"
-    _UNKN_SwhWifiRe = "SwhWifiRe"
-    _UNKN_TemSor = "TemSor"
-    _UNKN_TemsSenOut = "TemsSenOut"
-    _UNKN_TmrLpTms = "TmrLpTms"
-    _UNKN_TmrOff = "TmrOff"
-    _UNKN_TmrOffHorLf = "TmrOffHorLf"
-    _UNKN_TmrOffMinLf = "TmrOffMinLf"
-    _UNKN_TmrOn = "TmrOn"
-    _UNKN_TmrOnHorLf = "TmrOnHorLf"
-    _UNKN_TmrOnMinLf = "TmrOnMinLf"
-    _UNKN_UDFanPort = "UDFanPort"
-    _UNKN_UnmanedOffTime = "UnmanedOffTime"
-    _UNKN_UnmanedShutDown = "UnmanedShutDown"
-    _UNKN_UvcControl = "UvcControl"
-    _UNKN_Video = "Video"
-    _UNKN_VitiGr = "VitiGr"
-    _UNKN_VOC = "VOC"
-    _UNKN_VocCtl = "VocCtl"
-    _UNKN_VocIdiom = "VocIdiom"
-    _UNKN_VocRole = "VocRole"
-    _UNKN_VocUpdateCol = "VocUpdateCol"
-    _UNKN_VocUpdateRes = "VocUpdateRes"
-    _UNKN_VocUpdateSta = "VocUpdateSta"
-    _UNKN_VocVerSta = "VocVerSta"
-    _UNKN_WatErr = "WatErr"
-    _UNKN_WatTmp = "WatTmp"
-    _UNKN_Werr = "Werr"
-    _UNKN_Wet = "Wet"
-    _UNKN_Wmod = "Wmod"
-    _UNKN_WschOff = "WschOff"
-    _UNKN_WschOffMin = "WschOffMin"
-    _UNKN_WschOn = "WschOn"
-    _UNKN_WschOnMin = "WschOnMin"
-    _UNKN_WsenNub = "WsenNub"
-    _UNKN_WsenTmpH = "WsenTmpH"
-    _UNKN_WsenTmpL = "WsenTmpL"
-    _UNKN_WsenTmpM = "WsenTmpM"
-    _UNKN_WsetTmp = "WsetTmp"
-    _UNKN_WstpH = "WstpH"
-    _UNKN_WstpSv = "WstpSv"
-    _UNKN_Wtmr1 = "Wtmr1"
-    _UNKN_Wtmr1Min = "Wtmr1Min"
-    _UNKN_Wtmr2 = "Wtmr2"
-    _UNKN_Wtmr2Min = "Wtmr2Min"
-    _UNKN_Wtmr3 = "Wtmr3"
-    _UNKN_Wtmr3Min = "Wtmr3Min"
-    # # INVALID
-    # _INV_MafIdf = "MafIdf"
-    # _INV_DevId = "DevID"
-
-
-ALLPROP_KEY_TO_ENUM = {prop.value: prop for prop in AllProps}
+    # EXPERIMENTAL
+    # error display. 0 if no error, otherwise error
+    FAULT = "FaultDisplay"
+    # MODEL = "ModelType"
 
 
 @unique
@@ -450,6 +164,9 @@ class GreeDiscoveredDevice:
     model: str
     uid: int
     subdevices: int
+
+
+propkey_to_enum = {prop.value: prop for prop in GreeProp}
 
 
 async def get_result_pack(
@@ -696,34 +413,18 @@ async def gree_get_status(
     mac_addr_controller: str,
     mac_addr: str,
     uid: int,
-    props: list[PropT],
-    propkey_to_enum: Mapping[str, PropT],
+    props: list[GreeProp],
     cipher: CipherBase,
     transport: GreeTransport,
-    value_parser: Callable[[str], PropValueT] = int,
-) -> tuple[dict[PropT, PropValueT], list[PropT]]:
-    """Get the status of the device by sending a status request to the device (async). Also returns the props not present.
-
-    Gree Protocol is a best-effort key/value response with no guaranteed completeness
-
-    If a invalid prop is requested the response will not have it which is good
-    However, some "invalid" props are returned in the response with no data, making it impossible to know in a batch where they are
-    Note: Invalid != Unsupported
-
-    Meaning:
-
-    cols = what the device claims it is returning
-    dat = best-effort values, possibly incomplete
-    alignment between them is not guaranteed globally
-
-    As such, it is only safe to batch props that are known to work.
-    """
+) -> tuple[dict[GreeProp, int], list[GreeProp]]:
+    """Get the status of the device by sending a status request to the device (async). Also returns the props not present."""
 
     _LOGGER.debug("Trying to get device status")
 
+    status_values_raw: dict[GreeProp, int | None] = {}
+
     pack = gree_create_status_pack(mac_addr, [prop.value for prop in props])
     encrypted_pack, tag = gree_encrypt_pack(pack, cipher)
-    # WARNING: My device does not respond if the encrypted_pack is more that 1024 bytes
     json_payload = gree_create_payload(
         encrypted_pack, "pack", GreeCommand.STATUS, mac_addr_controller, uid, tag
     )
@@ -737,40 +438,17 @@ async def gree_get_status(
     except Exception as err:
         raise GreeProtocolError("Error getting device status") from err
 
-    cols = result.get("cols")
-    dat = result.get("dat")
-
-    if cols is None or dat is None:
+    if result["cols"] is None or result["dat"] is None:
         raise GreeProtocolError("No data received while getting device status")
 
-    if len(cols) != len(dat):
-        if len(cols) == 1:
-            # if there is a single prop without value, add to missing
-            return {}, [cols]
+    cols = [propkey_to_enum[c] for c in result["cols"] if c in propkey_to_enum]
+    values = [int(x) if x != "" else None for x in result["dat"]]
+    status_values_raw = dict(zip(cols, values, strict=True))
 
-        raise GreeProtocolError(f"Malformed response: cols={len(cols)} dat={len(dat)}")
-
-    status_values: dict[PropT, PropValueT] = {}
-    returned_props: set[PropT] = set()
-
-    for key, raw in zip(cols, dat, strict=True):
-        if key not in propkey_to_enum:
-            _LOGGER.debug("Ignoring unknown property key: %s", key)
-            continue
-
-        prop = propkey_to_enum[key]
-        returned_props.add(prop)
-
-        try:
-            status_values[prop] = value_parser(raw)
-        except Exception:
-            _LOGGER.exception("Failed to parse %s=%r. Skipping", prop, raw)
-
-    invalid_props = [p for p in props if p not in returned_props]
-
+    status_values = {k: v for k, v in status_values_raw.items() if v is not None}
     _LOGGER.debug("Device status values: %s", status_values)
 
-    return status_values, invalid_props
+    return status_values, [p for p in props if p not in status_values]
 
 
 async def gree_set_status(
@@ -805,7 +483,7 @@ async def gree_set_status(
             f"Error setting device status, response code: {result['r']}"
         )
 
-    options_set = [PROP_KEY_TO_ENUM[c] for c in result["opt"] if c in PROP_KEY_TO_ENUM]
+    options_set = [propkey_to_enum[c] for c in result["opt"] if c in propkey_to_enum]
     if options_set is None or len(options_set) == 0:
         raise GreeProtocolError("No options were set, something went wrong")
 
@@ -837,7 +515,7 @@ async def gree_set_status(
 
 async def gree_get_device_info(
     transport: GreeTransport, cipher: CipherBase | None = None
-) -> dict[str, str | dict | None]:
+) -> dict[str, str | None]:
     """Tries to retrive the device info."""
 
     data: dict = await get_result_pack(
@@ -848,7 +526,7 @@ async def gree_get_device_info(
 
     _LOGGER.debug("Got device info: %s", data)
 
-    info: dict[str, str | dict | None] = {}
+    info: dict[str, str | None] = {}
     info["raw"] = data
     info["firmware_version"], info["firmware_code"] = extract_version(data)
     info["mac"] = data.get("mac", "")

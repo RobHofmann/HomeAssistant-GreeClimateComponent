@@ -99,7 +99,7 @@ CONF_TO_PROP_FEATURE_MAP = {
     GATTR_ANTI_DIRECT_BLOW: GreeProp.FEAT_ANTI_DIRECT_BLOW,
     GATTR_FEAT_ENERGY_SAVING: GreeProp.FEAT_ENERGY_SAVING,
     GATTR_FEAT_LIGHT: GreeProp.FEAT_LIGHT,
-    GATTR_FAULTS: GreeProp.SENSOR_FAULT,
+    GATTR_FAULTS: GreeProp.FAULT,
 }
 
 # HVAC modes - these come from Home Assistant and are standard
