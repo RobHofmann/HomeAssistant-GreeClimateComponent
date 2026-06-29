@@ -1,7 +1,5 @@
 """Gree climate integration init."""
 
-from __future__ import annotations
-
 # Standard library imports
 import logging
 
@@ -44,6 +42,7 @@ from .const import (
 # Home Assistant imports
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .helpers import try_find_new_ip
+from .services import async_setup_services
 
 PLATFORMS = [
     Platform.BINARY_SENSOR,
@@ -52,20 +51,22 @@ PLATFORMS = [
     Platform.SENSOR,
     Platform.SWITCH,
 ]
+
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up the Gree component from yaml."""
-    if DOMAIN not in config:
-        return True
+    """Set up the Gree component."""
 
-    for climate_config in config[DOMAIN]:
+    async_setup_services(hass)
+
+    # Setup YAML entries
+    for gree_config in config.get(DOMAIN, []):
         hass.async_create_task(
             hass.config_entries.flow.async_init(
                 DOMAIN,
                 context={"source": "import"},
-                data=climate_config,
+                data=gree_config,
             )
         )
 

@@ -680,6 +680,9 @@ async def gree_get_status(
 
     _LOGGER.debug("Getting status for device '%s'", mac_addr)
 
+    # Filter empty, none and white spaces
+    props = [p for p in props if p is not None and p.strip()]
+
     pack = gree_create_status_pack(mac_addr, props)
     encrypted_pack, tag = gree_encrypt_pack(pack, cipher)
 

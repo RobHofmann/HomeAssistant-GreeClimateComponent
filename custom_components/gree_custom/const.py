@@ -88,6 +88,8 @@ ATTR_EXTERNAL_HUMIDITY_SENSOR = "external_humidity_sensor"
 ATTR_AUTO_XFAN = "auto_xfan"
 ATTR_AUTO_LIGHT = "auto_light"
 
+ATTR_SVC_PROPS = "prop_list"
+
 # Map each feature constant to its corresponding GreeProp
 CONF_TO_PROP_FEATURE_MAP = {
     GATTR_BEEPER: GreeProp.BEEPER,

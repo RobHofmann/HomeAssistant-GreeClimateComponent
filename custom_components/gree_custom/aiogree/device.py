@@ -440,7 +440,7 @@ class GreeDevice:
         return data
 
     async def query_props(
-        self, props: list[str], request_batch: int = 1
+        self, props: list[str], request_batch: int = 1, error_as_missing: bool = False
     ) -> tuple[dict[str, str], list[str]]:
         """Query the value of the given props."""
 
@@ -453,22 +453,29 @@ class GreeDevice:
         assert self._cipher is not None
 
         for props_chunk in chunked(props, request_batch):
-            state, missing = await gree_get_status(
-                self._mac_addr_controller,
-                self._mac_addr,
-                self._uid,
-                props_chunk,
-                self._cipher,
-                self._transport,
-            )
-            combined_state.update(state)
-            if len(missing) != 0:
-                combined_missing.extend(missing)
+            try:
+                state, missing = await gree_get_status(
+                    self._mac_addr_controller,
+                    self._mac_addr,
+                    self._uid,
+                    props_chunk,
+                    self._cipher,
+                    self._transport,
+                )
+                combined_state.update(state)
+                if len(missing) != 0:
+                    combined_missing.extend(missing)
+
+            except Exception:
+                if error_as_missing:
+                    combined_missing.extend(props_chunk)
+                else:
+                    raise
 
         return combined_state, combined_missing
 
     async def query_props_all(
-        self, request_batch: int = 1
+        self, request_batch: int = 1, error_as_missing: bool = False
     ) -> tuple[dict[str, str], list[str]]:
         """Query all possible props to the log."""
 
@@ -477,7 +484,7 @@ class GreeDevice:
             *[prop.value for prop in OtherProps],
         ]
 
-        return await self.query_props(all_props, request_batch)
+        return await self.query_props(all_props, request_batch, error_as_missing)
 
     def supports_property(self, property: GreeProp) -> bool:
         """Returns True if the device endpoint supports the property."""

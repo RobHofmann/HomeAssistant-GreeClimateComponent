@@ -88,5 +88,13 @@
         "default": "mdi:volume-high"
       }
     }
+  },
+  "services": {
+    "get_prop_values_all": {
+      "service": "mdi:bug-outline"
+    },
+    "get_prop_values": {
+      "service": "mdi:bug-outline"
+    }
   }
 }
