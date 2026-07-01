@@ -251,16 +251,12 @@ class GreeDevice:
                 len(self._props_to_update),
             )
 
-            status_values: dict[GreeProp, int] = {}
-
             for key, val in status.items():
                 try:
                     prop = PROP_KEY_TO_ENUM[key]
-                    status_values[prop] = int(val)
+                    self._raw_state[prop] = int(val)
                 except Exception:
                     _LOGGER.exception("Failed to parse %s=%r. Skipping", key, val)
-
-            self._raw_state.update(status_values)
 
             self._is_available = True
 
