@@ -137,7 +137,7 @@ async def async_get_prop_values(call: ServiceCall) -> ServiceResponse:
 
 @callback
 def async_setup_services(hass: HomeAssistant) -> None:
-    """Set up the services for Shelly integration."""
+    """Set up the services for Gree integration."""
     for service, method, schema, response in (
         (
             SVC_GET_PROPS_ALL,

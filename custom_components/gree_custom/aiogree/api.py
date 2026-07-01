@@ -472,6 +472,10 @@ def gree_encrypt_pack(
 
     encrypted_data, tag = cipher.encrypt(json.dumps(pack))
 
+    # WARNING: My device does not respond if the encrypted_pack is more that 1024 bytes
+    if len(encrypted_data.encode("utf-8")) > 1024:
+        _LOGGER.warning("Pack length is over 1024 bytes")
+
     return (encrypted_data, tag)
 
 
@@ -685,10 +689,6 @@ async def gree_get_status(
 
     pack = gree_create_status_pack(mac_addr, props)
     encrypted_pack, tag = gree_encrypt_pack(pack, cipher)
-
-    # WARNING: My device does not respond if the encrypted_pack is more that 1024 bytes
-    if len(encrypted_pack.encode("utf-8")) > 1024:
-        _LOGGER.warning("Pack length is over 1024 bytes")
 
     json_payload = gree_create_payload(
         encrypted_pack, "pack", GreeCommand.STATUS, mac_addr_controller, uid, tag
