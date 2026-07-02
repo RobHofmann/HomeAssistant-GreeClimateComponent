@@ -695,10 +695,10 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
     def get_fan_mode(self) -> str:
         """Converts Gree Fan Modes to HA. Accounts for the 2 special modes."""
-        if GATTR_FEAT_QUIET_MODE in self._attr_hvac_modes and self.device.feature_quiet:
+        if self._attr_fan_modes and GATTR_FEAT_QUIET_MODE in self._attr_fan_modes and self.device.feature_quiet:
             return GATTR_FEAT_QUIET_MODE
 
-        if GATTR_FEAT_TURBO in self._attr_hvac_modes and self.device.feature_turbo:
+        if self._attr_fan_modes and GATTR_FEAT_TURBO in self._attr_fan_modes and self.device.feature_turbo:
             return GATTR_FEAT_TURBO
 
         return self.device.fan_speed.name
