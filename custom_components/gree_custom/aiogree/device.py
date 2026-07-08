@@ -151,7 +151,7 @@ class GreeDevice:
 
         return True
 
-    async def fetch_device_info(self, cipher: CipherBase | None = None):
+    async def fetch_device_info(self, cipher: CipherBase = None):
         """Updates the device info fields."""
         try:
             self._raw_info = await gree_get_device_info(
@@ -324,7 +324,7 @@ class GreeDevice:
     def _bool_from_raw_state(self, prop: GreeProp, default: int = 0) -> bool:
         prop_value: int | None = self._get_prop_raw(prop, default)
 
-        return bool(prop_value)
+        return None if prop_value is None else bool(prop_value)
 
     def _remove_unsupported_props(self):
         """Remove unsupported properties from the list to update."""
@@ -510,9 +510,9 @@ class GreeDevice:
         return self._is_bound
 
     @property
-    def has_hvac_error(self) -> bool:
+    def has_hvac_error(self) -> bool | None:
         """Return if there is an error with the device."""
-        return self._bool_from_raw_state(GreeProp.FAULT)
+        return self._bool_from_raw_state(GreeProp.FAULT, None)
 
     @property
     def beeper(self) -> bool:

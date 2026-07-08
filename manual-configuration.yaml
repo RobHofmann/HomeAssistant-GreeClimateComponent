@@ -83,7 +83,7 @@ gree_custom:
         external_temperature_sensor: "None" # Sets a given temperature sensor as the sensor for the AC | str (Entity ID) | default = "None"
         external_humidity_sensor: "None" # Sets a given humidity sensor as the sensor for the AC | str (Entity ID) | default = "None"
         restore_states: true # Wether to restore the last HA state to device when HA starts | bool | default = true
-        scan_interval: 30 # Device polling rate | int > 5 | default = 30
+        scan_interval: 60 # Device polling rate | int > 5 | default = 60
 
 
 # Example for multiple AC units:

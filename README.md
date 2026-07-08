@@ -3,13 +3,16 @@
 
 # HomeAssistant-GreeClimateComponent
 
-Custom Gree integration for Home Assistant written in Python 3. Controls ACs supporting the Gree UDP protocol.
+Custom Gree integration for Home Assistant written in Python 3.
 
 This integration connects directly to your HVAC devices via their IP address on the local network, unlike the official mobile app, which establishes a direct connection only during initial setup and subsequently operates through Gree’s servers.
 
-> [!NOTE]
-> This integration only supports the Gree UDP protocol. If you have a newer firmware/device that only communicates using the new MQTT protocol, this integration will not work.
-> Use [this](https://github.com/davo22/homeassistant-gree-cloud) for a different feature set and support for Gree Cloud
+**This integration only supports the Gree UDP protocol. If you have a newer firmware/device that only communicates using the new MQTT protocol, this integration will not work.**
+
+> [!IMPORTANT]
+> Due to the many issues being created revolving "TimeOut"/"Cannot connect" errors, I will be closing these. Feel free to make a PR fixing your TimeOut/Cannot connect error.
+> 
+> More information on the "why" can be found here: https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues/405#issuecomment-4300110823
 
 For a comprehensive list of tested devices, see [Supported Devices](supported-devices.md).
 
