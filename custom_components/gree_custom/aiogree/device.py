@@ -15,6 +15,7 @@ from .api import (
     OperationMode,
     OtherProps,
     SleepMode,
+    SleepMode,
     TemperatureUnits,
     VerticalSwingMode,
     gree_get_device_info,

@@ -15,7 +15,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .aiogree.api import OperationMode, SleepMode
+from .aiogree.api import OperationMode, SleepMode, SleepMode
 from .aiogree.device import GreeDevice
 from .const import (
     ATTR_AUTO_LIGHT,
