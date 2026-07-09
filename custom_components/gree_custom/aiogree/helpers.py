@@ -2,7 +2,7 @@
 
 import logging
 
-from .const import MAX_TEMP_C, MAX_TEMP_F, MIN_TEMP_C, MIN_TEMP_F
+from .const import MAX_HUM_P, MAX_TEMP_C, MAX_TEMP_F, MIN_HUM_P, MIN_TEMP_C, MIN_TEMP_F
 
 TEMSEN_OFFSET = 40
 

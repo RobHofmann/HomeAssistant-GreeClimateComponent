@@ -69,6 +69,9 @@ def chunked(iterable, size):
         yield chunk
 
 
+ALL_PROPS = [prop for prop in GreeProp]
+
+
 class GreeDevice:
     """Representation of a Gree device."""
 
