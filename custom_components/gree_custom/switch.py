@@ -81,7 +81,7 @@ SWITCH_TYPES: list[GreeSwitchDescription] = [
                 device.operation_mode in [OperationMode.cool, OperationMode.heat]
             )
         ),
-        value_func=lambda device, _: device.feature_sleep is SleepMode.normal,
+        value_func=lambda device, _: device.feature_sleep is not SleepMode.disabled,
         set_func=lambda device, _, value: device.set_feature_sleep(
             SleepMode.normal if value else SleepMode.disabled
         ),
