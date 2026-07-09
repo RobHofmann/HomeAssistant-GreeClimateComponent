@@ -319,6 +319,41 @@
     },
     "generic": {
       "message": "Ocorreu um erro a realizar a ação pretendida, consulto os registos da integração."
+    },
+    "invalid_device_id": {
+      "message": "Ocorreu um erro a executar a ação. O dispositivo selecionado é inválido."
+    },
+    "entry_not_loaded": {
+      "message": "Ocorreu um erro a executar a ação. A configuração para o dispositivo não está ativa."
+    },
+    "config_entry_not_found": {
+      "message": "Ocorreu um erro a executar a ação. A configuração para o dispositivo não foi encontrada."
+    },
+    "invalid_config_data": {
+      "message": "Ocorreu um erro a executar a ação. A configuração para o dispositivo contém dados inválidos."
+    }
+  },
+  "services": {
+    "get_prop_values_all": {
+      "name": "Consultar todas as propriedades",
+      "description": "Obtém todas as propriedades de um dispositivo Gree",
+      "fields": {
+        "device_id": {
+          "name": "ID do Dispositivo"
+        }
+      }
+    },
+    "get_prop_values": {
+      "name": "Consultar propriedades",
+      "description": "Obtém o valor das propriedades de um dispositivo Gree",
+      "fields": {
+        "device_id": {
+          "name": "ID do Dispositivo"
+        },
+        "prop_list": {
+          "name": "Lista de propriedades a obter"
+        }
+      }
     }
   }
 }

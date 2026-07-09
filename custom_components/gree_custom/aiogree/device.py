@@ -1,15 +1,18 @@
 """Contains the API to interface with the Gree device."""
 
+from itertools import islice
 import logging
 from typing import Any
 
 from .api import (
+    PROP_KEY_TO_ENUM,
     EncryptionVersion,
     FanSpeed,
     GreeDiscoveredDevice,
     GreeProp,
     HorizontalSwingMode,
     OperationMode,
+    OtherProps,
     TemperatureUnits,
     VerticalSwingMode,
     gree_get_device_info,
@@ -31,6 +34,13 @@ from .helpers import (
 from .transport import GreeTransport
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def chunked(iterable, size):
+    """Creates chunks of data."""
+    it = iter(iterable)
+    while chunk := list(islice(it, size)):
+        yield chunk
 
 
 class GreeDevice:
@@ -98,7 +108,7 @@ class GreeDevice:
         self._temp_processor_outdoors: TempOffsetResolver | None = None
         self._beeper = False
 
-        self._raw_info: dict[str, str | None] = {}
+        self._raw_info: dict[str, Any] = {}
         self._firmware_version: str | None = None
         self._firmware_code: str | None = None
         self._subdevicesCount: int = 0
@@ -151,7 +161,7 @@ class GreeDevice:
 
         return True
 
-    async def fetch_device_info(self, cipher: CipherBase = None):
+    async def fetch_device_info(self, cipher: CipherBase | None = None):
         """Updates the device info fields."""
         try:
             self._raw_info = await gree_get_device_info(
@@ -233,37 +243,20 @@ class GreeDevice:
 
     async def fetch_device_status(self):
         """Get the device status (async)."""
-        _LOGGER.debug("Trying to get device status")
-
-        if not self._is_bound:
-            await self.bind_device()
-
-        assert self._cipher is not None
+        _LOGGER.debug("Trying to get device '%s' status", self.mac_address)
 
         try:
-            state, _ = await gree_get_status(
-                self._mac_addr_controller,
-                self._mac_addr,
-                self._uid,
-                self._props_to_update,
-                self._cipher,
-                self._transport,
+            status, _ = await self.query_props(
+                [prop.value for prop in self._props_to_update],
+                len(self._props_to_update),
             )
-            self._raw_state.update(state)
 
-            # if self._mac_addr != self._mac_addr_sub:
-            #     sub_state, _ = await gree_get_status(
-            #         self._ip_addr,
-            #         self._mac_addr,
-            #         self._mac_addr,
-            #         self._port,
-            #         self._uid,
-            #         self._cipher,
-            #         props_not_present,
-            #         self._max_connection_attempts,
-            #         self._timeout,
-            #     )
-            #     self._raw_state.update(sub_state)
+            for key, val in status.items():
+                try:
+                    prop = PROP_KEY_TO_ENUM[key]
+                    self._raw_state[prop] = int(val)
+                except Exception:
+                    _LOGGER.exception("Failed to parse %s=%r. Skipping", key, val)
 
             self._is_available = True
 
@@ -324,7 +317,7 @@ class GreeDevice:
     def _bool_from_raw_state(self, prop: GreeProp, default: int = 0) -> bool:
         prop_value: int | None = self._get_prop_raw(prop, default)
 
-        return None if prop_value is None else bool(prop_value)
+        return bool(prop_value)
 
     def _remove_unsupported_props(self):
         """Remove unsupported properties from the list to update."""
@@ -442,6 +435,53 @@ class GreeDevice:
 
         return data
 
+    async def query_props(
+        self, props: list[str], request_batch: int = 1, error_as_missing: bool = False
+    ) -> tuple[dict[str, str], list[str]]:
+        """Query the value of the given props."""
+
+        if not self._is_bound:
+            await self.bind_device()
+
+        combined_state: dict[str, str] = {}
+        combined_missing: list[str] = []
+
+        assert self._cipher is not None
+
+        for props_chunk in chunked(props, request_batch):
+            try:
+                state, missing = await gree_get_status(
+                    self._mac_addr_controller,
+                    self._mac_addr,
+                    self._uid,
+                    props_chunk,
+                    self._cipher,
+                    self._transport,
+                )
+                combined_state.update(state)
+                if len(missing) != 0:
+                    combined_missing.extend(missing)
+
+            except Exception:
+                if error_as_missing:
+                    combined_missing.extend(props_chunk)
+                else:
+                    raise
+
+        return combined_state, combined_missing
+
+    async def query_props_all(
+        self, request_batch: int = 1, error_as_missing: bool = False
+    ) -> tuple[dict[str, str], list[str]]:
+        """Query all possible props to the log."""
+
+        all_props = [
+            *[prop.value for prop in GreeProp],
+            *[prop.value for prop in OtherProps],
+        ]
+
+        return await self.query_props(all_props, request_batch, error_as_missing)
+
     def supports_property(self, property: GreeProp) -> bool:
         """Returns True if the device endpoint supports the property."""
         # We consider a property as unsupported if it is not present in the raw state list
@@ -510,9 +550,9 @@ class GreeDevice:
         return self._is_bound
 
     @property
-    def has_hvac_error(self) -> bool | None:
+    def has_hvac_error(self) -> bool:
         """Return if there is an error with the device."""
-        return self._bool_from_raw_state(GreeProp.FAULT, None)
+        return self._bool_from_raw_state(GreeProp.SENSOR_FAULT)
 
     @property
     def beeper(self) -> bool:

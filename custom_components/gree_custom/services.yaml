@@ -1,0 +1,23 @@
+get_prop_values_all:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: gree_custom
+
+get_prop_values:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: gree_custom
+    prop_list:
+      required: true
+      example:
+        - Pow
+        - Mod
+      selector:
+        text:
+          multiple: true

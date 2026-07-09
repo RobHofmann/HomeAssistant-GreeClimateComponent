@@ -88,6 +88,8 @@ ATTR_EXTERNAL_HUMIDITY_SENSOR = "external_humidity_sensor"
 ATTR_AUTO_XFAN = "auto_xfan"
 ATTR_AUTO_LIGHT = "auto_light"
 
+ATTR_SVC_PROPS = "prop_list"
+
 # Map each feature constant to its corresponding GreeProp
 CONF_TO_PROP_FEATURE_MAP = {
     GATTR_BEEPER: GreeProp.BEEPER,
@@ -99,7 +101,7 @@ CONF_TO_PROP_FEATURE_MAP = {
     GATTR_ANTI_DIRECT_BLOW: GreeProp.FEAT_ANTI_DIRECT_BLOW,
     GATTR_FEAT_ENERGY_SAVING: GreeProp.FEAT_ENERGY_SAVING,
     GATTR_FEAT_LIGHT: GreeProp.FEAT_LIGHT,
-    GATTR_FAULTS: GreeProp.FAULT,
+    GATTR_FAULTS: GreeProp.SENSOR_FAULT,
 }
 
 # HVAC modes - these come from Home Assistant and are standard
