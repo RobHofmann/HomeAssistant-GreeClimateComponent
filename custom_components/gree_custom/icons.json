@@ -58,7 +58,7 @@
         "default": "mdi:fan"
       },
       "sleep": {
-        "default": "mdi:sleep"
+        "default": "mdi:weather-night"
       },
       "eightdegheat": {
         "default": "mdi:thermometer-low"
