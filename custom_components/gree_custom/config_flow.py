@@ -1,7 +1,5 @@
 """Config flow to configure the Gree integration."""
 
-from __future__ import annotations
-
 from collections.abc import Mapping
 from ipaddress import IPv4Address, IPv4Network, ip_address, ip_network
 import logging
@@ -81,6 +79,7 @@ from .const import (
     GATTR_FEAT_ENERGY_SAVING,
     GATTR_FEAT_FRESH_AIR,
     GATTR_FEAT_HEALTH,
+    GATTR_FEAT_HUMIDITY,
     GATTR_FEAT_LIGHT,
     GATTR_FEAT_QUIET_MODE,
     GATTR_FEAT_SENSOR_LIGHT,
@@ -303,6 +302,8 @@ def build_options_schema(
         valid_features.append(GATTR_FEAT_ENERGY_SAVING)
     if device.supports_property(GreeProp.SENSOR_FAULT):
         valid_features.append(GATTR_FAULTS)
+    if device.supports_property(GreeProp.FEATURE_HUMIDITY):
+        valid_features.append(GATTR_FEAT_HUMIDITY)
 
     schema.update(
         {

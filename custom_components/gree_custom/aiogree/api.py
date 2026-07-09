@@ -63,6 +63,10 @@ class GreeProp(StrEnum):
     FEAT_ANTI_DIRECT_BLOW = "AntiDirectBlow"
     # use light sensor for unit display
     FEAT_SENSOR_LIGHT = "LigSen"
+    # humidity control mode. uses dry under cool mode
+    FEATURE_HUMIDITY = "Dmod"
+    # humidity control mode. sets the humidity target for the humidity control mode. (HUM% - 15) / 5
+    FEATURE_HUMIDITY_TARGET = "Dwet"
 
     # SENSORS
     # indoor temperature sensor, used to read the current room temperature, if available
@@ -119,14 +123,12 @@ class OtherProps(StrEnum):
     _UNKN_Dfltr = "Dfltr"
     _UNKN_DFPoint = "DFPoint"
     _UNKN_DIYGra1PoiAmo = "DIYGra1PoiAmo"
-    _UNKN_Dmod = "Dmod"
     _UNKN_DnPLLRSwing = "DnPLLRSwing"
     _UNKN_DnPRLRSwing = "DnPRLRSwing"
     _UNKN_DnPUDSwing = "DnPUDSwing"
     _UNKN_Dpump = "Dpump"
     _UNKN_DsplySt = "DsplySt"
     _UNKN_DwatFul = "DwatFul"
-    _UNKN_Dwet = "Dwet"
     _UNKN_Elc1Kwh = "Elc1Kwh"
     _UNKN_ElcAllKwhClr = "ElcAllKwhClr"
     _UNKN_ElcAllKwhH = "ElcAllKwhH"
@@ -401,6 +403,17 @@ class SleepMode(IntEnum):
     normal = 1
     advanced = 2
     diy = 3
+
+
+@unique
+class HumidityControlMode(IntEnum):
+    """Enumeration of the humidty control modes."""
+
+    disabled = 15
+    target_dry = 0
+    smart_dry = 2
+    # This is only available in dry operation mode
+    continuous_dry = 1
 
 
 class GreeCommand(IntEnum):

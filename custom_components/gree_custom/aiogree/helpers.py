@@ -2,7 +2,7 @@
 
 import logging
 
-from .const import MAX_TEMP_C, MAX_TEMP_F, MIN_TEMP_C, MIN_TEMP_F
+from .const import MAX_HUM_P, MAX_TEMP_C, MAX_TEMP_F, MIN_HUM_P, MIN_TEMP_C, MIN_TEMP_F
 
 TEMSEN_OFFSET = 40
 
@@ -173,3 +173,38 @@ def gree_get_target_temperature_c(SetTem: int, TemRec: int) -> float:
     # Returns the original temperature as a float.
 
     return SetTem + (0.5 if TemRec else 0.0)
+
+
+def gree_get_target_humidity_prop_from_p(desired_humidty_percentage: int) -> int:
+    """Calculates the prop value for a given humidty percentage."""
+
+    if desired_humidty_percentage > MAX_HUM_P:
+        _LOGGER.warning(
+            "The desired humidity is greater than allowed. Clamping to highest value: %d > %d",
+            desired_humidty_percentage,
+            MAX_HUM_P,
+        )
+        desired_humidty_percentage = MAX_HUM_P
+
+    if desired_humidty_percentage < MIN_HUM_P:
+        _LOGGER.warning(
+            "The desired humidity is lower than allowed. Clamping to lowest value: %d < %d",
+            desired_humidty_percentage,
+            MIN_HUM_P,
+        )
+        desired_humidty_percentage = MIN_HUM_P
+
+    if desired_humidty_percentage % 5 != 0:
+        _LOGGER.warning(
+            "Humidity target %s is not a multiple of 5; rounding to the nearest multiple",
+            desired_humidty_percentage,
+        )
+        desired_humidty_percentage = round(desired_humidty_percentage / 5) * 5
+
+    return int((desired_humidty_percentage - 15) / 5)
+
+
+def gree_get_target_humidity_p(Dwet: int) -> int:
+    """Return a humidty percentage based on the device property value."""
+
+    return 5 * Dwet + 15

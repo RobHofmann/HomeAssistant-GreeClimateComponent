@@ -43,3 +43,15 @@ class GreeTurboIgnored(GreeUnsupportedState):
 
 class GreeQuietIgnored(GreeUnsupportedState):
     """Quiet mode is ignored when Energy Saving or Smart Heat are enabled."""
+
+
+class GreeHumidityControlUnavailable(GreeUnsupportedState):
+    """Humidty Control is only available under Cool mode."""
+
+
+class GreeHumidityControlTargetUnavailable(GreeUnsupportedState):
+    """Humidity Control with a target humidity is only available in Cool with Normal Dry mode."""
+
+
+class GreeContinuousDryUnavailable(GreeUnsupportedState):
+    """Humidity Control Continuos Dry only available in Dry operation mode."""

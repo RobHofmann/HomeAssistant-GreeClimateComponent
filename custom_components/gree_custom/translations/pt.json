@@ -184,7 +184,8 @@
         "anti_direct_blow": "Anti Sopro Direto",
         "powersave": "Poupança de Energia",
         "light_sensor": "Brilho Automático do Visor",
-        "faults": "Falha de Operação"
+        "faults": "Falha de Operação",
+        "humidity_control": "Controlo de Humidade"
       }
     }
   },
@@ -261,11 +262,23 @@
     "number": {
       "target_temp_step": {
         "name": "Incremento de Temperatura"
+      },
+      "humidity_control_target": {
+        "name": "Valor de Controlo de Humidade"
       }
     },
     "select": {
       "temperature_units": {
         "name": "Unidade de Temperatura"
+      },
+      "humidity_control": {
+        "name": "Controlo de Humidade",
+        "state": {
+          "disabled": "Desativado",
+          "target_dry": "Desumidificar",
+          "smart_dry": "Desumidificar Inteligente",
+          "continuous_dry": "Desumidificar Contínuo"
+        }
       }
     },
     "switch": {
@@ -334,6 +347,12 @@
     },
     "invalid_config_data": {
       "message": "Ocorreu um erro a executar a ação. A configuração para o dispositivo contém dados inválidos."
+    },
+    "humidity_mode_unavailable": {
+      "message": "O Controlo de Humidade só está disponível no modo de Arrefecer."
+    },
+    "continuous_dry_unavailable": {
+      "message": "Desumidificar Contínuo só está disponível no modo de Secar."
     }
   },
   "services": {

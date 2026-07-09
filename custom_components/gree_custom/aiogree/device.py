@@ -11,6 +11,7 @@ from .api import (
     GreeDiscoveredDevice,
     GreeProp,
     HorizontalSwingMode,
+    HumidityControlMode,
     OperationMode,
     OtherProps,
     SleepMode,
@@ -23,12 +24,15 @@ from .api import (
     gree_try_bind,
 )
 from .cipher import CipherBase, get_cipher
-from .const import DEFAULT_DEVICE_UID
+from .const import DEFAULT_DEVICE_UID, MIN_HUM_P
 from .errors import (
     GreeBindingError,
     GreeConnectionError,
+    GreeContinuousDryUnavailable,
     GreeEnergySavingUnavailable,
     GreeError,
+    GreeHumidityControlTargetUnavailable,
+    GreeHumidityControlUnavailable,
     GreeProtocolError,
     GreeQuietIgnored,
     GreeSleepUnavailable,
@@ -38,6 +42,8 @@ from .errors import (
 )
 from .helpers import (
     TempOffsetResolver,
+    gree_get_target_humidity_p,
+    gree_get_target_humidity_prop_from_p,
     gree_get_target_temp_props_from_c,
     gree_get_target_temp_props_from_f,
     gree_get_target_temperature_c,
@@ -55,6 +61,9 @@ def chunked(iterable, size):
         yield chunk
 
 
+ALL_PROPS = [prop for prop in GreeProp]
+
+
 class GreeDevice:
     """Representation of a Gree device."""
 
@@ -69,6 +78,7 @@ class GreeDevice:
         uid: int = DEFAULT_DEVICE_UID,
         max_connection_attempts: int = 5,
         timeout: int = 10,
+        capabilities: list[GreeProp] = ALL_PROPS,
     ) -> None:
         """Initialize the Gree device."""
 
@@ -100,6 +110,8 @@ class GreeDevice:
 
         self._transport = GreeTransport(ip_addr, port, max_connection_attempts, timeout)
 
+        self._uniqueid: str = self._mac_addr
+
         self._encryption_version: EncryptionVersion | None = encryption_version
         self._encryption_key: str = encryption_key
         self._cipher: CipherBase | None = None
@@ -107,9 +119,9 @@ class GreeDevice:
 
         self._raw_state: dict[GreeProp, int] = {}
         self._new_raw_state: dict[GreeProp, int] = {}
+        self._capabilities: list[GreeProp] = capabilities
         self._is_bound: bool = False
         self._is_available: bool = False
-        self._uniqueid: str = self._mac_addr
 
         self._props_to_update: list[GreeProp] = list(GreeProp)
         # Don't poll the beeper state
@@ -324,7 +336,13 @@ class GreeDevice:
 
     def _set_device_status(self, props: dict[GreeProp, int]) -> None:
         """Sets a new local device status. Use 'update_device_status' to update the device."""
-        self._new_raw_state.update(props)
+
+        # Don't send props that are not part of the device capabilities
+        filtered_props = {
+            prop: value for prop, value in props.items() if self.supports_property(prop)
+        }
+
+        self._new_raw_state.update(filtered_props)
 
     def _bool_from_raw_state(self, prop: GreeProp, default: int = 0) -> bool:
         prop_value: int | None = self._get_prop_raw(prop, default)
@@ -339,7 +357,7 @@ class GreeDevice:
         # with an empty string, or nothing at all
         # If that is the case, _state_raw should not contain that property
         # In case it still has it, we remove it here as well
-        for p in list(self._props_to_update):
+        for p in self._props_to_update:
             if not self.supports_property(p):
                 self._props_to_update.remove(p)
                 self._raw_state.pop(p, None)
@@ -377,6 +395,22 @@ class GreeDevice:
             _LOGGER.debug(
                 "No longer updating property due to bad value: %s",
                 GreeProp.SENSOR_HUMIDITY,
+            )
+
+        # As far as it is known, both values at 0 is not a valid combination.
+        # Might need to change this if problems are reported
+        if (
+            GreeProp.FEATURE_HUMIDITY in self._props_to_update
+            and self._get_prop_raw(GreeProp.FEATURE_HUMIDITY, 0) == 0
+            and self._get_prop_raw(GreeProp.FEATURE_HUMIDITY_TARGET, 0) == 0
+        ):
+            self._props_to_update.remove(GreeProp.FEATURE_HUMIDITY)
+            self._props_to_update.remove(GreeProp.FEATURE_HUMIDITY_TARGET)
+            self._raw_state.pop(GreeProp.FEATURE_HUMIDITY, None)
+            self._raw_state.pop(GreeProp.FEATURE_HUMIDITY_TARGET, None)
+            _LOGGER.debug(
+                "No longer updating property due to bad value: %s",
+                (GreeProp.FEATURE_HUMIDITY, GreeProp.FEATURE_HUMIDITY_TARGET),
             )
 
     def _get_prop_raw(self, prop: GreeProp, default: int | None = None) -> int | None:
@@ -498,7 +532,9 @@ class GreeDevice:
         """Returns True if the device endpoint supports the property."""
         # We consider a property as unsupported if it is not present in the raw state list
         # This assumes that the full state is fetched at least once before this method is called
-        return property in self._raw_state or property in (
+
+        supported = property in self._raw_state and property in self._capabilities
+        return supported or property in (
             GreeProp.BEEPER,
             GreeProp.BEEPER_NEW,
         )
@@ -633,6 +669,10 @@ class GreeDevice:
 
     def set_operation_mode(self, mode: OperationMode):
         """Sets the device operation mode."""
+
+        # Disable Humidity Control
+        self.set_feature_humidity_control(HumidityControlMode.disabled)
+
         self._set_device_status({GreeProp.OP_MODE: mode})
 
     @property
@@ -959,3 +999,87 @@ class GreeDevice:
     def set_feature_anti_direct_blow(self, value: bool) -> None:
         """Set the anti direct blow mode state."""
         self._set_device_status({GreeProp.FEAT_ANTI_DIRECT_BLOW: 1 if value else 0})
+
+    @property
+    def feature_humidity_control(self) -> HumidityControlMode:
+        """Returns the current humidity control mode."""
+
+        return HumidityControlMode(
+            self._get_prop_raw(
+                GreeProp.FEATURE_HUMIDITY, HumidityControlMode.disabled.value
+            )
+        )
+
+    def set_feature_humidity_control(self, mode: HumidityControlMode) -> None:
+        """Sets the Humidy Control mode.
+
+        This feature is only available under `Cool` mode.
+        """
+
+        if (
+            mode
+            not in (HumidityControlMode.disabled, HumidityControlMode.continuous_dry)
+            and self.operation_mode is not OperationMode.cool
+        ):
+            raise GreeHumidityControlUnavailable(
+                "Humidity Control is only available in Cool"
+            )
+
+        if (
+            mode is HumidityControlMode.continuous_dry
+            and self.operation_mode is not OperationMode.dry
+        ):
+            raise GreeContinuousDryUnavailable(
+                "Continuous Dry is only available in dry operation mode"
+            )
+
+        match mode:
+            case HumidityControlMode.disabled:
+                target = 0
+
+            case HumidityControlMode.target_dry:
+                target = gree_get_target_humidity_prop_from_p(MIN_HUM_P)
+
+            case HumidityControlMode.smart_dry:
+                target = 3
+
+            case HumidityControlMode.continuous_dry:
+                target = 3
+
+        self._set_device_status(
+            {
+                GreeProp.FEATURE_HUMIDITY: mode.value,
+                GreeProp.FEATURE_HUMIDITY_TARGET: target,
+            }
+        )
+
+    @property
+    def feature_humidity_control_target(self) -> int:
+        """Return the current set target humidity value."""
+
+        raw_value: int = self._get_prop_raw(GreeProp.FEATURE_HUMIDITY_TARGET, 0) # type: ignore
+        return gree_get_target_humidity_p(raw_value)
+
+    def set_feature_humidity_control_target(
+        self, humidty_target_percentage: int
+    ) -> None:
+        """Sets the target humidity percentage.
+
+        The device only accepts multiples of 5 in a range from 40% to 80%.
+        """
+
+        if (
+            self.operation_mode is not OperationMode.cool
+            and self.feature_humidity_control is not HumidityControlMode.target_dry
+        ):
+            raise GreeHumidityControlTargetUnavailable(
+                "Humidity Control with a target humidity is only available in Cool with Normal Dry mode"
+            )
+
+        target = gree_get_target_humidity_prop_from_p(humidty_target_percentage)
+
+        self._set_device_status(
+            {
+                GreeProp.FEATURE_HUMIDITY_TARGET: target,
+            }
+        )

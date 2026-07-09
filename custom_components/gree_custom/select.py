@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 import logging
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 from attr import dataclass
 
@@ -13,15 +13,20 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .aiogree.api import GreeProp, TemperatureUnits
+from .aiogree.api import GreeProp, HumidityControlMode, OperationMode, TemperatureUnits
 from .aiogree.device import GreeDevice
+from .aiogree.errors import GreeContinuousDryUnavailable, GreeHumidityControlUnavailable
 from .const import (
     CONF_ADVANCED,
     CONF_DEVICES,
     CONF_DISABLE_AVAILABLE_CHECK,
+    CONF_FEATURES,
     CONF_RESTORE_STATES,
     DEFAULT_DISABLE_AVAILABLE_CHECK,
     DEFAULT_RESTORE_STATES,
+    DEFAULT_SUPPORTED_FEATURES,
+    DOMAIN,
+    GATTR_FEAT_HUMIDITY,
     GATTR_TEMP_UNITS,
 )
 from .coordinator import GreeConfigEntry, GreeCoordinator
@@ -30,6 +35,21 @@ from .entity import GreeEntity, GreeEntityDescription
 _LOGGER = logging.getLogger(__name__)
 
 T = TypeVar("T")  # T can be any type
+
+
+def _set_humidity_control_mode(device: GreeDevice, mode: str) -> None:
+    try:
+        device.set_feature_humidity_control(HumidityControlMode[mode])
+
+    except GreeHumidityControlUnavailable as err:
+        raise HomeAssistantError(
+            translation_domain=DOMAIN, translation_key="humidity_mode_unavailable"
+        ) from err
+
+    except GreeContinuousDryUnavailable as err:
+        raise HomeAssistantError(
+            translation_domain=DOMAIN, translation_key="continuous_dry_unavailable"
+        ) from err
 
 
 async def async_setup_entry(
@@ -68,6 +88,25 @@ async def async_setup_entry(
                 )
             )
 
+        conf_supported_features = d.get(CONF_FEATURES, DEFAULT_SUPPORTED_FEATURES)
+        if (
+            GATTR_FEAT_HUMIDITY in conf_supported_features
+            and coordinator.device.supports_property(GreeProp.FEATURE_HUMIDITY)
+        ):
+            descriptions.append(
+                GreeSelectDescription[GreeDevice](
+                    key=GATTR_FEAT_HUMIDITY,
+                    translation_key=GATTR_FEAT_HUMIDITY,
+                    options=[f"{member.name}" for member in HumidityControlMode],
+                    value_func=lambda device: device.feature_humidity_control.name,
+                    set_func=_set_humidity_control_mode,
+                    additional_available_func=lambda device: (
+                        device.operation_mode in (OperationMode.cool, OperationMode.dry)
+                    ),
+                    updates_device=True,
+                )
+            )
+
         _LOGGER.debug(
             "Adding Select Entities for device '%s': %s",
             coordinator.device.mac_address,
@@ -92,7 +131,7 @@ async def async_setup_entry(
 
 
 @dataclass(frozen=True, kw_only=True)
-class GreeSelectDescription(GreeEntityDescription, SelectEntityDescription, Generic[T]):
+class GreeSelectDescription[T](GreeEntityDescription, SelectEntityDescription):
     """Description of a Gree switch."""
 
     additional_available_func = lambda _: True  # noqa: E731
@@ -143,11 +182,6 @@ class GreeSelect(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ignore[re
             self.check_availability,
             self._attr_options,
         )
-
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        _LOGGER.debug("Updating Select Entity for %s", self.device.unique_id)
-        self._attr_current_option = self.entity_description.value_func(self.device)
 
     @property
     def current_option(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]

@@ -184,7 +184,8 @@
         "anti_direct_blow": "Anti Direct Blow",
         "powersave": "Energy Saving",
         "light_sensor": "Display Auto Brightness",
-        "faults": "Fault Detection"
+        "faults": "Fault Detection",
+        "humidity_control": "Humidity Control"
       }
     }
   },
@@ -253,11 +254,23 @@
     "number": {
       "target_temp_step": {
         "name": "Temperature Step"
+      },
+      "humidity_control_target": {
+        "name": "Humidity Control Target"
       }
     },
     "select": {
       "temperature_units": {
         "name": "Temperature Units"
+      },
+      "humidity_control": {
+        "name": "Humidity Control",
+        "state": {
+          "disabled": "Disabled",
+          "target_dry": "Normal Dry",
+          "smart_dry": "Smart Dry",
+          "continuous_dry": "Continuous Dry"
+        }
       }
     },
     "switch": {
@@ -326,6 +339,12 @@
     },
     "invalid_config_data": {
       "message": "There was a problem performing the action. The configuration entry has invalid data."
+    },
+    "humidity_mode_unavailable": {
+      "message": "Humidity Control is only available in Cool mode."
+    },
+    "continuous_dry_unavailable": {
+      "message": "Continuous Dry is only available in Dry mode."
     }
   },
   "services": {

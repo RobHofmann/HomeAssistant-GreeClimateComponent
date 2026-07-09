@@ -75,6 +75,10 @@ GATTR_FEAT_SENSOR_LIGHT = "light_sensor"
 GATTR_FEAT_QUIET_MODE = "quiet"
 # Turbo mode sets fan speed to the maximum. Fan speed cannot be changed while active and only available in Dry and Cool mode
 GATTR_FEAT_TURBO = "turbo"
+# Humidy Control. Allows dry mode under cooling operation
+GATTR_FEAT_HUMIDITY = "humidity_control"
+# Humidy Control Target. Sets humidity target for humidity control
+GATTR_FEAT_HUMIDITY_TARGET = "humidity_control_target"
 
 GATTR_TEMP_UNITS = "temperature_units"
 GATTR_INDOOR_TEMPERATURE = "indoor_temperature"
@@ -102,6 +106,7 @@ CONF_TO_PROP_FEATURE_MAP = {
     GATTR_FEAT_ENERGY_SAVING: GreeProp.FEAT_ENERGY_SAVING,
     GATTR_FEAT_LIGHT: GreeProp.FEAT_LIGHT,
     GATTR_FAULTS: GreeProp.SENSOR_FAULT,
+    GATTR_FEAT_HUMIDITY: GreeProp.FEATURE_HUMIDITY,
 }
 
 # HVAC modes - these come from Home Assistant and are standard
