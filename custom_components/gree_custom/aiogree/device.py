@@ -13,6 +13,7 @@ from .api import (
     HorizontalSwingMode,
     OperationMode,
     OtherProps,
+    SleepMode,
     TemperatureUnits,
     VerticalSwingMode,
     gree_get_device_info,
@@ -23,7 +24,18 @@ from .api import (
 )
 from .cipher import CipherBase, get_cipher
 from .const import DEFAULT_DEVICE_UID
-from .errors import GreeBindingError, GreeConnectionError, GreeError, GreeProtocolError
+from .errors import (
+    GreeBindingError,
+    GreeConnectionError,
+    GreeEnergySavingUnavailable,
+    GreeError,
+    GreeProtocolError,
+    GreeQuietIgnored,
+    GreeSleepUnavailable,
+    GreeSmartHeatUnavailable,
+    GreeTurboIgnored,
+    GreeTurboUnavailable,
+)
 from .helpers import (
     TempOffsetResolver,
     gree_get_target_temp_props_from_c,
@@ -473,7 +485,7 @@ class GreeDevice:
     async def query_props_all(
         self, request_batch: int = 1, error_as_missing: bool = False
     ) -> tuple[dict[str, str], list[str]]:
-        """Query all possible props to the log."""
+        """Query all possible props."""
 
         all_props = [
             *[prop.value for prop in GreeProp],
@@ -486,7 +498,10 @@ class GreeDevice:
         """Returns True if the device endpoint supports the property."""
         # We consider a property as unsupported if it is not present in the raw state list
         # This assumes that the full state is fetched at least once before this method is called
-        return property in self._raw_state if property is not GreeProp.BEEPER else True
+        return property in self._raw_state or property in (
+            GreeProp.BEEPER,
+            GreeProp.BEEPER_NEW,
+        )
 
     @property
     def ip(self) -> str:
@@ -626,7 +641,25 @@ class GreeDevice:
         return FanSpeed(self._get_prop_raw(GreeProp.FAN_SPEED, FanSpeed.auto.value))
 
     def set_fan_speed(self, speed: FanSpeed):
-        """Sets the device fan speed mode."""
+        """Sets the device fan speed mode.
+
+        Setting a fan speed other than 'Auto' will deactivate Energy Saving and Smart Heat features.
+        """
+
+        if speed is not FanSpeed.auto and self.feature_energy_saving:
+            self.set_feature_energy_saving(False)
+            _LOGGER.warning(
+                "%s: Energy saving mode disabled because of fan mode setting",
+                self.mac_address,
+            )
+
+        if speed is not FanSpeed.auto and self.feature_smart_heat:
+            self.set_feature_smart_heat(False)
+            _LOGGER.warning(
+                "%s: Smart Heat mode disabled because of fan mode setting",
+                self.mac_address,
+            )
+
         self._set_device_status({GreeProp.FAN_SPEED: speed})
 
     @property
@@ -681,7 +714,24 @@ class GreeDevice:
         return 0.0
 
     def set_target_temperature(self, value: float) -> None:
-        """Sets the target temperature in target_temperature_unit."""
+        """Sets the target temperature in target_temperature_unit.
+
+        Changing the target temperature will deactivate Energy Saving and Smart Heat features.
+        """
+
+        if self.feature_energy_saving:
+            self.set_feature_energy_saving(False)
+            _LOGGER.warning(
+                "%s: Energy saving mode disabled because of target temperature change",
+                self.mac_address,
+            )
+
+        if self.feature_smart_heat:
+            self.set_feature_smart_heat(False)
+            _LOGGER.warning(
+                "%s: Smart Heat mode disabled because of target temperature change",
+                self.mac_address,
+            )
 
         if self.target_temperature_unit == TemperatureUnits.F:
             if not value.is_integer():
@@ -738,19 +788,50 @@ class GreeDevice:
         self._set_device_status({GreeProp.FEAT_HEALTH: 1 if value else 0})
 
     @property
-    def feature_sleep(self) -> bool:
+    def feature_sleep(self) -> SleepMode:
         """Return the sleep mode state."""
-        val1 = self._bool_from_raw_state(GreeProp.FEAT_SLEEP_MODE_SWING)
-        val2 = self._bool_from_raw_state(GreeProp.FEAT_SLEEP_MODE)
 
-        return val1 is True or val2 is True
+        sleep_enabled = self._bool_from_raw_state(GreeProp.FEAT_SLEEP_MODE)
+        mode = SleepMode(
+            self._get_prop_raw(GreeProp.FEAT_SLEEP_MODE_TYPE, SleepMode.disabled.value)
+        )
 
-    def set_feature_sleep(self, value: bool) -> None:
-        """Set the sleep mode state."""
+        if sleep_enabled and mode is SleepMode.disabled:
+            _LOGGER.warning(
+                "Inconsistent Sleep mode properties. Mode enabled and type disabled"
+            )
+            return SleepMode.normal
+
+        if not sleep_enabled and mode is not SleepMode.disabled:
+            _LOGGER.warning(
+                "Inconsistent Sleep mode properties. Mode disabled and type enabled"
+            )
+            return SleepMode.disabled
+
+        return mode
+
+    def set_feature_sleep(self, mode: SleepMode):
+        """Set the sleep mode state.
+
+        This feature is only available under `Cool` or `Heat` modes.
+        This feature is incompatible with `Power Saving` and `Smart Heat`, and will force disable them if activated.
+        """
+
+        if mode is not SleepMode.disabled and self.operation_mode not in (
+            OperationMode.cool,
+            OperationMode.heat,
+        ):
+            raise GreeSleepUnavailable("Sleep is only available in Cool and Heat")
+
+        # Mirror the remote/app functionality
+        if mode is not SleepMode.disabled:
+            self.set_feature_energy_saving(False)
+            self.set_feature_smart_heat(False)
+
         self._set_device_status(
             {
-                GreeProp.FEAT_SLEEP_MODE: 1 if value else 0,
-                GreeProp.FEAT_SLEEP_MODE_SWING: 1 if value else 0,
+                GreeProp.FEAT_SLEEP_MODE: (1 if mode is not SleepMode.disabled else 0),
+                GreeProp.FEAT_SLEEP_MODE_TYPE: mode.value,
             }
         )
 
@@ -769,7 +850,17 @@ class GreeDevice:
         return self._bool_from_raw_state(GreeProp.FEAT_QUIET_MODE)
 
     def set_feature_quiet(self, value: bool) -> None:
-        """Set the quiet mode state."""
+        """Set the quiet mode state.
+
+        This mode is ignored if Energy Saving or Smart Heat features are active.
+        """
+
+        # Mirror physical behaviour
+        if value and (self.feature_energy_saving or self.feature_smart_heat):
+            raise GreeQuietIgnored(
+                "Quiet ignored because Energy Saving or Smart Heat are active"
+            )
+
         self._set_device_status({GreeProp.FEAT_QUIET_MODE: 1 if value else 0})
 
     @property
@@ -778,7 +869,26 @@ class GreeDevice:
         return self._bool_from_raw_state(GreeProp.FEAT_TURBO_MODE)
 
     def set_feature_turbo(self, value: bool) -> None:
-        """Set the turbo mode state."""
+        """Set the turbo mode state.
+
+        This mode is only availabe under `Cool` or `Heat` modes.
+        This mode is ignored if Energy Saving or Smart Heat features are active.
+        """
+
+        if value and self.operation_mode not in (
+            OperationMode.cool,
+            OperationMode.heat,
+        ):
+            raise GreeTurboUnavailable(
+                "Turbo mode is only available under Cool or Heat modes"
+            )
+
+        # Mirror physical behaviour
+        if value and (self.feature_energy_saving or self.feature_smart_heat):
+            raise GreeTurboIgnored(
+                "Turbo ignored because Energy Saving or Smart Heat are active"
+            )
+
         self._set_device_status({GreeProp.FEAT_TURBO_MODE: 1 if value else 0})
 
     @property
@@ -787,7 +897,28 @@ class GreeDevice:
         return self._bool_from_raw_state(GreeProp.FEAT_SMART_HEAT_8C)
 
     def set_feature_smart_heat(self, value: bool) -> None:
-        """Set the smart heat (8ºC / anti-freeze) mode state."""
+        """Set the smart heat (8ºC / anti-freeze) mode state.
+
+        This mode is only availabe under `Heat` mode.
+        This feature is incompatible with `Sleep` and `Energy Saving`, and will force disable them if activated.
+        This feature changes fan to `Auto` speed.
+        The device will ignore the temperature setting.
+        """
+
+        if value and self.operation_mode is not OperationMode.heat:
+            raise GreeSmartHeatUnavailable(
+                "Smart Heat mode is only available under Heat mode"
+            )
+
+        # Mirror physical behaviour
+        if value:
+            self.set_feature_sleep(SleepMode.disabled)
+            self.set_feature_energy_saving(False)
+            self.set_feature_turbo(False)
+            self.set_feature_quiet(False)
+            self.set_fan_speed(FanSpeed.auto)
+            # TODO: Keep the previous fan speed to apply when the feature is deactivated again
+
         self._set_device_status({GreeProp.FEAT_SMART_HEAT_8C: 1 if value else 0})
 
     @property
@@ -796,7 +927,28 @@ class GreeDevice:
         return self._bool_from_raw_state(GreeProp.FEAT_ENERGY_SAVING)
 
     def set_feature_energy_saving(self, value: bool) -> None:
-        """Set the energy saving mode state."""
+        """Set the energy saving mode state.
+
+        This feature is only available under `Cool` mode.
+        This feature is incompatible with `Sleep` and `Smart Heat`, and will force disable them if activated.
+        This feature changes fan to `Auto` speed.
+        The device will ignore the temperature setting.
+        """
+
+        if value and self.operation_mode is not OperationMode.cool:
+            raise GreeEnergySavingUnavailable(
+                "Energy saving is only available under Cool mode."
+            )
+
+        # Mirror the remote/app functionality
+        if value:
+            self.set_feature_sleep(SleepMode.disabled)
+            self.set_feature_smart_heat(False)
+            self.set_feature_turbo(False)
+            self.set_feature_quiet(False)
+            self.set_fan_speed(FanSpeed.auto)
+            # TODO: Keep the previous fan speed to apply when the feature is deactivated again
+
         self._set_device_status({GreeProp.FEAT_ENERGY_SAVING: 1 if value else 0})
 
     @property

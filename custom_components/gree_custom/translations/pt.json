@@ -309,10 +309,13 @@
   },
   "exceptions": {
     "turbo_availability": {
-      "message": "Modo Turbo não está disponível nos modos de Secar e Ventilação."
+      "message": "A função Turbo só está disponível nos modos de Arrefecer ou Aquecer"
     },
-    "quiet_availability": {
-      "message": "Modo Silencioso apenas disponível nos modos de Secar e Ventilação."
+    "turbo_ignored": {
+      "message": "A função Turbo é ignorada quando os modos de Poupança de Energia ou Fora de Casa estão ativos."
+    },
+    "quiet_ignored": {
+      "message": "A função Silenciosa é ignorada quando os modos de Poupança de Energia ou Fora de Casa estão ativos."
     },
     "entity_unavailable": {
       "message": "A entidade não está disponível."

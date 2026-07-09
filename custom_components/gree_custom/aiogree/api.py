@@ -49,9 +49,10 @@ class GreeProp(StrEnum):
     FEAT_XFAN = "Blo"
     # controls Health ("Cold plasma") mode, only for devices equipped with "anion generator", which absorbs dust and kills bacteria
     FEAT_HEALTH = "Health"
-    # sleep mode, which gradually changes the temperature in Cool, Heat and Dry mode
-    FEAT_SLEEP_MODE_SWING = "SwhSlp"
+    # sleep mode enabled, which gradually changes the temperature in Cool and Heat modes
     FEAT_SLEEP_MODE = "SlpMod"
+    # sleep mode setting, controls different sleep modes
+    FEAT_SLEEP_MODE_TYPE = "SwhSlp"
     # turns all indicators and the display on the unit on or off
     FEAT_LIGHT = "Lig"
     # Anti Freeze maintain the room temperature steadily at 8°C and prevent the room from freezing by heating operation when nobody is at home for long in severe winter
@@ -390,6 +391,16 @@ class VerticalSwingMode(IntEnum):
     swing_middle = 9
     swing_lower_middle = 10
     swing_lower = 11
+
+
+@unique
+class SleepMode(IntEnum):
+    """Enumeration of sleep modes types."""
+
+    disabled = 0
+    normal = 1
+    advanced = 2
+    diy = 3
 
 
 class GreeCommand(IntEnum):

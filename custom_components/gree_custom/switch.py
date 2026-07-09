@@ -16,7 +16,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .aiogree.api import GreeProp, OperationMode
+from .aiogree.api import GreeProp, OperationMode, SleepMode
 from .aiogree.device import GreeDevice
 from .const import (
     ATTR_AUTO_LIGHT,
@@ -78,16 +78,20 @@ SWITCH_TYPES: list[GreeSwitchDescription] = [
         translation_key=GATTR_FEAT_SLEEP_MODE,
         additional_available_func=(
             lambda device: (
-                device.operation_mode
-                in [OperationMode.cool, OperationMode.dry, OperationMode.heat]
+                device.operation_mode in [OperationMode.cool, OperationMode.heat]
             )
         ),
-        value_func=lambda device, _: device.feature_sleep,
-        set_func=lambda device, _, value: device.set_feature_sleep(value),
+        value_func=lambda device, _: device.feature_sleep is SleepMode.normal,
+        set_func=lambda device, _, value: device.set_feature_sleep(
+            SleepMode.normal if value else SleepMode.disabled
+        ),
     ),
     GreeSwitchDescription(
         key=GATTR_FEAT_SMART_HEAT_8C,
         translation_key=GATTR_FEAT_SMART_HEAT_8C,
+        additional_available_func=(
+            lambda device: device.operation_mode is OperationMode.heat
+        ),
         value_func=lambda device, _: device.feature_smart_heat,
         set_func=lambda device, _, value: device.set_feature_smart_heat(value),
     ),
@@ -106,6 +110,9 @@ SWITCH_TYPES: list[GreeSwitchDescription] = [
     GreeSwitchDescription(
         key=GATTR_FEAT_ENERGY_SAVING,
         translation_key=GATTR_FEAT_ENERGY_SAVING,
+        additional_available_func=(
+            lambda device: device.operation_mode is OperationMode.cool
+        ),
         value_func=lambda device, _: device.feature_energy_saving,
         set_func=lambda device, _, value: device.set_feature_energy_saving(value),
     ),

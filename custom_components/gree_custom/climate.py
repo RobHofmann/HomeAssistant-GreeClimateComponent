@@ -39,6 +39,7 @@ from homeassistant.util.unit_conversion import TemperatureConverter
 
 from .aiogree.api import FanSpeed, GreeProp, HorizontalSwingMode, VerticalSwingMode
 from .aiogree.const import MAX_TEMP_C, MAX_TEMP_F, MIN_TEMP_C, MIN_TEMP_F
+from .aiogree.errors import GreeQuietIgnored, GreeTurboIgnored, GreeTurboUnavailable
 from .const import (
     ATTR_EXTERNAL_HUMIDITY_SENSOR,
     ATTR_EXTERNAL_TEMPERATURE_SENSOR,
@@ -695,10 +696,18 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
     def get_fan_mode(self) -> str:
         """Converts Gree Fan Modes to HA. Accounts for the 2 special modes."""
-        if self._attr_fan_modes and GATTR_FEAT_QUIET_MODE in self._attr_fan_modes and self.device.feature_quiet:
+        if (
+            self._attr_fan_modes
+            and GATTR_FEAT_QUIET_MODE in self._attr_fan_modes
+            and self.device.feature_quiet
+        ):
             return GATTR_FEAT_QUIET_MODE
 
-        if self._attr_fan_modes and GATTR_FEAT_TURBO in self._attr_fan_modes and self.device.feature_turbo:
+        if (
+            self._attr_fan_modes
+            and GATTR_FEAT_TURBO in self._attr_fan_modes
+            and self.device.feature_turbo
+        ):
             return GATTR_FEAT_TURBO
 
         return self.device.fan_speed.name
@@ -717,22 +726,6 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                 translation_domain=DOMAIN, translation_key="entity_unavailable"
             )
 
-        if fan_mode == GATTR_FEAT_TURBO and self._attr_hvac_mode in (
-            HVACMode.DRY,
-            HVACMode.FAN_ONLY,
-        ):
-            raise HomeAssistantError(
-                translation_domain=DOMAIN, translation_key="turbo_availability"
-            )
-
-        if fan_mode == GATTR_FEAT_QUIET_MODE and self._attr_hvac_mode not in (
-            HVACMode.DRY,
-            HVACMode.COOL,
-        ):
-            raise HomeAssistantError(
-                translation_domain=DOMAIN, translation_key="quiet_availability"
-            )
-
         try:
             self.device.set_feature_quiet(fan_mode == GATTR_FEAT_QUIET_MODE)
             self.device.set_feature_turbo(fan_mode == GATTR_FEAT_TURBO)
@@ -746,6 +739,22 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             self.coordinator.async_update_listeners()
 
             await self.coordinator.async_request_refresh()
+
+        except GreeTurboUnavailable as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN, translation_key="turbo_availability"
+            ) from err
+
+        except GreeTurboIgnored as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN, translation_key="turbo_ignored"
+            ) from err
+
+        except GreeQuietIgnored as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN, translation_key="quiet_ignored"
+            ) from err
+
         except Exception as err:
             _LOGGER.exception("Error in '%s'", "async_set_fan_mode")
             raise HomeAssistantError(
