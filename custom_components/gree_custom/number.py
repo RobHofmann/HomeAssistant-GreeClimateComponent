@@ -1,4 +1,4 @@
-"""Support for Gree number entities (e.g., target humidty control)."""
+"""Support for Gree number entities (e.g., target humidity control)."""
 
 from collections.abc import Callable
 from dataclasses import dataclass

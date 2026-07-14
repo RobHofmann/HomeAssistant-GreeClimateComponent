@@ -46,7 +46,7 @@ class GreeQuietIgnored(GreeUnsupportedState):
 
 
 class GreeHumidityControlUnavailable(GreeUnsupportedState):
-    """Humidty Control is only available under Cool mode."""
+    """Humidity Control is only available under Cool mode."""
 
 
 class GreeHumidityControlTargetUnavailable(GreeUnsupportedState):

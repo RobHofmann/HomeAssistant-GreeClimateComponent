@@ -94,6 +94,9 @@
       },
       "beeper": {
         "default": "mdi:volume-high"
+      },
+      "humidity_control": {
+        "default": "mdi:chevron-double-down"
       }
     }
   },

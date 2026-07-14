@@ -275,9 +275,8 @@
         "name": "Controlo de Humidade",
         "state": {
           "disabled": "Desativado",
-          "target_dry": "Desumidificar",
-          "smart_dry": "Desumidificar Inteligente",
-          "continuous_dry": "Desumidificar Contínuo"
+          "target_dry": "Secar",
+          "smart_dry": "Secagem Inteligente"
         }
       }
     },
@@ -317,6 +316,9 @@
       },
       "beeper": {
         "name": "Aviso Sonoro"
+      },
+      "humidity_control": {
+        "name": "Secagem Contínua"
       }
     }
   },

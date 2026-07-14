@@ -15,7 +15,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 
 from .aiogree.api import GreeProp, HumidityControlMode, OperationMode, TemperatureUnits
 from .aiogree.device import GreeDevice
-from .aiogree.errors import GreeContinuousDryUnavailable, GreeHumidityControlUnavailable
+from .aiogree.errors import GreeHumidityControlUnavailable
 from .const import (
     CONF_ADVANCED,
     CONF_DEVICES,
@@ -46,10 +46,13 @@ def _set_humidity_control_mode(device: GreeDevice, mode: str) -> None:
             translation_domain=DOMAIN, translation_key="humidity_mode_unavailable"
         ) from err
 
-    except GreeContinuousDryUnavailable as err:
-        raise HomeAssistantError(
-            translation_domain=DOMAIN, translation_key="continuous_dry_unavailable"
-        ) from err
+
+def _get_humidity_control_mode(device: GreeDevice) -> str:
+    # Get the mode from the device and ignore the continuous dry
+    hum_mode = device.feature_humidity_control
+    if hum_mode == HumidityControlMode.continuous_dry:
+        hum_mode = HumidityControlMode.disabled
+    return hum_mode.name
 
 
 async def async_setup_entry(
@@ -97,8 +100,12 @@ async def async_setup_entry(
                 GreeSelectDescription[GreeDevice](
                     key=GATTR_FEAT_HUMIDITY,
                     translation_key=GATTR_FEAT_HUMIDITY,
-                    options=[f"{member.name}" for member in HumidityControlMode],
-                    value_func=lambda device: device.feature_humidity_control.name,
+                    options=[
+                        member.name
+                        for member in HumidityControlMode
+                        if member != HumidityControlMode.continuous_dry
+                    ],
+                    value_func=_get_humidity_control_mode,
                     set_func=_set_humidity_control_mode,
                     additional_available_func=lambda device: (
                         device.operation_mode in (OperationMode.cool, OperationMode.dry)

@@ -61,9 +61,6 @@ def chunked(iterable, size):
         yield chunk
 
 
-ALL_PROPS = [prop for prop in GreeProp]
-
-
 class GreeDevice:
     """Representation of a Gree device."""
 
@@ -78,7 +75,7 @@ class GreeDevice:
         uid: int = DEFAULT_DEVICE_UID,
         max_connection_attempts: int = 5,
         timeout: int = 10,
-        capabilities: list[GreeProp] = ALL_PROPS,
+        capabilities: list[GreeProp] | None = None,
     ) -> None:
         """Initialize the Gree device."""
 
@@ -119,7 +116,12 @@ class GreeDevice:
 
         self._raw_state: dict[GreeProp, int] = {}
         self._new_raw_state: dict[GreeProp, int] = {}
-        self._capabilities: list[GreeProp] = capabilities
+
+        if capabilities is None:
+            self._capabilities: list[GreeProp] = list(GreeProp)
+        else:
+            self._capabilities: list[GreeProp] = capabilities
+
         self._is_bound: bool = False
         self._is_available: bool = False
 
@@ -670,7 +672,7 @@ class GreeDevice:
     def set_operation_mode(self, mode: OperationMode):
         """Sets the device operation mode."""
 
-        # Disable Humidity Control
+        # Force disable Humidity Control
         self.set_feature_humidity_control(HumidityControlMode.disabled)
 
         self._set_device_status({GreeProp.OP_MODE: mode})
@@ -1057,11 +1059,11 @@ class GreeDevice:
     def feature_humidity_control_target(self) -> int:
         """Return the current set target humidity value."""
 
-        raw_value: int = self._get_prop_raw(GreeProp.FEATURE_HUMIDITY_TARGET, 0) # type: ignore
+        raw_value: int = self._get_prop_raw(GreeProp.FEATURE_HUMIDITY_TARGET, 0)
         return gree_get_target_humidity_p(raw_value)
 
     def set_feature_humidity_control_target(
-        self, humidty_target_percentage: int
+        self, humidity_target_percentage: int
     ) -> None:
         """Sets the target humidity percentage.
 
@@ -1076,7 +1078,7 @@ class GreeDevice:
                 "Humidity Control with a target humidity is only available in Cool with Normal Dry mode"
             )
 
-        target = gree_get_target_humidity_prop_from_p(humidty_target_percentage)
+        target = gree_get_target_humidity_prop_from_p(humidity_target_percentage)
 
         self._set_device_status(
             {

@@ -407,7 +407,7 @@ class SleepMode(IntEnum):
 
 @unique
 class HumidityControlMode(IntEnum):
-    """Enumeration of the humidty control modes."""
+    """Enumeration of the humidity control modes."""
 
     disabled = 15
     target_dry = 0
