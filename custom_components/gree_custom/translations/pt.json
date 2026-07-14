@@ -317,6 +317,9 @@
       },
       "beeper": {
         "name": "Aviso Sonoro"
+      },
+      "humidity_control": {
+        "name": "Secagem Contínua"
       }
     }
   },

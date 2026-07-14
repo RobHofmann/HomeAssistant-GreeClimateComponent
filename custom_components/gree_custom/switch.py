@@ -16,15 +16,28 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from .aiogree.api import OperationMode, SleepMode, SleepMode
+from .aiogree.api import GreeProp, HumidityControlMode, OperationMode, SleepMode
 from .aiogree.device import GreeDevice
+from .aiogree.errors import GreeContinuousDryUnavailable
 from .const import (
     ATTR_AUTO_LIGHT,
     ATTR_AUTO_XFAN,
+    CONF_ADVANCED,
+    CONF_DEVICES,
+    CONF_DISABLE_AVAILABLE_CHECK,
+    CONF_FEATURES,
+    CONF_RESTORE_STATES,
+    CONF_TO_PROP_FEATURE_MAP,
+    DEFAULT_DISABLE_AVAILABLE_CHECK,
+    DEFAULT_RESTORE_STATES,
+    DEFAULT_SUPPORTED_FEATURES,
+    DOMAIN,
     GATTR_ANTI_DIRECT_BLOW,
     GATTR_BEEPER,
     GATTR_FEAT_ENERGY_SAVING,
     GATTR_FEAT_FRESH_AIR,
     GATTR_FEAT_HEALTH,
+    GATTR_FEAT_HUMIDITY,
     GATTR_FEAT_LIGHT,
     GATTR_FEAT_SENSOR_LIGHT,
     GATTR_FEAT_SLEEP_MODE,
@@ -36,6 +49,22 @@ from .entity import GreeEntity, GreeEntityDescription
 from .platform_helpers import iter_platform_context, supported_descriptions
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _set_humidity_control_continuous(
+    device: GreeDevice, coordinator: GreeCoordinator, state: bool
+) -> None:
+    try:
+        device.set_feature_humidity_control(
+            HumidityControlMode.continuous_dry
+            if state
+            else HumidityControlMode.disabled
+        )
+
+    except GreeContinuousDryUnavailable as err:
+        raise HomeAssistantError(
+            translation_domain=DOMAIN, translation_key="continuous_dry_unavailable"
+        ) from err
 
 
 class GreeSwitchDescription(
@@ -116,6 +145,18 @@ SWITCH_TYPES: list[GreeSwitchDescription] = [
         ),
         value_func=lambda device, _: device.feature_energy_saving,
         set_func=lambda device, _, value: device.set_feature_energy_saving(value),
+    ),
+    GreeSwitchDescription(
+        key=GATTR_FEAT_HUMIDITY,
+        translation_key=GATTR_FEAT_HUMIDITY,
+        value_func=lambda device, _: (
+            device.feature_humidity_control == HumidityControlMode.continuous_dry
+        ),
+        set_func=_set_humidity_control_continuous,
+        additional_available_func=(
+            lambda device: device.operation_mode is OperationMode.dry
+        ),
+        updates_device=True,
     ),
     GreeSwitchDescription(
         key=GATTR_FEAT_LIGHT,
