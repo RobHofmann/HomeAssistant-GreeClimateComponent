@@ -268,7 +268,8 @@
         "state": {
           "disabled": "Disabled",
           "target_dry": "Normal Dry",
-          "smart_dry": "Smart Dry"
+          "smart_dry": "Smart Dry",
+          "continuous_dry": "Continuous Dry"
         }
       }
     },
@@ -308,9 +309,6 @@
       },
       "beeper": {
         "name": "Beeper"
-      },
-      "humidity_control": {
-        "name": "Continuous Dry"
       }
     }
   },
@@ -343,10 +341,13 @@
       "message": "There was a problem performing the action. The configuration entry has invalid data."
     },
     "humidity_mode_unavailable": {
-      "message": "Humidity Control is only available in Cool mode."
+      "message": "Humidity Control is only available in Cool and Dry modes."
     },
     "continuous_dry_unavailable": {
       "message": "Continuous Dry is only available in Dry mode."
+    },
+    "smart_dry_unavailable": {
+      "message": "Smart Dry is only available in Cool mode."
     }
   },
   "services": {

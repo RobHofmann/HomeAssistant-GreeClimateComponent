@@ -15,7 +15,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .aiogree.api import GreeProp, HumidityControlMode, OperationMode
-from .aiogree.const import MAX_HUM_P, MIN_HUM_P
+from .aiogree.const import MAX_HUM_COOL_P, MAX_HUM_DRY_P, MIN_HUM_COOL_P, MIN_HUM_DRY_P
 from .aiogree.device import GreeDevice
 from .const import (
     CONF_ADVANCED,
@@ -59,7 +59,7 @@ async def async_setup_entry(
         conf_supported_features = d.get(CONF_FEATURES, DEFAULT_SUPPORTED_FEATURES)
         if (
             GATTR_FEAT_HUMIDITY in conf_supported_features
-            and coordinator.device.supports_property(GreeProp.FEATURE_HUMIDITY)
+            and coordinator.device.supports_property(GreeProp.FEATURE_HUMIDITY_CONTROL)
         ):
             descriptions.append(
                 GreeNumberDescription(
@@ -67,8 +67,6 @@ async def async_setup_entry(
                     translation_key=GATTR_FEAT_HUMIDITY_TARGET,
                     device_class=NumberDeviceClass.HUMIDITY,
                     mode="auto",
-                    native_max_value=MAX_HUM_P,
-                    native_min_value=MIN_HUM_P,
                     native_step=5,
                     native_unit_of_measurement=PERCENTAGE,
                     value_func=lambda device: device.feature_humidity_control_target,
@@ -76,9 +74,19 @@ async def async_setup_entry(
                         device.set_feature_humidity_control_target(value)
                     ),
                     additional_available_func=lambda device: (
-                        device.operation_mode is OperationMode.cool
+                        device.operation_mode in (OperationMode.cool, OperationMode.dry)
                         and device.feature_humidity_control
                         is HumidityControlMode.target_dry
+                    ),
+                    min_func=lambda device: (
+                        MIN_HUM_COOL_P
+                        if device.operation_mode == OperationMode.cool
+                        else MIN_HUM_DRY_P
+                    ),
+                    max_func=lambda device: (
+                        MAX_HUM_COOL_P
+                        if device.operation_mode == OperationMode.cool
+                        else MAX_HUM_DRY_P
                     ),
                     updates_device=True,
                 )
@@ -128,6 +136,8 @@ class GreeNumberDescription(GreeEntityDescription, NumberEntityDescription):
     additional_available_func = lambda _: True  # noqa: E731
     value_func: Callable[[GreeDevice], int]
     set_func: Callable[[GreeDevice, int], None]
+    min_func: Callable[[GreeDevice], int] | None = None
+    max_func: Callable[[GreeDevice], int] | None = None
     updates_device: bool = True
 
 
@@ -152,6 +162,22 @@ class GreeNumber(GreeEntity, NumberEntity):  # pyright: ignore[reportIncompatibl
             self.unique_id,
             self.check_availability,
         )
+
+    @property
+    def native_min_value(self) -> float:
+        """Return the minimum allowed value."""
+        if self.entity_description.min_func is not None:
+            return self.entity_description.min_func(self.device)
+
+        return self.entity_description.native_min_value
+
+    @property
+    def native_max_value(self) -> float:
+        """Return the maximum allowed value."""
+        if self.entity_description.max_func is not None:
+            return self.entity_description.max_func(self.device)
+
+        return self.entity_description.native_max_value
 
     @property
     def native_value(self) -> int:  # pyright: ignore[reportIncompatibleVariableOverride]

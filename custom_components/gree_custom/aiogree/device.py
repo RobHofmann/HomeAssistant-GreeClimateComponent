@@ -24,7 +24,13 @@ from .api import (
     gree_try_bind,
 )
 from .cipher import CipherBase, get_cipher
-from .const import DEFAULT_DEVICE_UID, MIN_HUM_P
+from .const import (
+    DEFAULT_DEVICE_UID,
+    MAX_HUM_COOL_P,
+    MAX_HUM_DRY_P,
+    MIN_HUM_COOL_P,
+    MIN_HUM_DRY_P,
+)
 from .errors import (
     GreeBindingError,
     GreeConnectionError,
@@ -36,6 +42,7 @@ from .errors import (
     GreeProtocolError,
     GreeQuietIgnored,
     GreeSleepUnavailable,
+    GreeSmartDryUnavailable,
     GreeSmartHeatUnavailable,
     GreeTurboIgnored,
     GreeTurboUnavailable,
@@ -402,17 +409,17 @@ class GreeDevice:
         # As far as it is known, both values at 0 is not a valid combination.
         # Might need to change this if problems are reported
         if (
-            GreeProp.FEATURE_HUMIDITY in self._props_to_update
-            and self._get_prop_raw(GreeProp.FEATURE_HUMIDITY, 0) == 0
+            GreeProp.FEATURE_HUMIDITY_CONTROL in self._props_to_update
+            and self._get_prop_raw(GreeProp.FEATURE_HUMIDITY_CONTROL, 0) == 0
             and self._get_prop_raw(GreeProp.FEATURE_HUMIDITY_TARGET, 0) == 0
         ):
-            self._props_to_update.remove(GreeProp.FEATURE_HUMIDITY)
+            self._props_to_update.remove(GreeProp.FEATURE_HUMIDITY_CONTROL)
             self._props_to_update.remove(GreeProp.FEATURE_HUMIDITY_TARGET)
-            self._raw_state.pop(GreeProp.FEATURE_HUMIDITY, None)
+            self._raw_state.pop(GreeProp.FEATURE_HUMIDITY_CONTROL, None)
             self._raw_state.pop(GreeProp.FEATURE_HUMIDITY_TARGET, None)
             _LOGGER.debug(
                 "No longer updating property due to bad value: %s",
-                (GreeProp.FEATURE_HUMIDITY, GreeProp.FEATURE_HUMIDITY_TARGET),
+                (GreeProp.FEATURE_HUMIDITY_CONTROL, GreeProp.FEATURE_HUMIDITY_TARGET),
             )
 
     def _get_prop_raw(self, prop: GreeProp, default: int | None = None) -> int | None:
@@ -1008,23 +1015,31 @@ class GreeDevice:
 
         return HumidityControlMode(
             self._get_prop_raw(
-                GreeProp.FEATURE_HUMIDITY, HumidityControlMode.disabled.value
+                GreeProp.FEATURE_HUMIDITY_CONTROL, HumidityControlMode.disabled.value
             )
         )
 
     def set_feature_humidity_control(self, mode: HumidityControlMode) -> None:
         """Sets the Humidy Control mode.
 
-        This feature is only available under `Cool` mode.
+        HumidityControlMode.smart_dry is only available under `Cool` mode.
+        HumidityControlMode.continuous_dry  is only available under `Dry` mode.
         """
 
-        if (
-            mode
-            not in (HumidityControlMode.disabled, HumidityControlMode.continuous_dry)
-            and self.operation_mode is not OperationMode.cool
+        if mode != HumidityControlMode.disabled and self.operation_mode not in (
+            OperationMode.cool,
+            OperationMode.dry,
         ):
             raise GreeHumidityControlUnavailable(
-                "Humidity Control is only available in Cool"
+                "Humidity Control is only available in Cool and Dry modes"
+            )
+
+        if (
+            mode == HumidityControlMode.smart_dry
+            and self.operation_mode is not OperationMode.cool
+        ):
+            raise GreeSmartDryUnavailable(
+                "Smart Dry is only available in Cool operation mode"
             )
 
         if (
@@ -1032,7 +1047,7 @@ class GreeDevice:
             and self.operation_mode is not OperationMode.dry
         ):
             raise GreeContinuousDryUnavailable(
-                "Continuous Dry is only available in dry operation mode"
+                "Continuous Dry is only available in Dry operation mode"
             )
 
         match mode:
@@ -1040,17 +1055,24 @@ class GreeDevice:
                 target = 0
 
             case HumidityControlMode.target_dry:
-                target = gree_get_target_humidity_prop_from_p(MIN_HUM_P)
+                if self.operation_mode == OperationMode.cool:
+                    target = gree_get_target_humidity_prop_from_p(
+                        MIN_HUM_COOL_P, MIN_HUM_COOL_P, MAX_HUM_COOL_P
+                    )
+                else:
+                    target = gree_get_target_humidity_prop_from_p(
+                        MIN_HUM_DRY_P, MIN_HUM_DRY_P, MAX_HUM_DRY_P
+                    )
 
             case HumidityControlMode.smart_dry:
-                target = 3
+                target = 3  # It's possible the device ignores this value in this mode
 
             case HumidityControlMode.continuous_dry:
-                target = 3
+                target = 3  # It's possible the device ignores this value in this mode
 
         self._set_device_status(
             {
-                GreeProp.FEATURE_HUMIDITY: mode.value,
+                GreeProp.FEATURE_HUMIDITY_CONTROL: mode.value,
                 GreeProp.FEATURE_HUMIDITY_TARGET: target,
             }
         )
@@ -1070,15 +1092,19 @@ class GreeDevice:
         The device only accepts multiples of 5 in a range from 40% to 80%.
         """
 
-        if (
-            self.operation_mode is not OperationMode.cool
-            and self.feature_humidity_control is not HumidityControlMode.target_dry
-        ):
+        if self.feature_humidity_control is not HumidityControlMode.target_dry:
             raise GreeHumidityControlTargetUnavailable(
-                "Humidity Control with a target humidity is only available in Cool with Normal Dry mode"
+                "Humidity Control with a target humidity is only available in Normal Dry mode"
             )
 
-        target = gree_get_target_humidity_prop_from_p(humidity_target_percentage)
+        if self.operation_mode == OperationMode.cool:
+            target = gree_get_target_humidity_prop_from_p(
+                humidity_target_percentage, MIN_HUM_COOL_P, MAX_HUM_COOL_P
+            )
+        else:
+            target = gree_get_target_humidity_prop_from_p(
+                humidity_target_percentage, MIN_HUM_DRY_P, MAX_HUM_DRY_P
+            )
 
         self._set_device_status(
             {

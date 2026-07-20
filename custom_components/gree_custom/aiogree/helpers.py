@@ -2,7 +2,7 @@
 
 import logging
 
-from .const import MAX_HUM_P, MAX_TEMP_C, MAX_TEMP_F, MIN_HUM_P, MIN_TEMP_C, MIN_TEMP_F
+from .const import MAX_TEMP_C, MAX_TEMP_F, MIN_TEMP_C, MIN_TEMP_F
 
 TEMSEN_OFFSET = 40
 
@@ -175,24 +175,26 @@ def gree_get_target_temperature_c(SetTem: int, TemRec: int) -> float:
     return SetTem + (0.5 if TemRec else 0.0)
 
 
-def gree_get_target_humidity_prop_from_p(desired_humidity_percentage: int) -> int:
+def gree_get_target_humidity_prop_from_p(
+    desired_humidity_percentage: int, min_val: int, max_val: int
+) -> int:
     """Calculates the prop value for a given humidity percentage."""
 
-    if desired_humidity_percentage > MAX_HUM_P:
+    if desired_humidity_percentage > max_val:
         _LOGGER.warning(
             "The desired humidity is greater than allowed. Clamping to highest value: %d > %d",
             desired_humidity_percentage,
-            MAX_HUM_P,
+            max_val,
         )
-        desired_humidity_percentage = MAX_HUM_P
+        desired_humidity_percentage = max_val
 
-    if desired_humidity_percentage < MIN_HUM_P:
+    if desired_humidity_percentage < min_val:
         _LOGGER.warning(
             "The desired humidity is lower than allowed. Clamping to lowest value: %d < %d",
             desired_humidity_percentage,
-            MIN_HUM_P,
+            min_val,
         )
-        desired_humidity_percentage = MIN_HUM_P
+        desired_humidity_percentage = min_val
 
     if desired_humidity_percentage % 5 != 0:
         _LOGGER.warning(

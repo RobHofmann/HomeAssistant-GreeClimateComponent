@@ -276,7 +276,8 @@
         "state": {
           "disabled": "Desativado",
           "target_dry": "Secar",
-          "smart_dry": "Secagem Inteligente"
+          "smart_dry": "Secagem Inteligente",
+          "continuous_dry": "Secagem Contínua"
         }
       }
     },
@@ -316,9 +317,6 @@
       },
       "beeper": {
         "name": "Aviso Sonoro"
-      },
-      "humidity_control": {
-        "name": "Secagem Contínua"
       }
     }
   },
@@ -351,10 +349,13 @@
       "message": "Ocorreu um erro a executar a ação. A configuração para o dispositivo contém dados inválidos."
     },
     "humidity_mode_unavailable": {
-      "message": "O Controlo de Humidade só está disponível no modo de Arrefecer."
+      "message": "O Controlo de Humidade só está disponível nos modos de Arrefecer e Secar."
     },
     "continuous_dry_unavailable": {
-      "message": "Desumidificar Contínuo só está disponível no modo de Secar."
+      "message": "A Secagem Contínua só está disponível no modo de Secar."
+    },
+    "smart_dry_unavailable": {
+      "message": "A Secagem Inteligente só está disponível no modo de Arrefecer."
     }
   },
   "services": {

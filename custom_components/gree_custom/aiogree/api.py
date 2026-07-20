@@ -64,7 +64,7 @@ class GreeProp(StrEnum):
     # use light sensor for unit display
     FEAT_SENSOR_LIGHT = "LigSen"
     # humidity control mode. uses dry under cool mode
-    FEATURE_HUMIDITY = "Dmod"
+    FEATURE_HUMIDITY_CONTROL = "Dmod"
     # humidity control mode. sets the humidity target for the humidity control mode. (HUM% - 15) / 5
     FEATURE_HUMIDITY_TARGET = "Dwet"
 
@@ -411,9 +411,8 @@ class HumidityControlMode(IntEnum):
 
     disabled = 15
     target_dry = 0
-    smart_dry = 2
-    # This is only available in dry operation mode
-    continuous_dry = 1
+    continuous_dry = 1  # This is only available in dry operation mode
+    smart_dry = 2  # This is only available in cool operation mode
 
 
 class GreeCommand(IntEnum):

@@ -49,9 +49,13 @@ class GreeHumidityControlUnavailable(GreeUnsupportedState):
     """Humidity Control is only available under Cool mode."""
 
 
+class GreeContinuousDryUnavailable(GreeUnsupportedState):
+    """Humidity Control Continuous Dry only available in Dry operation mode."""
+
+
+class GreeSmartDryUnavailable(GreeUnsupportedState):
+    """Humidity Control Smart Dry only available in Cool operation mode."""
+
+
 class GreeHumidityControlTargetUnavailable(GreeUnsupportedState):
     """Humidity Control with a target humidity is only available in Cool with Normal Dry mode."""
-
-
-class GreeContinuousDryUnavailable(GreeUnsupportedState):
-    """Humidity Control Continuos Dry only available in Dry operation mode."""

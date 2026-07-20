@@ -302,7 +302,7 @@ def build_options_schema(
         valid_features.append(GATTR_FEAT_ENERGY_SAVING)
     if device.supports_property(GreeProp.SENSOR_FAULT):
         valid_features.append(GATTR_FAULTS)
-    if device.supports_property(GreeProp.FEATURE_HUMIDITY):
+    if device.supports_property(GreeProp.FEATURE_HUMIDITY_CONTROL):
         valid_features.append(GATTR_FEAT_HUMIDITY)
 
     schema.update(
