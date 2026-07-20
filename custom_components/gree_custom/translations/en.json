@@ -268,7 +268,8 @@
         "state": {
           "disabled": "Disabled",
           "target_dry": "Normal Dry",
-          "smart_dry": "Smart Dry"
+          "smart_dry": "Smart Dry",
+          "continuous_dry": "Continuous Dry"
         }
       }
     },
@@ -308,9 +309,6 @@
       },
       "beeper": {
         "name": "Beeper"
-      },
-      "humidity_control": {
-        "name": "Continuous Dry"
       }
     }
   },
