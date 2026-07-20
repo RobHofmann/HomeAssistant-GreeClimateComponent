@@ -8,6 +8,7 @@ from typing import TypeVar
 from homeassistant.const import CONF_MAC
 from homeassistant.helpers.entity_platform import Any
 
+from .aiogree.device import GreeDevice
 from .const import (
     CONF_ADVANCED,
     CONF_DEVICES,
@@ -72,31 +73,41 @@ def iter_platform_context(
         )
 
 
-def supported_features(
-    device_config: dict, coordinator: GreeCoordinator, subset: list[str] | None = None
-) -> set[str]:
-    """Extracts supported features from a device config and device support."""
-    features: list[str] = device_config.get(
-        CONF_FEATURES,
-        DEFAULT_SUPPORTED_FEATURES,
+def supported_descriptions(
+    descriptions: Sequence[T],
+    device: GreeDevice,
+    device_config: dict | None = None,
+) -> list[T]:
+    """Return the supported feature descriptions for a device.
+
+    Args:
+        descriptions: `GreeEntityDescription` list of entity descriptions.
+        device: The device to check for property support,
+        device_config: Device configuration. If omitted, all ``descriptions`` are used.
+    """
+    configured_features = (
+        set(device_config.get(CONF_FEATURES, DEFAULT_SUPPORTED_FEATURES))
+        if device_config is not None
+        else None
     )
 
-    if subset is not None:
-        features = [feature for feature in features if feature in subset]
+    supported = []
 
-    supported: set[str] = set()
+    for description in descriptions:
+        feature = entity_feature_key(description)
 
-    for feature in features:
+        if (
+            configured_features is not None
+            and not description.auto_device_support
+            and feature not in configured_features
+        ):
+            continue
+
         prop = CONF_TO_PROP_FEATURE_MAP.get(feature)
-        if prop and coordinator.device.supports_property(prop):
-            supported.add(feature)
+        if prop and device.supports_property(prop):
+            supported.append(description)
 
     return supported
-
-
-def filter_descriptions(descriptions: Sequence[T], supported: set[str]) -> list[T]:
-    """Filters a list of entity descriptions based on a supported features list."""
-    return [d for d in descriptions if entity_feature_key(d) in supported]
 
 
 def entity_feature_key(entity_description: T) -> str:

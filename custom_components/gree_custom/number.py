@@ -19,12 +19,7 @@ from .aiogree.device import GreeDevice
 from .const import GATTR_FEAT_HUMIDITY, GATTR_FEAT_HUMIDITY_TARGET
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
-from .platform_helpers import (
-    entity_feature_key,
-    filter_descriptions,
-    iter_platform_context,
-    supported_features,
-)
+from .platform_helpers import iter_platform_context, supported_descriptions
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -83,13 +78,11 @@ async def async_setup_entry(
     entities: list[GreeNumber] = []
 
     for ctx in iter_platform_context(entry, "Numbers"):
-        supported = supported_features(
+        descriptions = supported_descriptions(
+            NUMBER_TYPES,
+            ctx.coordinator.device,
             ctx.device_config,
-            ctx.coordinator,
-            [entity_feature_key(description) for description in NUMBER_TYPES],
         )
-
-        descriptions = filter_descriptions(NUMBER_TYPES, supported)
 
         _LOGGER.debug(
             "Adding Number Entities for device '%s': %s",

@@ -81,6 +81,9 @@ class GreeEntity(CoordinatorEntity[GreeCoordinator]):
 class GreeEntityDescription(EntityDescription, frozen_or_thawed=True):
     """Description of a Gree switch."""
 
+    # Use this to override the feature that is checked with the device to evaluate support
     feature_key_override: str | None = None
     # Use this to conditionally block the entity availability independent of the device availability
     additional_available_func: Callable[[GreeDevice], bool] = lambda _: True
+    # True if the support can be evaluated with the device API only, false if support must be explicit in device config
+    auto_device_support: bool = False

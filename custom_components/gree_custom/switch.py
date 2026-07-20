@@ -33,12 +33,7 @@ from .const import (
 )
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
-from .platform_helpers import (
-    entity_feature_key,
-    filter_descriptions,
-    iter_platform_context,
-    supported_features,
-)
+from .platform_helpers import iter_platform_context, supported_descriptions
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -169,13 +164,11 @@ async def async_setup_entry(
     entities: list[GreeSwitch] = []
 
     for ctx in iter_platform_context(entry, "Switches"):
-        supported = supported_features(
+        descriptions = supported_descriptions(
+            SWITCH_TYPES,
+            ctx.coordinator.device,
             ctx.device_config,
-            ctx.coordinator,
-            [entity_feature_key(description) for description in SWITCH_TYPES],
         )
-
-        descriptions = filter_descriptions(SWITCH_TYPES, supported)
 
         _LOGGER.debug(
             "Adding Switch Entities for device '%s': %s",

@@ -20,12 +20,7 @@ from .aiogree.errors import (
 from .const import DOMAIN, GATTR_FEAT_HUMIDITY, GATTR_TEMP_UNITS
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
-from .platform_helpers import (
-    entity_feature_key,
-    filter_descriptions,
-    iter_platform_context,
-    supported_features,
-)
+from .platform_helpers import iter_platform_context, supported_descriptions
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -63,6 +58,7 @@ def _set_humidity_control_mode(device: GreeDevice, mode: str) -> None:
 
 SELECT_TYPES: list[GreeSelectDescription] = [
     GreeSelectDescription(
+        auto_device_support=True,
         key=GATTR_TEMP_UNITS,
         translation_key=GATTR_TEMP_UNITS,
         entity_category=EntityCategory.CONFIG,
@@ -97,13 +93,11 @@ async def async_setup_entry(
     entities: list[GreeSelect] = []
 
     for ctx in iter_platform_context(entry, "Selects"):
-        supported = supported_features(
+        descriptions = supported_descriptions(
+            SELECT_TYPES,
+            ctx.coordinator.device,
             ctx.device_config,
-            ctx.coordinator,
-            [entity_feature_key(description) for description in SELECT_TYPES],
         )
-
-        descriptions = filter_descriptions(SELECT_TYPES, supported)
 
         _LOGGER.debug(
             "Adding Select Entities for device '%s': %s",

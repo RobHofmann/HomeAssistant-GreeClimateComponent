@@ -15,19 +15,10 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from .aiogree.device import GreeDevice
-from .const import (
-    CONF_TO_PROP_FEATURE_MAP,
-    GATTR_HUMIDITY,
-    GATTR_INDOOR_TEMPERATURE,
-    GATTR_OUTDOOR_TEMPERATURE,
-)
+from .const import GATTR_HUMIDITY, GATTR_INDOOR_TEMPERATURE, GATTR_OUTDOOR_TEMPERATURE
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
-from .platform_helpers import (
-    entity_feature_key,
-    filter_descriptions,
-    iter_platform_context,
-)
+from .platform_helpers import iter_platform_context, supported_descriptions
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,6 +33,7 @@ class GreeSensorDescription(
 
 SENSOR_TYPES: list[GreeSensorDescription] = [
     GreeSensorDescription(
+        auto_device_support=True,
         key=GATTR_INDOOR_TEMPERATURE,
         translation_key=GATTR_INDOOR_TEMPERATURE,
         device_class=SensorDeviceClass.TEMPERATURE,
@@ -51,6 +43,7 @@ SENSOR_TYPES: list[GreeSensorDescription] = [
         value_func=lambda device: device.indoors_temperature_c,
     ),
     GreeSensorDescription(
+        auto_device_support=True,
         key=GATTR_OUTDOOR_TEMPERATURE,
         translation_key=GATTR_OUTDOOR_TEMPERATURE,
         device_class=SensorDeviceClass.TEMPERATURE,
@@ -60,6 +53,7 @@ SENSOR_TYPES: list[GreeSensorDescription] = [
         value_func=lambda device: device.outdoors_temperature_c,
     ),
     GreeSensorDescription(
+        auto_device_support=True,
         key=GATTR_HUMIDITY,
         translation_key=GATTR_HUMIDITY,
         device_class=SensorDeviceClass.HUMIDITY,
@@ -82,15 +76,9 @@ async def async_setup_entry(
 
     for ctx in iter_platform_context(entry, "Sensors"):
         # Sensors are checked directly, not on the entry config
-        supported = [
-            key
-            for description in SENSOR_TYPES
-            if ctx.coordinator.device.supports_property(
-                CONF_TO_PROP_FEATURE_MAP.get(key := entity_feature_key(description))
-            )
-        ]
-
-        descriptions = filter_descriptions(SENSOR_TYPES, supported)
+        descriptions = supported_descriptions(
+            SENSOR_TYPES, ctx.coordinator.device, None
+        )
 
         _LOGGER.debug(
             "Adding Sensor Entities for device '%s': %s",

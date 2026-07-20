@@ -3,35 +3,24 @@
 from collections.abc import Callable
 import logging
 
-from attr import dataclass
-
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
     BinarySensorEntityDescription,
 )
-from homeassistant.const import CONF_MAC, EntityCategory
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .aiogree.device import GreeDevice
-from .const import (
-    CONF_ADVANCED,
-    CONF_DEVICES,
-    CONF_DISABLE_AVAILABLE_CHECK,
-    CONF_FEATURES,
-    CONF_TO_PROP_FEATURE_MAP,
-    DEFAULT_DISABLE_AVAILABLE_CHECK,
-    DEFAULT_SUPPORTED_FEATURES,
-    GATTR_FAULTS,
-)
+from .const import GATTR_FAULTS
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
+from .platform_helpers import iter_platform_context, supported_descriptions
 
 _LOGGER = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True, kw_only=True)
 class GreeBinarySensorDescription(
     GreeEntityDescription, BinarySensorEntityDescription, frozen_or_thawed=True
 ):
@@ -47,14 +36,6 @@ SENSOR_TYPES: list[GreeBinarySensorDescription] = [
         device_class=BinarySensorDeviceClass.PROBLEM,
         entity_category=EntityCategory.DIAGNOSTIC,
         value_func=lambda device: device.has_hvac_error,
-        entity_registry_enabled_default=True,
-        entity_registry_visible_default=True,
-        force_update=False,
-        icon=None,
-        has_entity_name=True,
-        name=None,
-        translation_placeholders=None,
-        unit_of_measurement=None,
     ),
 ]
 
@@ -67,59 +48,22 @@ async def async_setup_entry(
     """Set up binary sensors from a config entry."""
 
     entities: list[GreeBinarySensor] = []
-
-    for d in entry.data.get(CONF_DEVICES, []):
-        mac = d.get(CONF_MAC, "")
-        coordinator: GreeCoordinator = entry.runtime_data[mac]
-        if not coordinator:
-            _LOGGER.error(
-                "Cannot create Gree Binary Sensors. No coordinator found for device '%s'",
-                mac,
-            )
-            continue
-
-        descriptions: list[GreeBinarySensorDescription] = []
-
-        conf_supported_features: list[str] = []
-        supported_features: list[str] = []
-
-        if d.get(CONF_FEATURES, None) is None:
-            _LOGGER.warning("Undefined supported features")
-
-        conf_supported_features = d.get(CONF_FEATURES, DEFAULT_SUPPORTED_FEATURES)
-
-        # Check features with device support before addinig entities
-        for feature in conf_supported_features:
-            prop = CONF_TO_PROP_FEATURE_MAP.get(feature)
-            if prop and coordinator.device.supports_property(prop):
-                supported_features.append(feature)
-
-        descriptions.extend(
-            [
-                description
-                for description in SENSOR_TYPES
-                if description.key in supported_features
-            ]
+    for ctx in iter_platform_context(entry, "Binary Sensors"):
+        descriptions = supported_descriptions(
+            SENSOR_TYPES,
+            ctx.coordinator.device,
+            ctx.device_config,
         )
 
         _LOGGER.debug(
             "Adding Binary Sensor Entities for device '%s': %s",
-            coordinator.device.mac_address,
+            ctx.coordinator.device.mac_address,
             [d.key for d in descriptions],
         )
 
         entities.extend(
             [
-                GreeBinarySensor(
-                    description,
-                    coordinator,
-                    check_availability=(
-                        not entry.data[CONF_ADVANCED].get(
-                            CONF_DISABLE_AVAILABLE_CHECK,
-                            DEFAULT_DISABLE_AVAILABLE_CHECK,
-                        )
-                    ),
-                )
+                GreeBinarySensor(description, ctx.coordinator, ctx.check_availability)
                 for description in descriptions
             ]
         )
