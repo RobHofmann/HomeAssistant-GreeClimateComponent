@@ -2,8 +2,6 @@
 
 import logging
 
-from attr import dataclass
-
 from homeassistant.components.climate import (
     ATTR_FAN_MODE,
     ATTR_HVAC_MODE,
@@ -17,7 +15,6 @@ from homeassistant.components.climate import (
 from homeassistant.const import (
     ATTR_TEMPERATURE,
     ATTR_UNIT_OF_MEASUREMENT,
-    CONF_MAC,
     EVENT_CORE_CONFIG_UPDATE,
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
@@ -34,7 +31,6 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.restore_state import RestoreEntity
-from homeassistant.helpers.typing import UNDEFINED
 from homeassistant.util.unit_conversion import TemperatureConverter
 
 from .aiogree.api import FanSpeed, GreeProp, HorizontalSwingMode, VerticalSwingMode
@@ -43,19 +39,13 @@ from .aiogree.errors import GreeQuietIgnored, GreeTurboIgnored, GreeTurboUnavail
 from .const import (
     ATTR_EXTERNAL_HUMIDITY_SENSOR,
     ATTR_EXTERNAL_TEMPERATURE_SENSOR,
-    CONF_ADVANCED,
-    CONF_DEVICES,
-    CONF_DISABLE_AVAILABLE_CHECK,
     CONF_FAN_MODES,
     CONF_HVAC_MODES,
-    CONF_RESTORE_STATES,
     CONF_SWING_HORIZONTAL_MODES,
     CONF_SWING_MODES,
     CONF_TEMPERATURE_STEP,
-    DEFAULT_DISABLE_AVAILABLE_CHECK,
     DEFAULT_FAN_MODES,
     DEFAULT_HVAC_MODES,
-    DEFAULT_RESTORE_STATES,
     DEFAULT_SWING_HORIZONTAL_MODES,
     DEFAULT_SWING_MODES,
     DEFAULT_TARGET_TEMP_STEP,
@@ -68,28 +58,17 @@ from .const import (
 )
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
+from .platform_helpers import iter_platform_context
 
 _LOGGER = logging.getLogger(__name__)
 
 GATTR_CLIMATE = "hvac"
 
 
-@dataclass(frozen=True, kw_only=True)
-class GreeClimateDescription(GreeEntityDescription, ClimateEntityDescription):
+class GreeClimateDescription(
+    GreeEntityDescription, ClimateEntityDescription, frozen_or_thawed=True
+):
     """Description of a Gree Climate entity."""
-
-    additional_available_func = lambda _: True  # noqa: E731
-    device_class = None
-    entity_category = None
-    entity_registry_enabled_default = True
-    entity_registry_visible_default = True
-    force_update = False
-    icon = None
-    has_entity_name = True
-    name = UNDEFINED
-    translation_key = None
-    translation_placeholders = None
-    unit_of_measurement = None
 
 
 async def async_setup_entry(
@@ -101,27 +80,20 @@ async def async_setup_entry(
 
     entities: list[GreeClimate] = []
 
-    for d in entry.data.get(CONF_DEVICES, []):
-        mac = d.get(CONF_MAC, "")
-        coordinator: GreeCoordinator = entry.runtime_data[mac]
-        if not coordinator:
-            _LOGGER.error(
-                "Cannot create Gree Climate. No coordinator found for device '%s'",
-                mac,
-            )
-            continue
-
+    for ctx in iter_platform_context(entry, "Climates"):
         hvac_modes: list[HVACMode] = [
             HVACMode[mode.upper()]
             for mode in (
-                d[CONF_HVAC_MODES]
-                if d[CONF_HVAC_MODES] is not None
+                ctx.device_config[CONF_HVAC_MODES]
+                if ctx.device_config[CONF_HVAC_MODES] is not None
                 else DEFAULT_HVAC_MODES
             )
         ]
 
         fan_modes: list[str] = (
-            d[CONF_FAN_MODES] if d[CONF_FAN_MODES] is not None else DEFAULT_FAN_MODES
+            ctx.device_config[CONF_FAN_MODES]
+            if ctx.device_config[CONF_FAN_MODES] is not None
+            else DEFAULT_FAN_MODES
         )
         fan_modes = sorted(
             fan_modes,
@@ -131,8 +103,8 @@ async def async_setup_entry(
         )
 
         swing_modes: list[str] = (
-            d[CONF_SWING_MODES]
-            if d[CONF_SWING_MODES] is not None
+            ctx.device_config[CONF_SWING_MODES]
+            if ctx.device_config[CONF_SWING_MODES] is not None
             else DEFAULT_SWING_MODES
         )
         swing_modes = sorted(
@@ -145,8 +117,8 @@ async def async_setup_entry(
         )
 
         swing_horizontal_modes: list[str] = (
-            d[CONF_SWING_HORIZONTAL_MODES]
-            if d[CONF_SWING_HORIZONTAL_MODES] is not None
+            ctx.device_config[CONF_SWING_HORIZONTAL_MODES]
+            if ctx.device_config[CONF_SWING_HORIZONTAL_MODES] is not None
             else DEFAULT_SWING_HORIZONTAL_MODES
         )
         swing_horizontal_modes = sorted(
@@ -166,7 +138,7 @@ async def async_setup_entry(
 
         _LOGGER.debug(
             "Adding Climate Entity for device '%s'",
-            coordinator.device.mac_address,
+            ctx.coordinator.device.mac_address,
         )
 
         entities.append(
@@ -175,20 +147,22 @@ async def async_setup_entry(
                     key=GATTR_CLIMATE,
                     translation_key=GATTR_CLIMATE,
                 ),
-                coordinator,
+                ctx.coordinator,
                 hvac_modes,
                 fan_modes,
                 swing_modes,
                 swing_horizontal_modes,
-                temperature_step=d.get(CONF_TEMPERATURE_STEP, DEFAULT_TARGET_TEMP_STEP),
-                restore_state=d.get(CONF_RESTORE_STATES, DEFAULT_RESTORE_STATES),
-                check_availability=(
-                    not entry.data[CONF_ADVANCED].get(
-                        CONF_DISABLE_AVAILABLE_CHECK, DEFAULT_DISABLE_AVAILABLE_CHECK
-                    )
+                temperature_step=ctx.device_config.get(
+                    CONF_TEMPERATURE_STEP, DEFAULT_TARGET_TEMP_STEP
                 ),
-                external_temperature_sensor_id=d.get(ATTR_EXTERNAL_TEMPERATURE_SENSOR),
-                external_humidity_sensor_id=d.get(ATTR_EXTERNAL_HUMIDITY_SENSOR),
+                restore_state=ctx.restore_state,
+                check_availability=ctx.check_availability,
+                external_temperature_sensor_id=ctx.device_config.get(
+                    ATTR_EXTERNAL_TEMPERATURE_SENSOR
+                ),
+                external_humidity_sensor_id=ctx.device_config.get(
+                    ATTR_EXTERNAL_HUMIDITY_SENSOR
+                ),
             )
         )
 

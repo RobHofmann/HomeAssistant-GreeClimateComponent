@@ -290,10 +290,8 @@ def build_options_schema(
         valid_features.append(GATTR_FEAT_SMART_HEAT_8C)
     if device.supports_property(GreeProp.FEAT_LIGHT):
         valid_features.append(GATTR_FEAT_LIGHT)
-    if device.supports_property(GreeProp.FEAT_LIGHT) and device.supports_property(
-        GreeProp.FEAT_SENSOR_LIGHT
-    ):
-        valid_features.append(GATTR_FEAT_SENSOR_LIGHT)
+        if device.supports_property(GreeProp.FEAT_SENSOR_LIGHT):
+            valid_features.append(GATTR_FEAT_SENSOR_LIGHT)
     if device.supports_property(GreeProp.FEAT_HEALTH):
         valid_features.append(GATTR_FEAT_HEALTH)
     if device.supports_property(GreeProp.FEAT_ANTI_DIRECT_BLOW):

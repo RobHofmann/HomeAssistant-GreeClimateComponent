@@ -1,7 +1,6 @@
 """Base entity for Gree integration."""
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
 
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.helpers.entity import DeviceInfo, EntityDescription
@@ -79,16 +78,9 @@ class GreeEntity(CoordinatorEntity[GreeCoordinator]):
         return custom_available and coordinator_ok and device_ok
 
 
-@dataclass(frozen=True, kw_only=True)
-class GreeEntityDescription(EntityDescription):
+class GreeEntityDescription(EntityDescription, frozen_or_thawed=True):
     """Description of a Gree switch."""
 
-    # Restore the last state by default since the device can be controlled externally,
-    # this way HA sets the device to its last known HA state.
-    # This will be overridden by entry configuration
-    # restore_state: bool = True
-
+    feature_key_override: str | None = None
     # Use this to conditionally block the entity availability independent of the device availability
-    additional_available_func: Callable[[GreeDevice], bool] = field(
-        default=lambda _: True
-    )
+    additional_available_func: Callable[[GreeDevice], bool] = lambda _: True

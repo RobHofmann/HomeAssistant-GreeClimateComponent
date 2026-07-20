@@ -38,8 +38,6 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
-
-# Home Assistant imports
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .helpers import try_find_new_ip
 from .services import async_setup_services

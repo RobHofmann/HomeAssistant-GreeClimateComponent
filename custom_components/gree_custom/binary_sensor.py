@@ -32,10 +32,11 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, kw_only=True)
-class GreeBinarySensorDescription(GreeEntityDescription, BinarySensorEntityDescription):
+class GreeBinarySensorDescription(
+    GreeEntityDescription, BinarySensorEntityDescription, frozen_or_thawed=True
+):
     """Description of a Gree binary sensor."""
 
-    additional_available_func = lambda _: True  # noqa: E731
     value_func: Callable[[GreeDevice], bool | None]
 
 
