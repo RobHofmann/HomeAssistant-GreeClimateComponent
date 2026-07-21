@@ -41,7 +41,6 @@ class GreePlatformContext:
 
 def iter_platform_context(
     entry: GreeConfigEntry,
-    platform: str,
 ) -> Iterator[GreePlatformContext]:
     """Yield context for every configured device."""
 
@@ -56,8 +55,7 @@ def iter_platform_context(
         coordinator = entry.runtime_data.get(mac)
         if coordinator is None:
             _LOGGER.error(
-                "Cannot create Gree %s. No coordinator found for device '%s'",
-                platform,
+                "No coordinator found for device '%s'",
                 mac,
             )
             continue
@@ -76,7 +74,7 @@ def iter_platform_context(
 def supported_descriptions(
     descriptions: Sequence[T],
     device: GreeDevice,
-    device_config: dict | None = None,
+    device_config: dict[str, Any] | None = None,
 ) -> list[T]:
     """Return the supported feature descriptions for a device.
 
@@ -85,13 +83,13 @@ def supported_descriptions(
         device: The device to check for property support,
         device_config: Device configuration. If omitted, all ``descriptions`` are used.
     """
-    configured_features = (
+    configured_features: list[str] = (
         set(device_config.get(CONF_FEATURES, DEFAULT_SUPPORTED_FEATURES))
         if device_config is not None
         else None
     )
 
-    supported = []
+    supported: list[T] = []
 
     for description in descriptions:
         feature = entity_feature_key(description)

@@ -47,7 +47,7 @@ async def async_get_device_diagnostics(
             mac = identifier
             break
 
-    coordinator = entry.runtime_data.get(mac, None)
+    coordinator: GreeCoordinator | None = entry.runtime_data.get(mac, None)
 
     return {
         "device": device.dict_repr,

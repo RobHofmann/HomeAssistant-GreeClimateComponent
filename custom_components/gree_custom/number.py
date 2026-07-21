@@ -75,9 +75,11 @@ async def async_setup_entry(
 ) -> None:
     """Set up switches from a config entry."""
 
+    _LOGGER.debug("Setting up Number Entities")
+
     entities: list[GreeNumber] = []
 
-    for ctx in iter_platform_context(entry, "Numbers"):
+    for ctx in iter_platform_context(entry):
         descriptions = supported_descriptions(
             NUMBER_TYPES,
             ctx.coordinator.device,

@@ -47,8 +47,11 @@ async def async_setup_entry(
 ) -> None:
     """Set up binary sensors from a config entry."""
 
+    _LOGGER.debug("Setting up Binary Sensor Entities")
+
     entities: list[GreeBinarySensor] = []
-    for ctx in iter_platform_context(entry, "Binary Sensors"):
+
+    for ctx in iter_platform_context(entry):
         descriptions = supported_descriptions(
             SENSOR_TYPES,
             ctx.coordinator.device,

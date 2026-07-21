@@ -78,9 +78,11 @@ async def async_setup_entry(
 ) -> None:
     """Set up sensors from a config entry."""
 
+    _LOGGER.debug("Setting up Climate Entities")
+
     entities: list[GreeClimate] = []
 
-    for ctx in iter_platform_context(entry, "Climates"):
+    for ctx in iter_platform_context(entry):
         hvac_modes: list[HVACMode] = [
             HVACMode[mode.upper()]
             for mode in (

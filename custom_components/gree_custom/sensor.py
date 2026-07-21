@@ -72,9 +72,11 @@ async def async_setup_entry(
 ) -> None:
     """Set up sensors from a config entry."""
 
+    _LOGGER.debug("Setting up Sensor Entities")
+
     entities: list[GreeSensor] = []
 
-    for ctx in iter_platform_context(entry, "Sensors"):
+    for ctx in iter_platform_context(entry):
         # Sensors are checked directly, not on the entry config
         descriptions = supported_descriptions(
             SENSOR_TYPES, ctx.coordinator.device, None

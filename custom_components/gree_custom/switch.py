@@ -161,9 +161,11 @@ async def async_setup_entry(
 ) -> None:
     """Set up switches from a config entry."""
 
+    _LOGGER.debug("Setting up Switch Entities")
+
     entities: list[GreeSwitch] = []
 
-    for ctx in iter_platform_context(entry, "Switches"):
+    for ctx in iter_platform_context(entry):
         descriptions = supported_descriptions(
             SWITCH_TYPES,
             ctx.coordinator.device,
