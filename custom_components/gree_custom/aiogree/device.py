@@ -1022,8 +1022,8 @@ class GreeDevice:
     def set_feature_humidity_control(self, mode: HumidityControlMode) -> None:
         """Sets the Humidy Control mode.
 
-        HumidityControlMode.smart_dry is only available under `Cool` mode.
-        HumidityControlMode.continuous_dry  is only available under `Dry` mode.
+        `HumidityControlMode.smart_dry` is only available under `Cool` mode.
+        `HumidityControlMode.continuous_dry`  is only available under `Dry` mode.
         """
 
         if mode != HumidityControlMode.disabled and self.operation_mode not in (
@@ -1087,9 +1087,10 @@ class GreeDevice:
     def set_feature_humidity_control_target(
         self, humidity_target_percentage: int
     ) -> None:
-        """Sets the target humidity percentage.
+        """Sets the target humidity percentage (in multiples of 5).
 
-        The device only accepts multiples of 5 in a range from 40% to 80%.
+        Cool mode range: 40-80.
+        Dry mode range: 30-70.
         """
 
         if self.feature_humidity_control is not HumidityControlMode.target_dry:
