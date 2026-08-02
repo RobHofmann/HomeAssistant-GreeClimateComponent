@@ -60,7 +60,7 @@ class TempOffsetResolver:
         penalty_no = self._penalty(lo, hi)
         penalty_off = self._penalty(lo - self._offset, hi - self._offset)
         if penalty_no == penalty_off:
-            return  # still ambiguous – keep collecting data
+            return  # still ambiguous - keep collecting data
         self._has_offset = penalty_off < penalty_no
 
     def _penalty(self, lo: float, hi: float) -> float:
@@ -93,8 +93,8 @@ def gree_get_target_temp_props_from_f(desired_temp_f: int) -> tuple[int, int]:
         desired_temp_f = MIN_TEMP_F
 
     celsius = (desired_temp_f - 32.0) * 5.0 / 9.0
-    SetTem = round(celsius)
-    TemRec = int((celsius - SetTem) > -0.001)
+    SetTem = round(celsius)  # noqa: N806
+    TemRec = int((celsius - SetTem) > -0.001)  # noqa: N806
 
     return SetTem, TemRec
 
@@ -118,24 +118,24 @@ def gree_get_target_temp_props_from_c(desired_temp_c: float) -> tuple[int, int]:
         )
         desired_temp_c = MIN_TEMP_C
 
-    # Encode any floating‐point temperature T into:
+    # Encode any floating-point temperature T into:
     #   ‣ temp_int: the integer (°C) portion of the nearest 0.0/0.5 step,
     #   ‣ half_bit: 1 if the nearest step has a ".5", else 0.
 
     # This "finds the closest multiple of 0.5" to T, then:
     #   n = round(T * 2)
     #   temp_int = n >> 1      (i.e. floor(n/2))
-    #   half_bit = n & 1       (1 if it's an odd half‐step)
+    #   half_bit = n & 1       (1 if it's an odd half-step)
 
     # 1) Compute "twice T" and round to nearest integer:
     #    math.floor(T * 2 + 0.5) is equivalent to rounding ties upward.
-    n = int(round(desired_temp_c * 2))
+    n: int = round(desired_temp_c * 2)
 
     # 2) The low bit of n says ".5" (odd) versus ".0" (even):
-    TemRec = n & 1
+    TemRec = n & 1  # noqa: N806
 
-    # 3) Shifting right by 1 gives floor(n/2), i.e. the integer °C of that nearest half‐step:
-    SetTem = n >> 1
+    # 3) Shifting right by 1 gives floor(n/2), i.e. the integer °C of that nearest half-step:
+    SetTem = n >> 1  # noqa: N806
 
     return SetTem, TemRec
 
@@ -173,3 +173,40 @@ def gree_get_target_temperature_c(SetTem: int, TemRec: int) -> float:
     # Returns the original temperature as a float.
 
     return SetTem + (0.5 if TemRec else 0.0)
+
+
+def gree_get_target_humidity_prop_from_p(
+    desired_humidity_percentage: int, min_val: int, max_val: int
+) -> int:
+    """Calculates the prop value for a given humidity percentage."""
+
+    if desired_humidity_percentage > max_val:
+        _LOGGER.warning(
+            "The desired humidity is greater than allowed. Clamping to highest value: %d > %d",
+            desired_humidity_percentage,
+            max_val,
+        )
+        desired_humidity_percentage = max_val
+
+    if desired_humidity_percentage < min_val:
+        _LOGGER.warning(
+            "The desired humidity is lower than allowed. Clamping to lowest value: %d < %d",
+            desired_humidity_percentage,
+            min_val,
+        )
+        desired_humidity_percentage = min_val
+
+    if desired_humidity_percentage % 5 != 0:
+        _LOGGER.warning(
+            "Humidity target %s is not a multiple of 5; rounding to the nearest multiple",
+            desired_humidity_percentage,
+        )
+        desired_humidity_percentage = round(desired_humidity_percentage / 5) * 5
+
+    return int((desired_humidity_percentage - 15) / 5)
+
+
+def gree_get_target_humidity_p(Dwet: int) -> int:
+    """Return a humidity percentage based on the device property value."""
+
+    return 5 * Dwet + 15

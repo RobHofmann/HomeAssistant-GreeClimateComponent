@@ -18,6 +18,7 @@ from .helpers import try_find_new_ip
 
 _LOGGER = logging.getLogger(__name__)
 
+# Home Assistant config entry containing Gree coordinators keyed by normalized MAC addresses ("xxxxxxxxxxxx").
 type GreeConfigEntry = ConfigEntry[dict[str, GreeCoordinator]]
 
 
@@ -31,7 +32,7 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         device: GreeDevice,
         scan_interval: int,
     ) -> None:
-        """Initialize coordinator."""
+        """Initialize the coordinator for a Gree device."""
         super().__init__(
             hass,
             _LOGGER,
@@ -45,21 +46,20 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         self._feature_auto_light: bool = False
 
     async def _async_setup(self):
-        """Set up the coordinator.
+        """Bind to the device before the first coordinator refresh.
 
-        This is the place to set up your coordinator,
-        or to load data, that only needs to be loaded once.
-
-        This method will be called automatically during
-        coordinator.async_config_entry_first_refresh.
+        This is called automatically by
+        `coordinator.async_config_entry_first_refresh()` and performs
+        one-time initialization required before regular updates begin.
         """
         await self.device.bind_device()
 
     async def _async_update_data(self):
-        """Fetch data from API endpoint.
+        """Updates the device with he latest state.
 
-        This is the place to pre-process the data to lookup tables
-        so entities can quickly look up their data.
+        If communication fails due to a connection error, the coordinator
+        attempts to discover the device's new IP address and retries the
+        request once before reporting the update as failed.
         """
         try:
             await self.device.fetch_device_status()
@@ -83,7 +83,11 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
             raise UpdateFailed("Error getting state from device") from err
 
     async def push_device_status(self):
-        """Pushes the transient state to the device."""
+        """Push the current transient state to the device.
+
+        If communication fails because the device IP has changed, attempt
+        to rediscover the device and retry the request once.
+        """
         try:
             await self.device.push_device_status()
         except GreeConnectionError:
@@ -94,7 +98,11 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
             await self.device.push_device_status()
 
     def get_coordinator_diagnostics(self) -> dict[str, Any]:
-        """Returns diagnostic data for the coordinator."""
+        """Return diagnostic information for the coordinator.
+
+        Includes device diagnostics along with coordinator-specific
+        configuration and feature flags.
+        """
         data = self.device.gather_diagnostics()
         data["coordinator_props"] = {
             "auto_light": self.feature_auto_light,

@@ -145,7 +145,7 @@ The indoor _temperature_ (`current_temperature`) and _humidity_ (`current_humidi
 
 Depending on the device configuration, specific Gree AC model, and firmware version, the integration exposes various entities to configure additional features of your Gree AC unit. Entity availability depends on the current HVAC mode and status. These controls allow you to toggle special modes and adjust settings:
 
-### Feature Switches
+### Features
 
 - **Health**: Enables or disables the Health mode for air ionization and purification
 - **Power Save**: Enables or disables the power saving mode for energy efficiency. Only available in cooling mode
@@ -154,7 +154,7 @@ Depending on the device configuration, specific Gree AC model, and firmware vers
 - **Fresh Air**: Enables or disables the fresh air circulation mode
 - **X-Fan**: Enables or disables the X-Fan mode that keeps the fan working for a few moments after turning the device off in cooling and dry modes, preventing condensation in the unit
 - **Anti Direct Blow**: Prevents direct air flow from blowing on people by adjusting the air deflector position
-  
+- **Humidity Control**: Control the room humidity to a set target or inteligently. Only available in cooling and dry modes
 
 ### Configuration Controls
 

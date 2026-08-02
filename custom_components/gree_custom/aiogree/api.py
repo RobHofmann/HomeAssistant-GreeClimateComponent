@@ -16,7 +16,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class GreeProp(StrEnum):
-    """Enumeration of Gree device properties."""
+    """Enumeration of device properties."""
 
     # HVAC CONTROLS
     # power state of the device
@@ -49,9 +49,10 @@ class GreeProp(StrEnum):
     FEAT_XFAN = "Blo"
     # controls Health ("Cold plasma") mode, only for devices equipped with "anion generator", which absorbs dust and kills bacteria
     FEAT_HEALTH = "Health"
-    # sleep mode, which gradually changes the temperature in Cool, Heat and Dry mode
-    FEAT_SLEEP_MODE_SWING = "SwhSlp"
+    # sleep mode enabled, which gradually changes the temperature in Cool and Heat modes
     FEAT_SLEEP_MODE = "SlpMod"
+    # sleep mode setting, controls different sleep modes
+    FEAT_SLEEP_MODE_TYPE = "SwhSlp"
     # turns all indicators and the display on the unit on or off
     FEAT_LIGHT = "Lig"
     # Anti Freeze maintain the room temperature steadily at 8°C and prevent the room from freezing by heating operation when nobody is at home for long in severe winter
@@ -62,6 +63,10 @@ class GreeProp(StrEnum):
     FEAT_ANTI_DIRECT_BLOW = "AntiDirectBlow"
     # use light sensor for unit display
     FEAT_SENSOR_LIGHT = "LigSen"
+    # humidity control mode. uses dry under cool mode
+    FEATURE_HUMIDITY_CONTROL = "Dmod"
+    # humidity control mode. sets the humidity target for the humidity control mode. (HUM% - 15) / 5
+    FEATURE_HUMIDITY_TARGET = "Dwet"
 
     # SENSORS
     # indoor temperature sensor, used to read the current room temperature, if available
@@ -86,7 +91,7 @@ PROP_KEY_TO_ENUM = {prop.value: prop for prop in GreeProp}
 
 
 class OtherProps(StrEnum):
-    """Enumeration of other Gree device properties."""
+    """Enumeration of additional device properties."""
 
     _UNKN_MODEL = "ModelType"
     _UNKN_ACStupPos = "ACStupPos"
@@ -118,14 +123,12 @@ class OtherProps(StrEnum):
     _UNKN_Dfltr = "Dfltr"
     _UNKN_DFPoint = "DFPoint"
     _UNKN_DIYGra1PoiAmo = "DIYGra1PoiAmo"
-    _UNKN_Dmod = "Dmod"
     _UNKN_DnPLLRSwing = "DnPLLRSwing"
     _UNKN_DnPRLRSwing = "DnPRLRSwing"
     _UNKN_DnPUDSwing = "DnPUDSwing"
     _UNKN_Dpump = "Dpump"
     _UNKN_DsplySt = "DsplySt"
     _UNKN_DwatFul = "DwatFul"
-    _UNKN_Dwet = "Dwet"
     _UNKN_Elc1Kwh = "Elc1Kwh"
     _UNKN_ElcAllKwhClr = "ElcAllKwhClr"
     _UNKN_ElcAllKwhH = "ElcAllKwhH"
@@ -392,6 +395,26 @@ class VerticalSwingMode(IntEnum):
     swing_lower = 11
 
 
+@unique
+class SleepMode(IntEnum):
+    """Enumeration of sleep mode types."""
+
+    disabled = 0
+    normal = 1
+    advanced = 2
+    diy = 3
+
+
+@unique
+class HumidityControlMode(IntEnum):
+    """Enumeration of the humidity control modes."""
+
+    disabled = 15
+    target_dry = 0
+    continuous_dry = 1  # This is only available in dry operation mode
+    smart_dry = 2  # This is only available in cool operation mode
+
+
 class GreeCommand(IntEnum):
     """Enumeration of Gree commands."""
 
@@ -401,7 +424,7 @@ class GreeCommand(IntEnum):
 
 @dataclass
 class GreeDiscoveredDevice:
-    """Device discovered data."""
+    """Information about a discovered Gree device."""
 
     name: str
     host: str
@@ -416,7 +439,7 @@ class GreeDiscoveredDevice:
 async def get_result_pack(
     json_data: dict, cipher: CipherBase, transport: GreeTransport
 ) -> dict:
-    """Get the result pack from the device (async)."""
+    """Send a request to the device and return the decoded response pack."""
 
     try:
         recv_json = await transport.request_json(json_data)
@@ -448,7 +471,7 @@ def get_gree_response_data(
     recv_json: dict,
     cipher: CipherBase,
 ) -> dict:
-    """Decodes a response from a gree device."""
+    """Decode and decrypt a response from a Gree device."""
 
     encoded_pack = recv_json.get("pack")
     tag = recv_json.get("tag")
@@ -465,7 +488,7 @@ def gree_encrypt_pack(
     pack: dict,
     cipher: CipherBase,
 ) -> tuple[str, str | None]:
-    """Create an encrypted pack to send to the device."""
+    """Encrypt a protocol pack for transmission to the device."""
 
     if cipher is None:
         raise GreeError("Cipher must not be None")
@@ -480,7 +503,7 @@ def gree_encrypt_pack(
 
 
 def gree_create_bind_pack(mac_addr: str, uid: int, cipher: CipherBase) -> dict:
-    """Create a bind pack to send to the device."""
+    """Create a bind request pack."""
 
     pack: dict = {}
 
@@ -494,7 +517,7 @@ def gree_create_bind_pack(mac_addr: str, uid: int, cipher: CipherBase) -> dict:
 
 
 def gree_create_sub_bind_pack(mac_addr: str) -> dict:
-    """Create a bind pack to send to the device."""
+    """Create a sub-device bind request pack."""
 
     pack: dict = {"mac": mac_addr, "i": 1}
 
@@ -503,7 +526,7 @@ def gree_create_sub_bind_pack(mac_addr: str) -> dict:
 
 
 def gree_create_status_pack(mac_addr: str, props: list[str]) -> dict:
-    """Create a status pack to send to the device."""
+    """Create a status request pack."""
 
     pack: dict = {"cols": props, "mac": mac_addr, "t": "status"}
 
@@ -512,7 +535,7 @@ def gree_create_status_pack(mac_addr: str, props: list[str]) -> dict:
 
 
 def gree_create_set_pack(mac_addr: str, props: dict[GreeProp, int]) -> dict:
-    """Create a set pack to send to the device."""
+    """Create a command pack to update device properties."""
 
     pack: dict = {
         "opt": [prop.value for prop in props],
@@ -533,7 +556,7 @@ def gree_create_payload(
     uid: int,
     tag: str | None,
 ) -> dict:
-    """Create the full payload to send to the device."""
+    """Create a protocol payload containing an encrypted pack."""
 
     payload: dict[str, Any] = {
         "cid": "app",
@@ -558,10 +581,12 @@ async def gree_try_bind(
     key: str | None,
     transport: GreeTransport,
 ) -> tuple[str, EncryptionVersion]:
-    """Perform bind request to the device and return the valid version and key (async).
+    """Bind to the device and determine the correct encryption settings.
 
-    Performs the bind with the provided key or version. Falls back to generic keys.
-    If the provided key or version do not match the device, the function will return the correct device key and version.
+    Attempts binding using the provided encryption version and/or key when
+    available. If binding fails, falls back to the default encryption
+    versions and returns the encryption key and version accepted by the
+    device.
     """
 
     ret_key: str = ""
@@ -665,21 +690,15 @@ async def gree_get_status(
     cipher: CipherBase,
     transport: GreeTransport,
 ) -> tuple[dict[str, str], list[str]]:
-    """Get the status of the device by sending a status request to the device (async). Also returns the props not present.
+    """Retrieve the current values of the requested device properties.
 
-    Gree Protocol is a best-effort key/value response with no guaranteed completeness
+    Returns a mapping of property names to values, along with a list of
+    properties that were not returned by the device.
 
-    If a invalid prop is requested the response will not have it which is good
-    However, some "invalid" props are returned in the response with no data, making it impossible to know in a batch where they are
-    Note: Invalid != Unsupported
-
-    Meaning:
-
-    cols = what the device claims it is returning
-    dat = best-effort values, possibly incomplete
-    alignment between them is not guaranteed globally
-
-    As such, it is only safe to batch props that are known to work.
+    The Gree protocol provides best-effort responses, meaning requested
+    properties may be omitted or returned without corresponding values.
+    This makes it impossible to know in a batch where they are.
+    Callers should therefore only batch properties known to be supported.
     """
 
     _LOGGER.debug("Getting status for device '%s'", mac_addr)
@@ -702,6 +721,12 @@ async def gree_get_status(
 
     except Exception as err:
         raise GreeProtocolError("Error getting device status") from err
+
+    # Gree protocol provides best-effort responses
+    # Meaning:
+    # cols = what the device claims it is returning
+    # dat = best-effort values, possibly incomplete
+    # alignment between them is not guaranteed globally
 
     cols = result.get("cols")
     dat = result.get("dat")
@@ -745,8 +770,10 @@ async def gree_set_status(
     cipher: CipherBase,
     transport: GreeTransport,
 ) -> dict[GreeProp, int]:
-    """Set the status of the device by sending a status request to the device (async)."""
+    """Update one or more device properties.
 
+    Returns the property values acknowledged by the device.
+    """
     _LOGGER.debug("Trying to set device status")
 
     pack = gree_create_set_pack(mac_addr, props)
@@ -802,7 +829,7 @@ async def gree_set_status(
 async def gree_get_device_info(
     transport: GreeTransport, cipher: CipherBase | None = None
 ) -> dict[str, str | dict | None]:
-    """Tries to retrive the device info."""
+    """Retrieve device information from a scan response."""
 
     data: dict = await get_result_pack(
         {"t": "scan"},
@@ -814,14 +841,14 @@ async def gree_get_device_info(
 
     info: dict[str, str | dict | None] = {}
     info["raw"] = data
-    info["firmware_version"], info["firmware_code"] = extract_version(data)
+    info["firmware_version"], info["firmware_code"] = _extract_fw_version(data)
     info["mac"] = data.get("mac", "")
     info["subdevices_count"] = data.get("subCnt", 0)
     return info
 
 
-def extract_version(info: dict) -> tuple[str | None, str | None]:
-    """Finds the firmware info."""
+def _extract_fw_version(info: dict) -> tuple[str | None, str | None]:
+    """Extract the firmware version and device identifier from device information."""
     hid = info.get("hid", "")
     ver_match = re.search(r"V([\d.]+)\.bin", hid)
     if ver_match:
@@ -838,7 +865,7 @@ def extract_version(info: dict) -> tuple[str | None, str | None]:
 async def discover_gree_devices(
     broadcast_addresses: list[str], timeout: int
 ) -> list[GreeDiscoveredDevice]:
-    """Discovers gree devices in the network."""
+    """Discover Gree devices on the specified broadcast networks."""
 
     discovered_devices: list[GreeDiscoveredDevice] = []
 
@@ -922,7 +949,7 @@ async def discover_gree_devices(
 async def gree_get_sub_devices_list(
     mac_addr: str, uid: int, cipher: CipherBase, transport: GreeTransport
 ) -> list:
-    """Fetch the list of sub-devices for a Gree device."""
+    """Retrieve the list of sub-devices exposed by a main controller device."""
     try:
         pack = gree_create_sub_bind_pack(mac_addr)
         encrypted_pack, tag = gree_encrypt_pack(

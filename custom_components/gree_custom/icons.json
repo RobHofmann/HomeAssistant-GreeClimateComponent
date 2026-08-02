@@ -48,6 +48,14 @@
     "select": {
       "temperature_units": {
         "default": "mdi:thermometer-alert"
+      },
+      "humidity_control": {
+        "default": "mdi:water-sync"
+      }
+    },
+    "number": {
+      "humidity_control_target": {
+        "default": "mdi:water-percent"
       }
     },
     "switch": {

@@ -75,11 +75,15 @@ GATTR_FEAT_SENSOR_LIGHT = "light_sensor"
 GATTR_FEAT_QUIET_MODE = "quiet"
 # Turbo mode sets fan speed to the maximum. Fan speed cannot be changed while active and only available in Dry and Cool mode
 GATTR_FEAT_TURBO = "turbo"
+# Humidy Control. Allows dry mode under cooling operation
+GATTR_FEAT_HUMIDITY = "humidity_control"
+# Humidy Control Target. Sets humidity target for humidity control
+GATTR_FEAT_HUMIDITY_TARGET = "humidity_control_target"
 
 GATTR_TEMP_UNITS = "temperature_units"
 GATTR_INDOOR_TEMPERATURE = "indoor_temperature"
 GATTR_OUTDOOR_TEMPERATURE = "outdoor_temperature"
-GATTR_HUMIDITY = "rooom_humidity"
+GATTR_HUMIDITY = "room_humidity"
 
 GATTR_FAULTS = "faults"
 
@@ -92,7 +96,18 @@ ATTR_SVC_PROPS = "prop_list"
 
 # Map each feature constant to its corresponding GreeProp
 CONF_TO_PROP_FEATURE_MAP = {
+    # SENSORS
+    GATTR_INDOOR_TEMPERATURE: GreeProp.SENSOR_TEMPERATURE,
+    GATTR_OUTDOOR_TEMPERATURE: GreeProp.SENSOR_OUTSIDE_TEMPERATURE,
+    GATTR_HUMIDITY: GreeProp.SENSOR_HUMIDITY,
+    GATTR_FAULTS: GreeProp.SENSOR_FAULT,
+    # SELECT
+    GATTR_FEAT_HUMIDITY: GreeProp.FEATURE_HUMIDITY_CONTROL,
+    GATTR_TEMP_UNITS: GreeProp.TARGET_TEMPERATURE_UNIT,
+    # FEATURES
     GATTR_BEEPER: GreeProp.BEEPER,
+    GATTR_FEAT_LIGHT: GreeProp.FEAT_LIGHT,
+    GATTR_FEAT_SENSOR_LIGHT: GreeProp.FEAT_SENSOR_LIGHT,
     GATTR_FEAT_FRESH_AIR: GreeProp.FEAT_FRESH_AIR,
     GATTR_FEAT_XFAN: GreeProp.FEAT_XFAN,
     GATTR_FEAT_SLEEP_MODE: GreeProp.FEAT_SLEEP_MODE,
@@ -100,8 +115,6 @@ CONF_TO_PROP_FEATURE_MAP = {
     GATTR_FEAT_HEALTH: GreeProp.FEAT_HEALTH,
     GATTR_ANTI_DIRECT_BLOW: GreeProp.FEAT_ANTI_DIRECT_BLOW,
     GATTR_FEAT_ENERGY_SAVING: GreeProp.FEAT_ENERGY_SAVING,
-    GATTR_FEAT_LIGHT: GreeProp.FEAT_LIGHT,
-    GATTR_FAULTS: GreeProp.SENSOR_FAULT,
 }
 
 # HVAC modes - these come from Home Assistant and are standard

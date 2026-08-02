@@ -2,34 +2,85 @@
 
 from collections.abc import Callable
 import logging
-from typing import Generic, TypeVar
-
-from attr import dataclass
 
 from homeassistant.components.select import SelectEntity, SelectEntityDescription
-from homeassistant.const import CONF_MAC, EntityCategory
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .aiogree.api import GreeProp, TemperatureUnits
+from .aiogree.api import HumidityControlMode, OperationMode, TemperatureUnits
 from .aiogree.device import GreeDevice
-from .const import (
-    CONF_ADVANCED,
-    CONF_DEVICES,
-    CONF_DISABLE_AVAILABLE_CHECK,
-    CONF_RESTORE_STATES,
-    DEFAULT_DISABLE_AVAILABLE_CHECK,
-    DEFAULT_RESTORE_STATES,
-    GATTR_TEMP_UNITS,
+from .aiogree.errors import (
+    GreeContinuousDryUnavailable,
+    GreeHumidityControlUnavailable,
+    GreeSmartDryUnavailable,
 )
+from .const import DOMAIN, GATTR_FEAT_HUMIDITY, GATTR_TEMP_UNITS
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
+from .platform_helpers import iter_platform_context, supported_descriptions
 
 _LOGGER = logging.getLogger(__name__)
 
-T = TypeVar("T")  # T can be any type
+
+class GreeSelectDescription(
+    GreeEntityDescription, SelectEntityDescription, frozen_or_thawed=True
+):
+    """Description of a Gree switch."""
+
+    options_func: Callable[[], list[str]] | None = None
+    value_func: Callable[[GreeDevice], str | None]
+    set_func: Callable[[GreeDevice, str], None]
+    updates_device: bool = True
+
+
+def _set_humidity_control_mode(device: GreeDevice, mode: str) -> None:
+    try:
+        device.set_feature_humidity_control(HumidityControlMode[mode])
+
+    except GreeHumidityControlUnavailable as err:
+        raise HomeAssistantError(
+            translation_domain=DOMAIN, translation_key="humidity_mode_unavailable"
+        ) from err
+
+    except GreeSmartDryUnavailable as err:
+        raise HomeAssistantError(
+            translation_domain=DOMAIN, translation_key="smart_dry_unavailable"
+        ) from err
+
+    except GreeContinuousDryUnavailable as err:
+        raise HomeAssistantError(
+            translation_domain=DOMAIN, translation_key="continuous_dry_unavailable"
+        ) from err
+
+
+SELECT_TYPES: list[GreeSelectDescription] = [
+    GreeSelectDescription(
+        auto_device_support=True,
+        key=GATTR_TEMP_UNITS,
+        translation_key=GATTR_TEMP_UNITS,
+        entity_category=EntityCategory.CONFIG,
+        options=[f"º{member.name}" for member in TemperatureUnits],
+        value_func=lambda device: f"º{device.target_temperature_unit.name}",
+        set_func=lambda device, value: device.set_target_temperature_unit(
+            TemperatureUnits[value.replace("º", "")]
+        ),
+        updates_device=True,
+    ),
+    GreeSelectDescription(
+        key=GATTR_FEAT_HUMIDITY,
+        translation_key=GATTR_FEAT_HUMIDITY,
+        options=[member.name for member in HumidityControlMode],
+        value_func=lambda device: device.feature_humidity_control,
+        set_func=_set_humidity_control_mode,
+        additional_available_func=lambda device: (
+            device.operation_mode in (OperationMode.cool, OperationMode.dry)
+        ),
+        updates_device=True,
+    ),
+]
 
 
 async def async_setup_entry(
@@ -39,78 +90,29 @@ async def async_setup_entry(
 ) -> None:
     """Set up switches from a config entry."""
 
+    _LOGGER.debug("Setting up Select Entities")
+
     entities: list[GreeSelect] = []
 
-    for d in entry.data.get(CONF_DEVICES, []):
-        mac = d.get(CONF_MAC, "")
-        coordinator: GreeCoordinator = entry.runtime_data[mac]
-        if not coordinator:
-            _LOGGER.error(
-                "Cannot create Gree Selectors. No coordinator found for device '%s'",
-                mac,
-            )
-            continue
-
-        descriptions: list[GreeSelectDescription] = []
-
-        if coordinator.device.supports_property(GreeProp.TARGET_TEMPERATURE_UNIT):
-            descriptions.append(
-                GreeSelectDescription[GreeDevice](
-                    key=GATTR_TEMP_UNITS,
-                    translation_key=GATTR_TEMP_UNITS,
-                    entity_category=EntityCategory.CONFIG,
-                    options=[f"º{member.name}" for member in TemperatureUnits],
-                    value_func=lambda device: f"º{device.target_temperature_unit.name}",
-                    set_func=lambda device, value: device.set_target_temperature_unit(
-                        TemperatureUnits[value.replace("º", "")]
-                    ),
-                    updates_device=True,
-                )
-            )
+    for ctx in iter_platform_context(entry):
+        descriptions = supported_descriptions(
+            SELECT_TYPES,
+            ctx.coordinator.device,
+            ctx.device_config,
+        )
 
         _LOGGER.debug(
             "Adding Select Entities for device '%s': %s",
-            coordinator.device.mac_address,
+            ctx.coordinator.device.mac_address,
             [d.key for d in descriptions],
         )
 
         entities.extend(
-            GreeSelect(
-                description,
-                coordinator,
-                d.get(CONF_RESTORE_STATES, DEFAULT_RESTORE_STATES),
-                check_availability=(
-                    not entry.data[CONF_ADVANCED].get(
-                        CONF_DISABLE_AVAILABLE_CHECK, DEFAULT_DISABLE_AVAILABLE_CHECK
-                    )
-                ),
-            )
+            GreeSelect(description, ctx.coordinator, False, ctx.check_availability)
             for description in descriptions
         )
 
     async_add_entities(entities)
-
-
-@dataclass(frozen=True, kw_only=True)
-class GreeSelectDescription(GreeEntityDescription, SelectEntityDescription, Generic[T]):
-    """Description of a Gree switch."""
-
-    additional_available_func = lambda _: True  # noqa: E731
-    device_class = None
-    entity_category = None
-    entity_registry_enabled_default = True
-    entity_registry_visible_default = True
-    force_update = False
-    icon = None
-    has_entity_name = True
-    name = None
-    translation_key = None
-    translation_placeholders = None
-    unit_of_measurement = None
-    options_func: Callable[[], list[str]] | None = None
-    value_func: Callable[[T], str | None]
-    set_func: Callable[[T, str], None]
-    updates_device: bool = True
 
 
 class GreeSelect(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ignore[reportIncompatibleVariableOverride]
@@ -143,11 +145,6 @@ class GreeSelect(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ignore[re
             self.check_availability,
             self._attr_options,
         )
-
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        _LOGGER.debug("Updating Select Entity for %s", self.device.unique_id)
-        self._attr_current_option = self.entity_description.value_func(self.device)
 
     @property
     def current_option(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]

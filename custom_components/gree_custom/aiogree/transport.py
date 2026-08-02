@@ -143,7 +143,7 @@ class UDPDiscoveryProtocol(asyncio.DatagramProtocol):
 async def async_udp_broadcast_request(
     broadcast_addresses: list[str], port: int, json_data: str, timeout: int
 ) -> dict[str, dict]:
-    """Sends an async UDP broadcast and waits for responses."""
+    """Send a UDP broadcast and waits for responses."""
     loop = asyncio.get_running_loop()
     responses: dict[str, dict] = {}
 

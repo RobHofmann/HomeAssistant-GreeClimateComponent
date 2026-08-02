@@ -184,7 +184,8 @@
         "anti_direct_blow": "Anti Sopro Direto",
         "powersave": "Poupança de Energia",
         "light_sensor": "Brilho Automático do Visor",
-        "faults": "Falha de Operação"
+        "faults": "Falha de Operação",
+        "humidity_control": "Controlo de Humidade"
       }
     }
   },
@@ -261,11 +262,23 @@
     "number": {
       "target_temp_step": {
         "name": "Incremento de Temperatura"
+      },
+      "humidity_control_target": {
+        "name": "Valor de Controlo de Humidade"
       }
     },
     "select": {
       "temperature_units": {
         "name": "Unidade de Temperatura"
+      },
+      "humidity_control": {
+        "name": "Controlo de Humidade",
+        "state": {
+          "disabled": "Desativado",
+          "target_dry": "Secar",
+          "smart_dry": "Secagem Inteligente",
+          "continuous_dry": "Secagem Contínua"
+        }
       }
     },
     "switch": {
@@ -309,10 +322,13 @@
   },
   "exceptions": {
     "turbo_availability": {
-      "message": "Modo Turbo não está disponível nos modos de Secar e Ventilação."
+      "message": "A função Turbo só está disponível nos modos de Arrefecer ou Aquecer"
     },
-    "quiet_availability": {
-      "message": "Modo Silencioso apenas disponível nos modos de Secar e Ventilação."
+    "turbo_ignored": {
+      "message": "A função Turbo é ignorada quando os modos de Poupança de Energia ou Fora de Casa estão ativos."
+    },
+    "quiet_ignored": {
+      "message": "A função Silenciosa é ignorada quando os modos de Poupança de Energia ou Fora de Casa estão ativos."
     },
     "entity_unavailable": {
       "message": "A entidade não está disponível."
@@ -331,6 +347,15 @@
     },
     "invalid_config_data": {
       "message": "Ocorreu um erro a executar a ação. A configuração para o dispositivo contém dados inválidos."
+    },
+    "humidity_mode_unavailable": {
+      "message": "O Controlo de Humidade só está disponível nos modos de Arrefecer e Secar."
+    },
+    "continuous_dry_unavailable": {
+      "message": "A Secagem Contínua só está disponível no modo de Secar."
+    },
+    "smart_dry_unavailable": {
+      "message": "A Secagem Inteligente só está disponível no modo de Arrefecer."
     }
   },
   "services": {

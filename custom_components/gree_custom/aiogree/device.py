@@ -11,8 +11,10 @@ from .api import (
     GreeDiscoveredDevice,
     GreeProp,
     HorizontalSwingMode,
+    HumidityControlMode,
     OperationMode,
     OtherProps,
+    SleepMode,
     TemperatureUnits,
     VerticalSwingMode,
     gree_get_device_info,
@@ -22,10 +24,33 @@ from .api import (
     gree_try_bind,
 )
 from .cipher import CipherBase, get_cipher
-from .const import DEFAULT_DEVICE_UID
-from .errors import GreeBindingError, GreeConnectionError, GreeError, GreeProtocolError
+from .const import (
+    DEFAULT_DEVICE_UID,
+    MAX_HUM_COOL_P,
+    MAX_HUM_DRY_P,
+    MIN_HUM_COOL_P,
+    MIN_HUM_DRY_P,
+)
+from .errors import (
+    GreeBindingError,
+    GreeConnectionError,
+    GreeContinuousDryUnavailable,
+    GreeEnergySavingUnavailable,
+    GreeError,
+    GreeHumidityControlTargetUnavailable,
+    GreeHumidityControlUnavailable,
+    GreeProtocolError,
+    GreeQuietIgnored,
+    GreeSleepUnavailable,
+    GreeSmartDryUnavailable,
+    GreeSmartHeatUnavailable,
+    GreeTurboIgnored,
+    GreeTurboUnavailable,
+)
 from .helpers import (
     TempOffsetResolver,
+    gree_get_target_humidity_p,
+    gree_get_target_humidity_prop_from_p,
     gree_get_target_temp_props_from_c,
     gree_get_target_temp_props_from_f,
     gree_get_target_temperature_c,
@@ -57,6 +82,7 @@ class GreeDevice:
         uid: int = DEFAULT_DEVICE_UID,
         max_connection_attempts: int = 5,
         timeout: int = 10,
+        capabilities: list[GreeProp] | None = None,
     ) -> None:
         """Initialize the Gree device."""
 
@@ -88,6 +114,8 @@ class GreeDevice:
 
         self._transport = GreeTransport(ip_addr, port, max_connection_attempts, timeout)
 
+        self._uniqueid: str = self._mac_addr
+
         self._encryption_version: EncryptionVersion | None = encryption_version
         self._encryption_key: str = encryption_key
         self._cipher: CipherBase | None = None
@@ -95,9 +123,14 @@ class GreeDevice:
 
         self._raw_state: dict[GreeProp, int] = {}
         self._new_raw_state: dict[GreeProp, int] = {}
+
+        if capabilities is None:
+            self._capabilities: list[GreeProp] = list(GreeProp)
+        else:
+            self._capabilities: list[GreeProp] = capabilities
+
         self._is_bound: bool = False
         self._is_available: bool = False
-        self._uniqueid: str = self._mac_addr
 
         self._props_to_update: list[GreeProp] = list(GreeProp)
         # Don't poll the beeper state
@@ -312,7 +345,13 @@ class GreeDevice:
 
     def _set_device_status(self, props: dict[GreeProp, int]) -> None:
         """Sets a new local device status. Use 'update_device_status' to update the device."""
-        self._new_raw_state.update(props)
+
+        # Don't send props that are not part of the device capabilities
+        filtered_props = {
+            prop: value for prop, value in props.items() if self.supports_property(prop)
+        }
+
+        self._new_raw_state.update(filtered_props)
 
     def _bool_from_raw_state(self, prop: GreeProp, default: int = 0) -> bool:
         prop_value: int | None = self._get_prop_raw(prop, default)
@@ -327,7 +366,7 @@ class GreeDevice:
         # with an empty string, or nothing at all
         # If that is the case, _state_raw should not contain that property
         # In case it still has it, we remove it here as well
-        for p in list(self._props_to_update):
+        for p in self._props_to_update:
             if not self.supports_property(p):
                 self._props_to_update.remove(p)
                 self._raw_state.pop(p, None)
@@ -365,6 +404,22 @@ class GreeDevice:
             _LOGGER.debug(
                 "No longer updating property due to bad value: %s",
                 GreeProp.SENSOR_HUMIDITY,
+            )
+
+        # As far as it is known, both values at 0 is not a valid combination.
+        # Might need to change this if problems are reported
+        if (
+            GreeProp.FEATURE_HUMIDITY_CONTROL in self._props_to_update
+            and self._get_prop_raw(GreeProp.FEATURE_HUMIDITY_CONTROL, 0) == 0
+            and self._get_prop_raw(GreeProp.FEATURE_HUMIDITY_TARGET, 0) == 0
+        ):
+            self._props_to_update.remove(GreeProp.FEATURE_HUMIDITY_CONTROL)
+            self._props_to_update.remove(GreeProp.FEATURE_HUMIDITY_TARGET)
+            self._raw_state.pop(GreeProp.FEATURE_HUMIDITY_CONTROL, None)
+            self._raw_state.pop(GreeProp.FEATURE_HUMIDITY_TARGET, None)
+            _LOGGER.debug(
+                "No longer updating property due to bad value: %s",
+                (GreeProp.FEATURE_HUMIDITY_CONTROL, GreeProp.FEATURE_HUMIDITY_TARGET),
             )
 
     def _get_prop_raw(self, prop: GreeProp, default: int | None = None) -> int | None:
@@ -473,7 +528,7 @@ class GreeDevice:
     async def query_props_all(
         self, request_batch: int = 1, error_as_missing: bool = False
     ) -> tuple[dict[str, str], list[str]]:
-        """Query all possible props to the log."""
+        """Query all possible props."""
 
         all_props = [
             *[prop.value for prop in GreeProp],
@@ -486,7 +541,12 @@ class GreeDevice:
         """Returns True if the device endpoint supports the property."""
         # We consider a property as unsupported if it is not present in the raw state list
         # This assumes that the full state is fetched at least once before this method is called
-        return property in self._raw_state if property is not GreeProp.BEEPER else True
+
+        supported = property in self._raw_state and property in self._capabilities
+        return supported or property in (
+            GreeProp.BEEPER,
+            GreeProp.BEEPER_NEW,
+        )
 
     @property
     def ip(self) -> str:
@@ -618,6 +678,10 @@ class GreeDevice:
 
     def set_operation_mode(self, mode: OperationMode):
         """Sets the device operation mode."""
+
+        # Force disable Humidity Control
+        self.set_feature_humidity_control(HumidityControlMode.disabled)
+
         self._set_device_status({GreeProp.OP_MODE: mode})
 
     @property
@@ -626,7 +690,25 @@ class GreeDevice:
         return FanSpeed(self._get_prop_raw(GreeProp.FAN_SPEED, FanSpeed.auto.value))
 
     def set_fan_speed(self, speed: FanSpeed):
-        """Sets the device fan speed mode."""
+        """Sets the device fan speed mode.
+
+        Setting a fan speed other than 'Auto' will deactivate Energy Saving and Smart Heat features.
+        """
+
+        if speed is not FanSpeed.auto and self.feature_energy_saving:
+            self.set_feature_energy_saving(False)
+            _LOGGER.warning(
+                "%s: Energy saving mode disabled because of fan mode setting",
+                self.mac_address,
+            )
+
+        if speed is not FanSpeed.auto and self.feature_smart_heat:
+            self.set_feature_smart_heat(False)
+            _LOGGER.warning(
+                "%s: Smart Heat mode disabled because of fan mode setting",
+                self.mac_address,
+            )
+
         self._set_device_status({GreeProp.FAN_SPEED: speed})
 
     @property
@@ -681,7 +763,24 @@ class GreeDevice:
         return 0.0
 
     def set_target_temperature(self, value: float) -> None:
-        """Sets the target temperature in target_temperature_unit."""
+        """Sets the target temperature in target_temperature_unit.
+
+        Changing the target temperature will deactivate Energy Saving and Smart Heat features.
+        """
+
+        if self.feature_energy_saving:
+            self.set_feature_energy_saving(False)
+            _LOGGER.warning(
+                "%s: Energy saving mode disabled because of target temperature change",
+                self.mac_address,
+            )
+
+        if self.feature_smart_heat:
+            self.set_feature_smart_heat(False)
+            _LOGGER.warning(
+                "%s: Smart Heat mode disabled because of target temperature change",
+                self.mac_address,
+            )
 
         if self.target_temperature_unit == TemperatureUnits.F:
             if not value.is_integer():
@@ -738,19 +837,50 @@ class GreeDevice:
         self._set_device_status({GreeProp.FEAT_HEALTH: 1 if value else 0})
 
     @property
-    def feature_sleep(self) -> bool:
+    def feature_sleep(self) -> SleepMode:
         """Return the sleep mode state."""
-        val1 = self._bool_from_raw_state(GreeProp.FEAT_SLEEP_MODE_SWING)
-        val2 = self._bool_from_raw_state(GreeProp.FEAT_SLEEP_MODE)
 
-        return val1 is True or val2 is True
+        sleep_enabled = self._bool_from_raw_state(GreeProp.FEAT_SLEEP_MODE)
+        mode = SleepMode(
+            self._get_prop_raw(GreeProp.FEAT_SLEEP_MODE_TYPE, SleepMode.disabled.value)
+        )
 
-    def set_feature_sleep(self, value: bool) -> None:
-        """Set the sleep mode state."""
+        if sleep_enabled and mode is SleepMode.disabled:
+            _LOGGER.warning(
+                "Inconsistent Sleep mode properties. Mode enabled and type disabled"
+            )
+            return SleepMode.normal
+
+        if not sleep_enabled and mode is not SleepMode.disabled:
+            _LOGGER.warning(
+                "Inconsistent Sleep mode properties. Mode disabled and type enabled"
+            )
+            return SleepMode.disabled
+
+        return mode
+
+    def set_feature_sleep(self, mode: SleepMode):
+        """Set the sleep mode state.
+
+        This feature is only available under `Cool` or `Heat` modes.
+        This feature is incompatible with `Power Saving` and `Smart Heat`, and will force disable them if activated.
+        """
+
+        if mode is not SleepMode.disabled and self.operation_mode not in (
+            OperationMode.cool,
+            OperationMode.heat,
+        ):
+            raise GreeSleepUnavailable("Sleep is only available in Cool and Heat")
+
+        # Mirror the remote/app functionality
+        if mode is not SleepMode.disabled:
+            self.set_feature_energy_saving(False)
+            self.set_feature_smart_heat(False)
+
         self._set_device_status(
             {
-                GreeProp.FEAT_SLEEP_MODE: 1 if value else 0,
-                GreeProp.FEAT_SLEEP_MODE_SWING: 1 if value else 0,
+                GreeProp.FEAT_SLEEP_MODE: (1 if mode is not SleepMode.disabled else 0),
+                GreeProp.FEAT_SLEEP_MODE_TYPE: mode.value,
             }
         )
 
@@ -769,7 +899,17 @@ class GreeDevice:
         return self._bool_from_raw_state(GreeProp.FEAT_QUIET_MODE)
 
     def set_feature_quiet(self, value: bool) -> None:
-        """Set the quiet mode state."""
+        """Set the quiet mode state.
+
+        This mode is ignored if Energy Saving or Smart Heat features are active.
+        """
+
+        # Mirror physical behaviour
+        if value and (self.feature_energy_saving or self.feature_smart_heat):
+            raise GreeQuietIgnored(
+                "Quiet ignored because Energy Saving or Smart Heat are active"
+            )
+
         self._set_device_status({GreeProp.FEAT_QUIET_MODE: 1 if value else 0})
 
     @property
@@ -778,7 +918,26 @@ class GreeDevice:
         return self._bool_from_raw_state(GreeProp.FEAT_TURBO_MODE)
 
     def set_feature_turbo(self, value: bool) -> None:
-        """Set the turbo mode state."""
+        """Set the turbo mode state.
+
+        This mode is only availabe under `Cool` or `Heat` modes.
+        This mode is ignored if Energy Saving or Smart Heat features are active.
+        """
+
+        if value and self.operation_mode not in (
+            OperationMode.cool,
+            OperationMode.heat,
+        ):
+            raise GreeTurboUnavailable(
+                "Turbo mode is only available under Cool or Heat modes"
+            )
+
+        # Mirror physical behaviour
+        if value and (self.feature_energy_saving or self.feature_smart_heat):
+            raise GreeTurboIgnored(
+                "Turbo ignored because Energy Saving or Smart Heat are active"
+            )
+
         self._set_device_status({GreeProp.FEAT_TURBO_MODE: 1 if value else 0})
 
     @property
@@ -787,7 +946,28 @@ class GreeDevice:
         return self._bool_from_raw_state(GreeProp.FEAT_SMART_HEAT_8C)
 
     def set_feature_smart_heat(self, value: bool) -> None:
-        """Set the smart heat (8ºC / anti-freeze) mode state."""
+        """Set the smart heat (8ºC / anti-freeze) mode state.
+
+        This mode is only availabe under `Heat` mode.
+        This feature is incompatible with `Sleep` and `Energy Saving`, and will force disable them if activated.
+        This feature changes fan to `Auto` speed.
+        The device will ignore the temperature setting.
+        """
+
+        if value and self.operation_mode is not OperationMode.heat:
+            raise GreeSmartHeatUnavailable(
+                "Smart Heat mode is only available under Heat mode"
+            )
+
+        # Mirror physical behaviour
+        if value:
+            self.set_feature_sleep(SleepMode.disabled)
+            self.set_feature_energy_saving(False)
+            self.set_feature_turbo(False)
+            self.set_feature_quiet(False)
+            self.set_fan_speed(FanSpeed.auto)
+            # TODO: Keep the previous fan speed to apply when the feature is deactivated again
+
         self._set_device_status({GreeProp.FEAT_SMART_HEAT_8C: 1 if value else 0})
 
     @property
@@ -796,7 +976,28 @@ class GreeDevice:
         return self._bool_from_raw_state(GreeProp.FEAT_ENERGY_SAVING)
 
     def set_feature_energy_saving(self, value: bool) -> None:
-        """Set the energy saving mode state."""
+        """Set the energy saving mode state.
+
+        This feature is only available under `Cool` mode.
+        This feature is incompatible with `Sleep` and `Smart Heat`, and will force disable them if activated.
+        This feature changes fan to `Auto` speed.
+        The device will ignore the temperature setting.
+        """
+
+        if value and self.operation_mode is not OperationMode.cool:
+            raise GreeEnergySavingUnavailable(
+                "Energy saving is only available under Cool mode."
+            )
+
+        # Mirror the remote/app functionality
+        if value:
+            self.set_feature_sleep(SleepMode.disabled)
+            self.set_feature_smart_heat(False)
+            self.set_feature_turbo(False)
+            self.set_feature_quiet(False)
+            self.set_fan_speed(FanSpeed.auto)
+            # TODO: Keep the previous fan speed to apply when the feature is deactivated again
+
         self._set_device_status({GreeProp.FEAT_ENERGY_SAVING: 1 if value else 0})
 
     @property
@@ -807,3 +1008,107 @@ class GreeDevice:
     def set_feature_anti_direct_blow(self, value: bool) -> None:
         """Set the anti direct blow mode state."""
         self._set_device_status({GreeProp.FEAT_ANTI_DIRECT_BLOW: 1 if value else 0})
+
+    @property
+    def feature_humidity_control(self) -> HumidityControlMode:
+        """Returns the current humidity control mode."""
+
+        return HumidityControlMode(
+            self._get_prop_raw(
+                GreeProp.FEATURE_HUMIDITY_CONTROL, HumidityControlMode.disabled.value
+            )
+        )
+
+    def set_feature_humidity_control(self, mode: HumidityControlMode) -> None:
+        """Sets the Humidy Control mode.
+
+        `HumidityControlMode.smart_dry` is only available under `Cool` mode.
+        `HumidityControlMode.continuous_dry`  is only available under `Dry` mode.
+        """
+
+        if mode != HumidityControlMode.disabled and self.operation_mode not in (
+            OperationMode.cool,
+            OperationMode.dry,
+        ):
+            raise GreeHumidityControlUnavailable(
+                "Humidity Control is only available in Cool and Dry modes"
+            )
+
+        if (
+            mode == HumidityControlMode.smart_dry
+            and self.operation_mode is not OperationMode.cool
+        ):
+            raise GreeSmartDryUnavailable(
+                "Smart Dry is only available in Cool operation mode"
+            )
+
+        if (
+            mode is HumidityControlMode.continuous_dry
+            and self.operation_mode is not OperationMode.dry
+        ):
+            raise GreeContinuousDryUnavailable(
+                "Continuous Dry is only available in Dry operation mode"
+            )
+
+        match mode:
+            case HumidityControlMode.disabled:
+                target = 0
+
+            case HumidityControlMode.target_dry:
+                if self.operation_mode == OperationMode.cool:
+                    target = gree_get_target_humidity_prop_from_p(
+                        MIN_HUM_COOL_P, MIN_HUM_COOL_P, MAX_HUM_COOL_P
+                    )
+                else:
+                    target = gree_get_target_humidity_prop_from_p(
+                        MIN_HUM_DRY_P, MIN_HUM_DRY_P, MAX_HUM_DRY_P
+                    )
+
+            case HumidityControlMode.smart_dry:
+                target = 3  # It's possible the device ignores this value in this mode
+
+            case HumidityControlMode.continuous_dry:
+                target = 3  # It's possible the device ignores this value in this mode
+
+        self._set_device_status(
+            {
+                GreeProp.FEATURE_HUMIDITY_CONTROL: mode.value,
+                GreeProp.FEATURE_HUMIDITY_TARGET: target,
+            }
+        )
+
+    @property
+    def feature_humidity_control_target(self) -> int:
+        """Return the current set target humidity value."""
+
+        raw_value: int = self._get_prop_raw(GreeProp.FEATURE_HUMIDITY_TARGET, 0)
+        return gree_get_target_humidity_p(raw_value)
+
+    def set_feature_humidity_control_target(
+        self, humidity_target_percentage: int
+    ) -> None:
+        """Sets the target humidity percentage (in multiples of 5).
+
+        Cool mode range: 40-80.
+        Dry mode range: 30-70.
+        """
+
+        if self.feature_humidity_control is not HumidityControlMode.target_dry:
+            raise GreeHumidityControlTargetUnavailable(
+                "Humidity Control with a target humidity is only available in Normal Dry mode"
+            )
+
+        if self.operation_mode == OperationMode.cool:
+            target = gree_get_target_humidity_prop_from_p(
+                humidity_target_percentage, MIN_HUM_COOL_P, MAX_HUM_COOL_P
+            )
+        else:
+            target = gree_get_target_humidity_prop_from_p(
+                humidity_target_percentage, MIN_HUM_DRY_P, MAX_HUM_DRY_P
+            )
+
+        self._set_device_status(
+            {
+                GreeProp.FEATURE_HUMIDITY_TARGET: target,
+            }
+        )
