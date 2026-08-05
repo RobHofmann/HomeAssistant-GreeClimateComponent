@@ -177,8 +177,9 @@ class GreeClimate(ClimateEntity):
 
         self._temp_sensor_offset = temp_sensor_offset
 
-        # Store for external temp sensor entity (set by sensor entity)
+        # Store for external temp and humid sensor entity (set by sensor entity)
         self._external_temperature_sensor = None
+        self._external_humidity_sensor = None
 
         # Keep unsub callbacks for deregistering listeners
         self._listeners: list = []
@@ -450,11 +451,26 @@ class GreeClimate(ClimateEntity):
             _LOGGER.debug(f"{self._name}: UpdateHAOutsideTemperature: HA outside temperature set with device built-in outside temperature sensor state: {self._current_outside_temperature}{self._unit_of_measurement}")
 
     def UpdateHARoomHumidity(self):
+        # Use external humidity sensor if available
+        if self._external_humidity_sensor:
+            external_sensor_state = self.hass.states.get(self._external_humidity_sensor)
+    
+            if external_sensor_state and external_sensor_state.state not in ("unknown", "unavailable"):
+                try:
+                    _LOGGER.debug(f"{self._name}: Using external humidity sensor {self._external_humidity_sensor}: {external_sensor_state.state}%")
+                    self._current_room_humidity = float(external_sensor_state.state)
+                    _LOGGER.debug(f"{self._name}: Current room humidity from external sensor: {self._current_room_humidity}%")
+                    return
+                except (ValueError, TypeError) as ex:
+                    _LOGGER.error(f"{self._name}: Unable to update from external humidity sensor {self._external_humidity_sensor}: {ex}")
+    
         # Update room humidity from built-in AC room humidity sensor if available
         if self._has_room_humidity_sensor:
             _LOGGER.debug(f"{self._name}: UpdateHARoomHumidity: DwatSen: {self._acOptions['DwatSen']}")
             self._current_room_humidity = self._acOptions["DwatSen"]
             _LOGGER.debug(f"{self._name}: UpdateHARoomHumidity: HA room humidity set with device built-in room humidity sensor state: {self._current_room_humidity}%")
+        else:
+            self._current_room_humidity = None
 
     def UpdateHAStateToCurrentACState(self):
         self.UpdateHATargetTemperature()
@@ -651,6 +667,11 @@ class GreeClimate(ClimateEntity):
         _LOGGER.debug(f"{self._name}: current_temperature() = {self._current_temperature}")
         # Return the current temperature.
         return self._current_temperature
+
+    @property
+    def current_humidity(self) -> float | None:
+        # Return the current humidity.
+        return self._current_room_humidity
 
     @property
     def min_temp(self):
