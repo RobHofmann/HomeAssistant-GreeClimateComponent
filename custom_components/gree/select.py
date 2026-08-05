@@ -50,6 +50,20 @@ def get_temperature_sensor_options(hass: HomeAssistant) -> list[str]:
 
     return options
 
+def get_humidity_sensor_options(hass: HomeAssistant) -> list[str]:
+    """Get list of available humidity sensor entities."""
+    options = ["None"]  # Always include "None" as first option
+
+    # Get all entities from the registry
+    for state in hass.states.async_all():
+        # Look for humidity sensors
+        if state.entity_id.startswith("sensor."):
+            # Check for explicit device_class
+            if state.attributes.get("device_class") == "humidity":
+                options.append(state.entity_id)
+
+    return options
+
 
 SELECTS: tuple[GreeSelectEntityDescription, ...] = (
     GreeSelectEntityDescription(
@@ -61,6 +75,16 @@ SELECTS: tuple[GreeSelectEntityDescription, ...] = (
         entity_category=EntityCategory.CONFIG,
         restore_state=True,
         options_fn=lambda hass: get_temperature_sensor_options(hass),
+    ),
+    GreeSelectEntityDescription(
+        property_key="external_humidity_sensor",
+        icon="mdi:water-percent",
+        options=[],  # Will be populated dynamically
+        value_fn=lambda device: getattr(device, "_external_humidity_sensor", "None"),
+        set_fn=lambda device, value: setattr(device, "_external_humidity_sensor", None if value == "None" else value),
+        entity_category=EntityCategory.CONFIG,
+        restore_state=True,
+        options_fn=lambda hass: get_humidity_sensor_options(hass),
     ),
 )
 
@@ -83,7 +107,9 @@ class GreeSelectEntity(GreeEntity, SelectEntity, RestoreEntity):
         super().__init__(hass, entry, description)
         self._hass = hass
         # Initialize with no external sensor configured
-        self._device._external_temperature_sensor = None
+        attr_name = f"_{description.property_key}"
+        if not hasattr(self._device, attr_name):
+            setattr(self._device, attr_name, None)
         # Set up options dynamically
         if description.options_fn:
             self._attr_options = description.options_fn(hass)
@@ -121,8 +147,12 @@ class GreeSelectEntity(GreeEntity, SelectEntity, RestoreEntity):
 
         if self.entity_description.set_fn:
             self.entity_description.set_fn(self._device, option)
-            self.async_write_ha_state()
-            _LOGGER.info("Selected %s: %s", self.entity_description.property_key, option)
+            self._device.UpdateHACurrentTemperature()
+            self._device.UpdateHARoomHumidity()
+            self._device.async_write_ha_state()
+    
+        self.async_write_ha_state()
+        _LOGGER.info("Selected %s: %s", self.entity_description.property_key, option)
 
     async def async_update(self) -> None:
         """Update the entity."""
