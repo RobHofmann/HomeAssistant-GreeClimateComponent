@@ -1,12 +1,110 @@
 """Helpers for the Gree device API."""
 
+from collections.abc import Iterable, Iterator
+from itertools import islice
+import json
 import logging
+from typing import Any, TypeVar
 
-from .const import MAX_TEMP_C, MAX_TEMP_F, MIN_TEMP_C, MIN_TEMP_F
+from .cipher import CipherBase
+from .const import MAX_PACK_SIZE, MAX_TEMP_C, MAX_TEMP_F, MIN_TEMP_C, MIN_TEMP_F
+from .errors import GreeError
 
 TEMSEN_OFFSET = 40
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def gree_encrypt_pack(
+    json_payload: dict[str, Any],
+    cipher: CipherBase,
+) -> dict[str, Any]:
+    """Encrypt a protocol pack for transmission to the device."""
+
+    if cipher is None:
+        raise GreeError("Cipher must not be None")
+
+    len1 = len(json.dumps(json_payload).encode("utf-8"))
+    # encrypt pack if present
+    if pack := json_payload.get("pack"):
+        len2 = len(json.dumps(pack).encode("utf-8"))
+        # WARNING: Packs over MAX_PACK_SIZE bytes may fail to get a response
+        if len2 >= MAX_PACK_SIZE:
+            _LOGGER.warning(
+                "Pack length is over %d bytes. Expect no response", MAX_PACK_SIZE
+            )
+
+        json_payload["pack"], tag = cipher.encrypt(json.dumps(pack))
+        if tag is not None:
+            json_payload["tag"] = tag
+
+        len3 = len(json_payload["pack"].encode("utf-8"))
+
+        len4 = len(json.dumps(json_payload).encode("utf-8"))
+        _LOGGER.debug(
+            "Before Encryption(payload=%d, pack=%d) | After Encryption(payload=%d, pack=%d)",
+            len1,
+            len2,
+            len3,
+            len4,
+        )
+    return json_payload
+
+
+def gree_decrypt_pack(
+    recv_json: dict[str, Any],
+    cipher: CipherBase,
+) -> dict:
+    """Decode and decrypt a response from a Gree device."""
+
+    if cipher is None:
+        raise GreeError("Cipher must not be None")
+
+    if encoded_pack := recv_json.get("pack"):
+        tag = recv_json.get("tag")
+        decrypted_pack = cipher.decrypt(encoded_pack, tag)
+        # Replace encrypted pack with decrypted data
+        recv_json["pack"] = json.loads(decrypted_pack)
+
+    return recv_json
+
+
+def gree_extract_macs(raw_mac: str) -> tuple[str, str]:
+    """Extract the (mac, mac_controller) from a given raw_mac."""
+    normalized_mac = raw_mac.replace(":", "").replace("-", "").strip().lower()
+
+    # For VRF units, the MAC will be of >12 characters and end in "00"
+    # where for MQTT the first 12 are the main_device MAC and the full string the sub_device
+    # For imported configs in mac@main_mac format separate them
+    # TODO: Cloud has a "pmac" field. Check if it is "parent mac" aka main_device
+    if "@" in normalized_mac:
+        mac, mac_controller = normalized_mac.split("@", 1)
+    elif len(normalized_mac) > 12 and normalized_mac.endswith("00"):
+        mac = normalized_mac
+        mac_controller = normalized_mac[:12]
+    else:
+        mac = mac_controller = normalized_mac
+
+    return mac, mac_controller
+
+
+T = TypeVar("T")
+
+
+def chunked(iterable: Iterable[T], size: int) -> Iterator[list[T]]:
+    """Create chunks of data."""
+    it = iter(iterable)
+    while chunk := list(islice(it, size)):
+        yield chunk
+
+
+def redact_str(to_redact: str | None) -> str:
+    """Redact an encryption key."""
+    return (
+        to_redact[:5] + "[redacted]"
+        if (to_redact and to_redact.strip())
+        else "[no_key]"
+    )
 
 
 class TempOffsetResolver:
@@ -150,8 +248,8 @@ def gree_get_target_temperature_f(SetTem: int, TemRec: int) -> float:
 
     if TemRec == 1:
         # SetTem is closer to its higher bound, so we consider SetTem as the lower limit
-        min_celsius = SetTem
-        max_celsius = SetTem + 0.4999  # Just below the next rounding threshold
+        min_celsius: float = SetTem
+        max_celsius: float = SetTem + 0.4999  # Just below the next rounding threshold
     else:
         # SetTem is closer to its lower bound, so we consider SetTem-1 as the potential lower limit
         min_celsius = SetTem - 0.4999  # Just above the previous rounding threshold
@@ -178,7 +276,7 @@ def gree_get_target_temperature_c(SetTem: int, TemRec: int) -> float:
 def gree_get_target_humidity_prop_from_p(
     desired_humidity_percentage: int, min_val: int, max_val: int
 ) -> int:
-    """Calculates the prop value for a given humidity percentage."""
+    """Compute the prop value for a given humidity percentage."""
 
     if desired_humidity_percentage > max_val:
         _LOGGER.warning(

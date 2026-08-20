@@ -5,6 +5,10 @@ class GreeError(Exception):
     """Base error for the Gree integration."""
 
 
+class GreeCloudError(Exception):
+    """Error while communicating with the Gree Cloud."""
+
+
 class GreeConnectionError(GreeError):
     """Network communication with device failed."""
 
@@ -15,6 +19,10 @@ class GreeProtocolError(GreeError):
 
 class GreeBindingError(GreeError):
     """Failed to obtain encryption key."""
+
+
+class GreeRuntimeError(GreeError):
+    """Problem with the runtime."""
 
 
 class GreeUnsupportedState(GreeError):
@@ -35,14 +43,6 @@ class GreeSmartHeatUnavailable(GreeUnsupportedState):
 
 class GreeTurboUnavailable(GreeUnsupportedState):
     """Turbo mode is only available under Cool and Heat modes."""
-
-
-class GreeTurboIgnored(GreeUnsupportedState):
-    """Turbo mode is ignored when Energy Saving or Smart Heat are enabled."""
-
-
-class GreeQuietIgnored(GreeUnsupportedState):
-    """Quiet mode is ignored when Energy Saving or Smart Heat are enabled."""
 
 
 class GreeHumidityControlUnavailable(GreeUnsupportedState):

@@ -5,10 +5,9 @@ import base64
 from enum import IntEnum, unique
 import logging
 
-from Crypto.Cipher import AES
-from Crypto.Cipher._mode_ecb import EcbMode
-from Crypto.Cipher._mode_gcm import GcmMode
-from Crypto.Util.Padding import pad, unpad
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 from .errors import GreeError
 
@@ -21,6 +20,7 @@ GREE_GENERIC_DEVICE_KEY_ECB = "a3K8Bx%2r8Y7#xDh"
 GREE_GENERIC_DEVICE_KEY_GCM = "{yxAHAY_Lm6pbC/<"
 
 AES_BLOCK_SIZE = 16
+AES_BLOCK_SIZE_BITS = AES_BLOCK_SIZE * 8  # Cryptography uses bits for block size
 
 
 @unique
@@ -68,8 +68,8 @@ class CipherV1(CipherBase):
         """Initialize V1 Encryption."""
         super().__init__(key or GREE_GENERIC_DEVICE_KEY_ECB)
 
-    def _create_cipher(self) -> EcbMode:
-        return AES.new(self._key, AES.MODE_ECB)
+    def _create_cipher(self) -> Cipher[modes.ECB]:
+        return Cipher(algorithms.AES(self._key), modes.ECB(), backend=default_backend())
 
     @property
     def version(self) -> EncryptionVersion:
@@ -80,11 +80,16 @@ class CipherV1(CipherBase):
         """Encrypt data with V1."""
         _LOGGER.debug("Encrypting data (V1): %s", data)
 
-        cipher = self._create_cipher()
-        padded = pad(data.encode("utf-8"), AES_BLOCK_SIZE)
+        # padding
+        padder = padding.PKCS7(AES_BLOCK_SIZE_BITS).padder()
+        padded_data = padder.update(data.encode()) + padder.finalize()
 
-        encrypted = cipher.encrypt(padded)
-        encoded = base64.b64encode(encrypted).decode("utf-8")
+        # cipher
+        cipher = self._create_cipher()
+        encryptor = cipher.encryptor()
+        encrypted = encryptor.update(padded_data) + encryptor.finalize()
+
+        encoded = base64.b64encode(encrypted).decode()
 
         _LOGGER.debug("Encrypted data (V1): %s", encoded)
 
@@ -95,13 +100,16 @@ class CipherV1(CipherBase):
         _LOGGER.debug("Decrypting data (V1): %s", data)
 
         cipher = self._create_cipher()
+        decryptor = cipher.decryptor()
 
         decoded = base64.b64decode(data)
-        decrypted = cipher.decrypt(decoded)
+        decrypted = decryptor.update(decoded) + decryptor.finalize()
 
         try:
-            plaintext = unpad(decrypted, AES_BLOCK_SIZE).decode()
-        except ValueError:
+            unpadder = padding.PKCS7(AES_BLOCK_SIZE_BITS).unpadder()
+            plaintext_bytes = unpadder.update(decrypted) + unpadder.finalize()
+            plaintext = plaintext_bytes.decode()
+        except ValueError, Exception:
             # GREE PROTOCOL: Fallback for some devices sending malformed padding
             plaintext = decrypted.decode(errors="ignore")
 
@@ -117,10 +125,12 @@ class CipherV2(CipherBase):
         """Initialize V2 Encryption."""
         super().__init__(key or GREE_GENERIC_DEVICE_KEY_GCM)
 
-    def _create_cipher(self) -> GcmMode:
-        cipher = AES.new(self._key, AES.MODE_GCM, nonce=GCM_IV)
-        cipher.update(GCM_ADD)
-        return cipher
+    def _create_cipher(self, tag: bytes | None = None) -> Cipher[modes.GCM]:
+        return Cipher(
+            algorithms.AES(self._key),
+            modes.GCM(GCM_IV, tag),
+            backend=default_backend(),
+        )
 
     @property
     def version(self) -> EncryptionVersion:
@@ -132,11 +142,15 @@ class CipherV2(CipherBase):
         _LOGGER.debug("Encrypting data (V2): %s", data)
 
         cipher = self._create_cipher()
+        encryptor = cipher.encryptor()
+        encryptor.authenticate_additional_data(GCM_ADD)
 
-        encrypted, tag = cipher.encrypt_and_digest(data.encode("utf-8"))
+        encrypted = encryptor.update(data.encode()) + encryptor.finalize()
+        tag = encryptor.tag
+        # encrypted, tag = cipher.encrypt_and_digest(data.encode("utf-8"))
 
-        encoded = base64.b64encode(encrypted).decode("utf-8")
-        tag_encoded = base64.b64encode(tag).decode("utf-8")
+        encoded = base64.b64encode(encrypted).decode()
+        tag_encoded = base64.b64encode(tag).decode()
 
         _LOGGER.debug("Encrypted data (V2): %s, tag='%s'", encoded, tag_encoded)
         return encoded, tag_encoded
@@ -148,13 +162,19 @@ class CipherV2(CipherBase):
         if not tag:
             raise GreeError("Decrypting data (V2) failed: tag is needed")
 
-        cipher = self._create_cipher()
-
-        decoded = base64.b64decode(data)
+        decoded_data = base64.b64decode(data)
         decoded_tag = base64.b64decode(tag)
 
-        decrypted = cipher.decrypt_and_verify(decoded, decoded_tag)
-        plaintext = decrypted.decode("utf-8")
+        cipher = self._create_cipher(tag=decoded_tag)
+        decryptor = cipher.decryptor()
+        decryptor.authenticate_additional_data(GCM_ADD)
+
+        # decrypted = cipher.decrypt_and_verify(decoded_data, decoded_tag)
+        try:
+            decrypted = decryptor.update(decoded_data) + decryptor.finalize()
+            plaintext = decrypted.decode()
+        except Exception as err:
+            raise GreeError(f"GCM Decryption failed: {err}") from err
 
         _LOGGER.debug("Decrypted data successfully (V2)")
         return _trim_json_payload(plaintext)
@@ -179,7 +199,7 @@ def _trim_json_payload(data: str) -> str:
 
 
 def get_cipher(
-    encryption_version: EncryptionVersion, key: str | None = None
+    encryption_version: EncryptionVersion | None, key: str | None = None
 ) -> CipherBase:
     """Get AES cipher object based on encryption version using default keys."""
 
