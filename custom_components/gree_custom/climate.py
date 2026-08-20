@@ -3,14 +3,14 @@
 import logging
 
 from homeassistant.components.climate import (
-    ATTR_FAN_MODE,
-    ATTR_HVAC_MODE,
-    ATTR_SWING_HORIZONTAL_MODE,
-    ATTR_SWING_MODE,
+    ATTR_FAN_MODE,  # pyright: ignore[reportPrivateImportUsage]
+    ATTR_HVAC_MODE,  # pyright: ignore[reportPrivateImportUsage]
+    ATTR_SWING_HORIZONTAL_MODE,  # pyright: ignore[reportPrivateImportUsage]
+    ATTR_SWING_MODE,  # pyright: ignore[reportPrivateImportUsage]
     ClimateEntity,
     ClimateEntityDescription,
-    ClimateEntityFeature,
-    HVACMode,
+    ClimateEntityFeature,  # pyright: ignore[reportPrivateImportUsage]
+    HVACMode,  # pyright: ignore[reportPrivateImportUsage]
 )
 from homeassistant.const import (
     ATTR_TEMPERATURE,
@@ -33,9 +33,9 @@ from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util.unit_conversion import TemperatureConverter
 
-from .aiogree.api import FanSpeed, GreeProp, HorizontalSwingMode, VerticalSwingMode
+from .aiogree.api import FanSpeed, HorizontalSwingMode, VerticalSwingMode
 from .aiogree.const import MAX_TEMP_C, MAX_TEMP_F, MIN_TEMP_C, MIN_TEMP_F
-from .aiogree.errors import GreeQuietIgnored, GreeTurboIgnored, GreeTurboUnavailable
+from .aiogree.errors import GreeTurboUnavailable
 from .const import (
     ATTR_EXTERNAL_HUMIDITY_SENSOR,
     ATTR_EXTERNAL_TEMPERATURE_SENSOR,
@@ -501,7 +501,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         await self.coordinator.async_request_refresh()
 
     def _update_attributes(self):
-        """Updates the entity attributes with the device values."""
+        """Update the entity attributes with the device values."""
         self._attr_available = self.device.available
 
         if (
@@ -623,7 +623,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             await self.coordinator.async_request_refresh()
 
     def get_hvac_mode(self) -> HVACMode:
-        """Converts Gree Operation Modes to HA."""
+        """Convert Gree Operation Modes to HA."""
         return (
             HVACMode.OFF
             if not self.device.power_mode
@@ -655,7 +655,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
                 await self.async_turn_on()
 
-                # This will be called in the turn on
+                # This will be called in the turn on:
                 # await self._device.update_device_status()
 
             # notify coordinator listeners of state change so that dependent entities are updated immediately
@@ -671,7 +671,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         self.async_write_ha_state()
 
     def get_fan_mode(self) -> str:
-        """Converts Gree Fan Modes to HA. Accounts for the 2 special modes."""
+        """Convert Gree Fan Modes to HA. Accounts for the 2 special modes."""
         if (
             self._attr_fan_modes
             and GATTR_FEAT_QUIET_MODE in self._attr_fan_modes
@@ -721,16 +721,6 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                 translation_domain=DOMAIN, translation_key="turbo_availability"
             ) from err
 
-        except GreeTurboIgnored as err:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN, translation_key="turbo_ignored"
-            ) from err
-
-        except GreeQuietIgnored as err:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN, translation_key="quiet_ignored"
-            ) from err
-
         except Exception as err:
             _LOGGER.exception("Error in '%s'", "async_set_fan_mode")
             raise HomeAssistantError(
@@ -740,7 +730,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         self.async_write_ha_state()
 
     def get_swing_mode(self) -> str:
-        """Converts Gree Swing Modes to HA."""
+        """Convert Gree Swing Modes to HA."""
         return self.device.vertical_swing_mode.name
 
     async def async_set_swing_mode(self, swing_mode):
@@ -769,7 +759,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         self.async_write_ha_state()
 
     def get_swing_horizontal_mode(self) -> str:
-        """Converts Gree Swing Horizontal Modes to HA."""
+        """Convert Gree Swing Horizontal Modes to HA."""
         return self.device.horizontal_swing_mode.name
 
     async def async_set_swing_horizontal_mode(self, swing_horizontal_mode):
@@ -804,19 +794,15 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         self.async_write_ha_state()
 
     def get_temp_units(self) -> UnitOfTemperature:
-        """Returns the device units of temperature."""
+        """Return the device units of temperature."""
         return UNITS_GREE_TO_HA[self.device.target_temperature_unit]
 
     def get_current_temp(self) -> float | None:
-        """Returns the current temperature of the room. Accounting for units."""
+        """Return the current temperature of the room. Accounting for units."""
 
         # Gree API always return current temperature in ºC
         # so here we need to convert to the unit of the entity (same as device)
-        if (
-            self.hass
-            and self.device.supports_property(GreeProp.SENSOR_TEMPERATURE)
-            and self.device.indoors_temperature_c is not None
-        ):
+        if self.hass and self.device.indoors_temperature_c is not None:
             return TemperatureConverter.convert(
                 float(self.device.indoors_temperature_c),
                 UnitOfTemperature.CELSIUS,
@@ -826,15 +812,11 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         return None
 
     def get_outside_current_temp(self) -> float | None:
-        """Returns the current outdoor temperature. Accounting for units."""
+        """Return the current outdoor temperature. Accounting for units."""
 
         # Gree API always return temperature in ºC
         # so here we need to convert to the unit of the entity (same as device)
-        if (
-            self.hass
-            and self.device.supports_property(GreeProp.SENSOR_OUTSIDE_TEMPERATURE)
-            and self.device.outdoors_temperature_c is not None
-        ):
+        if self.hass and self.device.outdoors_temperature_c is not None:
             return TemperatureConverter.convert(
                 float(self.device.outdoors_temperature_c),
                 UnitOfTemperature.CELSIUS,
@@ -844,19 +826,16 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         return None
 
     def get_current_humidity(self) -> float | None:
-        """Returns the current humidity of the room."""
+        """Return the current humidity of the room."""
 
         # Gree API always return current humidity in %
-        if (
-            self.device.supports_property(GreeProp.SENSOR_HUMIDITY)
-            and self.device.humidity is not None
-        ):
+        if self.device.humidity is not None:
             return float(self.device.humidity)
 
         return None
 
     def get_current_target_temp(self) -> float | None:
-        """Returns the current target temperature set on the device."""
+        """Return the current target temperature set on the device."""
         # Device already return in the temperature_units
         return self.device.target_temperature
 

@@ -6,6 +6,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
 
+from .aiogree.helpers import redact_str
 from .const import DOMAIN
 from .coordinator import GreeConfigEntry, GreeCoordinator
 
@@ -27,8 +28,8 @@ async def async_get_config_entry_diagnostics(
     diagnostics = {"entry_data": dict(entry.data.copy()), "data": data}
     redacted = diagnostics
     redacted["entry_data"]["advanced"] = diagnostics["entry_data"]["advanced"].copy()
-    redacted["entry_data"]["advanced"]["encryption_key"] = (
-        diagnostics["entry_data"]["advanced"]["encryption_key"][:5] + "[redacted]"
+    redacted["entry_data"]["advanced"]["encryption_key"] = redact_str(
+        diagnostics["entry_data"]["advanced"]["encryption_key"]
     )
     return redacted
 
@@ -46,6 +47,9 @@ async def async_get_device_diagnostics(
         if domain == DOMAIN:
             mac = identifier
             break
+
+    if not mac:
+        raise RuntimeError(f"No MAC found for the device: {device.identifiers}")
 
     coordinator: GreeCoordinator | None = entry.runtime_data.get(mac, None)
 

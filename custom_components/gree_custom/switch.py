@@ -15,12 +15,13 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .aiogree.api import OperationMode, SleepMode, SleepMode
-from .aiogree.api import GreeProp, HumidityControlMode, OperationMode, SleepMode
+from .aiogree.api import HumidityControlMode, OperationMode, SleepMode
 from .aiogree.device import GreeDevice
+from .aiogree.errors import GreeContinuousDryUnavailable
 from .const import (
     ATTR_AUTO_LIGHT,
     ATTR_AUTO_XFAN,
+    DOMAIN,
     GATTR_ANTI_DIRECT_BLOW,
     GATTR_BEEPER,
     GATTR_FEAT_ENERGY_SAVING,
@@ -248,7 +249,7 @@ class GreeSwitch(GreeEntity, SwitchEntity, RestoreEntity):  # pyright: ignore[re
         """Return true if the switch is on."""
         return self.entity_description.value_func(self.device, self.coordinator)
 
-    async def async_added_to_hass(self):
+    async def async_added_to_hass(self) -> None:
         """Handle entity which will be added."""
         await super().async_added_to_hass()
         # Restore last HA state to device if applicable

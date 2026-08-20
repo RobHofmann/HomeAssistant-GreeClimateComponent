@@ -1,7 +1,7 @@
 """Helpers for the Gree integration."""
 
-from ipaddress import IPv4Address, IPv4Network, ip_address, ip_network
 import logging
+from ipaddress import IPv4Address, IPv4Network, ip_address, ip_network
 
 from homeassistant.components import network
 from homeassistant.config_entries import ConfigEntry
@@ -9,8 +9,9 @@ from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
-from .aiogree.api import GreeDiscoveredDevice, discover_gree_devices
+from .aiogree.api import GreeDiscoveredDevice, gree_discover_devices
 from .aiogree.device import GreeDevice
+from .aiogree.transport_udp import GreeUdpTransport
 from .const import (
     CONF_DISCOVERY_PREFS_KEY,
     CONF_DISCOVERY_PREFS_VERSION,
@@ -138,12 +139,15 @@ async def try_find_new_ip(
         "Trying to find a new IP address for %s", device.mac_address_controller
     )
 
-    previous_ip = device.ip
+    if not isinstance(device.transport, GreeUdpTransport):
+        _LOGGER.error("Can't find the IP of a device that is not local")
+
+    previous_ip = device.transport.ip_addr
 
     # Perform device discovery
     discovery_addresses = await get_discovery_addresses(hass)
-    discovered_devices: list[GreeDiscoveredDevice] = await discover_gree_devices(
-        discovery_addresses, DEFAULT_DISCOVERY_TIMEOUT
+    discovered_devices: list[GreeDiscoveredDevice] = await gree_discover_devices(
+        broadcast_addresses=discovery_addresses, timeout=DEFAULT_DISCOVERY_TIMEOUT
     )
 
     # Search for a match device
@@ -167,7 +171,8 @@ async def try_find_new_ip(
         return False
 
     # Update the device IP
-    device.set_ip(match_device.host)
+    # await device.unbind_device()
+    await device.transport.set_ip(match_device.host)
 
     # Update config entry to save the new IP
     new_data = {**config_entry.data, CONF_HOST: device.ip}

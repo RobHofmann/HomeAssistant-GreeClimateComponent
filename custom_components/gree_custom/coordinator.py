@@ -1,24 +1,22 @@
 """Data update coordinator for Gree integration."""
 
+from datetime import timedelta
 import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
-from homeassistant.helpers.update_coordinator import (
-    DataUpdateCoordinator,
-    UpdateFailed,
-    timedelta,
-)
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from .aiogree.api import OperationMode
 from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeBindingError, GreeConnectionError
 from .helpers import try_find_new_ip
 
 _LOGGER = logging.getLogger(__name__)
 
-# Home Assistant config entry containing Gree coordinators keyed by normalized MAC addresses ("xxxxxxxxxxxx").
+# Home Assistant config entry where the runtime data are Gree coordinators keyed by normalized MAC addresses ("xxxxxxxxxxxx").
 type GreeConfigEntry = ConfigEntry[dict[str, GreeCoordinator]]
 
 
@@ -45,17 +43,19 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         self._feature_auto_xfan: bool = False
         self._feature_auto_light: bool = False
 
-    async def _async_setup(self):
+    async def _async_setup(self) -> None:
         """Bind to the device before the first coordinator refresh.
 
         This is called automatically by
         `coordinator.async_config_entry_first_refresh()` and performs
         one-time initialization required before regular updates begin.
         """
-        await self.device.bind_device()
 
-    async def _async_update_data(self):
-        """Updates the device with he latest state.
+        # await self.device.bind()
+        # We shouldn't arrive here without a bind successfully performed elsewhere
+
+    async def _async_update_data(self) -> None:
+        """Update the device with he latest state.
 
         If communication fails due to a connection error, the coordinator
         attempts to discover the device's new IP address and retries the
@@ -65,7 +65,9 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
             await self.device.fetch_device_status()
 
         except GreeConnectionError as err:
-            if not await try_find_new_ip(self.hass, self.device, self.config_entry):
+            if not self.config_entry or not await try_find_new_ip(
+                self.hass, self.device, self.config_entry
+            ):
                 raise UpdateFailed("Error getting state from device") from err
 
             # retry once after IP recovery
@@ -82,7 +84,7 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
             _LOGGER.exception("Error getting state from device")
             raise UpdateFailed("Error getting state from device") from err
 
-    async def push_device_status(self):
+    async def push_device_status(self) -> None:
         """Push the current transient state to the device.
 
         If communication fails because the device IP has changed, attempt
@@ -91,7 +93,9 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         try:
             await self.device.push_device_status()
         except GreeConnectionError:
-            if not await try_find_new_ip(self.hass, self.device, self.config_entry):
+            if not self.config_entry or not await try_find_new_ip(
+                self.hass, self.device, self.config_entry
+            ):
                 raise  # propagate original error if recovery fails
 
             # retry once after recovering IP
@@ -117,8 +121,14 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         return self._feature_auto_light
 
     def set_feature_auto_light(self, value: bool) -> None:
-        """Sets the state of the Auto Display Light Feature."""
+        """Set the state of the Auto Display Light Feature."""
         self._feature_auto_light = value
+
+        # Immediately apply Light
+        desired_light = value if self.device.power_mode else False
+        if self.device.feature_light != desired_light:
+            self.device.set_feature_light(desired_light)
+            self.hass.async_create_task(self._push_status_and_refresh())
 
     @property
     def feature_auto_xfan(self) -> bool:
@@ -126,5 +136,14 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         return self._feature_auto_xfan
 
     def set_feature_auto_xfan(self, value: bool) -> None:
-        """Sets the state of the Auto X-Fan Feature."""
+        """Set the state of the Auto X-Fan Feature."""
         self._feature_auto_xfan = value
+
+        # Immediately apply X-Fan
+        if self.device.operation_mode == OperationMode.cool:
+            self.device.set_feature_xfan(value)
+            self.hass.async_create_task(self._push_status_and_refresh())
+
+    async def _push_status_and_refresh(self) -> None:
+        await self.push_device_status()
+        await self.async_request_refresh()

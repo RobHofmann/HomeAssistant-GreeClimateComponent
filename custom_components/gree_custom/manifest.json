@@ -1,17 +1,13 @@
 {
-  "domain": "gree_custom",
-  "name": "Gree A/C",
-  "codeowners": ["@robhofmann"],
-  "config_flow": true,
-  "dependencies": ["network"],
-  "documentation": "https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent",
-  "integration_type": "hub",
-  "iot_class": "local_polling",
-  "issue_tracker": "https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues",
-  "requirements": ["pycryptodome", "asyncio_dgram"],
-<<<<<<< HEAD
-  "version": "4.0.0-alpha.103"
-=======
-  "version": "4.0.0-alpha.102"
->>>>>>> e58bb19 (Improve API to closely follow device behaviour)
+    "domain": "gree_custom",
+    "name": "Gree A/C",
+    "codeowners": ["@robhofmann"],
+    "config_flow": true,
+    "dependencies": ["network"],
+    "documentation": "https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent",
+    "integration_type": "hub",
+    "iot_class": "local_polling",
+    "issue_tracker": "https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues",
+    "requirements": ["asyncio_dgram", "aiomqtt", "pydantic"],
+    "version": "4.0.0-alpha.104"
 }

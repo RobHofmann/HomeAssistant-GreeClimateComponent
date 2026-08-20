@@ -8,6 +8,7 @@ from typing import TypeVar
 from homeassistant.const import CONF_MAC
 from homeassistant.helpers.entity_platform import Any
 
+from .aiogree.api import GreeProp
 from .aiogree.device import GreeDevice
 from .const import (
     CONF_ADVANCED,
@@ -101,8 +102,8 @@ def supported_descriptions(
         ):
             continue
 
-        prop = CONF_TO_PROP_FEATURE_MAP.get(feature)
-        if prop and device.supports_property(prop):
+        props: list[GreeProp] = CONF_TO_PROP_FEATURE_MAP.get(feature)
+        if props and any(device.supports_property(p) for p in props):
             supported.append(description)
 
     return supported

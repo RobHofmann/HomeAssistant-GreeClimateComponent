@@ -33,10 +33,12 @@ from homeassistant.helpers.selector import (
 )
 from homeassistant.helpers.storage import Store
 
-from .aiogree.api import GreeDiscoveredDevice, GreeProp, discover_gree_devices
+from .aiogree.api import GreeDiscoveredDevice, GreeProp, gree_discover_devices
 from .aiogree.cipher import EncryptionVersion
 from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeBindingError, GreeConnectionError
+from .aiogree.helpers import gree_extract_macs
+from .aiogree.transport_udp import GreeUdpTransport
 from .const import (
     ATTR_EXTERNAL_HUMIDITY_SENSOR,
     ATTR_EXTERNAL_TEMPERATURE_SENSOR,
@@ -97,7 +99,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def build_main_schema(data: Mapping | None) -> vol.Schema:
-    """Builds the main option schema."""
+    """Build the main option schema."""
     if data:
         _LOGGER.debug("Building main schema with previous values: %s", data)
 
@@ -179,7 +181,7 @@ def build_main_schema(data: Mapping | None) -> vol.Schema:
 def build_options_schema(
     hass: HomeAssistant, device: GreeDevice, data: Mapping | None
 ) -> vol.Schema:
-    """Builds the device option schema."""
+    """Build the device option schema."""
     if data:
         _LOGGER.debug("Building device options schema with previous values: %s", data)
 
@@ -283,7 +285,7 @@ def build_options_schema(
     if device.supports_property(GreeProp.FEAT_XFAN):
         valid_features.append(GATTR_FEAT_XFAN)
     if device.supports_property(GreeProp.FEAT_SLEEP_MODE) or device.supports_property(
-        GreeProp.FEAT_SLEEP_MODE_SWING
+        GreeProp.FEAT_SLEEP_MODE_TYPE
     ):
         valid_features.append(GATTR_FEAT_SLEEP_MODE)
     if device.supports_property(GreeProp.FEAT_SMART_HEAT_8C):
@@ -452,7 +454,7 @@ def apply_schema_defaults(schema: vol.Schema, data: dict) -> dict:
 
 
 def format_mac_id(mac_addr: str) -> str:
-    """Returns a formated mac address for use as unique id."""
+    """Return a formated mac address for use as unique id."""
     if "@" in mac_addr:
         _mac_addr_sub, _ = mac_addr.lower().split("@", 1)
         return format_mac(_mac_addr_sub)
@@ -492,7 +494,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._devices: dict[str, GreeDevice] = {}
         self._is_reconfigure: bool = False
 
-        self.pref_storage = None
+        self.pref_storage: Store | None = None
 
     async def async_step_import(
         self, import_config: dict
@@ -500,7 +502,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle import from configuration.yaml."""
         _LOGGER.debug("Importing config entry: %s", import_config)
 
-        mac = import_config.get(CONF_MAC, "")
+        mac, mac_controller = gree_extract_macs(import_config.get(CONF_MAC, ""))
 
         if not mac:
             _LOGGER.error("No MAC for imported device: %s", import_config)
@@ -511,19 +513,22 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         data = apply_schema_defaults(schema1, import_config)
 
         device: GreeDevice = GreeDevice(
-            f"Temporary Device for {data[CONF_MAC]}",
-            data[CONF_HOST],
-            data[CONF_MAC],
-            data[CONF_ADVANCED][CONF_PORT],
-            data[CONF_ADVANCED][CONF_ENCRYPTION_KEY],
-            EncryptionVersion(int(data[CONF_ADVANCED][CONF_ENCRYPTION_VERSION]))
-            if data[CONF_ADVANCED][CONF_ENCRYPTION_VERSION] != "Auto-Detect"
-            else None,
-            data[CONF_ADVANCED][CONF_UID],
-            max_connection_attempts=2,  # Use fewer attempts for testing the device
-            timeout=2,  # Use smaller timeout for testing the device
+            name=f"Temporary Device for {mac}",
+            mac_addr=mac,
+            mac_addr_controller=mac_controller,
+            preferred_encryption_key=data[CONF_ADVANCED][CONF_ENCRYPTION_KEY],
+            user_id=data[CONF_ADVANCED][CONF_UID],
         )
-        await device.fetch_device_status()
+        await device.bind_with_transport(
+            preferred_local_version=(
+                EncryptionVersion(int(data[CONF_ADVANCED][CONF_ENCRYPTION_VERSION]))
+                if data[CONF_ADVANCED][CONF_ENCRYPTION_VERSION] != "Auto-Detect"
+                else None
+            ),
+            local_transport=GreeUdpTransport(
+                ip_addr=data[CONF_HOST], port=data[CONF_ADVANCED][CONF_PORT]
+            ),
+        )
 
         data[CONF_MAC] = device.mac_address_controller
         data[CONF_ADVANCED][CONF_ENCRYPTION_VERSION] = (
@@ -548,18 +553,19 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 continue
 
             dev: GreeDevice = GreeDevice(
-                f"Temporary Device for {mac}",
-                data[CONF_HOST],
-                mac,
-                data[CONF_ADVANCED][CONF_PORT],
-                data[CONF_ADVANCED][CONF_ENCRYPTION_KEY],
-                EncryptionVersion(int(data[CONF_ADVANCED][CONF_ENCRYPTION_VERSION])),
-                data[CONF_ADVANCED][CONF_UID],
-                max_connection_attempts=2,  # Use fewer attempts for testing the device
-                timeout=2,  # Use smaller timeout for testing the device
+                name=f"Temporary Device for {mac}",
+                mac_addr=mac,
+                preferred_encryption_key=data[CONF_ADVANCED][CONF_ENCRYPTION_KEY],
+                user_id=data[CONF_ADVANCED][CONF_UID],
             )
-
-            await dev.fetch_device_status()
+            await device.bind_with_transport(
+                preferred_local_version=EncryptionVersion(
+                    int(data[CONF_ADVANCED][CONF_ENCRYPTION_VERSION])
+                ),
+                local_transport=GreeUdpTransport(
+                    ip_addr=data[CONF_HOST], port=data[CONF_ADVANCED][CONF_PORT]
+                ),
+            )
             schema_dev = build_options_schema(self.hass, dev, dev_config)
             data[CONF_DEVICES].append(
                 {
@@ -653,12 +659,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         device_options = {}
         for device in self._discovered_devices:
             device_id = device.mac
-            if device.subdevices > 0:
-                device_options[device_id] = (
-                    f"IP: {device.host}, MAC: {device.mac}, Subdevices: {device.subdevices}"
-                )
-            else:
-                device_options[device_id] = f"IP: {device.host}, MAC: {device.mac}"
+            # if device.subdevices > 0:
+            #     device_options[device_id] = (
+            #         f"IP: {device.host}, MAC: {device.mac}, Subdevices: {device.subdevices}"
+            #     )
+            # else:
+            device_options[device_id] = f"IP: {device.host}, MAC: {device.mac}"
 
         data_schema = vol.Schema({vol.Required("device"): vol.In(device_options)})
 
@@ -675,16 +681,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> config_entries.ConfigFlowResult:
         """Collect optional cross-VLAN scan ranges before running discovery."""
         errors: dict[str, str] = {}
-        networks_raw = ""
-        hosts_raw = ""
+        networks_raw: str = ""
+        hosts_raw: str = ""
         self.pref_storage = self.pref_storage or Store(
             self.hass, CONF_DISCOVERY_PREFS_VERSION, CONF_DISCOVERY_PREFS_KEY
         )
 
         # BUG: HA persists the old value if a field is empty. Workaround is to send a [space].
         if user_input is not None:
-            networks_raw: str = (user_input.get(CONF_EXTRA_SCAN_NETWORKS, "")).strip()
-            hosts_raw: str = (user_input.get(CONF_EXTRA_SCAN_HOSTS, "")).strip()
+            networks_raw = (user_input.get(CONF_EXTRA_SCAN_NETWORKS, "")).strip()
+            hosts_raw = (user_input.get(CONF_EXTRA_SCAN_HOSTS, "")).strip()
 
             extra_networks: list[str] = (
                 [s.strip() for s in networks_raw.split(",") if s.strip()]
@@ -756,7 +762,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             prefs.get(CONF_EXTRA_SCAN_HOSTS, [])
         )
 
-        # TODO: Use a TextSelector with multiple set to True. Unfortunately, as of now, HA UI has a bug where the focus on the textfield exits at every character
+        # TODO: Use a TextSelector with multiple set to True.
         data_schema = vol.Schema(
             {
                 vol.Optional(CONF_EXTRA_SCAN_NETWORKS, default=default_networks): str,
@@ -778,20 +784,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             try:
                 _main_device = GreeDevice(
-                    f"Gree Device {user_input[CONF_MAC]}",
-                    user_input[CONF_HOST],
-                    user_input[CONF_MAC],
-                    user_input[CONF_ADVANCED][CONF_PORT],
-                    user_input[CONF_ADVANCED][CONF_ENCRYPTION_KEY],
-                    EncryptionVersion(
-                        int(user_input[CONF_ADVANCED][CONF_ENCRYPTION_VERSION])
-                    )
-                    if user_input[CONF_ADVANCED][CONF_ENCRYPTION_VERSION]
-                    != "Auto-Detect"
-                    else None,
-                    user_input[CONF_ADVANCED][CONF_UID],
-                    max_connection_attempts=2,  # Use fewer attempts for testing the device
-                    timeout=2,  # Use smaller timeout for testing the device
+                    name=f"Gree Device {user_input[CONF_MAC]}",
+                    mac_addr=user_input[CONF_MAC],
+                    preferred_encryption_key=user_input[CONF_ADVANCED][
+                        CONF_ENCRYPTION_KEY
+                    ],
+                    user_id=user_input[CONF_ADVANCED][CONF_UID],
                 )
                 self._main_mac = _main_device.mac_address_controller
                 await self.async_set_unique_id(format_mac_id(self._main_mac))
@@ -806,27 +804,38 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 # self._discovered_subdevices = await get_sub_devices(
                 #     _main_device.mac_address, user_input[CONF_HOST], 0, 2, 2
                 # )
-                self._discovered_subdevices = await self._devices[
-                    _main_device.mac_address
-                ].bind_device()
+                # self._discovered_subdevices = await self._devices[
+                #     _main_device.mac_address
+                # ].bind_with_transport(
+                #     preferred_local_version=EncryptionVersion(
+                #         int(user_input[CONF_ADVANCED][CONF_ENCRYPTION_VERSION])
+                #         if user_input[CONF_ADVANCED][CONF_ENCRYPTION_VERSION]
+                #         != "Auto-Detect"
+                #         else None
+                #     ),
+                #     local_transport=GreeUdpTransport(
+                #         ip_addr=user_input[CONF_HOST],
+                #         port=user_input[CONF_ADVANCED][CONF_PORT],
+                #     ),
+                # )
 
-                self._discovered_subdevices = await self._devices[
-                    _main_device.mac_address
-                ].fetch_sub_devices()
+                # self._discovered_subdevices = await self._devices[
+                #     _main_device.mac_address
+                # ].fetch_sub_devices()
 
-                for d in self._discovered_subdevices:
-                    subdev = GreeDevice(
-                        d.name,
-                        user_input[CONF_HOST],
-                        f"{d.mac}@{_main_device.mac_address_controller}",
-                        user_input[CONF_ADVANCED][CONF_PORT],
-                        _main_device.encryption_key,
-                        _main_device.encryption_version,
-                        user_input[CONF_ADVANCED][CONF_UID],
-                        max_connection_attempts=2,  # Use fewer attempts for testing the device
-                        timeout=2,  # Use smaller timeout for testing the device
-                    )
-                    self._devices[subdev.mac_address] = subdev
+                # for d in self._discovered_subdevices:
+                #     subdev = GreeDevice(
+                #         d.name,
+                #         user_input[CONF_HOST],
+                #         f"{d.mac}@{_main_device.mac_address_controller}",
+                #         user_input[CONF_ADVANCED][CONF_PORT],
+                #         _main_device.encryption_key,
+                #         _main_device.encryption_version,
+                #         user_input[CONF_ADVANCED][CONF_UID],
+                #         max_connection_attempts=2,  # Use fewer attempts for testing the device
+                #         timeout=2,  # Use smaller timeout for testing the device
+                #     )
+                #     self._devices[subdev.mac_address] = subdev
 
                 await self._devices[_main_device.mac_address].fetch_device_status()
             except GreeBindingError:
@@ -860,7 +869,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             user_input[CONF_MAC] = self._discovery_selected_device.mac
             user_input[CONF_ADVANCED] = {}
             user_input[CONF_ADVANCED][CONF_PORT] = self._discovery_selected_device.port
-            user_input[CONF_ADVANCED][CONF_UID] = self._discovery_selected_device.uid
+            user_input[CONF_ADVANCED][CONF_UID] = (
+                self._discovery_selected_device.user_id
+            )
         elif self._discovery_performed and self._discovery_selected_device is None:
             errors["base"] = "no_devices_found"
         elif reconfigure_input is not None:
@@ -972,7 +983,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=schema,
         )
 
-    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None):
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
         """Handle reconfiguration of an existing entry."""
         entry: GreeConfigEntry = self._get_reconfigure_entry()
 
@@ -998,11 +1011,13 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> list[GreeDiscoveredDevice]:
         """Discover devices in the network."""
 
-        return await discover_gree_devices(
-            await get_discovery_addresses(hass), DEFAULT_DISCOVERY_TIMEOUT
+        return await gree_discover_devices(
+            cloud_api=None,
+            broadcast_addresses=await get_discovery_addresses(hass),
+            timeout=DEFAULT_DISCOVERY_TIMEOUT,
         )
 
-    def _create_final_entry(self):
+    def _create_final_entry(self) -> config_entries.ConfigFlowResult:
         """Build final entry data."""
         data: dict = {}
 
@@ -1024,7 +1039,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             title=f"Gree System at {data[CONF_HOST]}", data=data
         )
 
-    def _update_entry(self):
+    def _update_entry(self) -> config_entries.ConfigFlowResult:
         """Build final entry data."""
         data: dict = {}
 

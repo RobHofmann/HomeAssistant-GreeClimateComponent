@@ -2,6 +2,7 @@
 
 # Standard library imports
 import logging
+from typing import Any
 
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.config_entries import ConfigEntry
@@ -16,10 +17,12 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.typing import Any, ConfigType
+from homeassistant.helpers.typing import ConfigType
 
 from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeBindingError, GreeConnectionError
+from .aiogree.helpers import gree_extract_macs
+from .aiogree.transport_udp import GreeUdpTransport
 
 # Local imports
 from .const import (
@@ -100,21 +103,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
 
     coordinators: dict[str, GreeCoordinator] = {}
     for d in conf.get(CONF_DEVICES, []):
-        mac = str(d.get(CONF_MAC, "")) + "@" + conf.get(CONF_MAC)
+        mac, mac_controller = gree_extract_macs(d.get(CONF_MAC, ""))
+
         device = GreeDevice(
             name=d.get(CONF_DEV_NAME, "Gree HVAC"),
-            ip_addr=conf.get(CONF_HOST),
             mac_addr=mac,
-            port=conf[CONF_ADVANCED].get(CONF_PORT, DEFAULT_DEVICE_PORT),
-            encryption_key=conf[CONF_ADVANCED].get(CONF_ENCRYPTION_KEY, ""),
-            encryption_version=conf[CONF_ADVANCED].get(
-                CONF_ENCRYPTION_VERSION, DEFAULT_ENCRYPTION_VERSION
-            ),
-            uid=conf[CONF_ADVANCED].get(CONF_UID, DEFAULT_DEVICE_UID),
-            max_connection_attempts=conf[CONF_ADVANCED].get(
-                CONF_MAX_ONLINE_ATTEMPTS, DEFAULT_CONNECTION_MAX_ATTEMPTS
-            ),
-            timeout=conf[CONF_ADVANCED].get(CONF_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT),
+            mac_addr_controller=mac_controller,
+            preferred_encryption_key=conf[CONF_ADVANCED].get(CONF_ENCRYPTION_KEY, ""),
+            user_id=conf[CONF_ADVANCED].get(CONF_UID, DEFAULT_DEVICE_UID),
         )
         try:
             _LOGGER.debug(
@@ -125,11 +121,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
             )
 
             try:
-                await device.bind_device()
+                await device.bind_with_transport(
+                    preferred_local_version=conf[CONF_ADVANCED].get(
+                        CONF_ENCRYPTION_VERSION, DEFAULT_ENCRYPTION_VERSION
+                    ),
+                    local_transport=GreeUdpTransport(
+                        ip_addr=conf.get(CONF_HOST, ""),
+                        port=conf[CONF_ADVANCED].get(CONF_PORT, DEFAULT_DEVICE_PORT),
+                        max_retries=conf[CONF_ADVANCED].get(
+                            CONF_MAX_ONLINE_ATTEMPTS, DEFAULT_CONNECTION_MAX_ATTEMPTS
+                        ),
+                        timeout=conf[CONF_ADVANCED].get(
+                            CONF_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT
+                        ),
+                    ),
+                )
             except GreeConnectionError as err_inner:
                 if not await try_find_new_ip(hass, device, entry):
                     raise ConfigEntryNotReady from err_inner
-                await device.bind_device()
+                # await device.bind()
 
             coordinators[device.mac_address] = GreeCoordinator(
                 hass, entry, device, d.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
@@ -201,7 +211,7 @@ async def async_remove_config_entry_device(
 
     if new_device_configs:
         # There are still other devices, update the entry
-        await hass.config_entries.async_update_entry(config_entry, data=data)
+        hass.config_entries.async_update_entry(config_entry, data=data)
     else:
         # No other devices, remove the entry
         await hass.config_entries.async_remove(config_entry.entry_id)

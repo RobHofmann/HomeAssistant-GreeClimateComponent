@@ -316,12 +316,6 @@
     "turbo_availability": {
       "message": "Turbo mode is only available in Cool and Heat modes."
     },
-    "turbo_ignored": {
-      "message": "Turbo mode is ignored when Energy Saving or Smart Heat are enabled."
-    },
-    "quiet_ignored": {
-      "message": "Quiet mode is ignored when Energy Saving or Smart Heat are enabled."
-    },
     "entity_unavailable": {
       "message": "The entity is unavailable."
     },
