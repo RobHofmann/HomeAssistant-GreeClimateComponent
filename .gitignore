@@ -4,3 +4,4 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 config/
+.ha-core/
