@@ -55,7 +55,7 @@
             "label": "Update Home Assistant to latest dev branch",
             "type": "shell",
             "dependsOn": "Fetch Home Assistant core",
-            "command": ".venv/bin/python -m pip install --upgrade --no-cache-dir -r .ha-core/requirements.txt && .venv/bin/python -m pip install --upgrade --no-cache-dir -r .ha-core/requirements_all.txt && .venv/bin/python -m pip install --upgrade --no-cache-dir --editable .ha-core --config-settings editable_mode=compat && .venv/bin/python -m pip install --upgrade colorlog",
+            "command": ".venv/bin/python -m pip install --upgrade --no-cache-dir -r .ha-core/requirements.txt && .venv/bin/python -m pip install --upgrade --no-cache-dir --editable .ha-core --config-settings editable_mode=compat && .venv/bin/python -m pip install --upgrade colorlog",
             "problemMatcher": [],
             "detail": "Installs the fetched Home Assistant core checkout and its dependencies as an editable package."
         },
