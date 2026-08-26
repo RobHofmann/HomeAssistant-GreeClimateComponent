@@ -9,6 +9,10 @@ class GreeCloudError(Exception):
     """Error while communicating with the Gree Cloud."""
 
 
+class GreeCloudLoginError(GreeCloudError):
+    """Error while logging in to the Gree Cloud."""
+
+
 class GreeConnectionError(GreeError):
     """Network communication with device failed."""
 

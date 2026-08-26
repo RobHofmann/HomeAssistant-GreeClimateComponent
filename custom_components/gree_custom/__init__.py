@@ -1,6 +1,7 @@
 """Gree climate integration init."""
 
 # Standard library imports
+import json
 import logging
 from typing import Any
 
@@ -78,19 +79,22 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool:
     """Set up Gree from a config entry."""
 
-    _LOGGER.info(
-        "Setup entry '%s': %s at %s",
-        entry.entry_id,
-        entry.data[CONF_MAC],
-        entry.data[CONF_HOST],
-    )
+    # _LOGGER.info(
+    #     "Setup entry '%s': %s at %s",
+    #     entry.entry_id,
+    #     entry.data[CONF_MAC],
+    #     entry.data[CONF_HOST],
+    # )
     _LOGGER.debug(
         "Setup entry '%s': %s\ndata=%s",
         entry.entry_id,
         entry,
-        async_redact_data(entry.data, ["encryption_key"]),
+        json.dumps(async_redact_data(entry.data, ["encryption_key"])),
     )
+    for k, v in entry.subentries.items():
+        _LOGGER.debug("%s: %s", k, json.dumps(dict(v.data)))
 
+    return True
     conf = entry.data
     if (
         conf is None

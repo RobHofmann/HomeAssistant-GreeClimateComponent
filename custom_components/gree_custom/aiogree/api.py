@@ -506,7 +506,8 @@ class GreeDiscoveredDevice:
 
     # Device Id
     mac: str
-    mac_controller: str
+    mac_controller_local: str = ""
+    mac_controller_mqtt: str = ""
     user_id: int = DEFAULT_DEVICE_USERID
     key: str | None = None
     # Local
@@ -525,6 +526,13 @@ class GreeDiscoveredDevice:
     mid: str = ""
     hid: str = ""
     ver: str = ""
+
+    @property
+    def friendly_name(self) -> str:
+        """Friendly representation of the discovered device."""
+        connection = "Local" if self.host else "Cloud"
+        name = self.name + ", " if self.name else ""
+        return f"{name}{self.mac} ({connection})"
 
 
 class StatusResult(NamedTuple):
@@ -1247,7 +1255,7 @@ async def _get_sub_devices_list(
             else:
                 new_dev = GreeDiscoveredDevice(
                     mac=sub_dev.get("mac"),
-                    mac_controller=mac_addr_controller,
+                    mac_controller_local=mac_addr_controller,
                     host=transport.ip_addr,
                     port=transport.port,
                     mid=sub_dev.get("mid"),
@@ -1296,10 +1304,10 @@ async def gree_discover_devices_local(
 
                 discovered_device = GreeDiscoveredDevice(
                     mac=mac,
-                    mac_controller=mac_controller,
+                    mac_controller_local=mac_controller,
                     host=address,
                     port=DEFAULT_DEVICE_PORT,
-                    name=device.name or "",
+                    name=device.name or f"Gree {mac[:5]}",
                     catalog=device.catalog or "",
                     brand=device.brand or "gree",
                     model=device.model or "gree",
@@ -1308,6 +1316,7 @@ async def gree_discover_devices_local(
                     mid=device.mid or "",
                     hid=device.hid or "",
                     ver=device.ver or "",
+                    user_id=DEFAULT_DEVICE_USERID,
                 )
                 discovered_devices.append(discovered_device)
 
@@ -1349,7 +1358,7 @@ async def gree_discover_devices_cloud(
         discovered_devices.append(
             GreeDiscoveredDevice(
                 mac=mac,
-                mac_controller=mac_controller,
+                mac_controller_mqtt=mac_controller,
                 user_id=cloud_api.user_id or DEFAULT_DEVICE_USERID,
                 key=dev.key,
                 username=cloud_api.username,
@@ -1402,12 +1411,12 @@ async def gree_discover_devices(
             _LOGGER.debug(repr(dev))
 
     if len(cloud_devices) > 0 or len(local_devices) > 0:
-        return _merge_discovered_devices(local_devices, cloud_devices)
+        return gree_merge_discovered_devices(local_devices, cloud_devices)
 
     return []
 
 
-def _merge_discovered_devices(
+def gree_merge_discovered_devices(
     local_devices: list[GreeDiscoveredDevice],
     cloud_devices: list[GreeDiscoveredDevice],
 ) -> list[GreeDiscoveredDevice]:
@@ -1431,6 +1440,9 @@ def _merge_discovered_devices(
             merged.append(cloud)
             continue
 
+        if local is None or cloud is None:
+            continue
+
         # Start with cloud values
         merged_device = GreeDiscoveredDevice(**vars(cloud))
 
@@ -1446,6 +1458,10 @@ def _merge_discovered_devices(
                 continue
 
             setattr(merged_device, field.name, value)
+
+        # Prefer cloud name and uid
+        merged_device.name = cloud.name
+        merged_device.user_id = cloud.user_id
 
         merged.append(merged_device)
 

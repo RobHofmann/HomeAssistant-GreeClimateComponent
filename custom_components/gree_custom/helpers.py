@@ -1,7 +1,7 @@
 """Helpers for the Gree integration."""
 
-import logging
 from ipaddress import IPv4Address, IPv4Network, ip_address, ip_network
+import logging
 
 from homeassistant.components import network
 from homeassistant.config_entries import ConfigEntry
@@ -25,14 +25,14 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def _get_hass_broadcast_addr(hass: HomeAssistant) -> list[str]:
-    """Returns the broadcast adresses from HA."""
+    """Return the broadcast adresses from HA."""
     broadcast_addresses: list[str] = []
 
     try:
         # This returns every broadcast address for every enabled network adapter in HA
         # If only the default adapter is enabled, HA only returns 255.255.255.255
         ha_broadcast_addresses: set[
-            network.IPv4Address
+            IPv4Address
         ] = await network.async_get_ipv4_broadcast_addresses(hass)
 
         ha_broadcast_strings: list[str] = [str(addr) for addr in ha_broadcast_addresses]
@@ -133,21 +133,24 @@ async def try_find_new_ip(
     device: GreeDevice,
     config_entry: ConfigEntry,
 ) -> bool:
-    """This will try find the IP of this device controller MAC address and update it."""
+    """Try find the IP of this device controller MAC address and update it."""
 
     _LOGGER.debug(
         "Trying to find a new IP address for %s", device.mac_address_controller
     )
 
-    if not isinstance(device.transport, GreeUdpTransport):
+    if not device.transport or not isinstance(device.transport, GreeUdpTransport):
         _LOGGER.error("Can't find the IP of a device that is not local")
+        return False
 
     previous_ip = device.transport.ip_addr
 
     # Perform device discovery
     discovery_addresses = await get_discovery_addresses(hass)
     discovered_devices: list[GreeDiscoveredDevice] = await gree_discover_devices(
-        broadcast_addresses=discovery_addresses, timeout=DEFAULT_DISCOVERY_TIMEOUT
+        cloud_api=None,
+        broadcast_addresses=discovery_addresses,
+        timeout=DEFAULT_DISCOVERY_TIMEOUT,
     )
 
     # Search for a match device
@@ -156,7 +159,7 @@ async def try_find_new_ip(
         None,
     )
 
-    if not match_device:
+    if not match_device or not match_device.host:
         _LOGGER.debug(
             "No device with mac '%s' found in the discovered devices",
             device.mac_address_controller,
@@ -175,9 +178,9 @@ async def try_find_new_ip(
     await device.transport.set_ip(match_device.host)
 
     # Update config entry to save the new IP
-    new_data = {**config_entry.data, CONF_HOST: device.ip}
+    new_data = {**config_entry.data, CONF_HOST: device.transport.ip_addr}
     if not hass.config_entries.async_update_entry(
-        config_entry, title=f"Gree System at {device.ip}", data=new_data
+        config_entry, title=f"Gree System at {device.transport.ip_addr}", data=new_data
     ):
         _LOGGER.debug("Failed to save new IP in config entry data")
 
@@ -185,7 +188,7 @@ async def try_find_new_ip(
         "IP for device with mac '%s' updated: %s -> %s",
         device.mac_address_controller,
         previous_ip,
-        device.ip,
+        device.transport.ip_addr,
     )
 
     return True

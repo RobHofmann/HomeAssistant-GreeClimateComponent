@@ -67,7 +67,6 @@ class GreeDevice:
         self,
         name: str,
         mac_addr: str,
-        mac_addr_controller: str | None = None,
         preferred_encryption_key: str | None = None,
         user_id: int = DEFAULT_DEVICE_USERID,
         capabilities: list[GreeProp] | None = None,
@@ -82,7 +81,6 @@ class GreeDevice:
         self._name: str = name
 
         self._mac_addr = mac_addr
-        self._mac_addr_controller = mac_addr_controller or mac_addr
 
         self._preferred_encryption_key: str | None = preferred_encryption_key
 
@@ -102,14 +100,15 @@ class GreeDevice:
 
         self._client = DeviceApiClient(
             mac=self._mac_addr,
-            controller_mac=self._mac_addr_controller,
             userid=user_id,
         )
 
     async def bind_with_transport(
         self,
         preferred_local_version: EncryptionVersion | None = None,
+        local_controller_mac: str | None = None,
         local_transport: GreeUdpTransport | None = None,
+        mqtt_controller_mac: str | None = None,
         mqtt_transport: GreeMqttTransport | None = None,
     ) -> None:
         """Bind the device to a new transport. It will try local transport first and then MQTT."""
@@ -120,19 +119,30 @@ class GreeDevice:
                 f"No transport provided for {self._mac_addr} to bind with"
             )
 
-        attempts: list[tuple[GreeBaseTransport, EncryptionVersion | None]] = []
+        attempts: list[tuple[GreeBaseTransport, str, EncryptionVersion | None]] = []
 
         if local_transport:
-            attempts.append((local_transport, preferred_local_version))
+            if not local_controller_mac:
+                _LOGGER.error("No controller MAC provided for local transport")
+            else:
+                attempts.append(
+                    (local_transport, local_controller_mac, preferred_local_version)
+                )
 
         if mqtt_transport:
-            attempts.append((mqtt_transport, EncryptionVersion.V1))
+            if not mqtt_controller_mac:
+                _LOGGER.error("No controller MAC provided for MQTT transport")
+            else:
+                attempts.append(
+                    (mqtt_transport, mqtt_controller_mac, EncryptionVersion.V1)
+                )
 
         error: Exception | None = None
-        for transport, version in attempts:
+        for transport, mac_controller, version in attempts:
             await self._client.set_transport(transport)
             try:
                 await self._client.bind(
+                    controller_mac=mac_controller,
                     preferred_version=version,
                     preferred_key=self._preferred_encryption_key,
                 )
@@ -458,7 +468,7 @@ class GreeDevice:
     @property
     def mac_address_controller(self) -> str:
         """Return the secondary MAC address of the device. For non VRF is the same as MAC otherwise is the MAC of the main controller (same as MAC for the main device)."""
-        return self._mac_addr_controller
+        return self._client.controller_mac
 
     @property
     def firmware_version(self) -> str | None:

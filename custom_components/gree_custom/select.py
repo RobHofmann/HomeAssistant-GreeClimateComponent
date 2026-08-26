@@ -73,7 +73,7 @@ SELECT_TYPES: list[GreeSelectDescription] = [
         key=GATTR_FEAT_HUMIDITY,
         translation_key=GATTR_FEAT_HUMIDITY,
         options=[member.name for member in HumidityControlMode],
-        value_func=lambda device: device.feature_humidity_control,
+        value_func=lambda device: str(device.feature_humidity_control),
         set_func=_set_humidity_control_mode,
         additional_available_func=lambda device: (
             device.operation_mode in (OperationMode.cool, OperationMode.dry)

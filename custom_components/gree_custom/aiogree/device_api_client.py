@@ -27,12 +27,11 @@ class DeviceApiClient:
     def __init__(
         self,
         mac: str,
-        controller_mac: str,
         userid: int,
     ) -> None:
         """Initialize the client."""
+        self.controller_mac = ""
         self._mac = mac
-        self._controller_mac = controller_mac
         self._userid = userid
 
         self._transport: GreeBaseTransport | None = None
@@ -51,6 +50,7 @@ class DeviceApiClient:
 
     async def bind(
         self,
+        controller_mac: str,
         preferred_version: EncryptionVersion | None = None,
         preferred_key: str | None = None,
     ) -> None:
@@ -60,6 +60,11 @@ class DeviceApiClient:
 
         if self._transport is None:
             raise GreeBindingError("No transport configured")
+
+        if not controller_mac or not bool(controller_mac.strip()):
+            raise GreeBindingError("No controller MAC provided")
+
+        self._controller_mac = controller_mac
 
         _LOGGER.info(
             "[%s:%s] Starting binding procedure", self._controller_mac, self._transport
@@ -125,7 +130,9 @@ class DeviceApiClient:
     async def rebind(self) -> None:
         """Try binding with the current transport and existing binding info."""
         await self.unbind()
-        return await self.bind(self.encryption_version, self.encryption_key)
+        return await self.bind(
+            self._controller_mac, self.encryption_version, self.encryption_key
+        )
 
     #
     # Transport

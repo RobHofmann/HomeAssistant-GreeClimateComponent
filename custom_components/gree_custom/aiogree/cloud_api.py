@@ -22,7 +22,7 @@ from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from pydantic import BaseModel, ConfigDict, Field
 
-from .errors import GreeCloudError
+from .errors import GreeCloudError, GreeCloudLoginError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -325,7 +325,9 @@ class GreeCloudApi:
 
         # Check for error response
         if "r" in data and data["r"] != 200:
-            raise GreeCloudError(f"Login failed: {data.get('msg', 'Unknown error')}")
+            raise GreeCloudLoginError(
+                f"Login failed: {data.get('msg', 'Unknown error')}"
+            )
 
         # Handle different response formats
         if "uid" in data:
@@ -338,7 +340,7 @@ class GreeCloudApi:
             raise GreeCloudError(f"Unexpected login response format: {data}")
 
         if not user_id or not token:
-            raise GreeCloudError(f"Missing uid or token in response: {data}")
+            raise GreeCloudLoginError(f"Missing uid or token in response: {data}")
 
         self.user_id = user_id
         self.token = token
