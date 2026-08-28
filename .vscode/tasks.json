@@ -47,7 +47,7 @@
         {
             "label": "Fetch Home Assistant core",
             "type": "shell",
-            "command": "if [ -d .ha-core/.git ]; then git -C .ha-core fetch --depth 1 origin dev && git -C .ha-core checkout dev && git -C .ha-core reset --hard origin/dev; else git clone --progress --depth 1 --branch dev https://github.com/home-assistant/core.git .ha-core; fi",
+            "command": "${workspaceFolder}/.devcontainer/setup-ha-repo.sh",
             "problemMatcher": [],
             "detail": "Fetches the latest Home Assistant core dev branch into the persistent .ha-core checkout."
         },
@@ -55,7 +55,7 @@
             "label": "Update Home Assistant to latest dev branch",
             "type": "shell",
             "dependsOn": "Fetch Home Assistant core",
-            "command": ".venv/bin/python -m pip install --upgrade --no-cache-dir -r .ha-core/requirements.txt && .venv/bin/python -m pip install --upgrade --no-cache-dir --editable .ha-core --config-settings editable_mode=compat && .venv/bin/python -m pip install --upgrade colorlog",
+            "command": "${workspaceFolder}/.devcontainer/setup-ha-core.sh",
             "problemMatcher": [],
             "detail": "Installs the fetched Home Assistant core checkout and its dependencies as an editable package."
         },

@@ -5,3 +5,4 @@ __pycache__/
 .ruff_cache/
 config/
 .ha-core/
+.uv-cache/

@@ -4,58 +4,11 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."   # repo root
 
-echo "==> Ensuring Python virtual environment exists"
-
-if [ -d ".venv" ]; then
-    echo "==> Reusing existing virtual environment"
-else
-    echo "==> Creating new virtual environment"
-    python3 -m venv .venv
-fi
-
-echo "==> Upgrading pip/setuptools/wheel"
-.venv/bin/python -m pip install --upgrade pip setuptools wheel
-
-# echo "==> Installing Home Assistant core from the 'dev' branch"
-# # pip's own "git+..." install clones with --quiet and a blobless partial
-# # filter, which on a repo this size can sit silent for minutes looking
-# # frozen. Clone it ourselves first (shallow, --progress forced on even
-# # though this isn't an interactive terminal) so there's visible feedback,
-# # then install from the local path.
-# HA_SRC_DIR="$(mktemp -d)"
-# git clone --progress --depth 1 --branch dev \
-#   https://github.com/home-assistant/core.git "$HA_SRC_DIR"
-# .venv/bin/python -m pip install --upgrade "$HA_SRC_DIR"
-# rm -rf "$HA_SRC_DIR"
-
-echo "==> Cloning Home Assistant core from the 'dev' branch"
-
-HA_SRC_DIR=".ha-core"
-
-if [ -d "$HA_SRC_DIR/.git" ]; then
-    echo "==> Home Assistant core already cloned, updating"
-    git -C "$HA_SRC_DIR" fetch --depth 1 origin dev
-    git -C "$HA_SRC_DIR" checkout dev
-    git -C "$HA_SRC_DIR" reset --hard origin/dev
-else
-    git clone --progress --depth 1 --branch dev \
-      https://github.com/home-assistant/core.git "$HA_SRC_DIR"
-fi
-
-echo "==> Installing Home Assistant core"
-.venv/bin/python -m pip install --upgrade --no-cache-dir --editable "$HA_SRC_DIR" --config-settings editable_mode=compat
-
-echo "==> Installing colorlog for colored console logs"
-# Not a declared dependency of the homeassistant package itself - HA's own
-# official dev setup docs install it as a separate explicit package
-# alongside the core install for exactly this reason. Without it,
-# async_enable_logging's "from colorlog import ColoredFormatter" silently
-# fails (bare except ImportError: pass) and falls back to plain text.
-.venv/bin/python -m pip install --upgrade colorlog
-
-echo "==> Installing system dependencies for default_config: (ffmpeg, libturbojpeg, libpcap)"
+# Requirements mirrored from official HA Devcontainer
+echo "==> Installing system dependencies"
 sudo apt-get update
-sudo apt-get install -y --no-install-recommends ffmpeg libturbojpeg0 libpcap-dev
+sudo apt-get install -y --no-install-recommends bluez ffmpeg libudev-dev libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev libswscale-dev libswresample-dev libavfilter-dev libpcap-dev libturbojpeg0 libyaml-dev libxml2 git cmake autoconf
+sudo apt-get clean
 sudo rm -rf /var/lib/apt/lists/*
 
 echo "==> Installing go2rtc binary (needed by default_config:, not available via apt)"
@@ -71,11 +24,40 @@ if [ -n "$GO2RTC_ASSET" ]; then
   sudo chmod +x /usr/local/bin/go2rtc
 fi
 
-echo "==> Installing dev/lint tooling"
-if [ -f requirements_dev.txt ]; then
-  .venv/bin/python -m pip install --upgrade -r requirements_dev.txt
+echo "==> Ensuring Python virtual environment exists"
+
+if [ -d ".venv" ]; then
+    echo "==> Reusing existing virtual environment"
+else
+    echo "==> Creating new virtual environment"
+    python3 -m venv .venv
 fi
 
+echo "==> Activate VENV"
+source .venv/bin/activate
+
+echo "==> Upgrading pip/setuptools/wheel"
+python -m pip install --upgrade pip setuptools wheel
+
+
+HA_SRC_DIR=".ha-core"
+
+echo "==> Ensuring Home Assistant core is available"
+./.devcontainer/setup-ha-repo.sh
+
+echo "==> Installing Home Assistant"
+./.devcontainer/setup-ha-core.sh
+
+echo "==> Compiling Home Assistant translations"
+(
+    cd $HA_SRC_DIR || exit 1
+    python -m script.translations develop --all
+)
+
+echo "==> Installing dev/lint tooling"
+if [ -f requirements_dev.txt ]; then
+  python -m pip install --upgrade -r requirements_dev.txt
+fi
 
 echo "==> Wiring up config/custom_components -> ../custom_components"
 mkdir -p config
@@ -89,7 +71,7 @@ if [ ! -f config/configuration.yaml ]; then
   # this is what "hass --script ensure_config" is for, and it's what
   # integration_blueprint's own setup script does too. Beats hand-writing
   # a configuration.yaml that can drift from what core actually defaults to.
-  .venv/bin/python -m homeassistant --script ensure_config --config config
+  python -m homeassistant --script ensure_config --config config
 
   # Add debug logging for custom_components on top of the generated default.
   cat >> config/configuration.yaml <<'YAML'
