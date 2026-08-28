@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 import base64
 from enum import IntEnum, unique
 import logging
+from typing import override
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding
@@ -72,10 +73,12 @@ class CipherV1(CipherBase):
         return Cipher(algorithms.AES(self._key), modes.ECB(), backend=default_backend())
 
     @property
+    @override
     def version(self) -> EncryptionVersion:
         """The encryption version of this cypher."""
         return EncryptionVersion.V1
 
+    @override
     def encrypt(self, data: str) -> tuple[str, str | None]:
         """Encrypt data with V1."""
         _LOGGER.debug("Encrypting data (V1): %s", data)
@@ -95,6 +98,7 @@ class CipherV1(CipherBase):
 
         return encoded, None
 
+    @override
     def decrypt(self, data: str, tag: str | None = None) -> str:
         """Decrypt data with V1."""
         _LOGGER.debug("Decrypting data (V1): %s", data)
@@ -109,7 +113,7 @@ class CipherV1(CipherBase):
             unpadder = padding.PKCS7(AES_BLOCK_SIZE_BITS).unpadder()
             plaintext_bytes = unpadder.update(decrypted) + unpadder.finalize()
             plaintext = plaintext_bytes.decode()
-        except ValueError, Exception:
+        except ValueError, Exception:  # noqa: BLE001
             # GREE PROTOCOL: Fallback for some devices sending malformed padding
             plaintext = decrypted.decode(errors="ignore")
 
@@ -133,10 +137,12 @@ class CipherV2(CipherBase):
         )
 
     @property
+    @override
     def version(self) -> EncryptionVersion:
         """The encryption version of this cypher."""
         return EncryptionVersion.V2
 
+    @override
     def encrypt(self, data: str) -> tuple[str, str]:
         """Encrypt data with V2 and return the data with a tag."""
         _LOGGER.debug("Encrypting data (V2): %s", data)
@@ -155,6 +161,7 @@ class CipherV2(CipherBase):
         _LOGGER.debug("Encrypted data (V2): %s, tag='%s'", encoded, tag_encoded)
         return encoded, tag_encoded
 
+    @override
     def decrypt(self, data: str, tag: str | None) -> str:
         """Decrypt data with V2 and verify the data with the tag."""
         _LOGGER.debug("Decrypting data (V2): %s, tag=%s", data, tag)

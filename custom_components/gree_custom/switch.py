@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 import logging
-from typing import Any
+from typing import Any, override
 
 from homeassistant.components.switch import (
     SwitchDeviceClass,
@@ -35,7 +35,7 @@ from .const import (
 )
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
-from .platform_helpers import iter_platform_context, supported_descriptions
+from .platform_helpers import supported_descriptions
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -183,25 +183,25 @@ async def async_setup_entry(
 
     entities: list[GreeSwitch] = []
 
-    for ctx in iter_platform_context(entry):
+    for coordinator in entry.runtime_data.values():
         descriptions = supported_descriptions(
             SWITCH_TYPES,
-            ctx.coordinator.device,
-            ctx.device_config,
+            coordinator.device,
+            coordinator.device_config,
         )
 
         _LOGGER.debug(
             "Adding Switch Entities for device '%s': %s",
-            ctx.coordinator.device.mac_address,
+            coordinator.device.mac_address,
             [d.key for d in descriptions],
         )
 
         entities.extend(
             GreeSwitch(
                 description,
-                ctx.coordinator,
+                coordinator,
                 restore_state=(
-                    ctx.restore_state
+                    coordinator.restore_states
                     if description.key
                     not in (
                         GATTR_BEEPER,
@@ -211,7 +211,7 @@ async def async_setup_entry(
                     else True
                 ),
                 check_availability=(
-                    ctx.check_availability
+                    coordinator.check_availability
                     if description.key != GATTR_BEEPER  # Beeper is always available
                     else False
                 ),
@@ -245,10 +245,12 @@ class GreeSwitch(GreeEntity, SwitchEntity, RestoreEntity):  # pyright: ignore[re
         )
 
     @property
-    def is_on(self) -> bool | None:  # pyright: ignore[reportIncompatibleVariableOverride]
+    @override
+    def is_on(self) -> bool | None:
         """Return true if the switch is on."""
         return self.entity_description.value_func(self.device, self.coordinator)
 
+    @override
     async def async_added_to_hass(self) -> None:
         """Handle entity which will be added."""
         await super().async_added_to_hass()
@@ -277,6 +279,7 @@ class GreeSwitch(GreeEntity, SwitchEntity, RestoreEntity):  # pyright: ignore[re
                             repr(err),
                         )
 
+    @override
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the switch on."""
         if not self.available:
@@ -300,6 +303,7 @@ class GreeSwitch(GreeEntity, SwitchEntity, RestoreEntity):  # pyright: ignore[re
 
         self.async_write_ha_state()
 
+    @override
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the switch on."""
         if not self.available:

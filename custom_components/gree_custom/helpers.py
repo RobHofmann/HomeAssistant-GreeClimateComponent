@@ -117,7 +117,9 @@ async def get_discovery_addresses(
     addresses.extend(broadcast_addresses)
 
     # Collect unicast addresses from HASS prefs
-    pref_storage = Store(hass, CONF_DISCOVERY_PREFS_VERSION, CONF_DISCOVERY_PREFS_KEY)
+    pref_storage: Store = Store(
+        hass, CONF_DISCOVERY_PREFS_VERSION, CONF_DISCOVERY_PREFS_KEY
+    )
     prefs = await pref_storage.async_load() or {}
 
     extra_networks: list[str] = prefs.get(CONF_EXTRA_SCAN_NETWORKS, [])

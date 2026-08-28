@@ -6,6 +6,7 @@ import json
 import logging
 import random
 import ssl
+from typing import override
 
 import aiomqtt
 
@@ -66,11 +67,13 @@ class GreeMqttTransport(GreeBaseTransport):
         self._request_lock = asyncio.Lock()
         self._pending: asyncio.Future[str] | None = None
 
+    @override
     def __str__(self) -> str:
         """Representation of the MQTT transport."""
         return f"MQTT({self._user_id}, {self._region.name})"
 
-    async def connect(self) -> None:  # noqa: D102
+    @override
+    async def connect(self) -> None:
         if self._connected:
             return
 
@@ -101,7 +104,8 @@ class GreeMqttTransport(GreeBaseTransport):
 
         _LOGGER.debug("Connected to MQTT broker %s:%d", self._region.value, self._port)
 
-    async def disconnect(self) -> None:  # noqa: D102
+    @override
+    async def disconnect(self) -> None:
         if not self._connected or not self._client:
             return
 
@@ -128,7 +132,8 @@ class GreeMqttTransport(GreeBaseTransport):
         self._connected = False
         _LOGGER.debug("Disconnected from MQTT broker")
 
-    async def subscribe(self, mac_controller: str) -> None:  # noqa: D102
+    @override
+    async def subscribe(self, mac_controller: str) -> None:
         await self.connect()
 
         if not self._connected or not self._client:
@@ -147,7 +152,8 @@ class GreeMqttTransport(GreeBaseTransport):
 
         self.connected_devices[mac_controller] += 1
 
-    async def unsubscribe(self, mac_controller: str) -> None:  # noqa: D102
+    @override
+    async def unsubscribe(self, mac_controller: str) -> None:
         if not self._connected or not self._client:
             raise GreeRuntimeError("MQTT transport not connected")
 
@@ -170,6 +176,7 @@ class GreeMqttTransport(GreeBaseTransport):
 
         return None
 
+    @override
     async def request(self, mac_controller: str, json_str: str) -> str:
         """Publish one MQTT request and wait for its response."""
 
@@ -196,9 +203,20 @@ class GreeMqttTransport(GreeBaseTransport):
             finally:
                 self._pending = None
 
-    def _receive_task_done(self, future: asyncio.Future) -> None:
-        """Receive task is done."""
-        _LOGGER.debug("Receive loop done: %s", future.result())
+    def _receive_task_done(self, task: asyncio.Task[None]) -> None:
+        """Handle receive task completion."""
+        if task.cancelled():
+            _LOGGER.debug("MQTT receive loop cancelled")
+            return
+
+        exception = task.exception()
+        if exception:
+            _LOGGER.debug(
+                "MQTT receive loop stopped with exception",
+                exc_info=exception,
+            )
+        else:
+            _LOGGER.debug("MQTT receive loop stopped normally")
 
     async def _receive_loop(self) -> None:
         """Receive MQTT messages."""

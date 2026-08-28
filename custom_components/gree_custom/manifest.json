@@ -9,5 +9,5 @@
     "iot_class": "local_polling",
     "issue_tracker": "https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues",
     "requirements": ["asyncio_dgram", "aiomqtt", "pydantic"],
-    "version": "4.0.0-alpha.104"
+    "version": "4.0.0-alpha.105"
 }

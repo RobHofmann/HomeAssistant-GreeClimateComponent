@@ -441,13 +441,18 @@ class GreeDevice:
         await self._client.rebind()
 
     @property
+    def api_client(self) -> DeviceApiClient:
+        """Clinet to interface with the device API."""
+        return self._client
+
+    @property
     def name(self) -> str:
-        """Returns the friendly name of the device."""
+        """Friendly name of the device."""
         return self._name
 
     @property
     def encryption_key(self) -> str | None:
-        """Return the encryption key of the device."""
+        """Encryption key of the device."""
         return self._client.encryption_key
 
     @property
@@ -481,10 +486,29 @@ class GreeDevice:
         if self._firmware_protocol_version.strip():
             fw_str += f"(Protocol: {self._firmware_protocol_version}) "
 
-        if self._firmware_code:
-            fw_str += f"[{self._firmware_code}]"
-
         return fw_str.strip() or None
+
+    @property
+    def firmware_code(self) -> str | None:
+        "Code for the firmware WIFI module."
+        code: str = self._firmware_code or ""
+        if isinstance(self.transport, GreeUdpTransport):
+            code += " (UDP)"
+        else:
+            code += " (MQTT)"
+        return code.strip()
+
+    @property
+    def device_model_id(self) -> str | None:
+        """The model of the unit."""
+        mt = self._state.info.get(InfoProp.MODEL_TYPE, "")
+        v = self._state.info.get(InfoProp.VENDER, "")
+        model = ""
+        if mt.strip():
+            model += mt
+        if v.strip() and model.strip():
+            model += f" ({v})"
+        return model
 
     @property
     def available(self) -> bool:

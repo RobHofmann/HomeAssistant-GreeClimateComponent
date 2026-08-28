@@ -3,7 +3,7 @@
 import asyncio
 import json
 import logging
-from typing import Any
+from typing import Any, cast, override
 
 import asyncio_dgram
 
@@ -34,6 +34,7 @@ class GreeUdpTransport(GreeBaseTransport):
         self._request_lock: asyncio.Lock = asyncio.Lock()
         self._stream_lock: asyncio.Lock = asyncio.Lock()
 
+    @override
     def __str__(self) -> str:
         """Representation of the class."""
         return f"Local({self.ip_addr})"
@@ -65,7 +66,8 @@ class GreeUdpTransport(GreeBaseTransport):
             self.ip_addr = ip_addr
             self._reset_stream()
 
-    async def connect(self) -> None:  # noqa: D102
+    @override
+    async def connect(self) -> None:
         if self._stream is None:
             await self._get_stream()
 
@@ -77,14 +79,17 @@ class GreeUdpTransport(GreeBaseTransport):
             except GreeError:
                 self._reset_stream()
 
-    async def disconnect(self) -> None:  # noqa: D102
+    @override
+    async def disconnect(self) -> None:
         self._reset_stream()
 
-    async def subscribe(self, mac_controller: str) -> None:  # noqa: D102
+    @override
+    async def subscribe(self, mac_controller: str) -> None:
         await self.connect()
         self.connected_devices[mac_controller] += 1
 
-    async def unsubscribe(self, mac_controller: str) -> None:  # noqa: D102
+    @override
+    async def unsubscribe(self, mac_controller: str) -> None:
         if self.connected_devices[mac_controller] > 1:
             self.connected_devices[mac_controller] -= 1
         else:
@@ -94,7 +99,8 @@ class GreeUdpTransport(GreeBaseTransport):
             return await self.disconnect()
         return None
 
-    async def request(  # noqa: D102
+    @override
+    async def request(
         self,
         mac_controller: str,
         json_str: str,
@@ -147,10 +153,12 @@ class UDPDiscoveryProtocol(asyncio.DatagramProtocol):
         self.responses = responses
         self.transport: asyncio.DatagramTransport | None = None
 
-    def connection_made(self, transport: asyncio.DatagramTransport) -> None:  # type: ignore[override]
+    @override
+    def connection_made(self, transport: asyncio.BaseTransport) -> None:
         """After UDP socket is set up."""
-        self.transport = transport
+        self.transport = cast(asyncio.DatagramTransport, transport)
 
+    @override
     def datagram_received(self, data: bytes, addr: tuple[str, int]) -> None:
         """After a UDP packet is received."""
         try:
@@ -167,10 +175,12 @@ class UDPDiscoveryProtocol(asyncio.DatagramProtocol):
         except Exception:
             _LOGGER.exception("Unexpected error processing packet from %s", addr)
 
+    @override
     def error_received(self, exc: Exception) -> None:
         """After underlying network errors."""
         _LOGGER.error("UDP network error received: %s", exc)
 
+    @override
     def connection_lost(self, exc: Exception | None) -> None:
         """After the socket is closed."""
 

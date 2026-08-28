@@ -245,7 +245,7 @@ class GreeCloudApi:
         try:
             unpadded_data = unpadder.update(decrypted_padded) + unpadder.finalize()
             return unpadded_data.decode()
-        except Exception:
+        except Exception:  # noqa: BLE001
             # Fallback for malformed padding if necessary
             return decrypted_padded.decode(errors="ignore")
 
@@ -285,7 +285,7 @@ class GreeCloudApi:
                 raise GreeCloudError(f"HTTP {response.status}: {response.reason}")
 
             json_data = await response.json()
-            return json_data["enRes"]
+            return str(json_data["enRes"])
 
     async def login(self) -> CloudCredentials:
         """Login to Gree Cloud.

@@ -2,7 +2,7 @@
 
 from datetime import timedelta
 import logging
-from typing import Any
+from typing import Any, override
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -27,8 +27,11 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         self,
         hass: HomeAssistant,
         config_entry: GreeConfigEntry,
-        device: GreeDevice,
         scan_interval: int,
+        check_avalilability: bool,
+        restore_states: bool,
+        device_config: dict[str, Any],
+        device: GreeDevice,
     ) -> None:
         """Initialize the coordinator for a Gree device."""
         super().__init__(
@@ -38,23 +41,42 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
             config_entry=config_entry,
             update_interval=timedelta(seconds=scan_interval),
             always_update=True,
+            setup_method=self._setup,
+            update_method=self._update_data,
         )
+
+        self.check_availability: bool = check_avalilability
+        self.restore_states: bool = restore_states
+        self.device_config: dict[str, Any] = device_config
         self.device: GreeDevice = device
         self._feature_auto_xfan: bool = False
         self._feature_auto_light: bool = False
 
-    async def _async_setup(self) -> None:
+    async def _setup(self) -> None:
         """Bind to the device before the first coordinator refresh.
 
         This is called automatically by
         `coordinator.async_config_entry_first_refresh()` and performs
         one-time initialization required before regular updates begin.
         """
-
+        self.device.api_client.add_status_listener(self._device_pushed_status)
         # await self.device.bind()
         # We shouldn't arrive here without a bind successfully performed elsewhere
 
-    async def _async_update_data(self) -> None:
+    def _device_pushed_status(self, status: dict[str, str]) -> None:
+        _LOGGER.debug("[%s] Got data pushed from the device", self.device.unique_id)
+        self.async_update_listeners()
+
+    @override
+    async def async_shutdown(self) -> None:
+        """Clean up the coordinator and Gree device resources."""
+        self.device.api_client.remove_status_listener(self._device_pushed_status)
+
+        await self.device.unbind_device()
+
+        await super().async_shutdown()
+
+    async def _update_data(self) -> None:
         """Update the device with he latest state.
 
         If communication fails due to a connection error, the coordinator

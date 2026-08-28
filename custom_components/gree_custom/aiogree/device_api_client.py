@@ -64,17 +64,17 @@ class DeviceApiClient:
         if not controller_mac or not bool(controller_mac.strip()):
             raise GreeBindingError("No controller MAC provided")
 
-        self._controller_mac = controller_mac
+        self.controller_mac = controller_mac
 
         _LOGGER.info(
-            "[%s:%s] Starting binding procedure", self._controller_mac, self._transport
+            "[%s:%s] Starting binding procedure", self.controller_mac, self._transport
         )
 
-        await self._transport.subscribe(self._controller_mac)
+        await self._transport.subscribe(self.controller_mac)
 
         try:
             result = await gree_try_bind(
-                self._controller_mac,
+                self.controller_mac,
                 self._userid,
                 preferred_version,
                 preferred_key,
@@ -83,12 +83,12 @@ class DeviceApiClient:
 
         except Exception:
             _LOGGER.exception("Error while binding")
-            await self._transport.unsubscribe(self._controller_mac)
+            await self._transport.unsubscribe(self.controller_mac)
             raise
 
         _LOGGER.info(
             "[%s] Device is bound with version %s and key %s via %s",
-            self._controller_mac,
+            self.controller_mac,
             result.encryption_version,
             redact_str(result.encryption_key),
             self._transport,
@@ -120,7 +120,7 @@ class DeviceApiClient:
         )
 
         await self._transport.unsubscribe(
-            self._controller_mac,
+            self.controller_mac,
         )
 
         self._bound = False
@@ -131,7 +131,7 @@ class DeviceApiClient:
         """Try binding with the current transport and existing binding info."""
         await self.unbind()
         return await self.bind(
-            self._controller_mac, self.encryption_version, self.encryption_key
+            self.controller_mac, self.encryption_version, self.encryption_key
         )
 
     #
@@ -177,7 +177,7 @@ class DeviceApiClient:
         for chunk in chunked(props, request_batch):
             try:
                 result = await gree_get_status(
-                    self._controller_mac,
+                    self.controller_mac,
                     self._mac,
                     self._userid,
                     chunk,
@@ -228,7 +228,7 @@ class DeviceApiClient:
             raise GreeRuntimeError("No transport set.")
 
         await gree_set_status(
-            self._controller_mac,
+            self.controller_mac,
             self._mac,
             self._userid,
             values,

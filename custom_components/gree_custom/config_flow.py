@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from ipaddress import IPv4Address, IPv4Network, ip_address, ip_network
 import logging
-from typing import Any
+from typing import Any, override
 
 from aiomqtt import MqttError
 import voluptuous as vol
@@ -23,11 +23,13 @@ from homeassistant.const import (
     CONF_TIMEOUT,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import section
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
@@ -64,6 +66,8 @@ from .const import (
     CONF_CLOUD,
     CONF_DEV_NAME,
     CONF_DEVICE_CONNECTION,
+    CONF_DEVICE_CONNECTION_CLOUD,
+    CONF_DEVICE_CONNECTION_LOCAL,
     CONF_DEVICE_OPTIONS,
     CONF_DEVICES,
     CONF_DISABLE_AVAILABLE_CHECK,
@@ -91,7 +95,9 @@ from .const import (
     DEFAULT_DEVICE_UID,
     DEFAULT_DISABLE_AVAILABLE_CHECK,
     DEFAULT_DISCOVERY_TIMEOUT,
+    DEFAULT_ENCRYPTION_KEY,
     DEFAULT_ENCRYPTION_VERSION,
+    DEFAULT_EXTERNAL_SENSOR,
     DEFAULT_FAN_MODES,
     DEFAULT_HVAC_MODES,
     DEFAULT_PREFER_CLOUD,
@@ -116,7 +122,7 @@ _LOGGER = logging.getLogger(__name__)
 def get_temperature_sensor_options(hass: HomeAssistant) -> list[str]:
     """Get list of available temperature sensor entities."""
     options: list[str] = [
-        "None"
+        DEFAULT_EXTERNAL_SENSOR
     ]  # Include None as option since otherwise the user can't unset the external sensor
 
     # Get all entities from the registry
@@ -207,34 +213,15 @@ def _setup_device_connection_options_schema(
     device_info: GreeDiscoveredDevice, default_values: dict | None = None
 ) -> vol.Schema:
     defaults: dict = default_values or {}
+    defaults_local = defaults.get(CONF_DEVICE_CONNECTION_LOCAL, {})
+    defaults_cloud = defaults.get(CONF_DEVICE_CONNECTION_CLOUD, {})
 
     return vol.Schema(
         {
             vol.Required(
-                CONF_ENCRYPTION_VERSION,
-                default=defaults.get(
-                    CONF_ENCRYPTION_VERSION, DEFAULT_ENCRYPTION_VERSION
-                ),
-            ): SelectSelector(
-                SelectSelectorConfig(
-                    options=[
-                        {"value": ENCRYPTION_VERSION_AUTO, "label": "Auto-Detect"},
-                        *[
-                            {"value": str(version.value), "label": version.name}
-                            for version in EncryptionVersion
-                        ],
-                    ],
-                    mode=SelectSelectorMode.DROPDOWN,
-                )
-            ),
-            vol.Optional(
-                CONF_ENCRYPTION_KEY,
-                default=defaults.get(CONF_ENCRYPTION_KEY, device_info.key or ""),
-            ): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD)),
-            vol.Required(
-                CONF_UID,
-                default=defaults.get(CONF_UID, device_info.user_id),
-            ): cv.positive_int,
+                CONF_SCAN_INTERVAL,
+                default=defaults.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+            ): vol.All(vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL)),
             vol.Required(
                 CONF_DISABLE_AVAILABLE_CHECK,
                 default=defaults.get(
@@ -242,36 +229,98 @@ def _setup_device_connection_options_schema(
                     DEFAULT_DISABLE_AVAILABLE_CHECK,
                 ),
             ): cv.boolean,
-            vol.Required(
-                CONF_MAX_ONLINE_ATTEMPTS,
-                default=defaults.get(
-                    CONF_MAX_ONLINE_ATTEMPTS,
-                    DEFAULT_CONNECTION_MAX_ATTEMPTS,
-                ),
-            ): cv.positive_int,
-            vol.Required(
-                CONF_TIMEOUT,
-                default=defaults.get(CONF_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT),
-            ): cv.positive_int,
             vol.Optional(
-                CONF_MAC_CONTROLLER_LOCAL,
-                default=defaults.get(
-                    CONF_MAC_CONTROLLER_LOCAL, device_info.mac_controller_local
+                CONF_ENCRYPTION_KEY,
+                default=(
+                    defaults.get(CONF_ENCRYPTION_KEY)
+                    or device_info.key
+                    or DEFAULT_ENCRYPTION_KEY
                 ),
-            ): str,
-            vol.Optional(
-                CONF_MAC_CONTROLLER_CLOUD,
-                default=defaults.get(
-                    CONF_MAC_CONTROLLER_CLOUD, device_info.mac_controller_mqtt
-                ),
-            ): str,
+            ): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD)),
             vol.Required(
-                CONF_PREFER_CLOUD,
-                default=defaults.get(
-                    CONF_PREFER_CLOUD,
-                    DEFAULT_PREFER_CLOUD,
-                ),
-            ): cv.boolean,
+                CONF_UID,
+                default=defaults.get(CONF_UID, device_info.user_id),
+            ): cv.positive_int,
+            vol.Required(CONF_DEVICE_CONNECTION_LOCAL): section(
+                vol.Schema(
+                    {
+                        vol.Optional(
+                            CONF_MAC_CONTROLLER_LOCAL,
+                            default=(
+                                defaults_local.get(CONF_MAC_CONTROLLER_LOCAL)
+                                or device_info.mac_controller_local
+                            ),
+                        ): str,
+                        vol.Optional(
+                            CONF_HOST,
+                            default=(
+                                defaults_local.get(CONF_HOST) or device_info.host or ""
+                            ),
+                        ): str,
+                        vol.Optional(
+                            CONF_PORT,
+                            default=(
+                                defaults_local.get(CONF_PORT) or device_info.port or ""
+                            ),
+                        ): vol.Any(cv.port, ""),
+                        vol.Required(
+                            CONF_TIMEOUT,
+                            default=defaults_local.get(
+                                CONF_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT
+                            ),
+                        ): cv.positive_int,
+                        vol.Required(
+                            CONF_ENCRYPTION_VERSION,
+                            default=defaults_local.get(
+                                CONF_ENCRYPTION_VERSION, DEFAULT_ENCRYPTION_VERSION
+                            ),
+                        ): SelectSelector(
+                            SelectSelectorConfig(
+                                options=[
+                                    SelectOptionDict(
+                                        value=ENCRYPTION_VERSION_AUTO,
+                                        label="Auto-Detect",
+                                    ),
+                                    *[
+                                        SelectOptionDict(
+                                            value=str(version.value), label=version.name
+                                        )
+                                        for version in EncryptionVersion
+                                    ],
+                                ],
+                                mode=SelectSelectorMode.DROPDOWN,
+                            )
+                        ),
+                        vol.Required(
+                            CONF_MAX_ONLINE_ATTEMPTS,
+                            default=defaults_local.get(
+                                CONF_MAX_ONLINE_ATTEMPTS,
+                                DEFAULT_CONNECTION_MAX_ATTEMPTS,
+                            ),
+                        ): cv.positive_int,
+                    }
+                )
+            ),
+            vol.Required(CONF_DEVICE_CONNECTION_CLOUD): section(
+                vol.Schema(
+                    {
+                        vol.Required(
+                            CONF_PREFER_CLOUD,
+                            default=defaults_cloud.get(
+                                CONF_PREFER_CLOUD,
+                                DEFAULT_PREFER_CLOUD,
+                            ),
+                        ): cv.boolean,
+                        vol.Optional(
+                            CONF_MAC_CONTROLLER_CLOUD,
+                            default=defaults_cloud.get(
+                                CONF_MAC_CONTROLLER_CLOUD,
+                                device_info.mac_controller_mqtt,
+                            ),
+                        ): str,
+                    }
+                )
+            ),
         }
     )
 
@@ -416,7 +465,9 @@ def _setup_device_options_schema(
             # unable to unset the external sensors.
             vol.Required(
                 ATTR_EXTERNAL_TEMPERATURE_SENSOR,
-                default=defaults.get(ATTR_EXTERNAL_TEMPERATURE_SENSOR, "None"),
+                default=defaults.get(
+                    ATTR_EXTERNAL_TEMPERATURE_SENSOR, DEFAULT_EXTERNAL_SENSOR
+                ),
             ): SelectSelector(
                 config=SelectSelectorConfig(
                     options=get_temperature_sensor_options(hass),
@@ -427,7 +478,9 @@ def _setup_device_options_schema(
             ),
             vol.Required(
                 ATTR_EXTERNAL_HUMIDITY_SENSOR,
-                default=defaults.get(ATTR_EXTERNAL_HUMIDITY_SENSOR, "None"),
+                default=defaults.get(
+                    ATTR_EXTERNAL_HUMIDITY_SENSOR, DEFAULT_EXTERNAL_SENSOR
+                ),
             ): SelectSelector(
                 config=SelectSelectorConfig(
                     options=get_humidity_sensor_options(hass),
@@ -440,10 +493,6 @@ def _setup_device_options_schema(
                 CONF_RESTORE_STATES,
                 default=defaults.get(CONF_RESTORE_STATES, DEFAULT_RESTORE_STATES),
             ): cv.boolean,
-            vol.Required(
-                CONF_SCAN_INTERVAL,
-                default=defaults.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
-            ): vol.All(vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL)),
         }
     )
 
@@ -467,7 +516,6 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
         self._config_data: dict = {}
         self._config_data["device_connections"] = {}
         self._config_data["device_options"] = {}
-
         self._reconfigure_entry: GreeConfigEntry | None = None
         self._reconfigure_data: dict[str, Any] | None = None
 
@@ -487,9 +535,10 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
         self._connections_by_controller: dict[str, Any] = {}
         self._options_by_controller: dict[str, Any] = {}
 
+    @override
     async def async_step_user(self, user_input: dict | None = None) -> ConfigFlowResult:
         """Handle the initial step - show discovery or manual entry."""
-        errors = {}
+        errors: dict[str, str] = {}
         if user_input is not None:
             self._selected_setup_methods = user_input[CONF_DISCOVERY]
 
@@ -591,6 +640,8 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                     self._cloud_api.username,
                 )
                 return await self._setup_next_setup_method()
+            finally:
+                await self._cloud_api.close()
 
         # During reconfigure, inject existing configuration
         defaults = user_input or (
@@ -608,7 +659,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
     def _evaluate_and_cap_max_hosts(
         self, extra_networks: list[str], extra_hosts: list[str]
     ) -> dict[str, str]:
-        errors = {}
+        errors: dict[str, str] = {}
         num_hosts = 0
         for cidr in extra_networks:
             try:
@@ -737,21 +788,29 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                 )
                 return await self.async_step_connection_options()
 
-        # During a reconfigure inject previously configured devices to the picker if they were not discovered
         selected = list(self._discovered_devices.keys())
         if self._reconfigure_data:
-            for dev in self._reconfigure_data.get(CONF_DEVICES, {}).values():
-                mac = dev.get(CONF_MAC, "")
+            configured_devices = self._reconfigure_data.get(CONF_DEVICES, {})
+
+            # Don't select things by default that were not there before
+            for d in self._discovered_devices:
+                if d not in configured_devices:
+                    selected.remove(d)
+
+            # During a reconfigure inject previously configured devices to the picker if they were not discovered and mark as selected
+            for mac, dev in configured_devices.items():
                 if mac and mac not in self._discovered_devices:
-                    c = dev.get(CONF_DEVICE_CONNECTION, {})
+                    conn = dev.get(CONF_DEVICE_CONNECTION, {})
+                    local = conn.get(CONF_DEVICE_CONNECTION_LOCAL, {})
+                    cloud = conn.get(CONF_DEVICE_CONNECTION_CLOUD, {})
                     d = GreeDiscoveredDevice(
-                        mac=dev.mac,
-                        mac_controller_local=c.get(CONF_MAC_CONTROLLER_LOCAL, ""),
-                        mac_controller_mqtt=c.get(CONF_MAC_CONTROLLER_CLOUD, ""),
-                        user_id=c.get(CONF_UID, DEFAULT_DEVICE_UID),
-                        key=c.get(CONF_ENCRYPTION_KEY, ""),
-                        host=c.get(CONF_HOST, ""),
-                        port=c.get(CONF_PORT, ""),
+                        mac=mac,
+                        mac_controller_local=local.get(CONF_MAC_CONTROLLER_LOCAL, ""),
+                        mac_controller_mqtt=cloud.get(CONF_MAC_CONTROLLER_CLOUD, ""),
+                        user_id=conn.get(CONF_UID, DEFAULT_DEVICE_UID),
+                        key=conn.get(CONF_ENCRYPTION_KEY, ""),
+                        host=local.get(CONF_HOST, ""),
+                        port=local.get(CONF_PORT, ""),
                     )
                     self._discovered_devices[mac] = d
 
@@ -763,7 +822,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                 ): SelectSelector(
                     SelectSelectorConfig(
                         options=[
-                            {"value": device_id, "label": name.friendly_name}
+                            SelectOptionDict(value=device_id, label=name.friendly_name)
                             for device_id, name in self._discovered_devices.items()
                         ],
                         multiple=True,
@@ -816,10 +875,12 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict | None = None
     ) -> ConfigFlowResult:
         """Iterate throught the selected devices to configure their connection options."""
-        errors = {}
+        errors: dict[str, str] = {}
         d = self._selected_devices[self._current_setup_device_index]
 
         if user_input is not None:
+            local = user_input.get(CONF_DEVICE_CONNECTION_LOCAL, {})
+            cloud = user_input.get(CONF_DEVICE_CONNECTION_CLOUD, {})
             device = GreeDevice(
                 name=d.name,
                 mac_addr=d.mac,
@@ -829,7 +890,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
 
             # Ensure the device can bind
             try:
-                encryption_version_value = user_input.get(
+                encryption_version_value = local.get(
                     CONF_ENCRYPTION_VERSION, DEFAULT_ENCRYPTION_VERSION
                 )
                 await device.bind_with_transport(
@@ -838,15 +899,15 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                         if encryption_version_value == ENCRYPTION_VERSION_AUTO
                         else EncryptionVersion(int(encryption_version_value))
                     ),
-                    local_controller_mac=user_input.get(
+                    local_controller_mac=local.get(
                         CONF_MAC_CONTROLLER_LOCAL, d.mac_controller_local
                     ),
                     local_transport=(
                         self._local_transports.get(d.mac, None)
-                        if not user_input.get(CONF_PREFER_CLOUD, DEFAULT_PREFER_CLOUD)
+                        if not cloud.get(CONF_PREFER_CLOUD, DEFAULT_PREFER_CLOUD)
                         else None
                     ),
-                    mqtt_controller_mac=user_input.get(
+                    mqtt_controller_mac=cloud.get(
                         CONF_MAC_CONTROLLER_CLOUD, d.mac_controller_mqtt
                     ),
                     mqtt_transport=self._mqtt_transport,
@@ -862,6 +923,15 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unknown error while binding")
 
             if not errors:
+                # Save the correct version if local succedded
+                if (
+                    isinstance(device.transport, GreeUdpTransport)
+                    and device.encryption_version
+                ):
+                    user_input[CONF_DEVICE_CONNECTION_LOCAL][
+                        CONF_ENCRYPTION_VERSION
+                    ] = str(device.encryption_version.value)
+
                 self._config_data[CONF_ALL_DEVICE_CONNECTIONS][d.mac] = user_input
                 self._connections_by_controller[device.mac_address_controller] = (
                     user_input
@@ -902,7 +972,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict | None = None
     ) -> ConfigFlowResult:
         """Iterate throught the selected devices to configure their options."""
-        errors = {}
+        errors: dict[str, str] = {}
         d = self._selected_devices[self._current_setup_device_index]
         device = self._devices[d.mac]
 
@@ -917,7 +987,6 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
             self._current_setup_device_index += 1
             return await self.async_step_device_options()
 
-        # During reconfigure inject previous device options
         default = user_input or (
             self._reconfigure_data.get(CONF_DEVICES, {})
             .get(d.mac, {})
@@ -950,15 +1019,10 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
         device_configs = {}
         for d in self._selected_devices:
             device_configs[str(self._devices[d.mac].mac_address)] = {
-                CONF_DEV_NAME: self._devices[d.mac].name,
-                CONF_DEVICE_CONNECTION: {
-                    CONF_HOST: d.host,
-                    CONF_PORT: d.port,
-                    **self._config_data[CONF_ALL_DEVICE_CONNECTIONS][d.mac],
-                },
-                CONF_DEVICE_OPTIONS: {
-                    **self._config_data[CONF_ALL_DEVICE_OPTIONS][d.mac]
-                },
+                CONF_DEVICE_CONNECTION: self._config_data[CONF_ALL_DEVICE_CONNECTIONS][
+                    d.mac
+                ],
+                CONF_DEVICE_OPTIONS: self._config_data[CONF_ALL_DEVICE_OPTIONS][d.mac],
             }
         data = {
             CONF_CLOUD: self._config_data.get(CONF_CLOUD),
@@ -996,7 +1060,10 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
         self._reconfigure_data = dict(self._reconfigure_entry.data)
         has_cloud = self._reconfigure_data.get(CONF_CLOUD) is not None
         has_local = any(
-            d.get(CONF_DEVICE_CONNECTION, {}).get(CONF_HOST) is not None
+            d.get(CONF_DEVICE_CONNECTION, {})
+            .get(CONF_DEVICE_CONNECTION_LOCAL, {})
+            .get(CONF_HOST)
+            is not None
             for d in self._reconfigure_data.get(CONF_DEVICES, {}).values()
         )
 

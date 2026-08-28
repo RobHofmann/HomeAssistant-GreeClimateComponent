@@ -601,7 +601,7 @@ async def gree_get_response_pack(
 
     data = await gree_get_response(mac_controller, json_data, cipher, transport)
 
-    pack = data.get("pack", None)
+    pack: dict | None = data.get("pack", None)
 
     if pack is None:
         raise GreeProtocolError("Device response missing 'pack' field")
@@ -725,10 +725,10 @@ def _order_set_props(props: dict[str, int]) -> dict[str, int]:
     remaining = props.copy()
     ordered: dict[str, int] = {}
 
-    if GreeProp.BEEPER.value in remaining:
-        ordered[GreeProp.BEEPER.value] = remaining.pop(GreeProp.BEEPER.value)
-    if GreeProp.BEEPER_NEW.value in remaining:
-        ordered[GreeProp.BEEPER_NEW.value] = remaining.pop(GreeProp.BEEPER_NEW.value)
+    # if GreeProp.BEEPER.value in remaining:
+    #     ordered[GreeProp.BEEPER.value] = remaining.pop(GreeProp.BEEPER.value)
+    # if GreeProp.BEEPER_NEW.value in remaining:
+    #     ordered[GreeProp.BEEPER_NEW.value] = remaining.pop(GreeProp.BEEPER_NEW.value)
 
     # Mode first
     if GreeProp.OP_MODE.value in remaining:
@@ -745,12 +745,18 @@ def _order_set_props(props: dict[str, int]) -> dict[str, int]:
 
     # Power goes last
     power = remaining.pop(GreeProp.POWER.value, None)
+    b1 = remaining.pop(GreeProp.BEEPER.value, None)
+    b2 = remaining.pop(GreeProp.BEEPER_NEW.value, None)
 
     # Everything else
     ordered.update(remaining)
 
     if power is not None:
         ordered[GreeProp.POWER.value] = power
+    if b1 is not None:
+        ordered[GreeProp.BEEPER.value] = b1
+    if b2 is not None:
+        ordered[GreeProp.BEEPER_NEW.value] = b2
 
     return ordered
 
