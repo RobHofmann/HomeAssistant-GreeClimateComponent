@@ -21,7 +21,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, issue_registry as ir
 from homeassistant.helpers.typing import ConfigType
 
 from .aiogree.cipher import EncryptionVersion
@@ -65,6 +65,7 @@ from .coordinator import GreeConfigEntry, GreeCoordinator
 from .helpers import try_find_new_ip
 from .services import async_setup_services
 
+ISSUE_DEVICE_CONNECTION_FAILED = "device_connection_failed"
 PLATFORMS = [
     Platform.BINARY_SENSOR,
     Platform.CLIMATE,
@@ -119,6 +120,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
     coordinators: dict[str, GreeCoordinator] = {}
     mqtt_transport: GreeMqttTransport | None = None
     local_transports: dict[str, GreeUdpTransport] = {}
+
+    cleanup_device_connection_issues(hass, entry.entry_id, set(device_configs.keys()))
 
     for mac, dev_config in device_configs.items():
         connection = dev_config.get(CONF_DEVICE_CONNECTION)
@@ -202,29 +205,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
                 mqtt_controller_mac=mac_controller_cloud,
                 mqtt_transport=mqtt_transport,
             )
-        except GreeConnectionError as err_inner:
-            if not await try_find_new_ip(hass, device, entry):
-                raise ConfigEntryNotReady from err_inner
         except MqttConnectError as err:
             raise ConfigEntryAuthFailed("bad_credentials") from err
+        except GreeConnectionError:
+            if not await try_find_new_ip(hass, device, entry):
+                _LOGGER.exception("Error setting up device %s", mac)
+                create_device_connection_issue(hass, entry.entry_id, mac, name)
         except Exception as err:
-            _LOGGER.exception(
-                "Setup entry '%s': Failed to bind to device %s", entry.entry_id, mac
-            )
+            _LOGGER.exception("Error setting up device %s", mac)
+            create_device_connection_issue(hass, entry.entry_id, mac, name)
             raise ConfigEntryNotReady from err
+        else:
+            delete_device_connection_issue(hass, entry.entry_id, mac)
 
-        coordinators[mac] = GreeCoordinator(
-            hass=hass,
-            config_entry=entry,
-            scan_interval=scan_interval,
-            check_avalilability=not disable_available_check,
-            restore_states=options.get(CONF_RESTORE_STATES, DEFAULT_RESTORE_STATES),
-            device_config=dev_config,
-            device=device,
-        )
-        await coordinators[device.mac_address].async_config_entry_first_refresh()
+            coordinators[mac] = GreeCoordinator(
+                hass=hass,
+                config_entry=entry,
+                scan_interval=scan_interval,
+                check_avalilability=not disable_available_check,
+                restore_states=options.get(CONF_RESTORE_STATES, DEFAULT_RESTORE_STATES),
+                device_config=dev_config,
+                device=device,
+            )
+            await coordinators[device.mac_address].async_config_entry_first_refresh()
 
-        _LOGGER.debug("Setup entry '%s': Bound to device %s", entry.entry_id, mac)
+            _LOGGER.debug("Setup entry '%s': Bound to device %s", entry.entry_id, mac)
 
     # Clear MQTT Transport if not used
     if mqtt_transport and not any(
@@ -291,3 +296,59 @@ async def async_remove_config_entry_device(
         await hass.config_entries.async_remove(config_entry.entry_id)
 
     return True
+
+
+def _device_issue_id(config_entry_id: str, device_id: str) -> str:
+    return f"{ISSUE_DEVICE_CONNECTION_FAILED}_{config_entry_id}_{device_id}"
+
+
+def create_device_connection_issue(
+    hass: HomeAssistant,
+    config_entry_id: str,
+    device_id: str,
+    device_name: str,
+) -> None:
+    """Create device conenction issue."""
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        _device_issue_id(config_entry_id, device_id),
+        is_fixable=False,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key=ISSUE_DEVICE_CONNECTION_FAILED,
+        translation_placeholders={
+            "device": device_name,
+        },
+    )
+
+
+def delete_device_connection_issue(
+    hass: HomeAssistant,
+    config_entry_id: str,
+    device_id: str,
+) -> None:
+    """Delete device conenction issue."""
+    ir.async_delete_issue(
+        hass,
+        DOMAIN,
+        _device_issue_id(config_entry_id, device_id),
+    )
+
+
+def cleanup_device_connection_issues(
+    hass: HomeAssistant,
+    config_entry_id: str,
+    configured_device_ids: set[str],
+) -> None:
+    """Cleanup all device connection issues for a given ConfigEntry which are not in its configuration."""
+    registry = ir.async_get(hass)
+    prefix = f"{ISSUE_DEVICE_CONNECTION_FAILED}_{config_entry_id}_"
+
+    for domain, issue_id in registry.issues:
+        if domain != DOMAIN or not issue_id.startswith(prefix):
+            continue
+
+        device_id = issue_id.removeprefix(prefix)
+
+        if device_id not in configured_device_ids:
+            ir.async_delete_issue(hass, DOMAIN, issue_id)
