@@ -13,6 +13,9 @@ from .aiogree.api import GreeDiscoveredDevice, gree_discover_devices
 from .aiogree.device import GreeDevice
 from .aiogree.transport_udp import GreeUdpTransport
 from .const import (
+    CONF_DEVICE_CONNECTION,
+    CONF_DEVICE_CONNECTION_LOCAL,
+    CONF_DEVICES,
     CONF_DISCOVERY_PREFS_KEY,
     CONF_DISCOVERY_PREFS_VERSION,
     CONF_EXTRA_SCAN_HOSTS,
@@ -179,18 +182,25 @@ async def try_find_new_ip(
     # await device.unbind_device()
     await device.transport.set_ip(match_device.host)
 
-    # Update config entry to save the new IP
-    new_data = {**config_entry.data, CONF_HOST: device.transport.ip_addr}
-    if not hass.config_entries.async_update_entry(
-        config_entry, title=f"Gree System at {device.transport.ip_addr}", data=new_data
-    ):
-        _LOGGER.debug("Failed to save new IP in config entry data")
-
     _LOGGER.info(
         "IP for device with mac '%s' updated: %s -> %s",
         device.mac_address_controller,
         previous_ip,
         device.transport.ip_addr,
     )
+
+    # Update config entry to save the new IP
+    try:
+        new_data = config_entry.data
+        new_data[CONF_DEVICES][device.mac_address][CONF_DEVICE_CONNECTION][
+            CONF_DEVICE_CONNECTION_LOCAL
+        ][CONF_HOST] = device.transport.ip_addr
+
+        if not hass.config_entries.async_update_entry(config_entry, data=new_data):
+            _LOGGER.debug("Failed to save new IP in config entry data")
+        else:
+            _LOGGER.debug("Config entry updated with new IP")
+    except KeyError:
+        _LOGGER.exception("Config entry data does not contain the required keys")
 
     return True
