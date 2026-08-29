@@ -12,12 +12,11 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_EMAIL,
     CONF_HOST,
-    CONF_MAC,
-    CONF_PASSWORD,
     CONF_PORT,
     CONF_REGION,
     CONF_SCAN_INTERVAL,
     CONF_TIMEOUT,
+    CONF_TOKEN,
     Platform,
 )
 from homeassistant.core import HomeAssistant
@@ -28,7 +27,7 @@ from homeassistant.helpers.typing import ConfigType
 from .aiogree.cipher import EncryptionVersion
 from .aiogree.cloud_api import GreeCloudApi, GreeRegion
 from .aiogree.device import GreeDevice
-from .aiogree.errors import GreeCloudLoginError, GreeConnectionError
+from .aiogree.errors import GreeConnectionError
 from .aiogree.transport_mqtt import GreeMqttTransport
 from .aiogree.transport_udp import GreeUdpTransport
 
@@ -124,29 +123,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
     if c := conf.get(CONF_CLOUD):
         _LOGGER.debug("Creating MQTT transport for %s", c[CONF_EMAIL])
 
-        # Login to cloud, acquire token and create the transport
-        api = GreeCloudApi(
-            username=c[CONF_EMAIL],
-            password=c[CONF_PASSWORD],
-            region=GreeRegion(c[CONF_REGION]),
-        )
-        try:
-            await api.login()
-        except GreeCloudLoginError as err:
-            raise ConfigEntryAuthFailed from err
-        finally:
-            await api.close()
+        userid: int = c.get(CONF_UID, 0)
+        token: str = c.get(CONF_TOKEN, "")
+        region: str = c.get(CONF_REGION, "")
 
-        if not api.user_id or not api.token:
-            raise ConfigEntryAuthFailed
+        if not userid or not token or not region:
+            raise ConfigEntryAuthFailed("no_account_info")
 
         mqtt_transport = GreeMqttTransport(
-            user_id=str(api.user_id), token=api.token, region=api.region
+            user_id=str(userid), token=token, region=GreeRegion(region)
         )
         try:
             await mqtt_transport.connect()
         except MqttError as err:
-            raise ConfigEntryAuthFailed from err
+            raise ConfigEntryAuthFailed("bad_credentials") from err
 
     for mac, dev_config in device_configs.items():
         connection = dev_config.get(CONF_DEVICE_CONNECTION)

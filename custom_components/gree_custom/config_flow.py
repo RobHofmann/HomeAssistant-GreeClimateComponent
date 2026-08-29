@@ -15,12 +15,12 @@ from homeassistant.const import (
     CONF_DISCOVERY,
     CONF_EMAIL,
     CONF_HOST,
-    CONF_MAC,
     CONF_PASSWORD,
     CONF_PORT,
     CONF_REGION,
     CONF_SCAN_INTERVAL,
     CONF_TIMEOUT,
+    CONF_TOKEN,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import section
@@ -516,8 +516,12 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
         self._config_data: dict = {}
         self._config_data["device_connections"] = {}
         self._config_data["device_options"] = {}
+
         self._reconfigure_entry: GreeConfigEntry | None = None
         self._reconfigure_data: dict[str, Any] | None = None
+
+        self._reauth_entry: GreeConfigEntry | None = None
+        self._reauth_data: dict[str, Any] | None = None
 
         self._cloud_api: GreeCloudApi
 
@@ -592,7 +596,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
             case _:
                 return await self._setup_next_setup_method()
 
-    async def async_step_cloud_add(
+    async def async_step_cloud_add(  # noqa: C901
         self, user_input: dict | None = None
     ) -> ConfigFlowResult:
         """Gather cloud info for later discovery."""
@@ -617,21 +621,30 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                     await self._mqtt_transport.connect()
                 else:
                     errors[CONF_BASE] = "cloud_unknown"
+
             except GreeCloudLoginError:
                 errors[CONF_BASE] = "cloud_bad_login"
             except GreeCloudError:
                 errors[CONF_BASE] = "cloud_unknown"
             except MqttError:
                 errors[CONF_BASE] = "cloud_bad_login"
+
             else:
                 await self.async_set_unique_id(str(self._cloud_api.user_id))
 
-                if self._reconfigure_data:
+                if self._reconfigure_entry or self._reauth_entry:
                     self._abort_if_unique_id_mismatch()
                 else:
                     self._abort_if_unique_id_configured()
 
                 self._config_data[CONF_CLOUD] = user_input
+                self._config_data[CONF_CLOUD][CONF_TOKEN] = self._cloud_api.token
+                self._config_data[CONF_CLOUD][CONF_UID] = self._cloud_api.user_id
+
+                # If a reauth simply exit and update the entry with new data if necessary
+                if self._reauth_entry:
+                    return self._async_finish()
+
                 discovered = await gree_discover_devices_cloud(self._cloud_api)
                 self._discovered_devices_cloud = {d.mac: d for d in discovered}
                 _LOGGER.info(
@@ -640,15 +653,18 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                     self._cloud_api.username,
                 )
                 return await self._setup_next_setup_method()
+
             finally:
                 await self._cloud_api.close()
 
-        # During reconfigure, inject existing configuration
-        defaults = user_input or (
-            self._reconfigure_data.get(CONF_CLOUD)
-            if self._reconfigure_data is not None
-            else None
-        )
+        # During reconfigure or reauth, inject existing configuration
+        defaults = None
+        if user_input:
+            defaults = user_input
+        elif self._reconfigure_data:
+            defaults = self._reconfigure_data.get(CONF_CLOUD)
+        elif self._reauth_data:
+            defaults = self._reauth_data.get(CONF_CLOUD)
 
         return self.async_show_form(
             step_id="cloud_add",
@@ -790,7 +806,9 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
 
         selected = list(self._discovered_devices.keys())
         if self._reconfigure_data:
-            configured_devices = self._reconfigure_data.get(CONF_DEVICES, {})
+            configured_devices: dict[str, Any] = self._reconfigure_data.get(
+                CONF_DEVICES, {}
+            )
 
             # Don't select things by default that were not there before
             for d in self._discovered_devices:
@@ -798,12 +816,12 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                     selected.remove(d)
 
             # During a reconfigure inject previously configured devices to the picker if they were not discovered and mark as selected
-            for mac, dev in configured_devices.items():
+            for mac, dev_conf in configured_devices.items():
                 if mac and mac not in self._discovered_devices:
-                    conn = dev.get(CONF_DEVICE_CONNECTION, {})
+                    conn = dev_conf.get(CONF_DEVICE_CONNECTION, {})
                     local = conn.get(CONF_DEVICE_CONNECTION_LOCAL, {})
                     cloud = conn.get(CONF_DEVICE_CONNECTION_CLOUD, {})
-                    d = GreeDiscoveredDevice(
+                    dev = GreeDiscoveredDevice(
                         mac=mac,
                         mac_controller_local=local.get(CONF_MAC_CONTROLLER_LOCAL, ""),
                         mac_controller_mqtt=cloud.get(CONF_MAC_CONTROLLER_CLOUD, ""),
@@ -812,7 +830,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                         host=local.get(CONF_HOST, ""),
                         port=local.get(CONF_PORT, ""),
                     )
-                    self._discovered_devices[mac] = d
+                    self._discovered_devices[mac] = dev
 
         data_schema = vol.Schema(
             {
@@ -1015,7 +1033,17 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     def _async_finish(self) -> ConfigFlowResult:
-        """Create the entry with one subentry per configured device."""
+        """Create or update the entry."""
+
+        if self._reauth_entry:
+            return self.async_update_reload_and_abort(
+                self._reauth_entry,
+                title=self._config_data.get(CONF_CLOUD, {}).get(
+                    CONF_EMAIL, "Local-only Devices"
+                ),
+                data_updates={CONF_CLOUD: self._config_data.get(CONF_CLOUD, {})},
+            )
+
         device_configs = {}
         for d in self._selected_devices:
             device_configs[str(self._devices[d.mac].mac_address)] = {
@@ -1054,10 +1082,9 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Handle reconfiguration of an existing entry."""
         self._reconfigure_entry = self._get_reconfigure_entry()
-        await self.async_set_unique_id(self._reconfigure_entry.unique_id)
-        _LOGGER.debug("Reconfiguring: %s", self._reconfigure_entry)
-
         self._reconfigure_data = dict(self._reconfigure_entry.data)
+        _LOGGER.debug("Reconfiguring: %s", self._reconfigure_entry.title)
+
         has_cloud = self._reconfigure_data.get(CONF_CLOUD) is not None
         has_local = any(
             d.get(CONF_DEVICE_CONNECTION, {})
@@ -1094,3 +1121,13 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                 }
             ),
         )
+
+    async def async_step_reauth(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Process a Reauth request."""
+        self._reauth_entry = self._get_reauth_entry()
+        self._reauth_data = dict(self._reauth_entry.data)
+        _LOGGER.debug("Reauth entry: %s", self._reauth_entry.title)
+
+        return await self.async_step_cloud_add()
