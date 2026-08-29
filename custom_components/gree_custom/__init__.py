@@ -245,8 +245,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool:
     """Unload a config entry."""
+
+    for c in entry.runtime_data.values():
+        await c.async_shutdown()
+
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
