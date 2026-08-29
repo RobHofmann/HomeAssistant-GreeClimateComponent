@@ -4,6 +4,7 @@ from collections.abc import Mapping
 import logging
 from typing import Any
 
+from aiomqtt import MqttError
 from packaging.version import Version
 
 from .api import (
@@ -137,7 +138,10 @@ class GreeDevice:
                     (mqtt_transport, mqtt_controller_mac, EncryptionVersion.V1)
                 )
 
-        error: Exception | None = None
+        error: Exception = GreeBindingError(
+            f"Could not perform binding with {self._mac_addr} with any transport"
+        )
+
         for transport, mac_controller, version in attempts:
             await self._client.set_transport(transport)
             try:
@@ -156,6 +160,15 @@ class GreeDevice:
                     transport,
                     exc_info=True,
                 )
+            except MqttError as err:
+                error = err
+                await self._client.unbind()
+                _LOGGER.warning(
+                    "[%s] Failed binding via %s",
+                    self.unique_id,
+                    transport,
+                    exc_info=True,
+                )
             else:
                 # Fetch initial information after sucessful bind
                 await self.fetch_device_info()
@@ -163,9 +176,7 @@ class GreeDevice:
                 self._remove_unsupported_props()
                 return
 
-        raise GreeBindingError(
-            f"Could not perform binding with {self._mac_addr} with any transport"
-        ) from error
+        raise error
 
     async def unbind_device(self) -> None:
         """Properly disconnect the device from transport."""

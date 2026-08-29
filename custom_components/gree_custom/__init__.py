@@ -5,7 +5,7 @@ import json
 import logging
 from typing import Any
 
-from aiomqtt import MqttError
+from aiomqtt.exceptions import MqttConnectError
 
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.config_entries import ConfigEntry
@@ -25,7 +25,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.typing import ConfigType
 
 from .aiogree.cipher import EncryptionVersion
-from .aiogree.cloud_api import GreeCloudApi, GreeRegion
+from .aiogree.cloud_api import GreeRegion
 from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeConnectionError
 from .aiogree.transport_mqtt import GreeMqttTransport
@@ -114,29 +114,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
         _LOGGER.error("Bad config entry, this should not happen")
         return False
 
+    cloud_conf = conf.get(CONF_CLOUD, {})
     device_configs: dict[str, Any] = conf[CONF_DEVICES]
     coordinators: dict[str, GreeCoordinator] = {}
-    api: GreeCloudApi | None = None
     mqtt_transport: GreeMqttTransport | None = None
     local_transports: dict[str, GreeUdpTransport] = {}
-
-    if c := conf.get(CONF_CLOUD):
-        _LOGGER.debug("Creating MQTT transport for %s", c[CONF_EMAIL])
-
-        userid: int = c.get(CONF_UID, 0)
-        token: str = c.get(CONF_TOKEN, "")
-        region: str = c.get(CONF_REGION, "")
-
-        if not userid or not token or not region:
-            raise ConfigEntryAuthFailed("no_account_info")
-
-        mqtt_transport = GreeMqttTransport(
-            user_id=str(userid), token=token, region=GreeRegion(region)
-        )
-        try:
-            await mqtt_transport.connect()
-        except MqttError as err:
-            raise ConfigEntryAuthFailed("bad_credentials") from err
 
     for mac, dev_config in device_configs.items():
         connection = dev_config.get(CONF_DEVICE_CONNECTION)
@@ -161,7 +143,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
         host = connection_local.get(CONF_HOST)
         port_val = connection_local.get(CONF_PORT)
         port = int(port_val) if port_val else DEFAULT_DEVICE_PORT
-        uid = connection.get(CONF_UID, api.user_id if api else DEFAULT_DEVICE_UID)
+        uid = connection.get(CONF_UID, cloud_conf.get(CONF_UID, DEFAULT_DEVICE_UID))
         disable_available_check = connection.get(
             CONF_DISABLE_AVAILABLE_CHECK, DEFAULT_DISABLE_AVAILABLE_CHECK
         )
@@ -189,6 +171,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
                     timeout=timeout,
                 )
 
+        if mac_controller_cloud and cloud_conf and not mqtt_transport:
+            _LOGGER.debug("Creating MQTT transport for %s", cloud_conf[CONF_EMAIL])
+
+            userid: int = cloud_conf.get(CONF_UID, 0)
+            token: str = cloud_conf.get(CONF_TOKEN, "")
+            region: str = cloud_conf.get(CONF_REGION, "")
+
+            if not userid or not token or not region:
+                raise ConfigEntryAuthFailed("no_account_info")
+
+            mqtt_transport = GreeMqttTransport(
+                user_id=str(userid), token=token, region=GreeRegion(region)
+            )
+
         device = GreeDevice(
             name=name,
             mac_addr=mac,
@@ -209,6 +205,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
         except GreeConnectionError as err_inner:
             if not await try_find_new_ip(hass, device, entry):
                 raise ConfigEntryNotReady from err_inner
+        except MqttConnectError as err:
+            raise ConfigEntryAuthFailed("bad_credentials") from err
         except Exception as err:
             _LOGGER.exception(
                 "Setup entry '%s': Failed to bind to device %s", entry.entry_id, mac
@@ -227,6 +225,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
         await coordinators[device.mac_address].async_config_entry_first_refresh()
 
         _LOGGER.debug("Setup entry '%s': Bound to device %s", entry.entry_id, mac)
+
+    # Clear MQTT Transport if not used
+    if mqtt_transport and not any(
+        (c.device.is_bound and isinstance(c.device.transport, GreeMqttTransport))
+        for c in coordinators.values()
+    ):
+        await mqtt_transport.disconnect()
 
     entry.runtime_data = {}
     entry.runtime_data = coordinators

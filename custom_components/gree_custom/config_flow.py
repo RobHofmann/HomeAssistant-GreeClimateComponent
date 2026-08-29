@@ -936,6 +936,9 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
             except GreeConnectionError:
                 errors[CONF_BASE] = "cannot_connect"
                 _LOGGER.exception("Cannot connect")
+            except MqttError:
+                errors[CONF_BASE] = "cannot_connect_mqtt"
+                _LOGGER.exception("Cannot connect to MQTT")
             except Exception:
                 errors[CONF_BASE] = "unknown"
                 _LOGGER.exception("Unknown error while binding")
