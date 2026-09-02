@@ -1,6 +1,8 @@
 """Constants for the Gree integration."""
 
-from homeassistant.components.climate import HVACMode
+from homeassistant.components.climate import (
+    HVACMode,  # pyright: ignore[reportPrivateImportUsage]
+)
 from homeassistant.const import UnitOfTemperature
 
 from .aiogree.api import (
@@ -14,12 +16,24 @@ from .aiogree.api import (
 
 DOMAIN = "gree_custom"
 
+CURRENT_CONF_VERSION = 3
+
+CONFENTRY_ID_LOCAL_ONLY = "local_only"
 CONF_EXTRA_SCAN_NETWORKS = "extra_scan_networks"
 CONF_EXTRA_SCAN_HOSTS = "extra_scan_hosts"
 CONF_DISCOVERY_PREFS_KEY = DOMAIN + "_discovery_prefs"
 CONF_DISCOVERY_PREFS_VERSION = 1
+CONF_CLOUD = "cloud"
 
+CONF_MAC_CONTROLLER_LOCAL = "mac_controller_local"
+CONF_MAC_CONTROLLER_CLOUD = "mac_controller_cloud"
 CONF_ADVANCED = "advanced"
+CONF_DEVICE_CONNECTION = "connection"
+CONF_DEVICE_CONNECTION_LOCAL = "local"
+CONF_DEVICE_CONNECTION_CLOUD = "cloud"
+CONF_DEVICE_OPTIONS = "options"
+CONF_ALL_DEVICE_CONNECTIONS = "device_connections"
+CONF_ALL_DEVICE_OPTIONS = "device_options"
 CONF_UID = "uid"
 CONF_ENCRYPTION_KEY = "encryption_key"
 CONF_ENCRYPTION_VERSION = "encryption_version"
@@ -27,20 +41,23 @@ CONF_DISABLE_AVAILABLE_CHECK = "disable_available_check"
 CONF_MAX_ONLINE_ATTEMPTS = "max_online_attempts"
 CONF_RESTORE_STATES = "restore_states"
 CONF_DEVICES = "devices"
-CONF_DEV_NAME = "device_name"
 CONF_HVAC_MODES = "hvac_modes"
 CONF_FAN_MODES = "fan_modes"
 CONF_SWING_MODES = "swing_modes"
 CONF_SWING_HORIZONTAL_MODES = "swing_horizontal_modes"
 CONF_FEATURES = "features"
 CONF_TEMPERATURE_STEP = "target_temp_step"
+CONF_PREFER_CLOUD = "prefer_cloud"
 
 DEFAULT_TARGET_TEMP_STEP = 1
-DEFAULT_ENCRYPTION_VERSION = None
+ENCRYPTION_VERSION_AUTO = "0"
+DEFAULT_ENCRYPTION_VERSION = ENCRYPTION_VERSION_AUTO
+DEFAULT_ENCRYPTION_KEY = ""
 DEFAULT_DISABLE_AVAILABLE_CHECK = False
 DEFAULT_RESTORE_STATES = True
 MIN_SCAN_INTERVAL = 5
 DEFAULT_SCAN_INTERVAL = 60
+DEFAULT_PREFER_CLOUD = False
 
 DEFAULT_DEVICE_UID = 0
 DEFAULT_DEVICE_PORT = 7000
@@ -75,9 +92,9 @@ GATTR_FEAT_SENSOR_LIGHT = "light_sensor"
 GATTR_FEAT_QUIET_MODE = "quiet"
 # Turbo mode sets fan speed to the maximum. Fan speed cannot be changed while active and only available in Dry and Cool mode
 GATTR_FEAT_TURBO = "turbo"
-# Humidy Control. Allows dry mode under cooling operation
+# Humidity Control. Allows dry mode under cooling operation
 GATTR_FEAT_HUMIDITY = "humidity_control"
-# Humidy Control Target. Sets humidity target for humidity control
+# Humidity Control Target. Sets humidity target for humidity control
 GATTR_FEAT_HUMIDITY_TARGET = "humidity_control_target"
 
 GATTR_TEMP_UNITS = "temperature_units"
@@ -95,27 +112,45 @@ ATTR_AUTO_LIGHT = "auto_light"
 ATTR_SVC_PROPS = "prop_list"
 
 # Map each feature constant to its corresponding GreeProp
-CONF_TO_PROP_FEATURE_MAP = {
-    # SENSORS
-    GATTR_INDOOR_TEMPERATURE: GreeProp.SENSOR_TEMPERATURE,
-    GATTR_OUTDOOR_TEMPERATURE: GreeProp.SENSOR_OUTSIDE_TEMPERATURE,
-    GATTR_HUMIDITY: GreeProp.SENSOR_HUMIDITY,
-    GATTR_FAULTS: GreeProp.SENSOR_FAULT,
-    # SELECT
-    GATTR_FEAT_HUMIDITY: GreeProp.FEATURE_HUMIDITY_CONTROL,
-    GATTR_TEMP_UNITS: GreeProp.TARGET_TEMPERATURE_UNIT,
-    # FEATURES
-    GATTR_BEEPER: GreeProp.BEEPER,
-    GATTR_FEAT_LIGHT: GreeProp.FEAT_LIGHT,
-    GATTR_FEAT_SENSOR_LIGHT: GreeProp.FEAT_SENSOR_LIGHT,
-    GATTR_FEAT_FRESH_AIR: GreeProp.FEAT_FRESH_AIR,
-    GATTR_FEAT_XFAN: GreeProp.FEAT_XFAN,
-    GATTR_FEAT_SLEEP_MODE: GreeProp.FEAT_SLEEP_MODE,
-    GATTR_FEAT_SMART_HEAT_8C: GreeProp.FEAT_SMART_HEAT_8C,
-    GATTR_FEAT_HEALTH: GreeProp.FEAT_HEALTH,
-    GATTR_ANTI_DIRECT_BLOW: GreeProp.FEAT_ANTI_DIRECT_BLOW,
-    GATTR_FEAT_ENERGY_SAVING: GreeProp.FEAT_ENERGY_SAVING,
+ATTR_FEATURES_TO_PROP_MAP: dict[str, list[GreeProp]] = {
+    GATTR_BEEPER: [GreeProp.BEEPER, GreeProp.BEEPER_NEW],
+    GATTR_FEAT_FRESH_AIR: [GreeProp.FEAT_FRESH_AIR],
+    GATTR_FEAT_XFAN: [GreeProp.FEAT_XFAN],
+    GATTR_FEAT_SLEEP_MODE: [
+        GreeProp.FEAT_SLEEP_MODE,
+        GreeProp.FEAT_SLEEP_MODE_TYPE,
+    ],
+    GATTR_FEAT_SMART_HEAT_8C: [GreeProp.FEAT_SMART_HEAT_8C],
+    GATTR_FEAT_LIGHT: [GreeProp.FEAT_LIGHT],
+    GATTR_FEAT_SENSOR_LIGHT: [GreeProp.FEAT_LIGHT, GreeProp.FEAT_SENSOR_LIGHT],
+    GATTR_FEAT_HEALTH: [GreeProp.FEAT_HEALTH],
+    GATTR_ANTI_DIRECT_BLOW: [GreeProp.FEAT_ANTI_DIRECT_BLOW],
+    GATTR_FEAT_ENERGY_SAVING: [GreeProp.FEAT_ENERGY_SAVING],
+    GATTR_FEAT_HUMIDITY: [GreeProp.FEATURE_HUMIDITY_CONTROL],
 }
+
+ATTR_SENSORS_TO_PROP_MAP: dict[str, list[GreeProp]] = {
+    GATTR_INDOOR_TEMPERATURE: [
+        GreeProp.SENSOR_INDOOR_TEMPERATURE_1,
+        GreeProp.SENSOR_INDOOR_TEMPERATURE_2,
+        GreeProp.SENSOR_INDOOR_TEMPERATURE_3,
+    ],
+    GATTR_OUTDOOR_TEMPERATURE: [
+        GreeProp.SENSOR_OUTSIDE_TEMPERATURE_1,
+        GreeProp.SENSOR_OUTSIDE_TEMPERATURE_2,
+    ],
+    GATTR_HUMIDITY: [GreeProp.SENSOR_HUMIDITY_1, GreeProp.SENSOR_HUMIDITY_2],
+    GATTR_FAULTS: [GreeProp.SENSOR_FAULT],
+}
+
+CONF_TO_PROP_FEATURE_MAP: dict[str, list[GreeProp]] = {
+    GATTR_TEMP_UNITS: [GreeProp.TARGET_TEMPERATURE_UNIT],
+    # SENSORS
+    **ATTR_SENSORS_TO_PROP_MAP,
+    # FEATURES
+    **ATTR_FEATURES_TO_PROP_MAP,
+}
+
 
 # HVAC modes - these come from Home Assistant and are standard
 DEFAULT_HVAC_MODES = [

@@ -1,16 +1,17 @@
 """Gree Climate Entity for Home Assistant."""
 
 import logging
+from typing import Any, override
 
 from homeassistant.components.climate import (
-    ATTR_FAN_MODE,
-    ATTR_HVAC_MODE,
-    ATTR_SWING_HORIZONTAL_MODE,
-    ATTR_SWING_MODE,
+    ATTR_FAN_MODE,  # pyright: ignore[reportPrivateImportUsage]
+    ATTR_HVAC_MODE,  # pyright: ignore[reportPrivateImportUsage]
+    ATTR_SWING_HORIZONTAL_MODE,  # pyright: ignore[reportPrivateImportUsage]
+    ATTR_SWING_MODE,  # pyright: ignore[reportPrivateImportUsage]
     ClimateEntity,
     ClimateEntityDescription,
-    ClimateEntityFeature,
-    HVACMode,
+    ClimateEntityFeature,  # pyright: ignore[reportPrivateImportUsage]
+    HVACMode,  # pyright: ignore[reportPrivateImportUsage]
 )
 from homeassistant.const import (
     ATTR_TEMPERATURE,
@@ -33,12 +34,13 @@ from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util.unit_conversion import TemperatureConverter
 
-from .aiogree.api import FanSpeed, GreeProp, HorizontalSwingMode, VerticalSwingMode
+from .aiogree.api import FanSpeed, HorizontalSwingMode, VerticalSwingMode
 from .aiogree.const import MAX_TEMP_C, MAX_TEMP_F, MIN_TEMP_C, MIN_TEMP_F
-from .aiogree.errors import GreeQuietIgnored, GreeTurboIgnored, GreeTurboUnavailable
+from .aiogree.errors import GreeTurboUnavailable
 from .const import (
     ATTR_EXTERNAL_HUMIDITY_SENSOR,
     ATTR_EXTERNAL_TEMPERATURE_SENSOR,
+    CONF_DEVICE_OPTIONS,
     CONF_FAN_MODES,
     CONF_HVAC_MODES,
     CONF_SWING_HORIZONTAL_MODES,
@@ -58,7 +60,6 @@ from .const import (
 )
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
-from .platform_helpers import iter_platform_context
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -82,21 +83,15 @@ async def async_setup_entry(
 
     entities: list[GreeClimate] = []
 
-    for ctx in iter_platform_context(entry):
+    for coordinator in entry.runtime_data.values():
+        options: dict[str, Any] = coordinator.device_config.get(CONF_DEVICE_OPTIONS, {})
+
         hvac_modes: list[HVACMode] = [
             HVACMode[mode.upper()]
-            for mode in (
-                ctx.device_config[CONF_HVAC_MODES]
-                if ctx.device_config[CONF_HVAC_MODES] is not None
-                else DEFAULT_HVAC_MODES
-            )
+            for mode in options.get(CONF_HVAC_MODES, DEFAULT_HVAC_MODES)
         ]
 
-        fan_modes: list[str] = (
-            ctx.device_config[CONF_FAN_MODES]
-            if ctx.device_config[CONF_FAN_MODES] is not None
-            else DEFAULT_FAN_MODES
-        )
+        fan_modes: list[str] = options.get(CONF_FAN_MODES, DEFAULT_FAN_MODES)
         fan_modes = sorted(
             fan_modes,
             key=lambda mode: (
@@ -104,11 +99,7 @@ async def async_setup_entry(
             ),
         )
 
-        swing_modes: list[str] = (
-            ctx.device_config[CONF_SWING_MODES]
-            if ctx.device_config[CONF_SWING_MODES] is not None
-            else DEFAULT_SWING_MODES
-        )
+        swing_modes: list[str] = options.get(CONF_SWING_MODES, DEFAULT_SWING_MODES)
         swing_modes = sorted(
             swing_modes,
             key=lambda mode: (
@@ -118,10 +109,8 @@ async def async_setup_entry(
             ),
         )
 
-        swing_horizontal_modes: list[str] = (
-            ctx.device_config[CONF_SWING_HORIZONTAL_MODES]
-            if ctx.device_config[CONF_SWING_HORIZONTAL_MODES] is not None
-            else DEFAULT_SWING_HORIZONTAL_MODES
+        swing_horizontal_modes: list[str] = options.get(
+            CONF_SWING_HORIZONTAL_MODES, DEFAULT_SWING_HORIZONTAL_MODES
         )
         swing_horizontal_modes = sorted(
             swing_horizontal_modes,
@@ -140,7 +129,7 @@ async def async_setup_entry(
 
         _LOGGER.debug(
             "Adding Climate Entity for device '%s'",
-            ctx.coordinator.device.mac_address,
+            coordinator.device.mac_address,
         )
 
         entities.append(
@@ -149,22 +138,20 @@ async def async_setup_entry(
                     key=GATTR_CLIMATE,
                     translation_key=GATTR_CLIMATE,
                 ),
-                ctx.coordinator,
+                coordinator,
                 hvac_modes,
                 fan_modes,
                 swing_modes,
                 swing_horizontal_modes,
-                temperature_step=ctx.device_config.get(
+                temperature_step=options.get(
                     CONF_TEMPERATURE_STEP, DEFAULT_TARGET_TEMP_STEP
                 ),
-                restore_state=ctx.restore_state,
-                check_availability=ctx.check_availability,
-                external_temperature_sensor_id=ctx.device_config.get(
+                restore_state=coordinator.restore_states,
+                check_availability=coordinator.check_availability,
+                external_temperature_sensor_id=options.get(
                     ATTR_EXTERNAL_TEMPERATURE_SENSOR
                 ),
-                external_humidity_sensor_id=ctx.device_config.get(
-                    ATTR_EXTERNAL_HUMIDITY_SENSOR
-                ),
+                external_humidity_sensor_id=options.get(ATTR_EXTERNAL_HUMIDITY_SENSOR),
             )
         )
 
@@ -173,6 +160,8 @@ async def async_setup_entry(
 
 class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[reportIncompatibleVariableOverride]
     """Climate Entity."""
+
+    entity_description: GreeClimateDescription
 
     def __init__(
         self,
@@ -239,7 +228,8 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             repr(self._attr_supported_features),
         )
 
-    async def async_added_to_hass(self):
+    @override
+    async def async_added_to_hass(self) -> None:
         """When this entity is added to hass."""
         await super().async_added_to_hass()
 
@@ -265,7 +255,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                 )
             )
 
-        # When using an external himidity sensor, subscribe to its state changes for updating the current humidity
+        # When using an external humidity sensor, subscribe to its state changes for updating the current humidity
         if self._external_humidity_sensor and self._external_humidity_sensor != "None":
             self._update_current_humidity_from_external(
                 self.hass.states.get(self._external_humidity_sensor)
@@ -285,141 +275,143 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             )
         )
 
-    async def _restore_entity_state(self):
+    async def _restore_entity_state(self) -> None:  # noqa: C901
         last_state = await self.async_get_last_state()
-        if last_state is not None:
+        if last_state is None:
+            return
+
+        _LOGGER.debug(
+            "Restoring state for %s:\n%s",
+            self.unique_id,
+            last_state,
+        )
+
+        # hvac mode
+        if last_state.state not in [None, STATE_UNKNOWN, STATE_UNAVAILABLE]:
+            last_hvac_mode: HVACMode | None = HVACMode(last_state.state)
+            if (
+                last_hvac_mode
+                and last_hvac_mode != self._attr_hvac_mode
+                and last_hvac_mode in self._attr_hvac_modes
+            ):
+                try:
+                    await self.async_set_hvac_mode(last_hvac_mode)
+                except Exception:
+                    _LOGGER.exception(
+                        "Failed to restore the hvac_mode: %s", last_hvac_mode
+                    )
+            else:
+                _LOGGER.debug(
+                    "No need to restore the hvac_mode: %s",
+                    last_hvac_mode,
+                )
+
+        # fan mode
+        last_fan_mode: str | None = last_state.attributes.get(ATTR_FAN_MODE)
+        if (
+            last_fan_mode not in [None, STATE_UNKNOWN, STATE_UNAVAILABLE]
+            and self._attr_fan_modes
+            and last_fan_mode != self._attr_fan_mode
+            and last_fan_mode in self._attr_fan_modes
+        ):
+            try:
+                await self.async_set_fan_mode(last_fan_mode)
+            except Exception:
+                _LOGGER.exception("Failed to restore the fan_mode: %s", last_fan_mode)
+        else:
             _LOGGER.debug(
-                "Restoring state for %s:\n%s",
-                self.unique_id,
-                last_state,
+                "No need to restore the fan_mode: %s",
+                last_fan_mode,
             )
 
-            # hvac mode
-            if last_state.state not in [None, STATE_UNKNOWN, STATE_UNAVAILABLE]:
-                last_hvac_mode: HVACMode | None = HVACMode(last_state.state)
-                if (
-                    last_hvac_mode
-                    and last_hvac_mode != self._attr_hvac_mode
-                    and last_hvac_mode in self._attr_hvac_modes
-                ):
-                    try:
-                        await self.async_set_hvac_mode(last_hvac_mode)
-                    except Exception:
-                        _LOGGER.exception(
-                            "Failed to restore the hvac_mode: %s", last_hvac_mode
-                        )
-                else:
-                    _LOGGER.debug(
-                        "No need to restore the hvac_mode: %s",
-                        last_hvac_mode,
-                    )
-
-            # fan mode
-            last_fan_mode: str | None = last_state.attributes.get(ATTR_FAN_MODE)
-            if (
-                last_fan_mode not in [None, STATE_UNKNOWN, STATE_UNAVAILABLE]
-                and self._attr_fan_modes
-                and last_fan_mode != self._attr_fan_mode
-                and last_fan_mode in self._attr_fan_modes
-            ):
-                try:
-                    await self.async_set_fan_mode(last_fan_mode)
-                except Exception:
-                    _LOGGER.exception(
-                        "Failed to restore the fan_mode: %s", last_fan_mode
-                    )
-            else:
-                _LOGGER.debug(
-                    "No need to restore the fan_mode: %s",
-                    last_fan_mode,
+        # swings
+        last_swing_mode: str | None = last_state.attributes.get(ATTR_SWING_MODE)
+        if (
+            last_swing_mode not in [None, STATE_UNKNOWN, STATE_UNAVAILABLE]
+            and self._attr_swing_modes
+            and last_swing_mode != self._attr_swing_mode
+            and last_swing_mode in self._attr_swing_modes
+        ):
+            try:
+                await self.async_set_swing_mode(last_swing_mode)
+            except Exception:
+                _LOGGER.exception(
+                    "Failed to restore the swing_mode: %s", last_swing_mode
                 )
-
-            # swings
-            last_swing_mode: str | None = last_state.attributes.get(ATTR_SWING_MODE)
-            if (
-                last_swing_mode not in [None, STATE_UNKNOWN, STATE_UNAVAILABLE]
-                and self._attr_swing_modes
-                and last_swing_mode != self._attr_swing_mode
-                and last_swing_mode in self._attr_swing_modes
-            ):
-                try:
-                    await self.async_set_swing_mode(last_swing_mode)
-                except Exception:
-                    _LOGGER.exception(
-                        "Failed to restore the swing_mode: %s", last_swing_mode
-                    )
-            else:
-                _LOGGER.debug(
-                    "No need to restore the swing_mode: %s",
-                    last_swing_mode,
-                )
-
-            last_swing_horizontal_mode: str | None = last_state.attributes.get(
-                ATTR_SWING_HORIZONTAL_MODE
+        else:
+            _LOGGER.debug(
+                "No need to restore the swing_mode: %s",
+                last_swing_mode,
             )
-            if (
-                last_swing_horizontal_mode
-                not in [None, STATE_UNKNOWN, STATE_UNAVAILABLE]
-                and self.swing_horizontal_modes
-                and last_swing_horizontal_mode != self.swing_horizontal_mode
-                and last_swing_horizontal_mode in self.swing_horizontal_modes
-            ):
-                try:
-                    await self.async_set_swing_horizontal_mode(
-                        last_swing_horizontal_mode
-                    )
-                except Exception:
-                    _LOGGER.exception(
-                        "Failed to restore the swing_horizontal_mode: %s",
-                        last_swing_horizontal_mode,
-                    )
-            else:
-                _LOGGER.debug(
-                    "No need to restore the swing_horizontal_mode: %s",
+
+        last_swing_horizontal_mode: str | None = last_state.attributes.get(
+            ATTR_SWING_HORIZONTAL_MODE
+        )
+        if (
+            last_swing_horizontal_mode not in [None, STATE_UNKNOWN, STATE_UNAVAILABLE]
+            and self.swing_horizontal_modes
+            and last_swing_horizontal_mode != self.swing_horizontal_mode
+            and last_swing_horizontal_mode in self.swing_horizontal_modes
+        ):
+            try:
+                await self.async_set_swing_horizontal_mode(last_swing_horizontal_mode)
+            except Exception:
+                _LOGGER.exception(
+                    "Failed to restore the swing_horizontal_mode: %s",
                     last_swing_horizontal_mode,
                 )
-
-            # target temp
-            last_target_temperature: float | None = last_state.attributes.get(
-                ATTR_TEMPERATURE
+        else:
+            _LOGGER.debug(
+                "No need to restore the swing_horizontal_mode: %s",
+                last_swing_horizontal_mode,
             )
-            if last_target_temperature is not None and last_target_temperature not in [
+
+        # target temp
+        last_target_temperature: float | str | None = last_state.attributes.get(
+            ATTR_TEMPERATURE
+        )
+        if (
+            last_target_temperature is not None
+            and last_target_temperature
+            not in [
                 STATE_UNKNOWN,
                 STATE_UNAVAILABLE,
-            ]:
-                # since the ºC and ºF ranges don't overlap we can guess the last state units
-                last_unit: UnitOfTemperature = (
-                    UnitOfTemperature.CELSIUS
-                    if last_target_temperature <= MAX_TEMP_C
-                    else UnitOfTemperature.FAHRENHEIT
-                )
-                last_target_temperature = TemperatureConverter.convert(
-                    last_target_temperature,
-                    last_unit,
-                    self._attr_temperature_unit,
-                )
-                if (
-                    self._attr_supported_features
-                    & ClimateEntityFeature.TARGET_TEMPERATURE
-                    and last_target_temperature != self._attr_target_temperature
-                ):
-                    try:
-                        await self.async_set_temperature(
-                            **{ATTR_TEMPERATURE: last_target_temperature}
-                        )
-                    except Exception:
-                        _LOGGER.exception(
-                            "Failed to restore the target_temperature: %s%s",
-                            last_target_temperature,
-                            last_unit,
-                        )
-                else:
-                    _LOGGER.debug(
-                        "No need to restore the target_temperature: %s%s",
-                        last_target_temperature,
-                        self.temperature_unit,
+            ]
+            and isinstance(last_target_temperature, float)
+        ):
+            # since the ºC and ºF ranges don't overlap we can guess the last state units
+            last_unit: UnitOfTemperature = (
+                UnitOfTemperature.CELSIUS
+                if last_target_temperature <= MAX_TEMP_C
+                else UnitOfTemperature.FAHRENHEIT
+            )
+            last_target_temperature = TemperatureConverter.convert(
+                last_target_temperature,
+                last_unit,
+                self._attr_temperature_unit,
+            )
+            if (
+                self._attr_supported_features & ClimateEntityFeature.TARGET_TEMPERATURE
+                and last_target_temperature != self._attr_target_temperature
+            ):
+                try:
+                    await self.async_set_temperature(
+                        **{ATTR_TEMPERATURE: last_target_temperature}
                     )
+                except Exception:
+                    _LOGGER.exception(
+                        "Failed to restore the target_temperature: %s%s",
+                        last_target_temperature,
+                        last_unit,
+                    )
+            else:
+                _LOGGER.debug(
+                    "No need to restore the target_temperature: %s%s",
+                    last_target_temperature,
+                    self.temperature_unit,
+                )
 
+    @override
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         _LOGGER.debug("Updating Climate Entity for %s", self.device.unique_id)
@@ -433,7 +425,9 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         new_state = event.data.get("new_state")
         self._update_current_temperature_from_external(new_state)
 
-    def _update_current_temperature_from_external(self, new_state: State | None):
+    def _update_current_temperature_from_external(
+        self, new_state: State | None
+    ) -> None:
         """Update current temperature based on external sensor data."""
         if new_state and new_state.state not in (
             STATE_UNKNOWN,
@@ -495,13 +489,13 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                 )
                 self._attr_current_humidity = value
 
-    async def _handle_unit_change(self, event):
+    async def _handle_unit_change(self, event: Event) -> None:
         """Handle HA unit system change (°C <-> °F)."""
         # Force refresh from coordinator
         await self.coordinator.async_request_refresh()
 
-    def _update_attributes(self):
-        """Updates the entity attributes with the device values."""
+    def _update_attributes(self) -> None:
+        """Update the entity attributes with the device values."""
         self._attr_available = self.device.available
 
         if (
@@ -559,7 +553,8 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         if self.hass:
             self.async_write_ha_state()
 
-    async def async_turn_on(self):
+    @override
+    async def async_turn_on(self) -> None:
         """Turn on."""
         _LOGGER.debug("turn_on(%s)", self.device.unique_id)
 
@@ -590,7 +585,8 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         finally:
             await self.coordinator.async_request_refresh()
 
-    async def async_turn_off(self):
+    @override
+    async def async_turn_off(self) -> None:
         """Turn off."""
         _LOGGER.debug("turn_off(%s)", self.device.unique_id)
 
@@ -623,14 +619,15 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             await self.coordinator.async_request_refresh()
 
     def get_hvac_mode(self) -> HVACMode:
-        """Converts Gree Operation Modes to HA."""
+        """Convert Gree Operation Modes to HA."""
         return (
             HVACMode.OFF
             if not self.device.power_mode
             else HVAC_MODES_GREE_TO_HA[self.device.operation_mode]
         )
 
-    async def async_set_hvac_mode(self, hvac_mode: HVACMode):
+    @override
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set the HVAC Mode."""
         _LOGGER.debug("set_hvac_mode(%s, %s)", self.device.unique_id, hvac_mode)
 
@@ -655,7 +652,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
                 await self.async_turn_on()
 
-                # This will be called in the turn on
+                # This will be called in the turn on:
                 # await self._device.update_device_status()
 
             # notify coordinator listeners of state change so that dependent entities are updated immediately
@@ -671,7 +668,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         self.async_write_ha_state()
 
     def get_fan_mode(self) -> str:
-        """Converts Gree Fan Modes to HA. Accounts for the 2 special modes."""
+        """Convert Gree Fan Modes to HA. Accounts for the 2 special modes."""
         if (
             self._attr_fan_modes
             and GATTR_FEAT_QUIET_MODE in self._attr_fan_modes
@@ -688,7 +685,8 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
         return self.device.fan_speed.name
 
-    async def async_set_fan_mode(self, fan_mode: str):
+    @override
+    async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set new target fan mode."""
         _LOGGER.debug(
             "set_fan_mode(%s, %s -> %s)",
@@ -721,16 +719,6 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                 translation_domain=DOMAIN, translation_key="turbo_availability"
             ) from err
 
-        except GreeTurboIgnored as err:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN, translation_key="turbo_ignored"
-            ) from err
-
-        except GreeQuietIgnored as err:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN, translation_key="quiet_ignored"
-            ) from err
-
         except Exception as err:
             _LOGGER.exception("Error in '%s'", "async_set_fan_mode")
             raise HomeAssistantError(
@@ -740,10 +728,11 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         self.async_write_ha_state()
 
     def get_swing_mode(self) -> str:
-        """Converts Gree Swing Modes to HA."""
+        """Convert Gree Swing Modes to HA."""
         return self.device.vertical_swing_mode.name
 
-    async def async_set_swing_mode(self, swing_mode):
+    @override
+    async def async_set_swing_mode(self, swing_mode: str) -> None:
         """Set new target swing operation."""
         _LOGGER.debug("async_set_swing_mode(%s, %s)", self.device.unique_id, swing_mode)
 
@@ -769,10 +758,11 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         self.async_write_ha_state()
 
     def get_swing_horizontal_mode(self) -> str:
-        """Converts Gree Swing Horizontal Modes to HA."""
+        """Convert Gree Swing Horizontal Modes to HA."""
         return self.device.horizontal_swing_mode.name
 
-    async def async_set_swing_horizontal_mode(self, swing_horizontal_mode):
+    @override
+    async def async_set_swing_horizontal_mode(self, swing_horizontal_mode: str) -> None:
         """Set new target horizontal swing operation."""
         _LOGGER.debug(
             "async_set_swing_horizontal_mode(%s, %s)",
@@ -804,19 +794,15 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         self.async_write_ha_state()
 
     def get_temp_units(self) -> UnitOfTemperature:
-        """Returns the device units of temperature."""
+        """Return the device units of temperature."""
         return UNITS_GREE_TO_HA[self.device.target_temperature_unit]
 
     def get_current_temp(self) -> float | None:
-        """Returns the current temperature of the room. Accounting for units."""
+        """Return the current temperature of the room. Accounting for units."""
 
         # Gree API always return current temperature in ºC
         # so here we need to convert to the unit of the entity (same as device)
-        if (
-            self.hass
-            and self.device.supports_property(GreeProp.SENSOR_TEMPERATURE)
-            and self.device.indoors_temperature_c is not None
-        ):
+        if self.hass and self.device.indoors_temperature_c is not None:
             return TemperatureConverter.convert(
                 float(self.device.indoors_temperature_c),
                 UnitOfTemperature.CELSIUS,
@@ -826,15 +812,11 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         return None
 
     def get_outside_current_temp(self) -> float | None:
-        """Returns the current outdoor temperature. Accounting for units."""
+        """Return the current outdoor temperature. Accounting for units."""
 
         # Gree API always return temperature in ºC
         # so here we need to convert to the unit of the entity (same as device)
-        if (
-            self.hass
-            and self.device.supports_property(GreeProp.SENSOR_OUTSIDE_TEMPERATURE)
-            and self.device.outdoors_temperature_c is not None
-        ):
+        if self.hass and self.device.outdoors_temperature_c is not None:
             return TemperatureConverter.convert(
                 float(self.device.outdoors_temperature_c),
                 UnitOfTemperature.CELSIUS,
@@ -844,23 +826,21 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         return None
 
     def get_current_humidity(self) -> float | None:
-        """Returns the current humidity of the room."""
+        """Return the current humidity of the room."""
 
         # Gree API always return current humidity in %
-        if (
-            self.device.supports_property(GreeProp.SENSOR_HUMIDITY)
-            and self.device.humidity is not None
-        ):
+        if self.device.humidity is not None:
             return float(self.device.humidity)
 
         return None
 
     def get_current_target_temp(self) -> float | None:
-        """Returns the current target temperature set on the device."""
+        """Return the current target temperature set on the device."""
         # Device already return in the temperature_units
         return self.device.target_temperature
 
-    async def async_set_temperature(self, **kwargs):
+    @override
+    async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
         _LOGGER.debug("async_set_temperature(%s, %s)", self.device.unique_id, kwargs)
 
@@ -884,7 +864,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         ):
             temperature = None
             _LOGGER.warning(
-                "Ignoring temperature when setting the device mode to AUTO. Will be overriden by the device factory settings"
+                "Ignoring temperature when setting the device mode to AUTO. Will be overridden by the device factory settings"
             )
 
         try:

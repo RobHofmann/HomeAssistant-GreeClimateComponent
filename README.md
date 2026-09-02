@@ -171,8 +171,13 @@ Depending on the device configuration, specific Gree AC model, and firmware vers
 
 ## Credits
 
+Portions of the code development, debugging, and documentation were performed by Large Language Models (LLMs)
+
 This project is based on the work of several contributors and projects:
 
+- [greeclimate-js](https://github.com/davo22/greeclimate-js) - TypeScript library for controlling Gree-based mini-split air conditioning systems
+- [greeclimate](https://github.com/davo22/greeclimate) - A fully async Python3 based package for controlling Gree based ACs and heat pumps
 - [gree-remote](https://github.com/tomikaa87/gree-remote) - Gree air conditioner remote control protocol
 - [greeclimate](https://github.com/cmroche/greeclimate) - Python package for controlling Gree based minisplit systems
-- [Home Assistant Developer Documentation](https://developers.home-assistant.io/) - Official development guidelines and best practices
+- [gree-api-client](https://github.com/luc10/gree-api-client) - Python client for the Gree API
+- [Home Assistant Developer Documentation](https://developers.home-assistant.io) - Official development guidelines and best practices

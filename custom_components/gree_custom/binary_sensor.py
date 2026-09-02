@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 import logging
+from typing import override
 
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -16,7 +17,7 @@ from .aiogree.device import GreeDevice
 from .const import GATTR_FAULTS
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
-from .platform_helpers import iter_platform_context, supported_descriptions
+from .platform_helpers import supported_descriptions
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ SENSOR_TYPES: list[GreeBinarySensorDescription] = [
         device_class=BinarySensorDeviceClass.PROBLEM,
         entity_category=EntityCategory.DIAGNOSTIC,
         value_func=lambda device: device.has_hvac_error,
+        auto_device_support=True,
     ),
 ]
 
@@ -51,22 +53,24 @@ async def async_setup_entry(
 
     entities: list[GreeBinarySensor] = []
 
-    for ctx in iter_platform_context(entry):
+    for coordinator in entry.runtime_data.values():
         descriptions = supported_descriptions(
             SENSOR_TYPES,
-            ctx.coordinator.device,
-            ctx.device_config,
+            coordinator.device,
+            coordinator.device_config,
         )
 
         _LOGGER.debug(
             "Adding Binary Sensor Entities for device '%s': %s",
-            ctx.coordinator.device.mac_address,
+            coordinator.device.mac_address,
             [d.key for d in descriptions],
         )
 
         entities.extend(
             [
-                GreeBinarySensor(description, ctx.coordinator, ctx.check_availability)
+                GreeBinarySensor(
+                    description, coordinator, coordinator.check_availability
+                )
                 for description in descriptions
             ]
         )
@@ -101,6 +105,7 @@ class GreeBinarySensor(GreeEntity, BinarySensorEntity):  # pyright: ignore[repor
         )
 
     @property
+    @override
     def is_on(self) -> bool | None:
         """Return the state of the sensor."""
         return self.entity_description.value_func(self.device)

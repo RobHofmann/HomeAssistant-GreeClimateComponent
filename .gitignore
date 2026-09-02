@@ -1,2 +1,8 @@
 .idea/
 __pycache__/
+.venv/
+.mypy_cache/
+.ruff_cache/
+config/
+.ha-core/
+.uv-cache/

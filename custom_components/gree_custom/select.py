@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 import logging
+from typing import override
 
 from homeassistant.components.select import SelectEntity, SelectEntityDescription
 from homeassistant.const import EntityCategory
@@ -20,7 +21,7 @@ from .aiogree.errors import (
 from .const import DOMAIN, GATTR_FEAT_HUMIDITY, GATTR_TEMP_UNITS
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
-from .platform_helpers import iter_platform_context, supported_descriptions
+from .platform_helpers import supported_descriptions
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -73,7 +74,7 @@ SELECT_TYPES: list[GreeSelectDescription] = [
         key=GATTR_FEAT_HUMIDITY,
         translation_key=GATTR_FEAT_HUMIDITY,
         options=[member.name for member in HumidityControlMode],
-        value_func=lambda device: device.feature_humidity_control,
+        value_func=lambda device: str(device.feature_humidity_control),
         set_func=_set_humidity_control_mode,
         additional_available_func=lambda device: (
             device.operation_mode in (OperationMode.cool, OperationMode.dry)
@@ -94,21 +95,21 @@ async def async_setup_entry(
 
     entities: list[GreeSelect] = []
 
-    for ctx in iter_platform_context(entry):
+    for coordinator in entry.runtime_data.values():
         descriptions = supported_descriptions(
             SELECT_TYPES,
-            ctx.coordinator.device,
-            ctx.device_config,
+            coordinator.device,
+            coordinator.device_config,
         )
 
         _LOGGER.debug(
             "Adding Select Entities for device '%s': %s",
-            ctx.coordinator.device.mac_address,
+            coordinator.device.mac_address,
             [d.key for d in descriptions],
         )
 
         entities.extend(
-            GreeSelect(description, ctx.coordinator, False, ctx.check_availability)
+            GreeSelect(description, coordinator, False, coordinator.check_availability)
             for description in descriptions
         )
 
@@ -147,10 +148,12 @@ class GreeSelect(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ignore[re
         )
 
     @property
-    def current_option(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
+    @override
+    def current_option(self) -> str | None:
         """Return the selected entity option to represent the entity state."""
         return self.entity_description.value_func(self.device)
 
+    @override
     async def async_select_option(self, option: str) -> None:
         """Change the selected option."""
         _LOGGER.debug(
@@ -185,7 +188,8 @@ class GreeSelect(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ignore[re
 
         self.async_write_ha_state()
 
-    async def async_added_to_hass(self):
+    @override
+    async def async_added_to_hass(self) -> None:
         """Handle entity which will be added."""
         await super().async_added_to_hass()
 

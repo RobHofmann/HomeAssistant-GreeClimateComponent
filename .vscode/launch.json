@@ -1,0 +1,36 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Home Assistant (debug my integration)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "homeassistant",
+            "cwd": "${workspaceFolder}",
+            "args": ["--config", "${workspaceFolder}/config", "--debug"],
+            // HA core is pip-installed into site-packages; custom_components lives
+            // in the workspace (via the symlink). debugpy's default justMyCode
+            // treats anything under site-packages/stdlib as "not mine", so this
+            // alone scopes stepping/uncaught-exception breaks to your integration
+            // - no extra config needed. Explicit breakpoints in HA core still work
+            // regardless of this setting; it only affects automatic stepping.
+            "justMyCode": true
+        },
+        {
+            "name": "Home Assistant (no debug filtering, full core)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "homeassistant",
+            "cwd": "${workspaceFolder}",
+            "args": ["--config", "${workspaceFolder}/config", "--debug"],
+            "justMyCode": false
+        },
+        {
+            "name": "Attach to running Home Assistant (debugpy)",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": { "host": "localhost", "port": 5678 },
+            "justMyCode": true
+        }
+    ]
+}
