@@ -510,7 +510,7 @@ class GreeDevice:
         return code.strip()
 
     @property
-    def device_model_id(self) -> str | None:
+    def device_model_id(self) -> str:
         """The model of the unit."""
         mt = self._state.info.get(InfoProp.MODEL_TYPE, "")
         v = self._state.info.get(InfoProp.VENDER, "")

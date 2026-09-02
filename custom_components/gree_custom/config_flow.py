@@ -544,6 +544,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
 
         self._connections_by_controller: dict[str, Any] = {}
         self._options_by_controller: dict[str, Any] = {}
+        self._options_by_model: dict[str, Any] = {}
 
     @override
     async def async_step_dhcp(
@@ -1114,6 +1115,9 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
             self._config_data[CONF_ALL_DEVICE_OPTIONS][d.mac] = user_input
             self._options_by_controller[device.mac_address_controller] = user_input
 
+            if device.device_model_id:
+                self._options_by_model[device.device_model_id] = user_input
+
             if self._current_setup_device_index >= len(self._selected_devices) - 1:
                 self._current_setup_device_index = 0
                 return await self._async_finish()
@@ -1121,7 +1125,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
             self._current_setup_device_index += 1
             return await self.async_step_device_options()
 
-        default = user_input
+        default: dict[str, Any] | None = user_input
 
         # During user setup find if the device is already configured
         if not default and self.source == SOURCE_USER:
@@ -1132,6 +1136,18 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                     .get(d.mac, {})
                     .get(CONF_DEVICE_OPTIONS, None)
                 )
+            elif model_options := self._options_by_model.get(device.device_model_id):
+                default = {
+                    key: model_options[key]
+                    for key in (
+                        CONF_HVAC_MODES,
+                        CONF_FAN_MODES,
+                        CONF_SWING_MODES,
+                        CONF_SWING_HORIZONTAL_MODES,
+                        CONF_FEATURES,
+                    )
+                    if key in model_options
+                }
 
         # During reconfigure inject previous device options
         if not default and self.source == SOURCE_RECONFIGURE:
