@@ -10,7 +10,8 @@
             "too_many_targets": "As redes e hosts especificados excedem o máximo de 65536 hosts (rede /16). Divida em vários CIDRs ou especifique os dispositivos.",
             "cloud_bad_login": "Falha no login. \nCertifique-se de que os detalhes estejam corretos e tente novamente.",
             "cloud_unknown": "Erro durante o login. \nVerifique os registos e entre em contato com os desenvolvedores",
-            "no_devices_selected": "Selecione pelo menos um dispositivo para continuar"
+            "no_devices_selected": "Selecione pelo menos um dispositivo para continuar",
+            "no_methods_selected": "Selecione pelo menos um método de procura"
         },
         "abort": {
             "reconfigure_successful": "Dispositivos reconfigurados com sucesso",
