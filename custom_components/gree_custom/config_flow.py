@@ -997,12 +997,12 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                     CONF_ENCRYPTION_VERSION, DEFAULT_ENCRYPTION_VERSION
                 )
 
-                if mac_local_controller not in self._local_transports:
-                    ip = local.get(CONF_HOST, "")
-                    port = local.get(CONF_PORT, "")
-                    self._local_transports[mac_local_controller] = GreeUdpTransport(
-                        ip_addr=ip, port=port
-                    )
+                ip = local.get(CONF_HOST, "")
+                port = local.get(CONF_PORT, "")
+
+                local_transport = self._local_transports.get(
+                    mac_local_controller, GreeUdpTransport(ip_addr=ip, port=port)
+                )
 
                 await device.bind_with_transport(
                     preferred_local_version=(
@@ -1012,13 +1012,17 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                     ),
                     local_controller_mac=mac_local_controller,
                     local_transport=(
-                        self._local_transports.get(mac_local_controller, None)
+                        local_transport
                         if not cloud.get(CONF_PREFER_CLOUD, DEFAULT_PREFER_CLOUD)
                         else None
                     ),
                     mqtt_controller_mac=mac_mqtt_controller,
                     mqtt_transport=self._mqtt_transport,
                 )
+
+                if mac_local_controller:
+                    self._local_transports[mac_local_controller] = local_transport
+
                 # Save the correct version if local succeeded
                 if (
                     isinstance(device.transport, GreeUdpTransport)
