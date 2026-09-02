@@ -8,10 +8,10 @@ from typing import Any
 from aiomqtt.exceptions import MqttConnectError
 
 from homeassistant.components.diagnostics import async_redact_data
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_EMAIL,
     CONF_HOST,
+    CONF_NAME,
     CONF_PORT,
     CONF_REGION,
     CONF_SCAN_INTERVAL,
@@ -34,7 +34,6 @@ from .aiogree.transport_udp import GreeUdpTransport
 # Local imports
 from .const import (
     CONF_CLOUD,
-    CONF_DEV_NAME,
     CONF_DEVICE_CONNECTION,
     CONF_DEVICE_CONNECTION_CLOUD,
     CONF_DEVICE_CONNECTION_LOCAL,
@@ -49,6 +48,7 @@ from .const import (
     CONF_PREFER_CLOUD,
     CONF_RESTORE_STATES,
     CONF_UID,
+    CONFENTRY_ID_LOCAL_ONLY,
     DEFAULT_CONNECTION_MAX_ATTEMPTS,
     DEFAULT_CONNECTION_TIMEOUT,
     DEFAULT_DEVICE_PORT,
@@ -96,7 +96,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool:  # noqa: C901
     """Set up Gree from a config entry."""
 
     _LOGGER.info(
@@ -112,10 +112,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
 
     conf = entry.data
     if conf is None or not conf[CONF_DEVICES]:
-        _LOGGER.error("Bad config entry, this should not happen")
-        return False
+        _LOGGER.info("No devices configured in entry %s", entry.unique_id)
+        return True
 
-    cloud_conf = conf.get(CONF_CLOUD, {})
+    cloud_conf = conf.get(CONF_CLOUD) or {}
     device_configs: dict[str, Any] = conf[CONF_DEVICES]
     coordinators: dict[str, GreeCoordinator] = {}
     mqtt_transport: GreeMqttTransport | None = None
@@ -130,7 +130,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
             _LOGGER.error("Bad data for device %s", mac)
             continue
 
-        name = options.get(CONF_DEV_NAME)
+        name = options.get(CONF_NAME)
         _LOGGER.debug("Creating device %s: %s", mac, name)
 
         connection_local = connection.get(CONF_DEVICE_CONNECTION_LOCAL, {})
@@ -144,8 +144,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
             continue
 
         host = connection_local.get(CONF_HOST)
-        port_val = connection_local.get(CONF_PORT)
-        port = int(port_val) if port_val else DEFAULT_DEVICE_PORT
+        port = connection_local.get(CONF_PORT, DEFAULT_DEVICE_PORT)
         uid = connection.get(CONF_UID, cloud_conf.get(CONF_UID, DEFAULT_DEVICE_UID))
         disable_available_check = connection.get(
             CONF_DISABLE_AVAILABLE_CHECK, DEFAULT_DISABLE_AVAILABLE_CHECK
@@ -222,7 +221,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
                 hass=hass,
                 config_entry=entry,
                 scan_interval=scan_interval,
-                check_avalilability=not disable_available_check,
+                check_availability=not disable_available_check,
                 restore_states=options.get(CONF_RESTORE_STATES, DEFAULT_RESTORE_STATES),
                 device_config=dev_config,
                 device=device,
@@ -247,10 +246,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
 
 async def async_unload_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool:
     """Unload a config entry."""
-
-    for c in entry.runtime_data.values():
-        await c.async_shutdown()
-
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
@@ -294,9 +289,10 @@ async def async_remove_config_entry_device(
 
     if new_device_configs:
         # There are still other devices, update the entry
-        hass.config_entries.async_update_entry(config_entry, data=data)
-    else:
-        # No other devices, remove the entry
+        return hass.config_entries.async_update_entry(config_entry, data=data)
+
+    # No other devices, remove the entry if local
+    if config_entry.unique_id == CONFENTRY_ID_LOCAL_ONLY:
         await hass.config_entries.async_remove(config_entry.entry_id)
 
     return True
@@ -312,7 +308,7 @@ def create_device_connection_issue(
     device_id: str,
     device_name: str,
 ) -> None:
-    """Create device conenction issue."""
+    """Create device connection issue."""
     ir.async_create_issue(
         hass,
         DOMAIN,
@@ -331,7 +327,7 @@ def delete_device_connection_issue(
     config_entry_id: str,
     device_id: str,
 ) -> None:
-    """Delete device conenction issue."""
+    """Delete device connection issue."""
     ir.async_delete_issue(
         hass,
         DOMAIN,

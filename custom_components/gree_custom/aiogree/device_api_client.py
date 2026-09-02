@@ -186,7 +186,7 @@ class DeviceApiClient:
                 )
 
                 state.update(result.prop_values)
-                missing.extend(result.missin_props)
+                missing.extend(result.missing_props)
 
             except GreeError:
                 if error_as_missing:
@@ -247,6 +247,7 @@ class DeviceApiClient:
         callback: Callable[[dict[str, str]], None],
     ) -> None:
         """Add a listener for status updates."""
+        _LOGGER.debug("Adding Listener: %s", callback)
         self._listeners.append(callback)
 
     def remove_status_listener(
@@ -254,6 +255,7 @@ class DeviceApiClient:
         callback: Callable[[dict[str, str]], None],
     ) -> None:
         """Remove a listener from status updates."""
+        _LOGGER.debug("Removing Listener: %s", callback)
         try:
             self._listeners.remove(callback)
         except ValueError:

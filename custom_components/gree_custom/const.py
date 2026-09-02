@@ -16,6 +16,8 @@ from .aiogree.api import (
 
 DOMAIN = "gree_custom"
 
+CURRENT_CONF_VERSION = 3
+
 CONFENTRY_ID_LOCAL_ONLY = "local_only"
 CONF_EXTRA_SCAN_NETWORKS = "extra_scan_networks"
 CONF_EXTRA_SCAN_HOSTS = "extra_scan_hosts"
@@ -39,7 +41,6 @@ CONF_DISABLE_AVAILABLE_CHECK = "disable_available_check"
 CONF_MAX_ONLINE_ATTEMPTS = "max_online_attempts"
 CONF_RESTORE_STATES = "restore_states"
 CONF_DEVICES = "devices"
-CONF_DEV_NAME = "device_name"
 CONF_HVAC_MODES = "hvac_modes"
 CONF_FAN_MODES = "fan_modes"
 CONF_SWING_MODES = "swing_modes"
@@ -91,9 +92,9 @@ GATTR_FEAT_SENSOR_LIGHT = "light_sensor"
 GATTR_FEAT_QUIET_MODE = "quiet"
 # Turbo mode sets fan speed to the maximum. Fan speed cannot be changed while active and only available in Dry and Cool mode
 GATTR_FEAT_TURBO = "turbo"
-# Humidy Control. Allows dry mode under cooling operation
+# Humidity Control. Allows dry mode under cooling operation
 GATTR_FEAT_HUMIDITY = "humidity_control"
-# Humidy Control Target. Sets humidity target for humidity control
+# Humidity Control Target. Sets humidity target for humidity control
 GATTR_FEAT_HUMIDITY_TARGET = "humidity_control_target"
 
 GATTR_TEMP_UNITS = "temperature_units"
@@ -105,7 +106,6 @@ GATTR_FAULTS = "faults"
 
 ATTR_EXTERNAL_TEMPERATURE_SENSOR = "external_temperature_sensor"
 ATTR_EXTERNAL_HUMIDITY_SENSOR = "external_humidity_sensor"
-DEFAULT_EXTERNAL_SENSOR = "None"
 ATTR_AUTO_XFAN = "auto_xfan"
 ATTR_AUTO_LIGHT = "auto_light"
 

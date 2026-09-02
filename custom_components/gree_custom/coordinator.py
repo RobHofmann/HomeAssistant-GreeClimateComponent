@@ -28,7 +28,7 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         hass: HomeAssistant,
         config_entry: GreeConfigEntry,
         scan_interval: int,
-        check_avalilability: bool,
+        check_availability: bool,
         restore_states: bool,
         device_config: dict[str, Any],
         device: GreeDevice,
@@ -45,7 +45,7 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
             update_method=self._update_data,
         )
 
-        self.check_availability: bool = check_avalilability
+        self.check_availability: bool = check_availability
         self.restore_states: bool = restore_states
         self.device_config: dict[str, Any] = device_config
         self.device: GreeDevice = device

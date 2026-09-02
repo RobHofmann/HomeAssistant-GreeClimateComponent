@@ -1,12 +1,15 @@
 """Helpers for the Gree integration."""
 
+from collections.abc import Mapping
 from ipaddress import IPv4Address, IPv4Network, ip_address, ip_network
 import logging
+from typing import Any
 
 from homeassistant.components import network
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST
+from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.storage import Store
 
 from .aiogree.api import GreeDiscoveredDevice, gree_discover_devices
@@ -14,13 +17,21 @@ from .aiogree.device import GreeDevice
 from .aiogree.transport_udp import GreeUdpTransport
 from .const import (
     CONF_DEVICE_CONNECTION,
+    CONF_DEVICE_CONNECTION_CLOUD,
     CONF_DEVICE_CONNECTION_LOCAL,
     CONF_DEVICES,
     CONF_DISCOVERY_PREFS_KEY,
     CONF_DISCOVERY_PREFS_VERSION,
+    CONF_ENCRYPTION_KEY,
     CONF_EXTRA_SCAN_HOSTS,
     CONF_EXTRA_SCAN_NETWORKS,
+    CONF_MAC_CONTROLLER_CLOUD,
+    CONF_MAC_CONTROLLER_LOCAL,
+    CONF_UID,
+    CURRENT_CONF_VERSION,
+    DEFAULT_DEVICE_UID,
     DEFAULT_DISCOVERY_TIMEOUT,
+    DOMAIN,
     MAX_UNICAST_SCAN_HOSTS,
 )
 
@@ -28,7 +39,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def _get_hass_broadcast_addr(hass: HomeAssistant) -> list[str]:
-    """Return the broadcast adresses from HA."""
+    """Return the broadcast addresses from HA."""
     broadcast_addresses: list[str] = []
 
     try:
@@ -204,3 +215,124 @@ async def try_find_new_ip(
         _LOGGER.exception("Config entry data does not contain the required keys")
 
     return True
+
+
+def create_discovered_from_config(mac: str, conf: dict) -> GreeDiscoveredDevice:
+    """Return a GreeDiscoveredDevice based on config data."""
+    conn = conf.get(CONF_DEVICE_CONNECTION, {})
+    local = conn.get(CONF_DEVICE_CONNECTION_LOCAL, {})
+    cloud = conn.get(CONF_DEVICE_CONNECTION_CLOUD, {})
+    return GreeDiscoveredDevice(
+        mac=mac,
+        mac_controller_local=local.get(CONF_MAC_CONTROLLER_LOCAL, ""),
+        mac_controller_mqtt=cloud.get(CONF_MAC_CONTROLLER_CLOUD, ""),
+        user_id=conn.get(CONF_UID, DEFAULT_DEVICE_UID),
+        key=conn.get(CONF_ENCRYPTION_KEY, ""),
+        host=local.get(CONF_HOST, ""),
+        port=local.get(CONF_PORT, ""),
+    )
+
+
+def get_entity_ids_from_unique_ids(
+    hass: HomeAssistant,
+    entity_domain: str,
+    unique_ids: list[str],
+) -> list[str]:
+    """Resolve a list of unique_ids to their entity_ids in the given domain/platform.
+
+    Entities that aren't registered yet (unique_id not found) are skipped.
+    """
+    ent_reg = er.async_get(hass)
+
+    entity_ids = [
+        ent_reg.async_get_entity_id(entity_domain, DOMAIN, unique_id)
+        for unique_id in unique_ids
+    ]
+
+    return [entity_id for entity_id in entity_ids if entity_id is not None]
+
+
+def get_config_entries(
+    hass: HomeAssistant,
+    ignore_entries: list[str] | None = None,
+    match_entries: list[str] | None = None,
+) -> list[ConfigEntry]:
+    """Get this integration config entries with filters."""
+    entries: list[ConfigEntry] = hass.config_entries.async_entries(DOMAIN)
+
+    return [
+        entry
+        for entry in entries
+        if entry.version >= CURRENT_CONF_VERSION
+        and (ignore_entries is None or entry.unique_id not in ignore_entries)
+        and (match_entries is None or entry.unique_id in match_entries)
+    ]
+
+
+def get_entry_matching_mac(hass: HomeAssistant, target_mac: str) -> ConfigEntry | None:
+    """Get a config entry that has the target_mac as a configured device."""
+    entries: list[ConfigEntry] = get_config_entries(hass)
+
+    matches: list[ConfigEntry] = [
+        e for e in entries if target_mac in e.data.get(CONF_DEVICES, {})
+    ]
+
+    if len(matches) > 1:
+        _LOGGER.error("A device must exist in only one entry")
+    elif len(matches) == 1:
+        return matches[0]
+
+    return None
+
+
+def get_configured_macs_in_entries(
+    hass: HomeAssistant,
+    ignore_entries: list[str] | None = None,
+    match_entries: list[str] | None = None,
+) -> Mapping[str, ConfigEntry]:
+    """Get configured device macs and their respective config entry."""
+    entries: list[ConfigEntry] = get_config_entries(
+        hass, ignore_entries=ignore_entries, match_entries=match_entries
+    )
+
+    configured_macs: dict[str, ConfigEntry] = {}
+
+    for e in entries:
+        conf_devices: dict[str, Any] = e.data.get(CONF_DEVICES, {})
+        for mac in conf_devices:
+            configured_macs[mac] = e
+
+    return configured_macs
+
+
+def get_subdevices_mac_matching_controller(
+    hass: HomeAssistant, controller_mac: str
+) -> tuple[ConfigEntry, set[str]] | None:
+    """Get sub-device macs that match a given controller and their respective config entry."""
+    matched_entry: ConfigEntry | None = None
+    matched_devices: set[str] = set()
+
+    for entry in get_config_entries(hass):
+        conf_devices: dict[str, Any] = entry.data.get(CONF_DEVICES, {})
+
+        for mac, device in conf_devices.items():
+            controller_local = (
+                device.get(CONF_DEVICE_CONNECTION, {})
+                .get(CONF_DEVICE_CONNECTION_LOCAL, {})
+                .get(CONF_MAC_CONTROLLER_LOCAL)
+            )
+
+            if controller_mac != controller_local:
+                continue
+
+            if matched_entry is not None and matched_entry is not entry:
+                _LOGGER.error("A device must exist in only one entry")
+                return None
+
+            matched_entry = entry
+            matched_devices.add(mac)
+
+    if matched_entry is None:
+        return None
+
+    return matched_entry, matched_devices

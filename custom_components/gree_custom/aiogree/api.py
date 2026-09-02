@@ -79,7 +79,7 @@ class GreeProp(StrEnum):
     SENSOR_INDOOR_TEMPERATURE_1 = "EnvTem"
     SENSOR_INDOOR_TEMPERATURE_2 = "InEvaTem"
     SENSOR_INDOOR_TEMPERATURE_3 = "TemSen"  # value heavily varies with operation mode
-    # outside temperature sensors, used to read the current outdooors temperature, if available, ordered by preference
+    # outside temperature sensors, used to read the current outdoors temperature, if available, ordered by preference
     SENSOR_OUTSIDE_TEMPERATURE_1 = "OutEnvTem"
     SENSOR_OUTSIDE_TEMPERATURE_2 = "TemsSenOut"
     # indoor humidity sensor, used to read the current room humidity, if available, ordered by preference
@@ -539,7 +539,7 @@ class StatusResult(NamedTuple):
     """The result of a status request."""
 
     prop_values: dict[str, str]
-    missin_props: list[str]
+    missing_props: list[str]
 
 
 class BindingInfo(NamedTuple):
@@ -1012,7 +1012,7 @@ async def gree_get_status(
             )
             res = gree_process_status_pack(result, batched_props)
             status.update(res.prop_values)
-            missing.extend(res.missin_props)
+            missing.extend(res.missing_props)
 
     except GreeConnectionError, GreeProtocolError:
         raise
@@ -1022,7 +1022,7 @@ async def gree_get_status(
             f"Error getting status of device '{mac_addr}' via {transport}"
         ) from err
 
-    return StatusResult(prop_values=status, missin_props=missing)
+    return StatusResult(prop_values=status, missing_props=missing)
 
 
 def gree_process_status_pack(pack: dict, props: list[str] | None) -> StatusResult:
@@ -1053,7 +1053,7 @@ def gree_process_status_pack(pack: dict, props: list[str] | None) -> StatusResul
         if len(cols) == 1:
             # if there is a single prop without value, add to missing
             _LOGGER.warning("Device queried for invalid prop: %s", cols)
-            return StatusResult(prop_values={}, missin_props=cols)
+            return StatusResult(prop_values={}, missing_props=cols)
 
         raise GreeProtocolError(f"Malformed response: cols={len(cols)} dat={len(dat)}")
 
@@ -1068,10 +1068,10 @@ def gree_process_status_pack(pack: dict, props: list[str] | None) -> StatusResul
     if props:
         invalid_props = [p for p in props if p not in returned_props]
         if len(invalid_props) > 0:
-            _LOGGER.warning("Device queried for invalid props: %s", invalid_props)
+            _LOGGER.info("Device queried for invalid props: %s", invalid_props)
 
     _LOGGER.debug("Got status for device: %s", status_values)
-    return StatusResult(prop_values=status_values, missin_props=invalid_props)
+    return StatusResult(prop_values=status_values, missing_props=invalid_props)
 
 
 async def gree_set_status(
@@ -1162,14 +1162,7 @@ async def _gree_get_scan(
 
     _LOGGER.debug("Got device info: %s", pack)
 
-    info: dict[str, str | dict | None] = {}
-    info["raw"] = pack
-    info["firmware_version"], info["firmware_code"] = extract_fw_version(
-        pack.get("hid", "")
-    )
-    info["mac"] = pack.get("mac", "")
-    info["subdevices_count"] = pack.get("subCnt", 0)
-    return info
+    return pack
 
 
 def extract_fw_version(hid: str) -> tuple[str | None, str | None]:
@@ -1271,6 +1264,87 @@ async def _get_sub_devices_list(
         return discovered_subdevices
 
 
+async def _process_local_scan_response(
+    ip_address: str, pack: dict, user_id: int
+) -> list[GreeDiscoveredDevice]:
+    discovered_devices: list[GreeDiscoveredDevice] = []
+
+    device = DeviceScanInfoResponse.model_validate(pack)
+
+    if not device.mac:
+        _LOGGER.debug("No MAC address in response from %s", ip_address)
+        return discovered_devices
+
+    mac, mac_controller = gree_extract_macs(device.mac)
+
+    discovered_device = GreeDiscoveredDevice(
+        mac=mac,
+        mac_controller_local=mac_controller,
+        host=ip_address,
+        port=DEFAULT_DEVICE_PORT,
+        name=device.name or f"Gree {mac[-5:]}",
+        catalog=device.catalog or "",
+        brand=device.brand or "gree",
+        model=device.model or "gree",
+        model_type=device.ModelType or "",
+        vender=device.vender or "",
+        mid=device.mid or "",
+        hid=device.hid or "",
+        ver=device.ver or "",
+        user_id=DEFAULT_DEVICE_USERID,
+    )
+    discovered_devices.append(discovered_device)
+
+    if device.subCnt and device.subCnt > 0:
+        # TODO: Ingest subdevices, need debugging.
+        # TODO: Is the device above also added, or only sub_devices?
+        transport = GreeUdpTransport(ip_address, DEFAULT_DEVICE_PORT)
+        sub_devices = await _get_sub_devices_list(
+            mac_controller,
+            user_id,
+            get_cipher(EncryptionVersion.V1),
+            transport,
+            discovered_device,
+            device.subCnt,
+        )
+        discovered_devices.extend(sub_devices)
+    return discovered_devices
+
+
+async def gree_discover_device_local(
+    ip_address: str, timeout: int, user_id: int
+) -> list[GreeDiscoveredDevice]:
+    """Target scan to a single Gree device.
+
+    Args:
+        ip_address: IP address of the target device
+        timeout: Timeout (s) to wait for device responses
+        user_id: User ID for the request
+
+    Returns:
+        List of the discovered devices under the same target device
+
+    """
+    discovered_devices: list[GreeDiscoveredDevice] = []
+
+    try:
+        transport: GreeUdpTransport = GreeUdpTransport(
+            ip_addr=ip_address, timeout=timeout
+        )
+        pack: dict = await gree_get_response_pack(
+            "",
+            {"t": GreeCommand.SCAN.value},
+            get_cipher(EncryptionVersion.V1),
+            transport,
+        )
+    except Exception:
+        _LOGGER.exception("Fail in targeted scan")
+        return discovered_devices
+
+    _LOGGER.debug("Got device info: %s", pack)
+    return await _process_local_scan_response(ip_address, pack, user_id)
+
+
 async def gree_discover_devices_local(
     broadcast_addresses: list[str], timeout: int, user_id: int
 ) -> list[GreeDiscoveredDevice]:
@@ -1300,44 +1374,9 @@ async def gree_discover_devices_local(
         if response is not None:
             pack = response.get("pack")
             if pack is not None and pack.get("t") == "dev":
-                device = DeviceScanInfoResponse.model_validate(pack)
-
-                if not device.mac:
-                    _LOGGER.debug("No MAC address in response from %s", address)
-                    continue
-
-                mac, mac_controller = gree_extract_macs(device.mac)
-
-                discovered_device = GreeDiscoveredDevice(
-                    mac=mac,
-                    mac_controller_local=mac_controller,
-                    host=address,
-                    port=DEFAULT_DEVICE_PORT,
-                    name=device.name or f"Gree {mac[:5]}",
-                    catalog=device.catalog or "",
-                    brand=device.brand or "gree",
-                    model=device.model or "gree",
-                    model_type=device.ModelType or "",
-                    vender=device.vender or "",
-                    mid=device.mid or "",
-                    hid=device.hid or "",
-                    ver=device.ver or "",
-                    user_id=DEFAULT_DEVICE_USERID,
+                discovered_devices.extend(
+                    await _process_local_scan_response(address, pack, user_id)
                 )
-                discovered_devices.append(discovered_device)
-
-                if device.subCnt and device.subCnt > 0:
-                    # TODO: Ingest subdevices, need debugging. Is the device above also added, or only sub_devices?
-                    transport = GreeUdpTransport(address, DEFAULT_DEVICE_PORT)
-                    sub_devices = await _get_sub_devices_list(
-                        mac_controller,
-                        user_id,
-                        get_cipher(EncryptionVersion.V1),
-                        transport,
-                        discovered_device,
-                        device.subCnt,
-                    )
-                    discovered_devices.extend(sub_devices)
 
     _LOGGER.info("Found total of %d local devices", len(discovered_devices))
     return discovered_devices

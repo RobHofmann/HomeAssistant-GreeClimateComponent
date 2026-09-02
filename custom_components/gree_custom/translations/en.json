@@ -4,136 +4,141 @@
             "unknown": "Something went wrong, please try again. If the issue persists, please check the logs.",
             "cannot_connect": "Unable to connect to the device. Please check the device configuration and network connection and try again. If the issue persists, please check the logs.",
             "cannot_bind": "Unable to bind the device. It was not possible to find the device encryption version or key. If the issue persists, please check the logs.",
-            "no_devices_found": "Couldn't find any Gree device in the network. Please add your device manually.",
             "invalid_network": "Invalid CIDR. Example: 192.168.30.0/24",
             "invalid_host": "Invalid IP address. Example: 192.168.30.50",
             "network_too_large": "Network exceeds the maximum of 65536 hosts (a /16). Split into multiple CIDRs or list specific hosts.",
             "too_many_targets": "The specified networks and hosts exceed the maximum of 65536 hosts (a /16). Split into multiple CIDRs or list specific hosts.",
             "cloud_bad_login": "Login failed. Ensure the details are correct and try again.",
-            "cloud_unknown": "Error during login. Please check the logs and contact the developers"
+            "cloud_unknown": "Error during login. Please check the logs and contact the developers",
+            "no_devices_selected": "Please select at least one device to continue"
         },
         "abort": {
-            "already_configured": "A device with this MAC address is already configured."
+            "reconfigure_successful": "Devices reconfigured with success.",
+            "already_configured": "A device with this MAC address is already configured.",
+            "unique_id_mismatch": "The entry being configured does not match the configuration intent.",
+            "no_devices_to_add": "No new devices discovered. Adjust your discovery options and try again."
         },
         "step": {
+            "user": {
+                "title": "Gree Climate Setup",
+                "description": "Choose how to discover your Gree device",
+                "data": {
+                    "discovery": "Discovery Method"
+                }
+            },
+            "cloud_add": {
+                "title": "Gree Account",
+                "description": "Enter the details to connect to your Gree account",
+                "data": {
+                    "email": "Email",
+                    "password": "Password",
+                    "region": "Region"
+                }
+            },
+            "local_add": {
+                "title": "Local Discovery",
+                "description": "Devices will be automatically discovered by scanning the available networks.\n\nIf you have devices on a different subnet or VLAN, enter one or more networks and/or specific IP addresses to probe via unicast. Inter-VLAN routing and firewall rules must allow UDP port 7000 from Home Assistant to the target subnet.",
+                "data": {
+                    "extra_scan_hosts": "Extra Hosts",
+                    "extra_scan_networks": "Extra Networks"
+                },
+                "data_description": {
+                    "extra_scan_hosts": "(IPs, e.g. 192.168.30.50, 192.168.30.51)",
+                    "extra_scan_networks": "(CIDRs, e.g. 192.168.20.0/24, 192.168.30.0/24)"
+                }
+            },
             "device_picker": {
                 "title": "Discovered Devices",
-                "description": "Found {devices_found} Gree device(s). Select one to add or choose manual setup.",
+                "description": "Found {devices_found} Gree device(s). Select the devices you want to configure.\n\nCaution: If you are reconfiguring devices, unselected devices will be removed.",
                 "data": {
-                    "device": "Devices"
+                    "devices": "Devices"
                 }
             },
             "connection_options": {
-                "title": "Connection Options",
-                "description": "Configure the connection options that will use for each device\n\nDevice {device_idx} of {device_cnt}: {device_name}"
-            },
-            "user": {
-                "title": "Gree Climate Setup",
-                "description": "Choose how to add your Gree air conditioner",
+                "title": "Connection Options {device_idx} of {device_cnt}",
+                "description": "Configure the connection options that will use for the device:\n\n{device_name}",
                 "data": {
-                    "discovery": "Setup Method"
-                }
-            },
-            "manual_discovery": {
-                "title": "Discovered Devices",
-                "description": "Found {devices_found} Gree device(s). Select one to add or choose manual setup.",
-                "data": {
-                    "device": "Device"
-                }
-            },
-            "discovery_options": {
-                "title": "Extended Discovery",
-                "description": "Devices on a different subnet or VLAN? Enter one or more networks and/or specific IP addresses to probe via unicast. Inter-VLAN routing and firewall rules must allow UDP port 7000 from Home Assistant to the target subnet.",
-                "data": {
-                    "extra_scan_networks": "Networks (comma-separated CIDRs, e.g. 192.168.20.0/24,192.168.30.0/24)",
-                    "extra_scan_hosts": "Hosts (comma-separated IPs, e.g. 192.168.30.50,192.168.30.51)"
-                }
-            },
-            "manual_add": {
-                "title": "Device configuration",
-                "data": {
-                    "host": "IP Address",
-                    "mac": "MAC Address"
+                    "disable_available_check": "Disable Available Check",
+                    "encryption_key": "Encryption Key",
+                    "scan_interval": "Scan Interval",
+                    "uid": "User ID"
+                },
+                "data_description": {
+                    "encryption_key": "If left empty will be automatically discovered",
+                    "scan_interval": "Frequency of the device data polling (in seconds)",
+                    "uid": "The user ID number that owns the device. Can be 0 if not known"
                 },
                 "sections": {
-                    "advanced": {
-                        "name": "Advanced Settings",
-                        "description": "Configure advanced setting of the device",
+                    "local": {
+                        "name": "Local Connection Settings",
                         "data": {
-                            "port": "Port",
-                            "encryption_key": "Encryption Key",
                             "encryption_version": "Encryption Version",
-                            "uid": "UID",
-                            "disable_available_check": "Disable Available Check",
+                            "host": "IP Address (discovered: {discovered_ip})",
+                            "mac_controller_local": "MAC of the local controller device (discovered: {discovered_mac_local})",
                             "max_online_attempts": "Max Connection Attempts",
+                            "port": "Port",
                             "timeout": "Connection Timeout"
                         },
                         "data_description": {
                             "max_online_attempts": "The number of attempts to communicate with the device before it is marked as unavailable",
                             "timeout": "The timeout for each of the connection attempts"
+                        }
+                    },
+                    "cloud": {
+                        "name": "Cloud Connection Settings",
+                        "data": {
+                            "mac_controller_cloud": "MAC of the cloud controller device (discovered: {discovered_mac_cloud})",
+                            "prefer_cloud": "Prefer Cloud Connection"
+                        },
+                        "data_description": {
+                            "prefer_cloud": "Devices prefer local connections. Check if you prefer this device to connect through the cloud"
                         }
                     }
                 }
             },
             "device_options": {
-                "title": "Device features",
-                "description": "The Gree API doesn't have a reliable method of getting the supported features of a device. Please use the options bellow to the best of your knowledge about your device.\n\nDevice {device_idx} of {device_cnt}: {device_mac}",
+                "title": "Device Features {device_idx} of {device_cnt}",
+                "description": "The Gree API doesn't have a reliable method of getting the supported features of a device. Please use the options bellow to the best of your knowledge about your device:\n\n {device_name}",
                 "data": {
-                    "device_name": "Device Name",
+                    "name": "Device Name",
                     "hvac_modes": "HVAC Modes",
                     "fan_modes": "Fan Speeds",
                     "swing_modes": "Vertical Swing Modes",
                     "swing_horizontal_modes": "Horizontal Swing Modes",
                     "features": "Device Features and Modes",
+                    "target_temp_step": "Temperature Step",
                     "external_temperature_sensor": "External Temperature Sensor",
                     "external_humidity_sensor": "External Humidity Sensor",
-                    "restore_states": "Restore Entities",
-                    "target_temp_step": "Temperature Step",
-                    "scan_interval": "Scan Interval"
+                    "restore_states": "Restore Entities"
                 },
                 "data_description": {
-                    "external_temperature_sensor": "If set will replace the built-in HVAC temperature sensor",
-                    "external_humidity_sensor": "If set will replace the built-in HVAC humidity sensor",
-                    "restore_states": "If set to true, when the integration is started the device will be overriden by previous states of the integration instead of using the current device state.",
-                    "target_temp_step": "Sets the increment step for adjusting the target temperature. Fahrenheit degrees are clamped to the nearest integer.",
-                    "scan_interval": "Frequency of the device data polling (in seconds)"
+                    "external_temperature_sensor": "If set will replace the built-in HVAC temperature sensor for the Climate entity data",
+                    "external_humidity_sensor": "If set will replace the built-in HVAC humidity sensor for the Climate entity data",
+                    "restore_states": "If checked, when the integration is started the device will be overridden by previous states of the integration instead of using the current device state.",
+                    "target_temp_step": "Sets the increment step for adjusting the target temperature. Fahrenheit degrees are clamped to the nearest integer."
                 }
             },
             "reconfigure": {
-                "title": "Device configuration",
+                "title": "Reconfigure Devices",
+                "description": "You are reconfiguring a entry with a cloud account. Do you want to look for local devices that match your cloud devices?",
                 "data": {
-                    "name": "Name",
-                    "host": "IP Address",
-                    "mac": "MAC Address"
-                },
-                "sections": {
-                    "advanced": {
-                        "name": "Advanced Settings",
-                        "description": "Configure advanced setting of the device",
-                        "data": {
-                            "port": "Port",
-                            "encryption_key": "Encryption Key",
-                            "encryption_version": "Encryption Version",
-                            "uid": "UID",
-                            "disable_available_check": "Disable Available Check",
-                            "max_online_attempts": "Max Connection Attempts",
-                            "timeout": "Connection Timeout"
-                        },
-                        "data_description": {
-                            "max_online_attempts": "The number of attempts to communicate with the device before it is marked as unavailable",
-                            "timeout": "The timeout for each of the connection attempts"
-                        }
-                    }
+                    "include_local": "Include local devices"
                 }
             }
         }
     },
     "selector": {
-        "discovery_method": {
+        "discovery": {
             "options": {
-                "discover": "Discover devices on the local network",
-                "discover_extended": "Discover devices on the local network and other VLANs/subnets",
-                "manual": "Add device manually"
+                "cloud": "Gree Cloud account",
+                "local": "Local network"
+            }
+        },
+        "encryption_version": {
+            "options": {
+                "0": "Auto-Detect",
+                "1": "V1",
+                "2": "V2"
             }
         },
         "hvac_modes": {
@@ -162,16 +167,16 @@
             "options": {
                 "default": "Default",
                 "full_swing": "Swing in full range",
-                "fixed_upper": "Fixed in the upmost position",
+                "fixed_upper": "Fixed in the highest position",
                 "fixed_upper_middle": "Fixed in the middle-up position",
                 "fixed_middle": "Fixed in the middle position",
                 "fixed_lower_middle": "Fixed in the middle-low position",
                 "fixed_lower": "Fixed in the lowest position",
-                "swing_lower": "Swing in the downmost region",
+                "swing_lower": "Swing in the lowest region",
                 "swing_lower_middle": "Swing in the middle-low region",
                 "swing_middle": "Swing in the middle region",
                 "swing_upper_middle": "Swing in the middle-up region",
-                "swing_upper": "Swing in the upmost region"
+                "swing_upper": "Swing in the highest region"
             }
         },
         "swing_horizontal_modes": {
@@ -238,16 +243,16 @@
                         "state": {
                             "default": "Default",
                             "full_swing": "Swing in full range",
-                            "fixed_upper": "Fixed in the upmost position",
+                            "fixed_upper": "Fixed in the highest position",
                             "fixed_upper_middle": "Fixed in the middle-up position",
                             "fixed_middle": "Fixed in the middle position",
                             "fixed_lower_middle": "Fixed in the middle-low position",
                             "fixed_lower": "Fixed in the lowest position",
-                            "swing_lower": "Swing in the downmost region",
+                            "swing_lower": "Swing in the lowest region",
                             "swing_lower_middle": "Swing in the middle-low region",
                             "swing_middle": "Swing in the middle region",
                             "swing_upper_middle": "Swing in the middle-up region",
-                            "swing_upper": "Swing in the upmost region"
+                            "swing_upper": "Swing in the highest region"
                         }
                     },
                     "swing_horizontal_mode": {

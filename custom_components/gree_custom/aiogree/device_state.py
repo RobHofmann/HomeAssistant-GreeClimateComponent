@@ -67,7 +67,7 @@ class DeviceState:
             self._pending[prop] = value
         else:
             _LOGGER.error(
-                "[%s] Property %s is unsuported on this device", self._device_id, prop
+                "[%s] Property %s is unsupported on this device", self._device_id, prop
             )
 
     def set_bool(self, prop: GreeProp, value: bool) -> None:
@@ -145,7 +145,7 @@ class DeviceState:
         """Remove properties from polling if their state values are not valid."""
 
         # Remove all unsupported properties
-        # A unsupported propery is one that the device returns
+        # A unsupported property is one that the device returns
         # with an empty string, or nothing at all
         # If that is the case, _state_raw should not contain that property
         # In case it still has it, we remove it here as well
@@ -175,7 +175,7 @@ class DeviceState:
 
     @property
     def has_pending_updates(self) -> bool:
-        """Does the state have pending values to be commited."""
+        """Does the state have pending values to be committed."""
         return any(self._raw.get(k) != v for k, v in self._pending.items())
 
     #
@@ -193,7 +193,7 @@ class DeviceState:
 
     @property
     def pending(self) -> MappingProxyType[GreeProp, int]:
-        """The pending uncommited device state values."""
+        """The pending uncommitted device state values."""
         return MappingProxyType(self._pending)
 
     @property

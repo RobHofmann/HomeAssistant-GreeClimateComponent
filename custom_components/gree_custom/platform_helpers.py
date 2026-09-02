@@ -4,11 +4,14 @@ from collections.abc import Sequence
 import logging
 from typing import Any, TypeVar
 
-from config.custom_components.gree_custom.const import CONF_DEVICE_OPTIONS
-
 from .aiogree.api import GreeProp
 from .aiogree.device import GreeDevice
-from .const import CONF_FEATURES, CONF_TO_PROP_FEATURE_MAP, DEFAULT_SUPPORTED_FEATURES
+from .const import (
+    CONF_DEVICE_OPTIONS,
+    CONF_FEATURES,
+    CONF_TO_PROP_FEATURE_MAP,
+    DEFAULT_SUPPORTED_FEATURES,
+)
 from .entity import GreeEntityDescription
 
 _LOGGER = logging.getLogger(__name__)

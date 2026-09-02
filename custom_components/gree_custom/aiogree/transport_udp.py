@@ -73,11 +73,13 @@ class GreeUdpTransport(GreeBaseTransport):
 
             try:
                 # when connecting, perform a targeted scan so the device can respond to the consecutive bind request
+                # if this fails, the device probably does not support local connections
                 await self.request_json(
                     "", {"t": "scan"}, get_cipher(EncryptionVersion.V1)
                 )
             except GreeError:
                 self._reset_stream()
+                raise
 
     @override
     async def disconnect(self) -> None:

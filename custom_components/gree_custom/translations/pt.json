@@ -1,219 +1,133 @@
 {
     "config": {
         "error": {
-            "unknown": "Ocorreu algo de errado, tente de novo. Se o problema persistir, verifique os registos.",
-            "cannot_connect": "Não foi possível ligar ao dispositivo. Verifique as configurações do dispositivo e de rede e tente de novo.ain. Se o problema persistir, verifique os registos.",
+            "unknown": "Ocorreu algo de errado, tente novamente. \nSe o problema persistir, verifique os registos.",
+            "cannot_connect": "Não foi possível ligar ao dispositivo. \nVerifique a configuração do dispositivo e a conexão de rede e tente novamente. \nSe o problema persistir, verifique os registos.",
             "cannot_bind": "Não foi possível encontrar uma combinação da versão de encriptação e chave do dispositivo válida. Se o problema persistir, verifique os registos.",
-            "no_devices_found": "Não foram encontrados novos dispositivos Gree compatíveis na rede. Por favor, adicione o dispositivo manualmente.",
-            "invalid_network": "CIDR Inválido. Exemplo: 192.168.30.0/24",
-            "invalid_host": "Endereço IP Inválido. Exemplo: 192.168.30.50",
+            "invalid_network": "CIDR inválido. Exemplo: 192.168.30.0/24",
+            "invalid_host": "Endereço IP inválido. Exemplo: 192.168.30.50",
             "network_too_large": "Uma das redes introduzidas excede o número máximo de dispositivos (65536, rede /16). Divida a rede em múltiplos CIDRs ou especifique os dispositivos.",
-            "too_many_targets": "O conjunto de redes e dispositivos introduzidos excede o número máximo de dispositivos (65536, rede /16). Divida a rede em múltiplos CIDRs ou especifique os dispositivos.",
+            "too_many_targets": "As redes e hosts especificados excedem o máximo de 65536 hosts (rede /16). Divida em vários CIDRs ou especifique os dispositivos.",
             "cloud_bad_login": "Falha no login. \nCertifique-se de que os detalhes estejam corretos e tente novamente.",
-            "cloud_unknown": "Erro durante o login. \nVerifique os logs e entre em contato com os desenvolvedores"
+            "cloud_unknown": "Erro durante o login. \nVerifique os registos e entre em contato com os desenvolvedores",
+            "no_devices_selected": "Selecione pelo menos um dispositivo para continuar"
         },
         "abort": {
-            "already_configured": "Um dispositivo com este endereço MAC já foi configurado previamente."
+            "reconfigure_successful": "Dispositivos reconfigurados com sucesso",
+            "already_configured": "Um dispositivo com o este endere;o MAC j]a est]a configurado.",
+            "unique_id_mismatch": "A entrada a ser configurada não corresponde o tipo de configuração.",
+            "no_devices_to_add": "Não foram encontrados novos dispositivos. Ajuste as opções de procura e tente de novo."
         },
         "step": {
             "user": {
                 "title": "Configuração Gree",
-                "description": "Escolha como adicionar o seu dispositivo Gree",
+                "description": "Escolha onde procurar os seus dispositivos Gree",
                 "data": {
-                    "discovery": "Método"
+                    "discovery": "Método de procura"
                 }
             },
-            "manual_discovery": {
-                "title": "Dispositivos Encontrados",
-                "description": "Foram encontrado(s) {devices_found} dispositivo(s) Gree. Selecione um para adicionar ou escolha a configuração manual.",
+            "cloud_add": {
+                "title": "Conta Gree",
+                "description": "Introduza os detalhes para se conectar à sua conta Gree",
                 "data": {
-                    "device": "Dispositivo"
+                    "email": "Email",
+                    "password": "Palavra-passe",
+                    "region": "Região"
                 }
             },
-            "discovery_options": {
-                "title": "Procura Expandida",
-                "description": "Tem dispositivos numa VLAN? Introduza uma ou mais redes e/ou IP de dispositivos para expandir a procura automática. Rotas Inter-VLAN e regras de firewall devem existir para permitir tráfego UDP na porta 7000 desde o Home Assistant até às redes e dispositivos especificados.",
+            "local_add": {
+                "title": "Procura Local",
+                "description": "Os dispositivos serão procurados automaticamente ao nas redes disponíveis.\n\nSe tiver dispositivos numa sub-rede ou VLAN diferente, insira uma ou mais redes e/ou endereços IP específicos para procura via unicast. O encaminhamento entre VLANs e as regras de firewall devem permitir a porta UDP 7000 do Home Assistant para a sub-rede de destino.",
                 "data": {
-                    "extra_scan_networks": "Redes (CIDRs separados por vírgula, e.g. 192.168.20.0/24,192.168.30.0/24)",
-                    "extra_scan_hosts": "Dispositivos (IPs separados por vírgula, e.g. 192.168.30.50,192.168.30.51)"
+                    "extra_scan_hosts": "Dispositivos Extra",
+                    "extra_scan_networks": "Redes Extra"
+                },
+                "data_description": {
+                    "extra_scan_hosts": "(IPs, por exemplo, 192.168.30.50, 192.168.30.51)",
+                    "extra_scan_networks": "(CIDRs, por exemplo, 192.168.20.0/24, 192.168.30.0/24)"
                 }
             },
-            "manual_add": {
-                "title": "Configuração do dispositivo",
+            "device_picker": {
+                "title": "Dispositivos encontrados",
+                "description": "Foram encontrado(s) {devices_found} dispositivo(s) Gree.\nSelecione os dispositivos que deseja configurar.\n\nAtenção: Se estiver a reconfigurar dispositivos, os dispositivos não selecionados serão removidos.",
                 "data": {
-                    "host": "Endereço IP",
-                    "mac": "Endereço MAC"
+                    "devices": "Dispositivos"
+                }
+            },
+            "connection_options": {
+                "title": "Opções de Ligação {device_idx} de {device_cnt}",
+                "description": "Configure as opções de ligação que serão utilizadas para o dispositivo:\n\n{device_name}",
+                "data": {
+                    "disable_available_check": "Desativar Verificação de Disponibilidade",
+                    "encryption_key": "Chave de Encriptação",
+                    "scan_interval": "Taxa de Atualização",
+                    "uid": "ID de Utilizador"
+                },
+                "data_description": {
+                    "encryption_key": "Se deixado em branco será detetada automaticamente",
+                    "scan_interval": "Frequência de atualização dos dados do dispositivo (em segundos)",
+                    "uid": "O número de ID do utilizador que possui o dispositivo. Pode ser 0 se não for conhecido"
                 },
                 "sections": {
-                    "advanced": {
-                        "name": "Definições Avançadas",
-                        "description": "Configure as definições avançadas do dispositivo",
+                    "local": {
+                        "name": "Configurações de conexão local",
                         "data": {
-                            "port": "Porta",
-                            "encryption_key": "Chave de Encriptação",
                             "encryption_version": "Versão de Encriptação",
-                            "uid": "UID",
-                            "disable_available_check": "Desativar Verificação de Disponibilidade",
+                            "host": "Endereço IP (encontrado: {discovered_ip})",
+                            "mac_controller_local": "MAC do dispositivo controlador local (encontrado: {discovered_mac_local})",
                             "max_online_attempts": "Máximo de Tentativas de Ligação",
+                            "port": "Porta",
                             "timeout": "Tempo Limite de Ligação"
                         },
                         "data_description": {
                             "max_online_attempts": "Número máximo de tentativas de comunicação com o dispositivo antes de ele ser marcado como indisponível",
                             "timeout": "Tempo limite de espera das respostas de cada ligação ao dispositivo"
+                        }
+                    },
+                    "cloud": {
+                        "name": "Configurações de conexão cloud",
+                        "data": {
+                            "mac_controller_cloud": "MAC do dispositivo controlador da cloud (encontrado: {discovered_mac_cloud})",
+                            "prefer_cloud": "Preferir ligação por cloud"
+                        },
+                        "data_description": {
+                            "prefer_cloud": "Os dispositivos preferem ligações locais. Ativar se prefere que este dispositivo se ligue através da cloud"
                         }
                     }
                 }
             },
             "device_options": {
-                "title": "Funcionalidades do dispositivo",
-                "description": "A API da Gree não fornece um método robusto para obter as funcionalidades de um dispositivo. Por favor, use as opções abaixo com base nos seus conhecimentos sobre o dispositivo.",
+                "title": "Funcionalidades do Dispositivo {device_idx} de {device_cnt}",
+                "description": "A API da Gree não fornece um método robusto para obter as funcionalidades de um dispositivo. Por favor, use as opções abaixo com base nos seus conhecimentos sobre o dispositivo:\n\n{device_name}",
                 "data": {
-                    "device_name": "Nome do Dispositivo",
+                    "name": "Nome do Dispositivo",
                     "hvac_modes": "Modos de Climatização",
                     "fan_modes": "Velocidades da Ventoinha",
                     "swing_modes": "Modos de Oscilamento Vertical",
                     "swing_horizontal_modes": "Modos de Oscilamento Horizontal",
-                    "features": "Outas Funcionalidades e Modos",
+                    "features": "Outras Funcionalidades e Modos",
+                    "target_temp_step": "Incremento de Temperatura",
                     "external_temperature_sensor": "Sensor de Temperatura",
                     "external_humidity_sensor": "Sensor de Humidade",
-                    "restore_states": "Restaurar Entidades",
-                    "target_temp_step": "Incremento de Temperatura",
-                    "scan_interval": "Taxa de Atualização"
+                    "restore_states": "Restaurar Entidades"
                 },
                 "data_description": {
                     "external_temperature_sensor": "Se definido, substitui o sensor integrado de temperatura interior do dispositivo",
                     "external_humidity_sensor": "Se definido, substitui o sensor integrado de humidade interior do dispositivo",
                     "restore_states": "Se ativo, quando a integração é iniciada, o estado do dispositivo será reposto para o último estado observado na integração.",
-                    "target_temp_step": "Define o incremento da temperatura quando esta é ajustada. Graus Fahrenheit são arredondados para às unidades.",
-                    "scan_interval": "Frequência de atualização dos dados do dispositivo (em segundos)"
+                    "target_temp_step": "Define o incremento da temperatura quando esta é ajustada. Graus Fahrenheit são arredondados para às unidades."
                 }
             },
             "reconfigure": {
-                "title": "Configuração do dispositivo",
+                "title": "Reconfigurar Dispositivos",
+                "description": "Está a reconfigurar uma entrada com uma conta Gree. \nDeseja procurar dispositivos locais que correspondam aos seus dispositivos na conta?",
                 "data": {
-                    "name": "Nomw",
-                    "host": "Endereço IP",
-                    "mac": "Endereço MAC"
-                },
-                "sections": {
-                    "advanced": {
-                        "name": "Definições Avançadas",
-                        "description": "Configure as definições avançadas do dispositivo",
-                        "data": {
-                            "port": "Porta",
-                            "encryption_key": "Chave de Encriptação",
-                            "encryption_version": "Versão de Encriptação",
-                            "uid": "UID",
-                            "disable_available_check": "Desativar Verificação de Disponibilidade",
-                            "max_online_attempts": "Máximo de Tentativas de Ligação",
-                            "timeout": "Tempo Limite de Ligação"
-                        },
-                        "data_description": {
-                            "max_online_attempts": "Número máximo de tentativas de comunicação com o dispositivo antes de ele ser marcado como indisponível",
-                            "timeout": "Tempo limite de espera das respostas de cada ligação ao dispositivo"
-                        }
-                    }
+                    "include_local": "Incluir dispositivos locais"
                 }
-            },
-            "connection_options": {
-                "description": "Configure as opções de conexão que serão utilizadas para cada dispositivo\n\n\nDispositivo {device_idx} de {device_cnt}: {device_name}",
-                "title": "Opções de conexão"
-            },
-            "device_picker": {
-                "data": {
-                    "device": "Dispositivos"
-                },
-                "description": "Foram encontrado(s) {devices_found} dispositivo(s) Gree. \nSelecione um para adicionar ou escolha a configuração manual.",
-                "title": "Dispositivos Encontrados"
-            }
-        }
-    },
-    "selector": {
-        "discovery_method": {
-            "options": {
-                "discover": "Procura automática de dispositivos",
-                "discover_extended": "Procura automática de dispositivos expandida",
-                "manual": "Adicionar manualmente"
-            }
-        },
-        "hvac_modes": {
-            "options": {
-                "auto": "Automático",
-                "cool": "Arrefecer",
-                "dry": "Secar",
-                "fan_only": "Ventilação",
-                "heat": "Aquecer",
-                "off": "Desligado"
-            }
-        },
-        "fan_modes": {
-            "options": {
-                "auto": "Automática",
-                "low": "Baixa",
-                "medium_low": "Média-Baixa",
-                "medium": "Média",
-                "medium_high": "Média-Alta",
-                "high": "Alta",
-                "turbo": "Turbo",
-                "quiet": "Silenciosa"
-            }
-        },
-        "swing_modes": {
-            "options": {
-                "default": "Por defeito",
-                "full_swing": "Oscilação completa",
-                "fixed_upper": "Fixo no topo",
-                "fixed_upper_middle": "Fixo entre o meio e topo",
-                "fixed_middle": "Fixo no meio",
-                "fixed_lower_middle": "Fixo entre o meio e baixo",
-                "fixed_lower": "Fixo em baixo",
-                "swing_lower": "Oscilação na região inferior",
-                "swing_lower_middle": "Oscilação na região média-inferior",
-                "swing_middle": "Oscilação na região intermédia",
-                "swing_upper_middle": "Oscilação na região média-superior",
-                "swing_upper": "Oscilação na região superior"
-            }
-        },
-        "swing_horizontal_modes": {
-            "options": {
-                "default": "Por defeito",
-                "full_swing": "Oscilação completa",
-                "left": "Fixo à esquerda",
-                "left_center": "Fixo entre o meio e a esquerda",
-                "center": "Fixo no meio",
-                "right_center": "Fixo entre o meio e a direita",
-                "right": "Fixo à direita"
-            }
-        },
-        "features": {
-            "options": {
-                "beeper": "Aviso Sonoro",
-                "air": "Ar Fresco",
-                "xfan": "X-Fan",
-                "sleep": "Dormir",
-                "eightdegheat": "Fora de Casa",
-                "lights": "Visor",
-                "health": "Saúde",
-                "anti_direct_blow": "Anti Sopro Direto",
-                "powersave": "Poupança de Energia",
-                "light_sensor": "Brilho Automático do Visor",
-                "faults": "Falha de Operação",
-                "humidity_control": "Controlo de Humidade"
             }
         }
     },
     "entity": {
-        "sensor": {
-            "indoor_temperature": {
-                "name": "Temperatura Interior"
-            },
-            "outdoor_temperature": {
-                "name": "Temperatura Exterior"
-            },
-            "room_humidity": {
-                "name": "Humidade Interior"
-            }
-        },
         "binary_sensor": {
             "faults": {
                 "name": "Falha de Operação"
@@ -242,6 +156,17 @@
                             "quiet": "Silenciosa"
                         }
                     },
+                    "swing_horizontal_mode": {
+                        "state": {
+                            "default": "Por defeito",
+                            "full_swing": "Oscilação completa",
+                            "left": "Fixo à esquerda",
+                            "left_center": "Fixo entre o meio e a esquerda",
+                            "center": "Fixo no meio",
+                            "right_center": "Fixo entre o meio e a direita",
+                            "right": "Fixo à direita"
+                        }
+                    },
                     "swing_mode": {
                         "state": {
                             "default": "Por defeito",
@@ -257,133 +182,213 @@
                             "swing_upper_middle": "Oscilação na região média-superior",
                             "swing_upper": "Oscilação na região superior"
                         }
-                    },
-                    "swing_horizontal_mode": {
-                        "state": {
-                            "default": "Por defeito",
-                            "full_swing": "Oscilação completa",
-                            "left": "Fixo à esquerda",
-                            "left_center": "Fixo entre o meio e a esquerda",
-                            "center": "Fixo no meio",
-                            "right_center": "Fixo entre o meio e a direita",
-                            "right": "Fixo à direita"
-                        }
                     }
                 }
             }
         },
         "number": {
+            "humidity_control_target": {
+                "name": "Alvo do Controle de Humidade"
+            },
             "target_temp_step": {
                 "name": "Incremento de Temperatura"
-            },
-            "humidity_control_target": {
-                "name": "Valor de Controlo de Humidade"
             }
         },
         "select": {
-            "temperature_units": {
-                "name": "Unidade de Temperatura"
-            },
             "humidity_control": {
-                "name": "Controlo de Humidade",
+                "name": "Controle de Humidade",
                 "state": {
                     "disabled": "Desativado",
                     "target_dry": "Secar",
                     "smart_dry": "Secagem Inteligente",
                     "continuous_dry": "Secagem Contínua"
                 }
+            },
+            "temperature_units": {
+                "name": "Unidades de Temperatura"
+            }
+        },
+        "sensor": {
+            "indoor_temperature": {
+                "name": "Temperatura Interior"
+            },
+            "outdoor_temperature": {
+                "name": "Temperatura Exterior"
+            },
+            "room_humidity": {
+                "name": "Humidade Interior"
             }
         },
         "switch": {
-            "auto_light": {
-                "name": "Visor Automático"
-            },
-            "auto_xfan": {
-                "name": "X-Fan Automática"
-            },
-            "lights": {
-                "name": "Visor"
-            },
-            "xfan": {
-                "name": "X-Fan"
-            },
-            "health": {
-                "name": "Saúde"
-            },
-            "powersave": {
-                "name": "Poupança de Energia"
-            },
-            "eightdegheat": {
-                "name": "Fora de Casa"
-            },
-            "sleep": {
-                "name": "Dormir"
-            },
             "air": {
                 "name": "Ar Fresco"
             },
             "anti_direct_blow": {
                 "name": "Anti Sopro Direto"
             },
-            "light_sensor": {
-                "name": "Brilho Automático do Visor"
+            "auto_light": {
+                "name": "Visor Automático"
+            },
+            "auto_xfan": {
+                "name": "X-Fan Automática"
             },
             "beeper": {
                 "name": "Aviso Sonoro"
+            },
+            "eightdegheat": {
+                "name": "Fora de Casa"
+            },
+            "health": {
+                "name": "Saúde"
+            },
+            "light_sensor": {
+                "name": "Brilho Automático do Visor"
+            },
+            "lights": {
+                "name": "Visor"
+            },
+            "powersave": {
+                "name": "Poupança de Energia"
+            },
+            "sleep": {
+                "name": "Dormir"
+            },
+            "xfan": {
+                "name": "X-Fan"
             }
         }
     },
     "exceptions": {
-        "turbo_availability": {
-            "message": "A função Turbo só está disponível nos modos de Arrefecer ou Aquecer"
-        },
-        "entity_unavailable": {
-            "message": "A entidade não está disponível."
-        },
-        "generic": {
-            "message": "Ocorreu um erro a realizar a ação pretendida, consulto os registos da integração."
-        },
-        "invalid_device_id": {
-            "message": "Ocorreu um erro a executar a ação. O dispositivo selecionado é inválido."
-        },
-        "entry_not_loaded": {
-            "message": "Ocorreu um erro a executar a ação. A configuração para o dispositivo não está ativa."
-        },
         "config_entry_not_found": {
             "message": "Ocorreu um erro a executar a ação. A configuração para o dispositivo não foi encontrada."
-        },
-        "invalid_config_data": {
-            "message": "Ocorreu um erro a executar a ação. A configuração para o dispositivo contém dados inválidos."
-        },
-        "humidity_mode_unavailable": {
-            "message": "O Controlo de Humidade só está disponível nos modos de Arrefecer e Secar."
         },
         "continuous_dry_unavailable": {
             "message": "A Secagem Contínua só está disponível no modo de Secar."
         },
+        "entity_unavailable": {
+            "message": "A entidade não está disponível."
+        },
+        "entry_not_loaded": {
+            "message": "Ocorreu um erro a executar a ação. A configuração para o dispositivo não está ativa."
+        },
+        "generic": {
+            "message": "Ocorreu um erro a realizar a ação pretendida, consulto os registos da integração."
+        },
+        "humidity_mode_unavailable": {
+            "message": "O Controlo de Humidade só está disponível nos modos de Arrefecer e Secar."
+        },
+        "invalid_config_data": {
+            "message": "Ocorreu um erro a executar a ação. A configuração para o dispositivo contém dados inválidos."
+        },
+        "invalid_device_id": {
+            "message": "Ocorreu um erro a executar a ação. O dispositivo selecionado é inválido."
+        },
         "smart_dry_unavailable": {
             "message": "A Secagem Inteligente só está disponível no modo de Arrefecer."
+        },
+        "turbo_availability": {
+            "message": "A função Turbo só está disponível nos modos de Arrefecer ou Aquecer"
+        }
+    },
+    "selector": {
+        "discovery": {
+            "options": {
+                "cloud": "Conta Gree Cloud",
+                "local": "Rede local"
+            }
+        },
+        "encryption_version": {
+            "options": {
+                "0": "Detetar Automaticamente",
+                "1": "V1",
+                "2": "V2"
+            }
+        },
+        "fan_modes": {
+            "options": {
+                "auto": "Automática",
+                "low": "Baixa",
+                "medium_low": "Média-Baixa",
+                "medium": "Média",
+                "medium_high": "Média-Alta",
+                "high": "Alta",
+                "turbo": "Turbo",
+                "quiet": "Silenciosa"
+            }
+        },
+        "features": {
+            "options": {
+                "beeper": "Aviso Sonoro",
+                "air": "Ar Fresco",
+                "xfan": "X-Fan",
+                "sleep": "Dormir",
+                "eightdegheat": "Fora de Casa",
+                "lights": "Visor",
+                "health": "Saúde",
+                "anti_direct_blow": "Anti Sopro Direto",
+                "powersave": "Poupança de Energia",
+                "light_sensor": "Brilho Automático do Visor",
+                "faults": "Falha de Operação",
+                "humidity_control": "Controlo de Humidade"
+            }
+        },
+        "hvac_modes": {
+            "options": {
+                "auto": "Automático",
+                "cool": "Arrefecer",
+                "dry": "Secar",
+                "fan_only": "Ventilação",
+                "heat": "Aquecer",
+                "off": "Desligado"
+            }
+        },
+        "swing_horizontal_modes": {
+            "options": {
+                "default": "Por defeito",
+                "full_swing": "Oscilação completa",
+                "left": "Fixo à esquerda",
+                "left_center": "Fixo entre o meio e a esquerda",
+                "center": "Fixo no meio",
+                "right_center": "Fixo entre o meio e a direita",
+                "right": "Fixo à direita"
+            }
+        },
+        "swing_modes": {
+            "options": {
+                "default": "Por defeito",
+                "full_swing": "Oscilação completa",
+                "fixed_upper": "Fixo no topo",
+                "fixed_upper_middle": "Fixo entre o meio e topo",
+                "fixed_middle": "Fixo no meio",
+                "fixed_lower_middle": "Fixo entre o meio e baixo",
+                "fixed_lower": "Fixo em baixo",
+                "swing_lower": "Oscilação na região inferior",
+                "swing_lower_middle": "Oscilação na região média-inferior",
+                "swing_middle": "Oscilação na região intermédia",
+                "swing_upper_middle": "Oscilação na região média-superior",
+                "swing_upper": "Oscilação na região superior"
+            }
         }
     },
     "services": {
-        "get_prop_values_all": {
-            "name": "Consultar todas as propriedades",
-            "description": "Obtém todas as propriedades de um dispositivo Gree",
+        "get_prop_values": {
+            "name": "Consultar propriedades",
+            "description": "Consultar propriedades de um dispositivo Gree",
             "fields": {
                 "device_id": {
-                    "name": "ID do Dispositivo"
+                    "name": "ID do dispositivo"
+                },
+                "prop_list": {
+                    "name": "Lista de propriedades a consultar"
                 }
             }
         },
-        "get_prop_values": {
-            "name": "Consultar propriedades",
-            "description": "Obtém o valor das propriedades de um dispositivo Gree",
+        "get_prop_values_all": {
+            "name": "Consultar todas as propriedades",
+            "description": "Consultar todas as propriedades de um dispositivo Gree",
             "fields": {
                 "device_id": {
-                    "name": "ID do Dispositivo"
-                },
-                "prop_list": {
-                    "name": "Lista de propriedades a obter"
+                    "name": "ID do dispositivo"
                 }
             }
         }

@@ -4,6 +4,29 @@
     "codeowners": ["@robhofmann"],
     "config_flow": true,
     "dependencies": ["network"],
+    "dhcp": [
+        {
+            "registered_devices": true
+        },
+        {
+            "macaddress": "0447CA*"
+        },
+        {
+            "macaddress": "502CC6*"
+        },
+        {
+            "macaddress": "580D0D*"
+        },
+        {
+            "macaddress": "7CB8E6*"
+        },
+        {
+            "macaddress": "9424B8*"
+        },
+        {
+            "macaddress": "C03937*"
+        }
+    ],
     "documentation": "https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent",
     "integration_type": "hub",
     "iot_class": "local_polling",

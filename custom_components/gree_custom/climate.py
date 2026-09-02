@@ -46,7 +46,6 @@ from .const import (
     CONF_SWING_HORIZONTAL_MODES,
     CONF_SWING_MODES,
     CONF_TEMPERATURE_STEP,
-    DEFAULT_EXTERNAL_SENSOR,
     DEFAULT_FAN_MODES,
     DEFAULT_HVAC_MODES,
     DEFAULT_SWING_HORIZONTAL_MODES,
@@ -150,11 +149,9 @@ async def async_setup_entry(
                 restore_state=coordinator.restore_states,
                 check_availability=coordinator.check_availability,
                 external_temperature_sensor_id=options.get(
-                    ATTR_EXTERNAL_TEMPERATURE_SENSOR, DEFAULT_EXTERNAL_SENSOR
+                    ATTR_EXTERNAL_TEMPERATURE_SENSOR
                 ),
-                external_humidity_sensor_id=options.get(
-                    ATTR_EXTERNAL_HUMIDITY_SENSOR, DEFAULT_EXTERNAL_SENSOR
-                ),
+                external_humidity_sensor_id=options.get(ATTR_EXTERNAL_HUMIDITY_SENSOR),
             )
         )
 
@@ -258,7 +255,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                 )
             )
 
-        # When using an external himidity sensor, subscribe to its state changes for updating the current humidity
+        # When using an external humidity sensor, subscribe to its state changes for updating the current humidity
         if self._external_humidity_sensor and self._external_humidity_sensor != "None":
             self._update_current_humidity_from_external(
                 self.hass.states.get(self._external_humidity_sensor)
@@ -278,7 +275,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             )
         )
 
-    async def _restore_entity_state(self) -> None:
+    async def _restore_entity_state(self) -> None:  # noqa: C901
         last_state = await self.async_get_last_state()
         if last_state is None:
             return
@@ -867,7 +864,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         ):
             temperature = None
             _LOGGER.warning(
-                "Ignoring temperature when setting the device mode to AUTO. Will be overriden by the device factory settings"
+                "Ignoring temperature when setting the device mode to AUTO. Will be overridden by the device factory settings"
             )
 
         try:

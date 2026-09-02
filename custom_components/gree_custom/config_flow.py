@@ -9,9 +9,11 @@ from aiomqtt import MqttError
 import voluptuous as vol
 
 from homeassistant.components.diagnostics import async_redact_data
+from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN, SensorDeviceClass
 from homeassistant.config_entries import (
     SOURCE_REAUTH,
     SOURCE_RECONFIGURE,
+    SOURCE_USER,
     ConfigFlow,
     ConfigFlowResult,
 )
@@ -20,6 +22,7 @@ from homeassistant.const import (
     CONF_DISCOVERY,
     CONF_EMAIL,
     CONF_HOST,
+    CONF_NAME,
     CONF_PASSWORD,
     CONF_PORT,
     CONF_REGION,
@@ -29,8 +32,10 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import section
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.selector import (
+    EntitySelector,
+    EntitySelectorConfig,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -42,11 +47,13 @@ from homeassistant.helpers.selector import (
     TextSelectorConfig,
     TextSelectorType,
 )
+from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from homeassistant.helpers.storage import Store
 
 from .aiogree.api import (
     GreeDiscoveredDevice,
     GreeProp,
+    gree_discover_device_local,
     gree_discover_devices_cloud,
     gree_discover_devices_local,
     gree_merge_discovered_devices,
@@ -56,9 +63,9 @@ from .aiogree.cloud_api import GreeCloudApi, GreeRegion
 from .aiogree.device import GreeDevice
 from .aiogree.errors import (
     GreeBindingError,
-    GreeCloudError,
     GreeCloudLoginError,
     GreeConnectionError,
+    GreeError,
 )
 from .aiogree.transport_mqtt import GreeMqttTransport
 from .aiogree.transport_udp import GreeUdpTransport
@@ -69,7 +76,6 @@ from .const import (
     CONF_ALL_DEVICE_CONNECTIONS,
     CONF_ALL_DEVICE_OPTIONS,
     CONF_CLOUD,
-    CONF_DEV_NAME,
     CONF_DEVICE_CONNECTION,
     CONF_DEVICE_CONNECTION_CLOUD,
     CONF_DEVICE_CONNECTION_LOCAL,
@@ -95,14 +101,15 @@ from .const import (
     CONF_TEMPERATURE_STEP,
     CONF_UID,
     CONFENTRY_ID_LOCAL_ONLY,
+    CURRENT_CONF_VERSION,
     DEFAULT_CONNECTION_MAX_ATTEMPTS,
     DEFAULT_CONNECTION_TIMEOUT,
+    DEFAULT_DEVICE_PORT,
     DEFAULT_DEVICE_UID,
     DEFAULT_DISABLE_AVAILABLE_CHECK,
     DEFAULT_DISCOVERY_TIMEOUT,
     DEFAULT_ENCRYPTION_KEY,
     DEFAULT_ENCRYPTION_VERSION,
-    DEFAULT_EXTERNAL_SENSOR,
     DEFAULT_FAN_MODES,
     DEFAULT_HVAC_MODES,
     DEFAULT_PREFER_CLOUD,
@@ -118,43 +125,17 @@ from .const import (
     MAX_UNICAST_SCAN_HOSTS,
     MIN_SCAN_INTERVAL,
 )
-from .helpers import get_discovery_addresses
+from .coordinator import GreeConfigEntry
+from .helpers import (
+    create_discovered_from_config,
+    get_config_entries,
+    get_configured_macs_in_entries,
+    get_discovery_addresses,
+    get_entity_ids_from_unique_ids,
+    get_entry_matching_mac,
+)
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def get_temperature_sensor_options(hass: HomeAssistant) -> list[str]:
-    """Get list of available temperature sensor entities."""
-    options: list[str] = [
-        DEFAULT_EXTERNAL_SENSOR
-    ]  # Include None as option since otherwise the user can't unset the external sensor
-
-    # Get all entities from the registry
-    for state in hass.states.async_all():
-        # Look for temperature sensors
-        if state.entity_id.startswith("sensor."):
-            # Check for explicit device_class
-            if state.attributes.get("device_class") == "temperature":
-                options.append(state.entity_id)
-
-    return options
-
-
-def get_humidity_sensor_options(hass: HomeAssistant) -> list[str]:
-    """Get list of available temperature sensor entities."""
-    options: list[str] = [
-        "None"
-    ]  # Include None as option since otherwise the user can't unset the external sensor
-
-    # Get all entities from the registry
-    for state in hass.states.async_all():
-        # Look for temperature sensors
-        if state.entity_id.startswith("sensor."):
-            # Check for explicit device_class
-            if state.attributes.get("device_class") == "humidity":
-                options.append(state.entity_id)
-
-    return options
 
 
 SETUP_SCHEMA = vol.Schema(
@@ -203,12 +184,34 @@ def _setup_local_schema(default_values: dict | None = None) -> vol.Schema:
         {
             vol.Optional(
                 CONF_EXTRA_SCAN_NETWORKS,
-                default=defaults.get(CONF_EXTRA_SCAN_NETWORKS, []),
+                description={
+                    "suggested_value": defaults.get(CONF_EXTRA_SCAN_NETWORKS, [])
+                },
             ): TextSelector(TextSelectorConfig(multiple=True, multiline=False)),
             vol.Optional(
                 CONF_EXTRA_SCAN_HOSTS,
-                default=defaults.get(CONF_EXTRA_SCAN_HOSTS, []),
+                description={
+                    "suggested_value": defaults.get(CONF_EXTRA_SCAN_HOSTS, [])
+                },
             ): TextSelector(TextSelectorConfig(multiple=True, multiline=False)),
+        }
+    )
+
+
+def _setup_picker_schema(
+    default: list[str], options: dict[str, GreeDiscoveredDevice]
+) -> vol.Schema:
+    return vol.Schema(
+        {
+            vol.Required(CONF_DEVICES, default=default): SelectSelector(
+                SelectSelectorConfig(
+                    options=[
+                        SelectOptionDict(value=m, label=d.friendly_name)
+                        for m, d in options.items()
+                    ],
+                    multiple=True,
+                )
+            )
         }
     )
 
@@ -264,9 +267,11 @@ def _setup_device_connection_options_schema(
                         vol.Optional(
                             CONF_PORT,
                             default=(
-                                defaults_local.get(CONF_PORT) or device_info.port or ""
+                                defaults_local.get(CONF_PORT)
+                                or device_info.port
+                                or DEFAULT_DEVICE_PORT
                             ),
-                        ): vol.Any(cv.port, ""),
+                        ): cv.port,
                         vol.Required(
                             CONF_TIMEOUT,
                             default=defaults_local.get(
@@ -280,17 +285,13 @@ def _setup_device_connection_options_schema(
                             ),
                         ): SelectSelector(
                             SelectSelectorConfig(
+                                translation_key=CONF_ENCRYPTION_VERSION,
                                 options=[
-                                    SelectOptionDict(
-                                        value=ENCRYPTION_VERSION_AUTO,
-                                        label="Auto-Detect",
-                                    ),
-                                    *[
-                                        SelectOptionDict(
-                                            value=str(version.value), label=version.name
-                                        )
+                                    ENCRYPTION_VERSION_AUTO,
+                                    *(
+                                        str(version.value)
                                         for version in EncryptionVersion
-                                    ],
+                                    ),
                                 ],
                                 mode=SelectSelectorMode.DROPDOWN,
                             )
@@ -317,10 +318,8 @@ def _setup_device_connection_options_schema(
                         ): cv.boolean,
                         vol.Optional(
                             CONF_MAC_CONTROLLER_CLOUD,
-                            default=defaults_cloud.get(
-                                CONF_MAC_CONTROLLER_CLOUD,
-                                device_info.mac_controller_mqtt,
-                            ),
+                            default=defaults_cloud.get(CONF_MAC_CONTROLLER_CLOUD)
+                            or device_info.mac_controller_mqtt,
                         ): str,
                     }
                 )
@@ -329,7 +328,7 @@ def _setup_device_connection_options_schema(
     )
 
 
-def _setup_device_options_schema(
+def _setup_device_options_schema(  # noqa: C901
     hass: HomeAssistant, device: GreeDevice, default_values: Mapping | None
 ) -> vol.Schema:
     defaults = default_values or {}
@@ -338,8 +337,8 @@ def _setup_device_options_schema(
     schema.update(
         {
             vol.Required(
-                CONF_DEV_NAME,
-                default=defaults.get(CONF_DEV_NAME, device.name),
+                CONF_NAME,
+                default=defaults.get(CONF_NAME, device.name),
             ): str
         }
     )
@@ -463,34 +462,45 @@ def _setup_device_options_schema(
 
     schema.update(
         {
-            # Ideally we would use an Optional EntitySelector for external sensors.
-            # Currently we can't because unsetting the value in the UI makes HA
-            # populate the user_input with the previous set value, making the user
-            # unable to unset the external sensors.
-            vol.Required(
+            vol.Optional(
                 ATTR_EXTERNAL_TEMPERATURE_SENSOR,
-                default=defaults.get(
-                    ATTR_EXTERNAL_TEMPERATURE_SENSOR, DEFAULT_EXTERNAL_SENSOR
-                ),
-            ): SelectSelector(
-                config=SelectSelectorConfig(
-                    options=get_temperature_sensor_options(hass),
+                description={
+                    "suggested_value": defaults.get(
+                        ATTR_EXTERNAL_TEMPERATURE_SENSOR, ""
+                    )
+                },
+            ): EntitySelector(
+                config=EntitySelectorConfig(
+                    domain=SENSOR_DOMAIN,
+                    device_class=SensorDeviceClass.TEMPERATURE,
                     multiple=False,
-                    mode=SelectSelectorMode.DROPDOWN,
-                    translation_key=ATTR_EXTERNAL_TEMPERATURE_SENSOR,
+                    exclude_entities=get_entity_ids_from_unique_ids(
+                        hass,
+                        SENSOR_DOMAIN,
+                        [
+                            f"{device.mac_address}_indoor_temperature",
+                            f"{device.mac_address}_outdoor_temperature",
+                        ],
+                    ),
                 )
             ),
-            vol.Required(
+            vol.Optional(
                 ATTR_EXTERNAL_HUMIDITY_SENSOR,
-                default=defaults.get(
-                    ATTR_EXTERNAL_HUMIDITY_SENSOR, DEFAULT_EXTERNAL_SENSOR
-                ),
-            ): SelectSelector(
-                config=SelectSelectorConfig(
-                    options=get_humidity_sensor_options(hass),
+                description={
+                    "suggested_value": defaults.get(ATTR_EXTERNAL_HUMIDITY_SENSOR, "")
+                },
+            ): EntitySelector(
+                config=EntitySelectorConfig(
+                    domain=SENSOR_DOMAIN,
+                    device_class=SensorDeviceClass.HUMIDITY,
                     multiple=False,
-                    mode=SelectSelectorMode.DROPDOWN,
-                    translation_key=ATTR_EXTERNAL_HUMIDITY_SENSOR,
+                    exclude_entities=get_entity_ids_from_unique_ids(
+                        hass,
+                        SENSOR_DOMAIN,
+                        [
+                            f"{device.mac_address}_room_humidity",
+                        ],
+                    ),
                 )
             ),
             vol.Required(
@@ -506,7 +516,7 @@ def _setup_device_options_schema(
 class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle the config flow for the integration."""
 
-    VERSION = 3
+    VERSION = CURRENT_CONF_VERSION
 
     def __init__(self) -> None:
         """Initialize the flow."""
@@ -520,13 +530,11 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
         self._config_data: dict = {}
         self._config_data["device_connections"] = {}
         self._config_data["device_options"] = {}
-
-        self._cloud_api: GreeCloudApi
+        self._cloud_api: GreeCloudApi | None = None
 
         self._discovered_devices_cloud: dict[str, GreeDiscoveredDevice] = {}
         self._discovered_devices_local: dict[str, GreeDiscoveredDevice] = {}
         self._discovered_devices: dict[str, GreeDiscoveredDevice] = {}
-
         self._selected_devices: list[GreeDiscoveredDevice] = []
         self._current_setup_device_index = 0
 
@@ -538,8 +546,63 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
         self._options_by_controller: dict[str, Any] = {}
 
     @override
+    async def async_step_dhcp(
+        self, discovery_info: DhcpServiceInfo
+    ) -> ConfigFlowResult:
+        """Handle discovery via dhcp."""
+
+        _LOGGER.debug("Gree device discovered from dhcp: %s", discovery_info)
+
+        # Check what's under that device: Main device and sub-devices
+        # If it does not respond locally, there's no use of this information
+        discover = await gree_discover_device_local(
+            discovery_info.ip, DEFAULT_DISCOVERY_TIMEOUT, DEFAULT_DEVICE_UID
+        )
+
+        entries_to_reload: list[GreeConfigEntry] = []
+        for d in list(discover):
+            entry_match = get_entry_matching_mac(self.hass, d.mac)
+
+            if entry_match:
+                _LOGGER.debug(
+                    "Device '%s' is already configured in entry %s",
+                    discovery_info,
+                    entry_match.title,
+                )
+
+                discover.remove(d)
+
+                # update data
+                new_data = dict(entry_match.data)
+                new_data[CONF_DEVICES][discovery_info.macaddress][
+                    CONF_DEVICE_CONNECTION
+                ][CONF_DEVICE_CONNECTION_LOCAL][CONF_HOST] = discovery_info.ip
+                # TODO: Check if this only returns True if the IP Changed
+                if (
+                    self.hass.config_entries.async_update_entry(
+                        entry_match, data=new_data
+                    )
+                    and entry_match.unique_id
+                ):
+                    if entry_match not in entries_to_reload:
+                        _LOGGER.debug(
+                            "Entry '%s' marked for reload",
+                            entry_match.title,
+                        )
+                        entries_to_reload.append(entry_match)
+
+        for e in entries_to_reload:
+            _LOGGER.debug(
+                "Entry '%s' reloading",
+                e.title,
+            )
+            self.hass.config_entries.async_schedule_reload(e.entry_id)
+
+        return self.async_abort(reason="reconfigure_successful")
+
+    @override
     async def async_step_user(self, user_input: dict | None = None) -> ConfigFlowResult:
-        """Handle the initial step - show discovery or manual entry."""
+        """Handle the initial step - how to add devices."""
         errors: dict[str, str] = {}
         if user_input is not None:
             self._selected_setup_methods = user_input[CONF_DISCOVERY]
@@ -550,7 +613,11 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
             if not errors:
                 if self._selected_setup_methods == ["local"]:
                     await self.async_set_unique_id(CONFENTRY_ID_LOCAL_ONLY)
-                    self._abort_if_unique_id_configured()
+                else:
+                    # Cloud must come first
+                    self._selected_setup_methods = sorted(
+                        self._selected_setup_methods, key=lambda x: x != "cloud"
+                    )
 
                 self._current_setup_method_index = 0
                 return await self._setup_next_setup_method()
@@ -559,24 +626,70 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="user", data_schema=SETUP_SCHEMA, errors=errors
         )
 
+    async def async_step_reauth(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Process a Reauth request."""
+        reauth_entry = self._get_reauth_entry()
+        _LOGGER.debug("Reauth entry: %s", reauth_entry.title)
+
+        return await self.async_step_cloud_add()
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle reconfiguration of an existing entry."""
+        reconfigure_entry = self._get_reconfigure_entry()
+        reconfigure_data = dict(reconfigure_entry.data)
+        _LOGGER.debug("Reconfiguring: %s", reconfigure_entry.title)
+
+        # If on the local-only entry, exit early and continue with the local method only
+        if reconfigure_entry.unique_id == CONFENTRY_ID_LOCAL_ONLY:
+            self._selected_setup_methods = ["local"]
+            self._current_setup_method_index = 0
+            await self.async_set_unique_id(CONFENTRY_ID_LOCAL_ONLY)
+            return await self._setup_next_setup_method()
+
+        # If entry has cloud, ask if user wants to add local
+        # A user cannot remove cloud from an entry, because the entry is keyed by the cloud account
+        # For that, remove the entry and add to the local-only entry
+
+        if user_input is not None:
+            self._selected_setup_methods = ["cloud"]
+            if user_input.get("include_local", False):
+                self._selected_setup_methods.append("local")
+            self._current_setup_method_index = 0
+            return await self._setup_next_setup_method()
+
+        # Pre-select the include local option if any devices have local configurations
+        has_local = any(
+            d.get(CONF_DEVICE_CONNECTION, {})
+            .get(CONF_DEVICE_CONNECTION_LOCAL, {})
+            .get(CONF_HOST)
+            is not None
+            for d in reconfigure_data.get(CONF_DEVICES, {}).values()
+        )
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        "include_local",
+                        default=has_local,
+                    ): cv.boolean
+                }
+            ),
+        )
+
     async def _setup_next_setup_method(
         self, user_input: dict | None = None
     ) -> ConfigFlowResult:
         """Invoke the next selected setup method."""
 
         if self._current_setup_method_index >= len(self._selected_setup_methods):
-            filtered_local = list(self._discovered_devices_local.values())
-            # Only use local devices that are in the cloud list
-            # local-only devices should be added in a different config entry
-            if self._discovered_devices_cloud:
-                filtered_local = [
-                    dev
-                    for dev in self._discovered_devices_local.values()
-                    if dev.mac in self._discovered_devices_cloud
-                ]
-
             discovered = gree_merge_discovered_devices(
-                local_devices=filtered_local,
+                local_devices=list(self._discovered_devices_local.values()),
                 cloud_devices=list(self._discovered_devices_cloud.values()),
             )
             self._discovered_devices = {d.mac: d for d in discovered}
@@ -594,7 +707,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
             case _:
                 return await self._setup_next_setup_method()
 
-    async def async_step_cloud_add(  # noqa: C901
+    async def async_step_cloud_add(
         self, user_input: dict | None = None
     ) -> ConfigFlowResult:
         """Gather cloud info for later discovery."""
@@ -602,49 +715,44 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             self._cloud_api = GreeCloudApi(
-                region=GreeRegion(user_input.get(CONF_REGION, "")),
-                username=user_input.get(CONF_EMAIL, ""),
-                password=user_input.get(CONF_PASSWORD, ""),
+                region=GreeRegion(user_input[CONF_REGION]),
+                username=user_input[CONF_EMAIL],
+                password=user_input[CONF_PASSWORD],
             )
             try:
-                await self._cloud_api.login()
+                credentials = await self._cloud_api.login()
 
-                if self._cloud_api.token:
-                    # Also create the transport here so possible errors are shown
-                    self._mqtt_transport = GreeMqttTransport(
-                        user_id=str(self._cloud_api.user_id),
-                        token=self._cloud_api.token,
-                        region=self._cloud_api.region,
-                    )
-                    await self._mqtt_transport.connect()
-                else:
-                    errors[CONF_BASE] = "cloud_unknown"
+                # Also create the transport here so possible errors are shown
+                self._mqtt_transport = GreeMqttTransport(
+                    user_id=str(credentials.user_id),
+                    token=credentials.token,
+                    region=self._cloud_api.region,
+                )
+                await self._mqtt_transport.connect()
 
-            except GreeCloudLoginError:
-                errors[CONF_BASE] = "cloud_bad_login"
-            except GreeCloudError:
-                errors[CONF_BASE] = "cloud_unknown"
-            except MqttError:
-                errors[CONF_BASE] = "cloud_bad_login"
-
-            else:
+                # Use the user_id as the unique_id since it is more stable than the email
                 await self.async_set_unique_id(str(self._cloud_api.user_id))
 
-                if self.source in (SOURCE_RECONFIGURE, SOURCE_REAUTH):
-                    self._abort_if_unique_id_mismatch()
-                else:
+                # Exit early if there is a config entry with this user_id
+                if self.source == SOURCE_USER:
                     self._abort_if_unique_id_configured()
 
-                self._config_data[CONF_CLOUD] = user_input
-                self._config_data[CONF_CLOUD][CONF_TOKEN] = self._cloud_api.token
-                self._config_data[CONF_CLOUD][CONF_UID] = self._cloud_api.user_id
+                # Ensure reconfigure is of the same user_id
+                self._abort_if_unique_id_mismatch()
+
+                self._config_data[CONF_CLOUD] = {
+                    **user_input,
+                    CONF_TOKEN: credentials.token,
+                    CONF_UID: credentials.user_id,
+                }
 
                 # If a reauth simply exit and update the entry with new data if necessary
                 if self.source == SOURCE_REAUTH:
-                    return self._async_finish()
+                    return await self._async_finish()
 
                 discovered = await gree_discover_devices_cloud(self._cloud_api)
                 self._discovered_devices_cloud = {d.mac: d for d in discovered}
+
                 _LOGGER.info(
                     "Discovered %d devices from the cloud account: %s",
                     len(self._discovered_devices_cloud),
@@ -652,17 +760,23 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                 )
                 return await self._setup_next_setup_method()
 
+            except GreeCloudLoginError:
+                errors[CONF_BASE] = "cloud_bad_login"
+            except MqttError:
+                errors[CONF_BASE] = "cloud_bad_login"
+            except GreeError:
+                errors[CONF_BASE] = "cloud_unknown"
+
             finally:
                 await self._cloud_api.close()
 
         # During reconfigure or reauth, inject existing configuration
-        defaults = None
-        if user_input:
-            defaults = user_input
-        elif self.source == SOURCE_RECONFIGURE:
-            defaults = self._get_reconfigure_entry().data.get(CONF_CLOUD)
-        elif self.source == SOURCE_REAUTH:
-            defaults = self._get_reauth_entry().data.get(CONF_CLOUD)
+        defaults: dict[str, Any] = user_input or {}
+        if not user_input:
+            if self.source == SOURCE_RECONFIGURE:
+                defaults = self._get_reconfigure_entry().data.get(CONF_CLOUD, {})
+            elif self.source == SOURCE_REAUTH:
+                defaults = self._get_reauth_entry().data.get(CONF_CLOUD, {})
 
         return self.async_show_form(
             step_id="cloud_add",
@@ -738,13 +852,47 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                 )
                 self._config_data["local"] = user_input
 
-                # Discover local devices
+                # Discover local devices: main devices and sub-devices of controllers (VRF)
                 discovered = await gree_discover_devices_local(
                     broadcast_addresses=await get_discovery_addresses(self.hass),
                     timeout=DEFAULT_DISCOVERY_TIMEOUT,
                     user_id=0,
                 )
+
+                # if reconfiguring the local-only: Only consider local discovered that are not in other cloud entries
+                # if reconfiguring cloud with local: Only consider local discovered that are not in other cloud entries
+                # if adding a local-only: Only consider new local
+                # if adding a cloud with local: Only consider local that match cloud discovered
+
+                if self.source == SOURCE_RECONFIGURE:
+                    to_ignore = [CONFENTRY_ID_LOCAL_ONLY]
+                    if self.unique_id:
+                        to_ignore.append(self.unique_id)
+                    other_configured = get_configured_macs_in_entries(
+                        self.hass, ignore_entries=to_ignore
+                    )
+                else:
+                    other_configured = get_configured_macs_in_entries(
+                        self.hass,
+                        ignore_entries=None
+                        if self.unique_id == CONFENTRY_ID_LOCAL_ONLY
+                        else [CONFENTRY_ID_LOCAL_ONLY],
+                    )
+                discovered = [
+                    dev for dev in discovered if dev.mac not in other_configured
+                ]
+
+                # Because local discovery always happens after cloud discovery
+                # Filter out discovered devices that are not in the cloud discovery
+                if self._discovered_devices_cloud:
+                    discovered = [
+                        dev
+                        for dev in discovered
+                        if dev.mac in self._discovered_devices_cloud
+                    ]
+
                 self._discovered_devices_local = {d.mac: d for d in discovered}
+
                 _LOGGER.info(
                     "Discovered %d devices from local discovery",
                     len(self._discovered_devices_local),
@@ -771,14 +919,6 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    def _already_configured_macs(self) -> set[str]:
-        return {
-            subentry.unique_id
-            for entry in self.hass.config_entries.async_entries(DOMAIN)
-            for subentry in entry.subentries.values()
-            if subentry.unique_id
-        }
-
     async def async_step_device_picker(
         self, user_input: dict | None = None
     ) -> ConfigFlowResult:
@@ -788,109 +928,50 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             selected: list[str] = user_input.get(CONF_DEVICES, [])
 
-            if not selected:
-                errors[CONF_DEVICES] = "no_devices_selected"
-
-            if not errors:
+            if selected:
                 self._selected_devices = [
-                    self._discovered_devices[key]
-                    for key in selected
-                    if key in self._discovered_devices
+                    self._discovered_devices[key] for key in selected
                 ]
-                self._local_transports = self._create_local_transports(
-                    self._selected_devices
-                )
+
                 return await self.async_step_connection_options()
 
+            errors[CONF_DEVICES] = "no_devices_selected"
+
         selected = list(self._discovered_devices.keys())
+
+        # Pre-fill for reconfigure
         if self.source == SOURCE_RECONFIGURE:
             configured_devices: dict[str, Any] = self._get_reconfigure_entry().data.get(
                 CONF_DEVICES, {}
             )
 
             # Don't select things by default that were not there before
-            for d in self._discovered_devices:
-                if d not in configured_devices:
-                    selected.remove(d)
+            selected = [m for m in selected if m in configured_devices]
 
-            # During a reconfigure inject previously configured devices to the picker if they were not discovered and mark as selected
+            # Add back missing devices that weren't discovered but were in config
             for mac, dev_conf in configured_devices.items():
-                if mac and mac not in self._discovered_devices:
-                    conn = dev_conf.get(CONF_DEVICE_CONNECTION, {})
-                    local = conn.get(CONF_DEVICE_CONNECTION_LOCAL, {})
-                    cloud = conn.get(CONF_DEVICE_CONNECTION_CLOUD, {})
-                    dev = GreeDiscoveredDevice(
-                        mac=mac,
-                        mac_controller_local=local.get(CONF_MAC_CONTROLLER_LOCAL, ""),
-                        mac_controller_mqtt=cloud.get(CONF_MAC_CONTROLLER_CLOUD, ""),
-                        user_id=conn.get(CONF_UID, DEFAULT_DEVICE_UID),
-                        key=conn.get(CONF_ENCRYPTION_KEY, ""),
-                        host=local.get(CONF_HOST, ""),
-                        port=local.get(CONF_PORT, ""),
+                if mac not in self._discovered_devices:
+                    self._discovered_devices[mac] = create_discovered_from_config(
+                        mac, dev_conf
                     )
-                    self._discovered_devices[mac] = dev
+                    selected.append(mac)
 
-        data_schema = vol.Schema(
-            {
-                vol.Required(
-                    CONF_DEVICES,
-                    default=selected,
-                ): SelectSelector(
-                    SelectSelectorConfig(
-                        options=[
-                            SelectOptionDict(value=device_id, label=name.friendly_name)
-                            for device_id, name in self._discovered_devices.items()
-                        ],
-                        multiple=True,
-                    )
-                )
-            }
-        )
+        if not self._discovered_devices:
+            return self.async_abort(reason="no_devices_to_add")
 
         return self.async_show_form(
             step_id="device_picker",
-            data_schema=data_schema,
+            data_schema=_setup_picker_schema(selected, self._discovered_devices),
             description_placeholders={
                 "devices_found": str(len(self._discovered_devices))
             },
             errors=errors,
         )
 
-    def _create_local_transports(
-        self, target_devices: list[GreeDiscoveredDevice]
-    ) -> dict[str, GreeUdpTransport]:
-        """Create the required transport for each of the target devices."""
-
-        # Transports should be one for each controller device, if local device
-        # and the previously create MQTT transport for all the cloud devices.
-        transports: dict[str, GreeUdpTransport] = {}
-        local_transports: dict[str, GreeUdpTransport] = {}
-
-        for d in target_devices:
-            if d.host and d.port:
-                if d.mac_controller_local not in local_transports:
-                    local_transports[d.mac_controller_local] = GreeUdpTransport(
-                        ip_addr=d.host, port=d.port
-                    )
-                    _LOGGER.debug(
-                        "Created UDP transport for device '%s': %s",
-                        d.mac,
-                        local_transports[d.mac_controller_local],
-                    )
-                else:
-                    _LOGGER.debug(
-                        "Using previously created UDP transport for device '%s': %s",
-                        d.mac,
-                        local_transports[d.mac_controller_local],
-                    )
-                transports[d.mac] = local_transports[d.mac_controller_local]
-
-        return transports
-
-    async def async_step_connection_options(
+    async def async_step_connection_options(  # noqa: C901
         self, user_input: dict | None = None
     ) -> ConfigFlowResult:
-        """Iterate throught the selected devices to configure their connection options."""
+        """Iterate through the selected devices to configure their connection options."""
         errors: dict[str, str] = {}
         d = self._selected_devices[self._current_setup_device_index]
 
@@ -906,28 +987,64 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
 
             # Ensure the device can bind
             try:
+                mac_local_controller = local.get(
+                    CONF_MAC_CONTROLLER_LOCAL, d.mac_controller_local
+                )
+                mac_mqtt_controller = cloud.get(
+                    CONF_MAC_CONTROLLER_CLOUD, d.mac_controller_mqtt
+                )
                 encryption_version_value = local.get(
                     CONF_ENCRYPTION_VERSION, DEFAULT_ENCRYPTION_VERSION
                 )
+
+                if mac_local_controller not in self._local_transports:
+                    ip = local.get(CONF_HOST, "")
+                    port = local.get(CONF_PORT, "")
+                    self._local_transports[mac_local_controller] = GreeUdpTransport(
+                        ip_addr=ip, port=port
+                    )
+
                 await device.bind_with_transport(
                     preferred_local_version=(
                         None
                         if encryption_version_value == ENCRYPTION_VERSION_AUTO
                         else EncryptionVersion(int(encryption_version_value))
                     ),
-                    local_controller_mac=local.get(
-                        CONF_MAC_CONTROLLER_LOCAL, d.mac_controller_local
-                    ),
+                    local_controller_mac=mac_local_controller,
                     local_transport=(
-                        self._local_transports.get(d.mac, None)
+                        self._local_transports.get(mac_local_controller, None)
                         if not cloud.get(CONF_PREFER_CLOUD, DEFAULT_PREFER_CLOUD)
                         else None
                     ),
-                    mqtt_controller_mac=cloud.get(
-                        CONF_MAC_CONTROLLER_CLOUD, d.mac_controller_mqtt
-                    ),
+                    mqtt_controller_mac=mac_mqtt_controller,
                     mqtt_transport=self._mqtt_transport,
                 )
+                # Save the correct version if local succeeded
+                if (
+                    isinstance(device.transport, GreeUdpTransport)
+                    and device.encryption_version
+                ):
+                    user_input[CONF_DEVICE_CONNECTION_LOCAL][
+                        CONF_ENCRYPTION_VERSION
+                    ] = str(device.encryption_version.value)
+
+                user_input[CONF_ENCRYPTION_KEY] = device.encryption_key
+                self._config_data[CONF_ALL_DEVICE_CONNECTIONS][d.mac] = user_input
+
+                if mac_local_controller:
+                    self._connections_by_controller[mac_local_controller] = user_input
+                if mac_mqtt_controller:
+                    self._connections_by_controller[mac_mqtt_controller] = user_input
+
+                self._devices[d.mac] = device
+
+                if self._current_setup_device_index >= len(self._selected_devices) - 1:
+                    self._current_setup_device_index = 0
+                    return await self.async_step_device_options()
+
+                self._current_setup_device_index += 1
+                return await self.async_step_connection_options()
+
             except GreeBindingError:
                 errors[CONF_BASE] = "cannot_bind"
                 _LOGGER.exception("Error while binding")
@@ -941,32 +1058,19 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                 errors[CONF_BASE] = "unknown"
                 _LOGGER.exception("Unknown error while binding")
 
-            if not errors:
-                # Save the correct version if local succedded
-                if (
-                    isinstance(device.transport, GreeUdpTransport)
-                    and device.encryption_version
-                ):
-                    user_input[CONF_DEVICE_CONNECTION_LOCAL][
-                        CONF_ENCRYPTION_VERSION
-                    ] = str(device.encryption_version.value)
+        default = user_input
 
-                self._config_data[CONF_ALL_DEVICE_CONNECTIONS][d.mac] = user_input
-                self._connections_by_controller[device.mac_address_controller] = (
-                    user_input
-                )
-                self._devices[d.mac] = device
-
-                if self._current_setup_device_index >= len(self._selected_devices) - 1:
-                    self._current_setup_device_index = 0
-                    return await self.async_step_device_options()
-
-                self._current_setup_device_index += 1
-                return await self.async_step_connection_options()
+        # During user setup find if the device is already configured so we can prefill a cloud device with already configured local device
+        found_device_entry = get_entry_matching_mac(self.hass, d.mac)
+        if not default and self.source == SOURCE_USER and found_device_entry:
+            default = (
+                found_device_entry.data.get(CONF_DEVICES, {})
+                .get(d.mac, {})
+                .get(CONF_DEVICE_CONNECTION, None)
+            )
 
         # During reconfigure inject previous connection options
-        default = user_input
-        if not user_input and self.source == SOURCE_RECONFIGURE:
+        if not default and self.source == SOURCE_RECONFIGURE:
             default = (
                 self._get_reconfigure_entry()
                 .data.get(CONF_DEVICES, {})
@@ -974,17 +1078,22 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                 .get(CONF_DEVICE_CONNECTION, None)
             )
 
-        defaults = default or self._connections_by_controller.get(
-            device.mac_address_controller
+        defaults = (
+            default
+            or self._connections_by_controller.get(d.mac_controller_local)
+            or self._connections_by_controller.get(d.mac_controller_mqtt)
         )
 
         return self.async_show_form(
             step_id="connection_options",
             data_schema=_setup_device_connection_options_schema(d, defaults),
             description_placeholders={
+                "device_name": str(d.friendly_name),
                 "device_idx": str(self._current_setup_device_index + 1),
                 "device_cnt": str(len(self._selected_devices)),
-                "device_name": str(d.name),
+                "discovered_ip": str(d.host or "None"),
+                "discovered_mac_local": str(d.mac_controller_local or "None"),
+                "discovered_mac_cloud": str(d.mac_controller_mqtt or "None"),
             },
             errors=errors,
         )
@@ -992,7 +1101,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_device_options(
         self, user_input: dict | None = None
     ) -> ConfigFlowResult:
-        """Iterate throught the selected devices to configure their options."""
+        """Iterate through the selected devices to configure their options."""
         errors: dict[str, str] = {}
         d = self._selected_devices[self._current_setup_device_index]
         device = self._devices[d.mac]
@@ -1003,13 +1112,25 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
 
             if self._current_setup_device_index >= len(self._selected_devices) - 1:
                 self._current_setup_device_index = 0
-                return self._async_finish()
+                return await self._async_finish()
 
             self._current_setup_device_index += 1
             return await self.async_step_device_options()
 
         default = user_input
-        if not user_input and self.source == SOURCE_RECONFIGURE:
+
+        # During user setup find if the device is already configured
+        if not default and self.source == SOURCE_USER:
+            found_device_entry = get_entry_matching_mac(self.hass, d.mac)
+            if found_device_entry:
+                default = (
+                    found_device_entry.data.get(CONF_DEVICES, {})
+                    .get(d.mac, {})
+                    .get(CONF_DEVICE_OPTIONS, None)
+                )
+
+        # During reconfigure inject previous device options
+        if not default and self.source == SOURCE_RECONFIGURE:
             default = (
                 self._get_reconfigure_entry()
                 .data.get(CONF_DEVICES, {})
@@ -1032,43 +1153,136 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
             description_placeholders={
                 "device_idx": str(self._current_setup_device_index + 1),
                 "device_cnt": str(len(self._selected_devices)),
-                "device_mac": str(d.mac),
+                "device_name": str(d.friendly_name),
             },
             errors=errors,
         )
 
-    def _async_finish(self) -> ConfigFlowResult:
+    async def _async_finish(self) -> ConfigFlowResult:  # noqa: C901
         """Create or update the entry."""
 
         if self.source == SOURCE_REAUTH:
             return self.async_update_reload_and_abort(
                 self._get_reauth_entry(),
-                title=self._config_data.get(CONF_CLOUD, {}).get(
-                    CONF_EMAIL, "Local-only Devices"
-                ),
                 data_updates={CONF_CLOUD: self._config_data.get(CONF_CLOUD, {})},
             )
 
-        device_configs = {}
+        device_registry = dr.async_get(self.hass)
+
+        device_configs: dict[str, Any] = {}
         for d in self._selected_devices:
-            device_configs[str(self._devices[d.mac].mac_address)] = {
+            mac = str(self._devices[d.mac].mac_address)
+            device_configs[mac] = {
                 CONF_DEVICE_CONNECTION: self._config_data[CONF_ALL_DEVICE_CONNECTIONS][
                     d.mac
                 ],
                 CONF_DEVICE_OPTIONS: self._config_data[CONF_ALL_DEVICE_OPTIONS][d.mac],
             }
+
+        local_entry = next(
+            iter(
+                get_config_entries(self.hass, match_entries=[CONFENTRY_ID_LOCAL_ONLY])
+            ),
+            None,
+        )
+
+        # Handling migration from Local-only to Cloud entry
+        if self.unique_id != CONFENTRY_ID_LOCAL_ONLY:
+            if local_entry:
+                local_devices = dict(local_entry.data.get(CONF_DEVICES, {}))
+                moved_any = False
+                for mac in list(local_devices.keys()):
+                    if mac in self._discovered_devices_cloud:
+                        # Move this device to the new cloud entry
+                        if mac not in device_configs:
+                            device_configs[mac] = local_devices[mac]
+                        local_devices.pop(mac)
+                        moved_any = True
+
+                        # remove from registry, it will be added by the new entry
+                        dev = device_registry.async_get_device(
+                            identifiers={(DOMAIN, mac)}
+                        )
+                        if dev:
+                            device_registry.async_remove_device(dev.id)
+
+                if moved_any:
+                    if local_devices:
+                        new_local_data = {
+                            **local_entry.data,
+                            CONF_DEVICES: local_devices,
+                        }
+                        self.hass.config_entries.async_update_entry(
+                            local_entry, data=new_local_data
+                        )
+                        self.hass.config_entries.async_schedule_reload(
+                            local_entry.entry_id
+                        )
+                    else:
+                        # No other devices, remove the entry
+                        await self.hass.config_entries.async_remove(
+                            local_entry.entry_id
+                        )
+
+        # For adding a local entry which comes only with new local devices despite it
+        # being possible for the entry to exist already with other devices
+        # Readd the ones not picked in this flow but are in the local entry already
+        if (
+            self.source == SOURCE_USER
+            and self.unique_id == CONFENTRY_ID_LOCAL_ONLY
+            and local_entry
+        ):
+            device_configs = {
+                **local_entry.data.get(CONF_DEVICES, {}),
+                **device_configs,
+            }
+
         data = {
             CONF_CLOUD: self._config_data.get(CONF_CLOUD),
             CONF_DEVICES: device_configs,
         }
 
+        # Determine update target
+        update_entry = None
         if self.source == SOURCE_RECONFIGURE:
-            return self.async_update_reload_and_abort(
-                self._get_reconfigure_entry(),
-                title=self._config_data.get(CONF_CLOUD, {}).get(
-                    CONF_EMAIL, "Local-only Devices"
+            update_entry = self._get_reconfigure_entry()
+        elif self.unique_id == CONFENTRY_ID_LOCAL_ONLY:
+            update_entry = next(
+                iter(
+                    get_config_entries(
+                        self.hass, match_entries=[CONFENTRY_ID_LOCAL_ONLY]
+                    )
                 ),
-                data=data,
+                None,
+            )
+
+        title = self._config_data.get(CONF_CLOUD, {}).get(
+            CONF_EMAIL, "Local-only Devices"
+        )
+
+        if update_entry:
+            # remove devices that are no longer provided by the entry
+            # they will be re-added if they exist in another entry
+            previous_configured: dict[str, Any] = update_entry.data.get(
+                CONF_DEVICES, {}
+            )
+            for m in previous_configured:
+                if self.source == SOURCE_RECONFIGURE and m not in device_configs:
+                    dev = device_registry.async_get_device(identifiers={(DOMAIN, m)})
+                    if dev:
+                        device_registry.async_remove_device(dev.id)
+
+            if update_entry.unique_id == CONFENTRY_ID_LOCAL_ONLY and not device_configs:
+                # No other devices, remove the local-only entry
+                # If a cloud entry, ignore and keep it so we preserve account data if the user wants
+                await self.hass.config_entries.async_remove(update_entry.entry_id)
+                return self.async_abort(reason="reconfigure_successful")
+
+            return self.async_update_reload_and_abort(
+                update_entry,
+                title=title,
+                data_updates=data,
+                reason="reconfigure_successful",
             )
 
         _LOGGER.debug(
@@ -1076,62 +1290,6 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
             async_redact_data(data, ["encryption_key"]),
         )
         return self.async_create_entry(
-            title=self._config_data.get(CONF_CLOUD, {}).get(
-                CONF_EMAIL, "Local-only Devices"
-            ),
+            title=title,
             data=data,
         )
-
-    async def async_step_reconfigure(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Handle reconfiguration of an existing entry."""
-        reconfigure_entry = self._get_reconfigure_entry()
-        reconfigure_data = dict(reconfigure_entry.data)
-        _LOGGER.debug("Reconfiguring: %s", reconfigure_entry.title)
-
-        has_cloud = reconfigure_data.get(CONF_CLOUD) is not None
-        has_local = any(
-            d.get(CONF_DEVICE_CONNECTION, {})
-            .get(CONF_DEVICE_CONNECTION_LOCAL, {})
-            .get(CONF_HOST)
-            is not None
-            for d in reconfigure_data.get(CONF_DEVICES, {}).values()
-        )
-
-        # If on the local-only entry, continue with the local method only
-        if has_local and not has_cloud:
-            self._selected_setup_methods = ["local"]
-            self._current_setup_method_index = 0
-            return await self._setup_next_setup_method()
-
-        # If entry has cloud, ask if user wants to add local
-        # A user cannot remove cloud from an entry, because the entry is keyed by the cloud account
-        # For that, remove the entry and add to the local-only entry
-        if user_input is not None:
-            self._selected_setup_methods = ["cloud"]
-            if user_input.get("include_local", False):
-                self._selected_setup_methods.append("local")
-            self._current_setup_method_index = 0
-            return await self._setup_next_setup_method()
-
-        return self.async_show_form(
-            step_id="reconfigure",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        "include_local",
-                        default=has_local,
-                    ): cv.boolean
-                }
-            ),
-        )
-
-    async def async_step_reauth(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Process a Reauth request."""
-        reauth_entry = self._get_reauth_entry()
-        _LOGGER.debug("Reauth entry: %s", reauth_entry.title)
-
-        return await self.async_step_cloud_add()
