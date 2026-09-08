@@ -152,3 +152,22 @@ This project is based on the work of several contributors and projects:
 
 Due to the many issues being created revolving "TimeOut"/"Cannot connect" errors, I will be closing these. Feel free to make a PR fixing your TimeOut/Cannot connect error.
 More information on the "why" can be found here: https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues/405#issuecomment-4300110823
+
+### Reading the failure message
+
+When all attempts fail, the component now probes the device once more to work out *why*, and the
+log says which of three situations you are in. Please check this before opening an issue.
+
+**"The device REFUSED the request (ICMP port unreachable)"**
+The device is on the network but nothing is listening on UDP 7000 — it is not running the local
+Gree protocol at all. This is typically a WiFi module whose firmware ships without local control,
+in which case there is nothing to fix on this side; the unit is cloud-only. Retrying, changing the
+encryption version or re-pairing will not help.
+
+**"the device DID answer a plain discovery probe"**
+The port is open and the device is talking, so the network is fine and the *encrypted* exchange is
+what is failing. Look at the device key and `encryption_version` rather than at connectivity.
+
+**"No response of any kind"**
+Nothing came back at all: wrong IP address, a firewall or VLAN in between, or the device is
+offline. This is the case where the usual network troubleshooting applies.
