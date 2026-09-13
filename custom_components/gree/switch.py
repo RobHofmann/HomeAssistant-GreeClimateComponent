@@ -87,6 +87,26 @@ async def _set_beeper(device, value: bool) -> None:
     setattr(device, "_beeper_enabled", value)
 
 
+async def _set_child_lock(device, value: bool) -> None:
+    await device.SyncState({"ChildLock": 1 if value else 0})
+
+
+async def _set_dazzling(device, value: bool) -> None:
+    await device.SyncState({"Dazzling": 1 if value else 0})
+
+
+async def _set_uvc(device, value: bool) -> None:
+    await device.SyncState({"UvcControl": 1 if value else 0})
+
+
+async def _set_auto_clean(device, value: bool) -> None:
+    await device.SyncState({"AutoClean": 1 if value else 0})
+
+
+async def _set_nobody_save(device, value: bool) -> None:
+    await device.SyncState({"NobodySave": 1 if value else 0})
+
+
 SWITCHES: tuple[GreeSwitchEntityDescription, ...] = (
     GreeSwitchEntityDescription(
         property_key="xfan",
@@ -148,6 +168,41 @@ SWITCHES: tuple[GreeSwitchEntityDescription, ...] = (
         value_fn=lambda device: device._acOptions.get("LigSen") == 0,  # LigSen=0 means sensor is active
         set_fn=_set_light_sensor,
         available_fn=lambda device: getattr(device, "_has_light_sensor", False),
+    ),
+    GreeSwitchEntityDescription(
+        property_key="child_lock",
+        icon="mdi:lock",
+        value_fn=lambda device: device._acOptions.get("ChildLock") == 1,
+        set_fn=_set_child_lock,
+        available_fn=lambda device: getattr(device, "_has_child_lock", False),
+    ),
+    GreeSwitchEntityDescription(
+        property_key="dazzling",
+        icon="mdi:television-ambient-light",
+        value_fn=lambda device: device._acOptions.get("Dazzling") == 1,
+        set_fn=_set_dazzling,
+        available_fn=lambda device: getattr(device, "_has_dazzling", False),
+    ),
+    GreeSwitchEntityDescription(
+        property_key="uvc",
+        icon="mdi:bacteria",
+        value_fn=lambda device: device._acOptions.get("UvcControl") == 1,
+        set_fn=_set_uvc,
+        available_fn=lambda device: getattr(device, "_has_uvc", False),
+    ),
+    GreeSwitchEntityDescription(
+        property_key="auto_clean",
+        icon="mdi:broom",
+        value_fn=lambda device: device._acOptions.get("AutoClean") == 1,
+        set_fn=_set_auto_clean,
+        available_fn=lambda device: getattr(device, "_has_auto_clean", False),
+    ),
+    GreeSwitchEntityDescription(
+        property_key="nobody_save",
+        icon="mdi:account-off",
+        value_fn=lambda device: device._acOptions.get("NobodySave") == 1,
+        set_fn=_set_nobody_save,
+        available_fn=lambda device: getattr(device, "_has_nobody_save", False),
     ),
     # These entities are not kept in the climate device
     GreeSwitchEntityDescription(

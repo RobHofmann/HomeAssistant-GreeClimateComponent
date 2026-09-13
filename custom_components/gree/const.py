@@ -25,6 +25,49 @@ MAX_TEMP_F = 86
 
 TEMSEN_OFFSET = 40
 
+# Sensor readings that arrive with a +40 °C encoding offset (actual = raw - 40).
+DIAGNOSTIC_TEMP_OFFSET = 40
+
+# Optional device properties, probed once before they join the polling list.
+#
+# Probing is mandatory rather than defensive. The firmware silently omits unknown columns
+# from a status response, while SetAcOptions() maps dat[i] positionally onto the list of
+# columns that was requested. Polling a key the device does not implement therefore shifts
+# every following value by one position, and the next SendStateToAc() would push a wrong
+# mode or temperature to the unit.
+#
+# Each entry is (property key, attribute name used as the "device has this" flag).
+PROBED_PROPS = (
+    ("TemSen", "_has_temp_sensor"),
+    ("AntiDirectBlow", "_has_anti_direct_blow"),
+    ("LigSen", "_has_light_sensor"),
+    ("OutEnvTem", "_has_outside_temp_sensor"),
+    ("DwatSen", "_has_room_humidity_sensor"),
+    # Inverter and air-quality diagnostics
+    ("CompressorFqy", "_has_compressor_freq"),
+    ("CompressorTem", "_has_compressor_temp"),
+    ("InEvaTem", "_has_evaporator_temp"),
+    ("EnvTem", "_has_env_temp"),
+    ("TemsSenOut", "_has_outside_temp_alt"),
+    ("PM2P5", "_has_pm25"),
+    # Fault and maintenance reporting
+    ("AllErr", "_has_all_err"),
+    ("JFErrorCode", "_has_jf_error"),
+    ("Dfltr", "_has_filter_alarm"),
+    ("ReplaceHEPA", "_has_hepa_alarm"),
+    # Comfort and cleaning toggles
+    ("ChildLock", "_has_child_lock"),
+    ("Dazzling", "_has_dazzling"),
+    ("UvcControl", "_has_uvc"),
+    ("AutoClean", "_has_auto_clean"),
+    ("NobodySave", "_has_nobody_save"),
+)
+
+# Optional properties that are writable, not just readable. They are appended to the
+# command sent by SendStateToAc(); values still unset (device lacks the feature) are
+# filtered out there, so listing one a device does not implement is harmless.
+CONTROLLABLE_OPTIONAL_PROPS = ("ChildLock", "Dazzling", "UvcControl", "AutoClean", "NobodySave")
+
 # HVAC modes - these come from Home Assistant and are standard
 DEFAULT_HVAC_MODES = ["auto", "cool", "dry", "fan_only", "heat", "off"] 
 

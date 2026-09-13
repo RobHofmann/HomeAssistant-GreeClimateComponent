@@ -60,10 +60,10 @@
       "host": "IP Address",
       "port": "Port",
       "mac": "MAC Address",
-      "hvac_modes" : "HVAC Modes",
-      "fan_modes" : "Fan Modes",
-      "swing_modes" : "Vertical Swing Modes",
-      "swing_horizontal_modes" : "Horizontal Swing Modes",
+      "hvac_modes": "HVAC Modes",
+      "fan_modes": "Fan Modes",
+      "swing_modes": "Vertical Swing Modes",
+      "swing_horizontal_modes": "Horizontal Swing Modes",
       "encryption_key": "Encryption Key",
       "uid": "UID",
       "encryption_version": "Encryption Version",
@@ -76,10 +76,10 @@
       "init": {
         "title": "Gree Climate Options",
         "data": {
-          "hvac_modes" : "HVAC Modes",
-          "fan_modes" : "Fan Modes",
-          "swing_modes" : "Vertical Swing Modes",
-          "swing_horizontal_modes" : "Horizontal Swing Modes",
+          "hvac_modes": "HVAC Modes",
+          "fan_modes": "Fan Modes",
+          "swing_modes": "Vertical Swing Modes",
+          "swing_horizontal_modes": "Horizontal Swing Modes",
           "disable_available_check": "Disable Available Check",
           "temp_sensor_offset": "Temperature Sensor Offset"
         }
@@ -210,6 +210,38 @@
       "room_humidity": {
         "name": "Room Humidity",
         "description": "Shows the room humidity level measured by the air conditioner's internal sensor."
+      },
+      "compressor_frequency": {
+        "name": "Compressor Frequency",
+        "description": "Operating frequency of the outdoor compressor. On multi-split systems this reflects the shared outdoor unit, not this indoor unit alone."
+      },
+      "compressor_temperature": {
+        "name": "Compressor Temperature",
+        "description": "Temperature measured at the compressor."
+      },
+      "evaporator_temperature": {
+        "name": "Evaporator Temperature",
+        "description": "Temperature of the indoor coil."
+      },
+      "env_temperature": {
+        "name": "Ambient Temperature (secondary sensor)",
+        "description": "Indoor temperature from the device's secondary ambient sensor."
+      },
+      "outside_temperature_alt": {
+        "name": "Outside Temperature (secondary sensor)",
+        "description": "Outdoor temperature from the device's secondary external sensor."
+      },
+      "pm25": {
+        "name": "PM2.5",
+        "description": "Particulate matter measured by the air conditioner."
+      },
+      "error_code": {
+        "name": "Error Code",
+        "description": "Aggregated fault code reported by the unit. 0 means no fault."
+      },
+      "jf_error_code": {
+        "name": "Error Code (secondary register)",
+        "description": "Secondary fault register reported by the unit. 0 means no fault."
       }
     },
     "switch": {
@@ -260,6 +292,36 @@
       "beeper": {
         "name": "Beeper",
         "description": "Controls the beeper sounds from the air conditioner unit. When enabled, the unit will make sounds for button presses and status changes."
+      },
+      "child_lock": {
+        "name": "Child Lock",
+        "description": "Locks the unit's control panel and remote."
+      },
+      "dazzling": {
+        "name": "Display Dimming",
+        "description": "Dims or blanks the unit's display."
+      },
+      "uvc": {
+        "name": "UVC Sterilization",
+        "description": "Enables the UVC sterilization lamp."
+      },
+      "auto_clean": {
+        "name": "Auto Clean",
+        "description": "Runs the self-cleaning cycle."
+      },
+      "nobody_save": {
+        "name": "Absence Energy Saving",
+        "description": "Reduces output when no presence is detected."
+      }
+    },
+    "binary_sensor": {
+      "filter_alarm": {
+        "name": "Filter Alarm",
+        "description": "On when the unit asks for filter cleaning."
+      },
+      "hepa_alarm": {
+        "name": "HEPA Replacement",
+        "description": "On when the unit asks for HEPA filter replacement."
       }
     }
   }

@@ -43,6 +43,9 @@ from .const import (
     MAX_TEMP_F,
     MODES_MAPPING,
     TEMSEN_OFFSET,
+    DIAGNOSTIC_TEMP_OFFSET,
+    PROBED_PROPS,
+    CONTROLLABLE_OPTIONAL_PROPS,
     CONF_HVAC_MODES,
     CONF_FAN_MODES,
     CONF_SWING_MODES,
@@ -183,11 +186,9 @@ class GreeClimate(ClimateEntity):
         # Keep unsub callbacks for deregistering listeners
         self._listeners: list = []
 
-        self._has_temp_sensor = None
-        self._has_anti_direct_blow = None
-        self._has_light_sensor = None
-        self._has_outside_temp_sensor = None
-        self._has_room_humidity_sensor = None
+        # Optional-feature flags: None = not probed yet, True/False = probe result.
+        for _prop, _flag in PROBED_PROPS:
+            setattr(self, _flag, None)
 
         self._current_temperature = None
         self._current_anti_direct_blow = None
@@ -251,7 +252,8 @@ class GreeClimate(ClimateEntity):
         # helper method to determine TemSen offset
         self._process_temp_sensor = TempOffsetResolver()
 
-    async def GreeGetValues(self, propertyNames):
+    async def GreeFetchStatus(self, propertyNames):
+        """Send a status request for propertyNames and return the decoded response."""
         plaintext = '{"cols":' + simplejson.dumps(propertyNames) + ',"mac":"' + str(self._sub_mac_addr) + '","t":"status"}'
         if self.encryption_version == 1:
             cipher = self.CIPHER
@@ -260,8 +262,20 @@ class GreeClimate(ClimateEntity):
             pack, tag = EncryptGCM(self._encryption_key, plaintext)
             jsonPayloadToSend = '{"cid":"app","i":0,"pack":"' + pack + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid":{}'.format(self._uid) + ',"tag" : "' + tag + '"}'
             cipher = GetGCMCipher(self._encryption_key)
-        result = await FetchResult(cipher, self._ip_addr, self._port, jsonPayloadToSend, encryption_version=self.encryption_version)
+        return await FetchResult(cipher, self._ip_addr, self._port, jsonPayloadToSend, encryption_version=self.encryption_version)
+
+    async def GreeGetValues(self, propertyNames):
+        result = await self.GreeFetchStatus(propertyNames)
         return result["dat"][0] if len(result["dat"]) == 1 else result["dat"]
+
+    async def GreeGetSupportedValues(self, propertyNames):
+        """Return {column: value} for the requested properties.
+
+        The device answers with only those columns it actually implements, so the keys of
+        the returned mapping are exactly the supported subset of propertyNames.
+        """
+        result = await self.GreeFetchStatus(propertyNames)
+        return dict(zip(result.get("cols", []), result.get("dat", [])))
 
     def SetAcOptions(self, acOptions, newOptionsToOverride, optionValuesToOverride=None):
         if optionValuesToOverride is not None:
@@ -283,6 +297,9 @@ class GreeClimate(ClimateEntity):
 
     async def SendStateToAc(self):
         opt_list = ["Pow", "Mod", "SetTem", "WdSpd", "Air", "Blo", "Health", "SwhSlp", "Lig", "SwingLfRig", "SwUpDn", "Quiet", "Tur", "StHt", "TemUn", "HeatCoolType", "TemRec", "SvSt", "SlpMod", "AntiDirectBlow", "LigSen"]
+        # Writable optional properties. Ones the device never reported stay None in
+        # _acOptions and are dropped by the filter below.
+        opt_list += [prop for prop in CONTROLLABLE_OPTIONAL_PROPS if prop not in opt_list]
 
         # Collect values from _acOptions
         p_values = [self._acOptions.get(k) for k in opt_list]
@@ -466,93 +483,55 @@ class GreeClimate(ClimateEntity):
         self.UpdateHAOutsideTemperature()
         self.UpdateHARoomHumidity()
 
+    async def _ProbeOptionalProps(self):
+        """Detect which optional properties this device implements, once per property.
+
+        A property counts as supported when the device echoes its name back in the
+        response's column list. Testing the value instead would misclassify a legitimate
+        zero -- a stopped compressor, an unlocked child lock -- as an absent feature.
+
+        Every supported key is appended to the poll list. Unsupported keys must stay out
+        of it: the device omits unknown columns from its reply, and SetAcOptions() pairs
+        the reply positionally with the requested column list, so one missing column would
+        shift every value after it.
+        """
+        pending = [(prop, flag) for prop, flag in PROBED_PROPS if getattr(self, flag, None) is None]
+        if not pending:
+            return
+
+        # One request covering every pending key: the reply already tells us which of them
+        # exist. Older firmware that rejects a long or unfamiliar column list falls back to
+        # probing each key on its own.
+        try:
+            supported = set(await self.GreeGetSupportedValues([prop for prop, _ in pending]))
+        except Exception as e:
+            _LOGGER.debug(f"{self._name}: Batch feature probe failed ({e}), falling back to individual probes")
+            supported = set()
+            for prop, _flag in pending:
+                try:
+                    if prop in await self.GreeGetSupportedValues([prop]):
+                        supported.add(prop)
+                except Exception:
+                    _LOGGER.debug(f"{self._name}: Could not probe {prop}. Retrying at next update()")
+                    return
+
+        for prop, flag in pending:
+            is_supported = prop in supported
+            setattr(self, flag, is_supported)
+            if is_supported:
+                self._acOptions.update({prop: None})
+                self._optionsToFetch.append(prop)
+
+        found = sorted(prop for prop, _ in pending if prop in supported)
+        missing = sorted(prop for prop, _ in pending if prop not in supported)
+        _LOGGER.debug(f"{self._name}: Optional properties supported: {found or 'none'}")
+        _LOGGER.debug(f"{self._name}: Optional properties not supported: {missing or 'none'}")
+
     async def SyncState(self, acOptions={}):
         # Fetch current settings from HVAC
         _LOGGER.debug(f"{self._name}: Starting device state sync")
 
-        if self._has_temp_sensor is None:
-            _LOGGER.debug("Attempt to check whether device has an built-in temperature sensor")
-            try:
-                temp_sensor = await self.GreeGetValues(["TemSen"])
-            except Exception:
-                _LOGGER.debug("Could not determine whether device has an built-in temperature sensor. Retrying at next update()")
-            else:
-                if temp_sensor:
-                    self._has_temp_sensor = True
-                    self._acOptions.update({"TemSen": None})
-                    self._optionsToFetch.append("TemSen")
-                    _LOGGER.debug("Device has an built-in temperature sensor")
-                else:
-                    self._has_temp_sensor = False
-                    _LOGGER.debug("Device has no built-in temperature sensor")
-
-        # Check if device has anti direct blow feature
-        if self._has_anti_direct_blow is None:
-            _LOGGER.debug("Attempt to check whether device has an anti direct blow feature")
-            try:
-                anti_direct_blow = await self.GreeGetValues(["AntiDirectBlow"])
-            except Exception:
-                _LOGGER.debug("Could not determine whether device has an anti direct blow feature. Retrying at next update()")
-            else:
-                if anti_direct_blow:
-                    self._has_anti_direct_blow = True
-                    self._acOptions.update({"AntiDirectBlow": None})
-                    self._optionsToFetch.append("AntiDirectBlow")
-                    _LOGGER.debug("Device has an anti direct blow feature")
-                else:
-                    self._has_anti_direct_blow = False
-                    _LOGGER.debug("Device has no anti direct blow feature")
-
-        # Check if device has light sensor
-        if self._has_light_sensor is None:
-            _LOGGER.debug("Attempt to check whether device has a built-in light sensor")
-            try:
-                light_sensor = await self.GreeGetValues(["LigSen"])
-            except Exception:
-                _LOGGER.debug("Could not determine whether device has a built-in light sensor. Retrying at next update()")
-            else:
-                if light_sensor:
-                    self._has_light_sensor = True
-                    self._acOptions.update({"LigSen": None})
-                    self._optionsToFetch.append("LigSen")
-                    _LOGGER.debug("Device has a built-in light sensor")
-                else:
-                    self._has_light_sensor = False
-                    _LOGGER.debug("Device has no built-in light sensor")
-
-        # Check if device has outside temperature sensor
-        if self._has_outside_temp_sensor is None:
-            _LOGGER.debug("Attempt to check whether device has an outside temperature sensor")
-            try:
-                outside_temp_sensor = await self.GreeGetValues(["OutEnvTem"])
-            except Exception:
-                _LOGGER.debug("Could not determine whether device has an outside temperature sensor. Retrying at next update()")
-            else:
-                if outside_temp_sensor:
-                    self._has_outside_temp_sensor = True
-                    self._acOptions.update({"OutEnvTem": None})
-                    self._optionsToFetch.append("OutEnvTem")
-                    _LOGGER.debug("Device has an outside temperature sensor")
-                else:
-                    self._has_outside_temp_sensor = False
-                    _LOGGER.debug("Device has no outside temperature sensor")
-
-        # Check if device has room humidity sensor
-        if self._has_room_humidity_sensor is None:
-            _LOGGER.debug("Attempt to check whether device has a room humidity sensor")
-            try:
-                humidity_sensor = await self.GreeGetValues(["DwatSen"])
-            except Exception:
-                _LOGGER.debug("Could not determine whether device has a room humidity sensor. Retrying at next update()")
-            else:
-                if humidity_sensor:
-                    self._has_room_humidity_sensor = True
-                    self._acOptions.update({"DwatSen": None})
-                    self._optionsToFetch.append("DwatSen")
-                    _LOGGER.debug("Device has a room humidity sensor")
-                else:
-                    self._has_room_humidity_sensor = False
-                    _LOGGER.debug("Device has no room humidity sensor")
+        await self._ProbeOptionalProps()
 
         optionsToFetch = self._optionsToFetch
 
@@ -779,6 +758,76 @@ class GreeClimate(ClimateEntity):
             _LOGGER.debug(f"{self._name}: room_humidity() = {self._current_room_humidity}")
             return self._current_room_humidity
         return None
+
+    def _diagnostic_value(self, key, flag):
+        """Return a raw optional property, or None when the device does not report it."""
+        if not getattr(self, flag, False):
+            return None
+        return self._acOptions.get(key)
+
+    def _diagnostic_temperature(self, key, flag):
+        """Same as _diagnostic_value but decodes the +40 °C sensor offset."""
+        raw = self._diagnostic_value(key, flag)
+        if raw is None:
+            return None
+        return raw - DIAGNOSTIC_TEMP_OFFSET
+
+    @property
+    def compressor_frequency(self):
+        """Return the outdoor compressor frequency in Hz.
+
+        On multi-split systems every indoor unit reports the frequency of the shared
+        outdoor unit, so this value is a property of the system, not of one room.
+        """
+        return self._diagnostic_value("CompressorFqy", "_has_compressor_freq")
+
+    @property
+    def compressor_temperature(self):
+        """Return the compressor temperature in °C."""
+        return self._diagnostic_temperature("CompressorTem", "_has_compressor_temp")
+
+    @property
+    def evaporator_temperature(self):
+        """Return the indoor coil (evaporator) temperature in °C."""
+        return self._diagnostic_temperature("InEvaTem", "_has_evaporator_temp")
+
+    @property
+    def env_temperature(self):
+        """Return the secondary indoor ambient sensor reading in °C."""
+        return self._diagnostic_temperature("EnvTem", "_has_env_temp")
+
+    @property
+    def outside_temperature_alt(self):
+        """Return the secondary outdoor sensor reading in °C."""
+        return self._diagnostic_temperature("TemsSenOut", "_has_outside_temp_alt")
+
+    @property
+    def pm25(self):
+        """Return the PM2.5 reading, or None when the device reports no measurement."""
+        value = self._diagnostic_value("PM2P5", "_has_pm25")
+        return value if value else None
+
+    @property
+    def error_code(self):
+        """Return the aggregated fault code (0 means no fault)."""
+        return self._diagnostic_value("AllErr", "_has_all_err")
+
+    @property
+    def jf_error_code(self):
+        """Return the secondary fault code register (0 means no fault)."""
+        return self._diagnostic_value("JFErrorCode", "_has_jf_error")
+
+    @property
+    def filter_alarm(self):
+        """Return True when the device asks for filter cleaning."""
+        value = self._diagnostic_value("Dfltr", "_has_filter_alarm")
+        return None if value is None else bool(value)
+
+    @property
+    def hepa_alarm(self):
+        """Return True when the device asks for HEPA replacement."""
+        value = self._diagnostic_value("ReplaceHEPA", "_has_hepa_alarm")
+        return None if value is None else bool(value)
 
     @property
     def extra_state_attributes(self):

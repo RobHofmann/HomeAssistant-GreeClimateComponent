@@ -14,7 +14,11 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import (
+    CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
     PERCENTAGE,
+    EntityCategory,
+    UnitOfFrequency,
+    UnitOfTemperature,
 )
 
 
@@ -50,6 +54,83 @@ SENSORS: tuple[GreeSensorEntityDescription, ...] = (
         value_fn=lambda device: device.room_humidity if device._has_room_humidity_sensor else None,
         available_fn=lambda device: device.available and device._has_room_humidity_sensor,
     ),
+    GreeSensorEntityDescription(
+        property_key="compressor_frequency",
+        device_class=SensorDeviceClass.FREQUENCY,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfFrequency.HERTZ,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:sine-wave",
+        value_fn=lambda device: device.compressor_frequency,
+        available_fn=lambda device: device.available and bool(device._has_compressor_freq),
+    ),
+    GreeSensorEntityDescription(
+        property_key="compressor_temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        suggested_display_precision=0,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda device: device.compressor_temperature,
+        available_fn=lambda device: device.available and bool(device._has_compressor_temp),
+    ),
+    GreeSensorEntityDescription(
+        property_key="evaporator_temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        suggested_display_precision=0,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda device: device.evaporator_temperature,
+        available_fn=lambda device: device.available and bool(device._has_evaporator_temp),
+    ),
+    GreeSensorEntityDescription(
+        property_key="env_temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        suggested_display_precision=0,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda device: device.env_temperature,
+        available_fn=lambda device: device.available and bool(device._has_env_temp),
+    ),
+    GreeSensorEntityDescription(
+        property_key="outside_temperature_alt",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        suggested_display_precision=0,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda device: device.outside_temperature_alt,
+        available_fn=lambda device: device.available and bool(device._has_outside_temp_alt),
+    ),
+    GreeSensorEntityDescription(
+        property_key="pm25",
+        device_class=SensorDeviceClass.PM25,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda device: device.pm25,
+        available_fn=lambda device: device.available and bool(device._has_pm25),
+    ),
+    GreeSensorEntityDescription(
+        property_key="error_code",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:alert-circle-outline",
+        value_fn=lambda device: device.error_code,
+        available_fn=lambda device: device.available and bool(device._has_all_err),
+    ),
+    GreeSensorEntityDescription(
+        property_key="jf_error_code",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        icon="mdi:alert-circle-outline",
+        value_fn=lambda device: device.jf_error_code,
+        available_fn=lambda device: device.available and bool(device._has_jf_error),
+    ),
 )
 
 
@@ -81,7 +162,9 @@ class GreeSensor(GreeEntity, SensorEntity):
         super().__init__(hass, entry, description)
 
         # Set temperature unit for temperature sensors
-        if description.device_class == SensorDeviceClass.TEMPERATURE:
+        # Diagnostic temperatures declare Celsius explicitly (the protocol always reports
+        # them that way); only the user-facing ones follow the device's configured unit.
+        if description.device_class == SensorDeviceClass.TEMPERATURE and description.native_unit_of_measurement is None:
             self._attr_native_unit_of_measurement = self._device.temperature_unit
 
     @property

@@ -223,6 +223,70 @@
       "beeper": {
         "name": "Sygnał dźwiękowy",
         "description": "Włącza lub wyłącza sygnał dźwiękowy przy obsłudze klimatyzatora. Kiedy jest włączony jednostka wydaje dzwięki przy każdej operacji."
+      },
+      "child_lock": {
+        "name": "Blokada rodzicielska",
+        "description": "Blokuje panel sterowania i pilota."
+      },
+      "dazzling": {
+        "name": "Wygaszanie wyświetlacza",
+        "description": "Przygasza lub wygasza wyświetlacz urządzenia."
+      },
+      "uvc": {
+        "name": "Sterylizacja UVC",
+        "description": "Włącza lampę sterylizacyjną UVC."
+      },
+      "auto_clean": {
+        "name": "Samoczyszczenie",
+        "description": "Uruchamia cykl samoczyszczenia."
+      },
+      "nobody_save": {
+        "name": "Oszczędzanie pod nieobecność",
+        "description": "Ogranicza pracę, gdy nie wykryto obecności."
+      }
+    },
+    "sensor": {
+      "compressor_frequency": {
+        "name": "Częstotliwość sprężarki",
+        "description": "Częstotliwość pracy sprężarki agregatu. W układach multi-split dotyczy wspólnego agregatu, a nie tej jednostki wewnętrznej."
+      },
+      "compressor_temperature": {
+        "name": "Temperatura sprężarki",
+        "description": "Temperatura zmierzona na sprężarce."
+      },
+      "evaporator_temperature": {
+        "name": "Temperatura parownika",
+        "description": "Temperatura wymiennika jednostki wewnętrznej."
+      },
+      "env_temperature": {
+        "name": "Temperatura otoczenia (czujnik dodatkowy)",
+        "description": "Temperatura wewnętrzna z dodatkowego czujnika urządzenia."
+      },
+      "outside_temperature_alt": {
+        "name": "Temperatura zewnętrzna (czujnik dodatkowy)",
+        "description": "Temperatura zewnętrzna z dodatkowego czujnika urządzenia."
+      },
+      "pm25": {
+        "name": "PM2.5",
+        "description": "Stężenie pyłu zawieszonego mierzone przez klimatyzator."
+      },
+      "error_code": {
+        "name": "Kod błędu",
+        "description": "Zbiorczy kod usterki zgłaszany przez urządzenie. 0 oznacza brak usterki."
+      },
+      "jf_error_code": {
+        "name": "Kod błędu (rejestr dodatkowy)",
+        "description": "Dodatkowy rejestr usterek zgłaszany przez urządzenie. 0 oznacza brak usterki."
+      }
+    },
+    "binary_sensor": {
+      "filter_alarm": {
+        "name": "Alarm filtra",
+        "description": "Włączony, gdy urządzenie sygnalizuje potrzebę czyszczenia filtra."
+      },
+      "hepa_alarm": {
+        "name": "Wymiana filtra HEPA",
+        "description": "Włączony, gdy urządzenie sygnalizuje potrzebę wymiany filtra HEPA."
       }
     }
   }
