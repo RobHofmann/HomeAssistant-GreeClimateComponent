@@ -14,12 +14,18 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import (
-    CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
     PERCENTAGE,
     EntityCategory,
     UnitOfFrequency,
     UnitOfTemperature,
 )
+
+try:  # UnitOfDensity replaced the standalone constant; keep older cores working.
+    from homeassistant.const import UnitOfDensity
+
+    PM25_UNIT = UnitOfDensity.MICROGRAMS_PER_CUBIC_METER
+except ImportError:
+    from homeassistant.const import CONCENTRATION_MICROGRAMS_PER_CUBIC_METER as PM25_UNIT
 
 
 # Local imports
@@ -110,7 +116,7 @@ SENSORS: tuple[GreeSensorEntityDescription, ...] = (
         property_key="pm25",
         device_class=SensorDeviceClass.PM25,
         state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        native_unit_of_measurement=PM25_UNIT,
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
         value_fn=lambda device: device.pm25,
