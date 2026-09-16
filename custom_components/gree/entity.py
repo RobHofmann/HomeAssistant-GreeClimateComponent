@@ -59,16 +59,16 @@ class GreeEntity(Entity):
             elif self.entity_description.icon is not None:
                 self._attr_icon = self.entity_description.icon
 
-            self._attr_unique_id = f"{self._device._mac_addr}_{self.entity_description.key}"
+            self._attr_unique_id = f"{self._device._sub_mac_addr}_{self.entity_description.key}"
 
     @property
     def device_info(self) -> DeviceInfo:
         """Return device information."""
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device._mac_addr)},
+            identifiers={(DOMAIN, self._device._sub_mac_addr)},
             name=self._device._name,
             manufacturer="Gree",
-            connections={(CONNECTION_NETWORK_MAC, self._device._mac_addr)},
+            connections={(CONNECTION_NETWORK_MAC, self._device._sub_mac_addr)},
         )
 
     @property
