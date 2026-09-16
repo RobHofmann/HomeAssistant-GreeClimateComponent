@@ -511,7 +511,7 @@ class GreeClimate(ClimateEntity):
             except Exception:
                 _LOGGER.debug("Could not determine whether device has a built-in light sensor. Retrying at next update()")
             else:
-                if light_sensor:
+                if light_sensor is not None:
                     self._has_light_sensor = True
                     self._acOptions.update({"LigSen": None})
                     self._optionsToFetch.append("LigSen")
