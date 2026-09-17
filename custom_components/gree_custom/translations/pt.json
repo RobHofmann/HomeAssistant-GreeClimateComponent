@@ -371,6 +371,12 @@
             }
         }
     },
+    "issues": {
+        "device_connection_failed": {
+            "title": "Falha de comunicação",
+            "description": "Não foi possível comunicar com o dispositivo {device}."
+        }
+    },
     "services": {
         "get_prop_values": {
             "name": "Consultar propriedades",
