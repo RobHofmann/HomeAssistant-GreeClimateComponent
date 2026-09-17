@@ -49,6 +49,41 @@ SIOCGIFADDR = 0x8915
 SIOCGIFBRDADDR = 0x8919
 
 
+def _classify_unreachable(ip_addr, port, timeout=2):
+    """Work out *why* a device is not answering. Diagnostics only.
+
+    An unconnected UDP socket cannot tell "nothing is listening" apart from
+    "packets vanished": the kernel discards the ICMP port-unreachable and the
+    caller just sees a timeout. Connecting a socket makes those errors
+    surface, so one extra probe once the retries are spent turns an opaque
+    TimeOut into something the user can act on.
+
+    Deliberately separate from the request path above, which is unchanged.
+
+    Returns one of: "refused", "responded", "silent", or "error: ...".
+    """
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.settimeout(timeout)
+        # connect() on UDP sends nothing; it just fixes the peer so the kernel
+        # reports ICMP errors for it instead of dropping them.
+        sock.connect((ip_addr, port))
+        sock.send(b'{"t":"scan"}')
+        sock.recv(64000)
+        return "responded"
+    except ConnectionRefusedError:
+        return "refused"
+    except (socket.timeout, TimeoutError):
+        return "silent"
+    except OSError as exc:
+        return f"error: {exc}"
+    finally:
+        try:
+            sock.close()
+        except Exception:  # noqa: BLE001 - best effort cleanup
+            pass
+
+
 async def FetchResult(cipher, ip_addr, port, json_data, encryption_version=1, max_retries=8):
     """Send a request to a Gree device and fetch the result, with retries and timeouts."""
 
@@ -93,7 +128,32 @@ async def FetchResult(cipher, ip_addr, port, json_data, encryption_version=1, ma
         except Exception as e:
             if attempt == max_retries - 1:
                 error_msg = f"{type(e).__name__}: {str(e)}" if str(e) else f"{type(e).__name__}"
-                _LOGGER.error(f"All {max_retries} attempts failed for {ip_addr}:{port}. Error: {error_msg}")
+                state = await asyncio.get_event_loop().run_in_executor(
+                    None, _classify_unreachable, ip_addr, port
+                )
+                if state == "refused":
+                    _LOGGER.error(
+                        f"All {max_retries} attempts failed for {ip_addr}:{port}. The device "
+                        f"REFUSED the request (ICMP port unreachable): it is reachable on the "
+                        f"network, but nothing is listening on UDP {port}, so it is not running "
+                        f"the local Gree protocol at all. Some newer WiFi module firmware ships "
+                        f"without it; those units can only be controlled via the cloud. "
+                        f"Retrying or changing the encryption version will not help."
+                    )
+                elif state == "responded":
+                    _LOGGER.error(
+                        f"All {max_retries} attempts failed for {ip_addr}:{port}, but the device "
+                        f"DID answer a plain discovery probe. The port is open and the device is "
+                        f"speaking, so this is not a network problem -- the encrypted exchange is "
+                        f"failing. Check the device key and the encryption version. "
+                        f"Original error: {error_msg}"
+                    )
+                else:
+                    _LOGGER.error(
+                        f"All {max_retries} attempts failed for {ip_addr}:{port}. No response of "
+                        f"any kind ({state}) -- wrong IP address, a firewall or VLAN in the way, "
+                        f"or the device is offline. Original error: {error_msg}"
+                    )
                 raise
 
         finally:
