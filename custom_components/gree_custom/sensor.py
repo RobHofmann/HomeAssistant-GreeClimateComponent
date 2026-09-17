@@ -1,7 +1,10 @@
 """Gree Sensor Entity for Home Assistant."""
 
 from collections.abc import Callable
+from datetime import date, datetime
+from decimal import Decimal
 import logging
+from typing import override
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -13,12 +16,13 @@ from homeassistant.const import PERCENTAGE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.helpers.typing import StateType
 
 from .aiogree.device import GreeDevice
 from .const import GATTR_HUMIDITY, GATTR_INDOOR_TEMPERATURE, GATTR_OUTDOOR_TEMPERATURE
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
-from .platform_helpers import iter_platform_context, supported_descriptions
+from .platform_helpers import supported_descriptions
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -76,20 +80,18 @@ async def async_setup_entry(
 
     entities: list[GreeSensor] = []
 
-    for ctx in iter_platform_context(entry):
+    for coordinator in entry.runtime_data.values():
         # Sensors are checked directly, not on the entry config
-        descriptions = supported_descriptions(
-            SENSOR_TYPES, ctx.coordinator.device, None
-        )
+        descriptions = supported_descriptions(SENSOR_TYPES, coordinator.device, None)
 
         _LOGGER.debug(
             "Adding Sensor Entities for device '%s': %s",
-            ctx.coordinator.device.mac_address,
+            coordinator.device.mac_address,
             [d.key for d in descriptions],
         )
 
         entities.extend(
-            GreeSensor(description, ctx.coordinator, False, ctx.check_availability)
+            GreeSensor(description, coordinator, False, coordinator.check_availability)
             for description in descriptions
         )
 
@@ -119,11 +121,13 @@ class GreeSensor(GreeEntity, SensorEntity, RestoreEntity):  # pyright: ignore[re
         )
 
     @property
-    def native_value(self):  # pyright: ignore[reportIncompatibleVariableOverride]
+    @override
+    def native_value(self) -> StateType | date | datetime | Decimal:
         """Return the state of the sensor."""
         return self.entity_description.value_func(self.device)
 
-    async def async_added_to_hass(self):
+    @override
+    async def async_added_to_hass(self) -> None:
         """Handle entity which will be added."""
         await super().async_added_to_hass()
         # Restore last HA state to device if applicable

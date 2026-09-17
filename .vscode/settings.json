@@ -1,0 +1,39 @@
+{
+    "files.eol": "\n",
+    "files.trimTrailingWhitespace": true,
+
+    "editor.tabSize": 4,
+    "editor.formatOnPaste": true,
+    "editor.formatOnSave": true,
+    "editor.formatOnType": false,
+
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.autoImportCompletions": true,
+
+    "pylint.args": ["--rcfile=${workspaceFolder}/.pylintrc"],
+    "mypy-type-checker.args": ["--config-file=${workspaceFolder}/mypy.ini"],
+
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        }
+    },
+
+    "i18n-ally.localesPaths": ["custom_components/gree_custom/translations"],
+    "i18n-ally.editor.preferEditor": true,
+    "i18n-ally.enabledFrameworks": ["general"],
+    "i18n-ally.enabledParsers": ["json"],
+    "i18n-ally.keystyle": "nested",
+    "i18n-ally.indent": 4,
+    "i18n-ally.sourceLanguage": "en",
+
+    "yaml.customTags": [
+        "!include scalar",
+        "!include_dir_list scalar",
+        "!include_dir_named scalar",
+        "!include_dir_merge_list scalar",
+        "!include_dir_merge_named scalar",
+        "!secret scalar"
+    ]
+}

@@ -2,11 +2,13 @@
 
 from collections.abc import Callable
 import logging
+from typing import override
 
 from homeassistant.components.number import (
     NumberDeviceClass,
     NumberEntity,
     NumberEntityDescription,
+    NumberMode,
 )
 from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant
@@ -19,7 +21,7 @@ from .aiogree.device import GreeDevice
 from .const import GATTR_FEAT_HUMIDITY, GATTR_FEAT_HUMIDITY_TARGET
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
-from .platform_helpers import iter_platform_context, supported_descriptions
+from .platform_helpers import supported_descriptions
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,7 +44,7 @@ NUMBER_TYPES: list[GreeNumberDescription] = [
         key=GATTR_FEAT_HUMIDITY_TARGET,
         translation_key=GATTR_FEAT_HUMIDITY_TARGET,
         device_class=NumberDeviceClass.HUMIDITY,
-        mode="auto",
+        mode=NumberMode.AUTO,
         native_step=5,
         native_unit_of_measurement=PERCENTAGE,
         value_func=lambda device: device.feature_humidity_control_target,
@@ -79,22 +81,25 @@ async def async_setup_entry(
 
     entities: list[GreeNumber] = []
 
-    for ctx in iter_platform_context(entry):
+    for coordinator in entry.runtime_data.values():
         descriptions = supported_descriptions(
             NUMBER_TYPES,
-            ctx.coordinator.device,
-            ctx.device_config,
+            coordinator.device,
+            coordinator.device_config,
         )
 
         _LOGGER.debug(
             "Adding Number Entities for device '%s': %s",
-            ctx.coordinator.device.mac_address,
+            coordinator.device.mac_address,
             [d.key for d in descriptions],
         )
 
         entities.extend(
             GreeNumber(
-                description, ctx.coordinator, ctx.restore_state, ctx.check_availability
+                description,
+                coordinator,
+                coordinator.restore_states,
+                coordinator.check_availability,
             )
             for description in descriptions
         )
@@ -125,33 +130,37 @@ class GreeNumber(GreeEntity, NumberEntity):  # pyright: ignore[reportIncompatibl
         )
 
     @property
+    @override
     def native_min_value(self) -> float:
         """Return the minimum allowed value."""
         if self.entity_description.min_func is not None:
             return self.entity_description.min_func(self.device)
 
-        return self.entity_description.native_min_value
+        return super().native_min_value
 
     @property
+    @override
     def native_max_value(self) -> float:
         """Return the maximum allowed value."""
         if self.entity_description.max_func is not None:
             return self.entity_description.max_func(self.device)
 
-        return self.entity_description.native_max_value
+        return super().native_max_value
 
     @property
-    def native_value(self) -> int:  # pyright: ignore[reportIncompatibleVariableOverride]
+    @override
+    def native_value(self) -> float:
         """Return the state of the sensor."""
         return self.entity_description.value_func(self.device)
 
-    async def async_set_native_value(self, value: int) -> None:
+    @override
+    async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
         if not self.available:
             raise HomeAssistantError("Entity unavailable")
 
         try:
-            self.entity_description.set_func(self.device, value)
+            self.entity_description.set_func(self.device, int(value))
 
             if self.entity_description.updates_device:
                 await self.coordinator.push_device_status()

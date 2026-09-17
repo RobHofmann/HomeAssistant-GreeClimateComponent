@@ -1,9 +1,10 @@
 """Base entity for Gree integration."""
 
 from collections.abc import Callable
+from typing import override
 
-from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
-from homeassistant.helpers.entity import DeviceInfo, EntityDescription
+from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
+from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .aiogree.device import GreeDevice
@@ -33,11 +34,13 @@ class GreeEntity(CoordinatorEntity[GreeCoordinator]):
         self.check_availability = check_availability
 
     @property
+    @override
     def unique_id(self) -> str | None:
         """Returns a unique id for the entity."""
         return f"{self.device.mac_address}_{self.entity_description.key}"
 
     @property
+    @override
     def device_info(self) -> DeviceInfo:
         """Return the device info."""
         if self.device.mac_address != self.device.mac_address_controller:
@@ -47,7 +50,7 @@ class GreeEntity(CoordinatorEntity[GreeCoordinator]):
                 name=self.device.name,
                 manufacturer="Gree",
                 sw_version=self.device.firmware_version,
-                via_device=(DOMAIN, self.device.mac_address_controller),
+                # via_device=(DOMAIN, self.device.mac_address_controller),
             )
         return DeviceInfo(
             connections={(CONNECTION_NETWORK_MAC, self.device.mac_address)},
@@ -55,10 +58,13 @@ class GreeEntity(CoordinatorEntity[GreeCoordinator]):
             name=self.device.name,
             manufacturer="Gree",
             sw_version=self.device.firmware_version,
+            hw_version=self.device.firmware_code,
+            model_id=self.device.device_model_id,
         )
 
     @property
-    def available(self):  # pyright: ignore[reportIncompatibleVariableOverride]
+    @override
+    def available(self) -> bool:
         """Return True if entity is available.
 
         If entity has 'check_availability' enabled this uses the device available state

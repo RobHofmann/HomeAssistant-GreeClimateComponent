@@ -3,6 +3,9 @@
 import logging
 from typing import Any
 
+from config.custom_components.gree_custom.const import CONF_ENCRYPTION_KEY
+from homeassistant.components.diagnostics import async_redact_data
+from homeassistant.const import CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
 
@@ -25,12 +28,13 @@ async def async_get_config_entry_diagnostics(
         data[i] = c.get_coordinator_diagnostics()
 
     diagnostics = {"entry_data": dict(entry.data.copy()), "data": data}
-    redacted = diagnostics
-    redacted["entry_data"]["advanced"] = diagnostics["entry_data"]["advanced"].copy()
-    redacted["entry_data"]["advanced"]["encryption_key"] = (
-        diagnostics["entry_data"]["advanced"]["encryption_key"][:5] + "[redacted]"
-    )
-    return redacted
+    # redacted = diagnostics
+    # redacted["entry_data"]["advanced"] = diagnostics["entry_data"]["advanced"].copy()
+    # redacted["entry_data"]["advanced"]["encryption_key"] = redact_str(
+    #     diagnostics["entry_data"]["advanced"]["encryption_key"]
+    # )
+
+    return async_redact_data(diagnostics, [CONF_ENCRYPTION_KEY, CONF_PASSWORD])
 
 
 async def async_get_device_diagnostics(
@@ -46,6 +50,9 @@ async def async_get_device_diagnostics(
         if domain == DOMAIN:
             mac = identifier
             break
+
+    if not mac:
+        raise RuntimeError(f"No MAC found for the device: {device.identifiers}")
 
     coordinator: GreeCoordinator | None = entry.runtime_data.get(mac, None)
 

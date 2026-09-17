@@ -1,0 +1,51 @@
+{
+    "name": "Gree HA Climate (dev)",
+
+    // mcr.microsoft.com/devcontainers/python already bundles zsh, Oh My Zsh,
+    // a non-root "vscode" user with sudo, git, and pipx - no need to layer
+    // the python/common-utils features on top of a bare base image.
+    //
+    // Match the Python version to whatever python_requires the *current*
+    // home-assistant/core pyproject.toml declares. Check before first build:
+    // https://github.com/home-assistant/core/blob/dev/pyproject.toml
+    // Available tags: https://mcr.microsoft.com/en-us/artifact/mar/devcontainers/python/tags
+    "image": "mcr.microsoft.com/devcontainers/python:3.14-bookworm",
+    "runArgs": ["--name", "ha-gree-dev"],
+
+    "postCreateCommand": "bash .devcontainer/postCreate.sh",
+
+    "forwardPorts": [8123],
+    "portsAttributes": {
+        "8123": {
+            "label": "Home Assistant",
+            "onAutoForward": "notify"
+        }
+    },
+
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "charliermarsh.ruff",
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-python.pylint",
+                "ms-python.mypy-type-checker",
+                "redhat.vscode-yaml",
+                "esbenp.prettier-vscode",
+                "lokalise.i18n-ally"
+            ],
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "zsh",
+
+                "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+                "python.terminal.activateEnvironment": true,
+                "python.analysis.enableEditableInstalls": true,
+
+                "pylint.path": ["${workspaceFolder}/.venv/bin/pylint"],
+                "mypy-type-checker.path": ["${workspaceFolder}/.venv/bin/mypy"]
+            }
+        }
+    },
+
+    "remoteUser": "vscode"
+}

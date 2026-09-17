@@ -1,0 +1,11 @@
+# Linting / formatting (same tool HA core uses)
+ruff>=0.16.3
+
+# Additional static analysis - HA core's CI also runs these
+pylint>=4.0.7
+mypy>=2.3.1
+
+# Integration dependencies (from manifest)
+asyncio-dgram
+aiomqtt
+pydantic
