@@ -554,6 +554,8 @@ async def gree_get_response(
     json_data: dict,
     cipher: CipherBase,
     transport: GreeBaseTransport,
+    max_attempts: int | None = None,
+    timeout: float | None = None,
 ) -> dict:
     """Send a request to the device and return the decoded response.
 
@@ -569,7 +571,9 @@ async def gree_get_response(
     """
 
     try:
-        data = await transport.request_json(mac_controller, json_data, cipher)
+        data = await transport.request_json(
+            mac_controller, json_data, cipher, max_attempts, timeout
+        )
     except GreeConnectionError:
         raise
     except json.JSONDecodeError as err:
@@ -585,6 +589,8 @@ async def gree_get_response_pack(
     json_data: dict,
     cipher: CipherBase,
     transport: GreeBaseTransport,
+    max_attempts: int | None = None,
+    timeout: float | None = None,
 ) -> dict[str, Any]:
     """Send a request to the device and return the decoded response pack.
 
@@ -599,7 +605,9 @@ async def gree_get_response_pack(
 
     """
 
-    data = await gree_get_response(mac_controller, json_data, cipher, transport)
+    data = await gree_get_response(
+        mac_controller, json_data, cipher, transport, max_attempts, timeout
+    )
 
     pack: dict | None = data.get("pack", None)
 
@@ -940,6 +948,9 @@ async def gree_get_status(
     prop_names: list[str],
     cipher: CipherBase,
     transport: GreeBaseTransport,
+    max_attempts: int | None = None,
+    max_props: int | None = None,
+    timeout: float | None = None,
 ) -> StatusResult:
     """Retrieve the current values of the requested device properties.
 
@@ -973,6 +984,9 @@ async def gree_get_status(
     # Use a lesser value as a safe option (512)
     # Since the device only responds to requests under 1024 bytes
     # here we divide the props in batches so that the request does not pass the limit
+    # Some firmwares also cap the number of columns per request. That limit is
+    # learned per session by the caller and passed as max_props, so a batch is
+    # closed on whichever limit is reached first
     batches: list[list[str]] = []
     current: list[str] = []
     current_size = EMPTY_PACK_OVERHEAD
@@ -980,7 +994,8 @@ async def gree_get_status(
     for prop in prop_names:
         prop_size = len(json.dumps([prop]).encode())
 
-        if current_size + prop_size < MAX_PACK_SIZE:
+        fits_count = max_props is None or len(current) < max_props
+        if fits_count and current_size + prop_size < MAX_PACK_SIZE:
             current.append(prop)
             current_size += prop_size
         else:
@@ -1008,7 +1023,12 @@ async def gree_get_status(
             pack = _create_get_status_pack(mac_addr, batched_props)
             json_payload = _create_payload(pack, "pack", 0, mac_addr_controller, uid)
             result = await gree_get_response_pack(
-                mac_addr_controller, json_payload, cipher, transport
+                mac_addr_controller,
+                json_payload,
+                cipher,
+                transport,
+                max_attempts,
+                timeout,
             )
             res = gree_process_status_pack(result, batched_props)
             status.update(res.prop_values)

@@ -40,8 +40,18 @@ class GreeBaseTransport(ABC):
         """Unsubscribe the transport from a device."""
 
     @abstractmethod
-    async def request(self, mac_controller: str, json_str: str) -> str:
-        """Send raw bytes and return the response."""
+    async def request(
+        self,
+        mac_controller: str,
+        json_str: str,
+        max_attempts: int | None = None,
+        timeout: float | None = None,
+    ) -> str:
+        """Send raw bytes and return the response.
+
+        max_attempts and timeout override the transport's own retry count and
+        reply timeout for this one request.
+        """
 
     def add_listener(
         self, target_mac: str, listener: Callable[[str, dict], None]
@@ -63,7 +73,12 @@ class GreeBaseTransport(ABC):
             del self._listeners[target_mac]
 
     async def request_json(
-        self, mac_controller: str, payload: dict[str, Any], cipher: CipherBase
+        self,
+        mac_controller: str,
+        payload: dict[str, Any],
+        cipher: CipherBase,
+        max_attempts: int | None = None,
+        timeout: float | None = None,
     ) -> dict[str, Any]:
         """Send and receive a JSON payload."""
 
@@ -95,7 +110,9 @@ class GreeBaseTransport(ABC):
             request = gree_encrypt_pack(request, cipher)
 
             raw_request = json.dumps(request)
-            raw_response = await self.request(mac_controller, raw_request)
+            raw_response = await self.request(
+                mac_controller, raw_request, max_attempts, timeout
+            )
 
             response = json.loads(raw_response)
             response = gree_decrypt_pack(response, cipher)

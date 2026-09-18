@@ -106,19 +106,23 @@ class GreeUdpTransport(GreeBaseTransport):
         self,
         mac_controller: str,
         json_str: str,
+        max_attempts: int | None = None,
+        timeout: float | None = None,
     ) -> str:
-
+        """Send one request and wait for the reply, retrying up to max_attempts."""
+        attempts = max_attempts or self.max_retries
+        wait = timeout or self.timeout
         last_error: Exception | None = None
 
         async with self._request_lock:  # prevents concurrent recv/send corruption
-            for attempt in range(self.max_retries):
+            for attempt in range(attempts):
                 try:
                     stream: asyncio_dgram.DatagramClient = await self._get_stream()
 
                     await stream.send(json_str.encode())
 
                     received_data, _ = await asyncio.wait_for(
-                        stream.recv(), timeout=self.timeout
+                        stream.recv(), timeout=wait
                     )
 
                 except Exception as err:  # noqa: BLE001
@@ -127,7 +131,7 @@ class GreeUdpTransport(GreeBaseTransport):
                         "Error communicating with %s. Attempt %d/%d",
                         self.ip_addr,
                         attempt + 1,
-                        self.max_retries,
+                        attempts,
                     )
                     self._reset_stream()
 
@@ -135,11 +139,11 @@ class GreeUdpTransport(GreeBaseTransport):
                     return received_data.decode()
 
                 # Apply backoff before retrying
-                if attempt < self.max_retries - 1:
+                if attempt < attempts - 1:
                     await asyncio.sleep(0.5 + attempt * 0.3)  # 0.5s, 0.8s, 1.1s, ...
 
         raise GreeConnectionError(
-            f"Failed to communicate with device '{self.ip_addr}:{self.port}' after {self.max_retries} attempts"
+            f"Failed to communicate with device '{self.ip_addr}:{self.port}' after {attempts} attempts"
         ) from last_error
 
 
