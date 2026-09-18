@@ -3,7 +3,13 @@
 import logging
 from typing import TYPE_CHECKING, Any
 
-import voluptuous as vol
+if TYPE_CHECKING:
+    import probatio
+else:
+    try:
+        import probatio
+    except ImportError:
+        import voluptuous as probatio
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import ATTR_DEVICE_ID
@@ -24,17 +30,17 @@ from .coordinator import GreeConfigEntry, GreeCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 SVC_BASE_SCHEMA = {
-    vol.Required(ATTR_DEVICE_ID): cv.string,
+    probatio.Required(ATTR_DEVICE_ID): cv.string,
 }
 
 SVC_GET_PROPS_ALL = "get_prop_values_all"
-SVC_GET_PROPS_ALL_SCHEMA = vol.Schema(SVC_BASE_SCHEMA)
+SVC_GET_PROPS_ALL_SCHEMA = probatio.Schema(SVC_BASE_SCHEMA)
 
 SVC_GET_PROPS = "get_prop_values"
-SVC_GET_PROPS_SCHEMA = vol.Schema(
+SVC_GET_PROPS_SCHEMA = probatio.Schema(
     SVC_GET_PROPS_ALL_SCHEMA.extend(
         {
-            vol.Required(ATTR_SVC_PROPS): vol.All([cv.string]),
+            probatio.Required(ATTR_SVC_PROPS): probatio.All([cv.string]),
         }
     )
 )
@@ -109,11 +115,11 @@ async def async_get_prop_values_all(call: ServiceCall) -> ServiceResponse:
 
     _LOGGER.debug("Service called: get_prop_values_all")
     device: GreeDevice = async_get_device_from_service_call(call)
-    state, missing = await device.query_props_all(error_as_missing=True)
+    query_result = await device.query_props_all(error_as_missing=True)
 
     result: dict[str, Any] = {}
-    result["states"] = state
-    result["missing"] = missing
+    result["states"] = query_result.prop_values
+    result["missing"] = query_result.missing_props
 
     return result
 
@@ -126,11 +132,11 @@ async def async_get_prop_values(call: ServiceCall) -> ServiceResponse:
     props = call.data[ATTR_SVC_PROPS]
 
     device: GreeDevice = async_get_device_from_service_call(call)
-    state, missing = await device.query_props(props=props, error_as_missing=True)
+    query_result = await device.query_props(props=props, error_as_missing=True)
 
     result: dict[str, Any] = {}
-    result["states"] = state
-    result["missing"] = missing
+    result["states"] = query_result.prop_values
+    result["missing"] = query_result.missing_props
 
     return result
 

@@ -1,5 +1,5 @@
 # Gree Climate Integration - Manual Configuration Example
-# 
+#
 # This file contains all possible configuration options for the Gree Climate integration
 # when using YAML configuration instead of the UI config flow.
 #
@@ -8,94 +8,94 @@
 # If an option is not provided the default values will be used.
 # For option lists, pass empty list ([]) to disable the option.
 #
-# MAC address Format can be XX:XX:XX:XX:XX:XX, XX-XX-XX-XX-XX-XX, xxxxxxxxxxxx 
+# MAC address Format is lowercase without separators
 #
-# For VRF units the MAC is usually xxxxxxxxxxxx@yyyyyyyyyyyy where 
-# the first part (x) is the device MAC and the second (y) the main device MAC which controls the device
-# In this case it is preferred to place the main device MAC on the top config and 
-# the sub device MAC on the device list config
-
+# For VRF units the MACs are:
+#   MAC: xxxxxxxxxxxxyy <14 chars>
+#   MAC Controller Local: zzzzzzzzzzzz <12 chars>
+#   MAC Controller Cloud: xxxxxxxxxxxx <12 chars, first from MAC>
+#
+# For single units the MACs are:
+#   MAC: xxxxxxxxxxxx <12 chars>
+#   MAC Controller Local: xxxxxxxxxxxx <12 chars, same as MAC>
+#   MAC Controller Cloud: xxxxxxxxxxxx <12 chars, same as MAC>
 
 gree_custom:
-  - host: "192.168.1.100" # IP Address of AC | required | str
-    mac: "20-FA-BB-12-34-56" # MAC Address of Main AC Unit | required | str
-    advanced:
-      port: 7000 # Port number to connect to the device | int | default = 7000
-      encryption_version: 2 # The encryption version to use with the device | options = "Auto-Detect", 1, 2 | default = "Auto-Detect"
-      encryption_key: "my_device_key" # Custom encryption key | str | default = <fetched from device>
-      uid: 0 # Device identifier which is not needed for all devices, can be sniffed if required | positive int | default = 0
-      disable_available_check: false # boolean | default = false
-      max_online_attempts: 3 # Number connection attempts made with device before it is marked as unavailable | positive int | default = 5
-      timeout: 10 # Seconds before a connection attempt times out |  positive int (seconds) | default = 10
-    devices: # List of the devices that will be created (optional if only one device and no configuration required)
-      - device_name: "Gree AC" # Name for the AC unit | str | default = "Gree AC <MAC>]"
-        mac: "20-FA-BB-12-34-56" # MAC Address of the sub AC unit (same as Main device if not VRF) | required | str
-        hvac_modes: # Standard Home Assistant HVAC Modes to enable | list | options = ["auto", "cool", "dry", "fan_only", "heat", "off"] | default = all options
-          - "auto"
-          - "cool"
-          - "dry"
-          - "fan_only"
-          - "heat"
-          - "off"
-        fan_modes: # Supported fan modes | list | options = ["Auto", "Low", "MediumLow", "Medium", "MediumHigh", "High", "turbo", "quiet"] | default = all options
-          - "Auto"
-          - "Low"
-          - "MediumLow"
-          - "Medium"
-          - "MediumHigh"
-          - "High"
-          - "turbo"
-          - "quiet"
-        swing_modes: # Supported vertical swing modes | list | options = ["Default", "FullSwing", "FixedUpper", "FixedUpperMiddle", "FixedMiddle", "FixedLowerMiddle", "FixedLower", "SwingLower", "SwingLowerMiddle", "SwingMiddle", "SwingUpperMiddle", "SwingUpper"] | default = all options
-          - "Default"
-          - "FullSwing"
-          - "FixedUpper"
-          - "FixedUpperMiddle"
-          - "FixedMiddle"
-          - "FixedLowerMiddle"
-          - "FixedLower"
-          - "SwingLower"
-          - "SwingLowerMiddle"
-          - "SwingMiddle"
-          - "SwingUpperMiddle"
-          - "SwingUpper"
-        swing_horizontal_modes: # Supported horizontal swing modes | list | options = ["Default", "FullSwing", "Left", "LeftCenter", "Center", "RightCenter", "Right"] | default = all options
-          - "Default"
-          - "FullSwing"
-          - "Left"
-          - "LeftCenter"
-          - "Center"
-          - "RightCenter"
-          - "Right"
-        features: # Supported device features | list | options = ["beeper", "air", "xfan", "sleep", "eightdegheat", "lights", "health", "anti_direct_blow", "powersave", "light_sensor", "faults", "humidity_control"] | default = all options
-          - "beeper"
-          - "air"
-          - "xfan"
-          - "sleep"
-          - "eightdegheat"
-          - "lights"
-          - "health"
-          - "anti_direct_blow"
-          - "powersave"
-          - "light_sensor"
-          - "faults"
-          - "humidity_control"
-        target_temp_step: 1 # Number of degrees increase or decrease when changing the temperature | 0.5 < int < 5, 0.5 increments | default = 1
-        external_temperature_sensor: "None" # Sets a given temperature sensor as the sensor for the AC | str (Entity ID) | default = "None"
-        external_humidity_sensor: "None" # Sets a given humidity sensor as the sensor for the AC | str (Entity ID) | default = "None"
-        restore_states: true # Wether to restore the last HA state to device when HA starts | bool | default = true
-        scan_interval: 60 # Device polling rate | int > 5 | default = 60
-
-
-# Example for multiple AC units:
-# gree_custom:
-#   - host: "192.168.1.101"
-#     mac: "20-FA-BB-12-34-56"
-#     advanced:
-#       encryption_version: 2
-  
-#   - host: "192.168.1.102"
-#     mac: "20-FA-BB-12-34-57"
-#     devices:
-#       - name: "Gree AC"
-#         mac: "20-FA-BB-12-34-57"
+    - cloud: # Info about a Gree cloud accont | optional
+          email: "user@server.com" # User email | required | str
+          password: "my-password" # User password | required | str
+          region: "Europe" # Gree account region | required | str | options = ["Australia", "China Mainland", "East South Asia", "Europe", "India", "Latin America", "Middle East" ,"North America", "Russia", "South America"]
+      devices: # List of configured gree devices | required
+          # Example of single unit
+          "20fabb123456": # MAC Address of the device | required | str
+              connection:
+                  scan_interval: 60 # Device polling rate | int > 5 | default = 60
+                  disable_available_check: false # Change entity availability based on device connection | boolean | default = false
+                  encryption_key: "my_device_key" # Custom encryption key | str | default = "" <fetched from device>
+                  uid: 0 # User identifier of device owner which is not needed for all devices, can be sniffed if required | positive int | default = 0
+                  local: # optional, if ommitted requires cloud
+                      mac_controller_local: "20fabb123456" # MAC Address of the local controller (see above) | required | str
+                      host: "192.168.1.100" # IP Address of AC | required | str
+                      port: 7000 # Port number to connect to the device | int | default = 7000
+                      timeout: 10 # Seconds before a connection attempt times out | positive int (seconds) | default = 10
+                      encryption_version: # The encryption version to use with the device | options = "0", "1", "2" | default = "0" <auto-detect>
+                      max_online_attempts: 3 # Number connection attempts made with device before it is marked as unavailable | positive int | default = 3
+                  cloud: # optional, if ommitted requires local
+                      prefer_cloud: false # When local is present, prefer to use cloud | optional | bool | default = false
+                      mac_controller_cloud: "20fabb123456" # MAC Address of the local controller (see above) | required | str
+              options:
+                  name: "Gree AC" # Name for the AC unit | required | str
+                  hvac_modes: # Standard Home Assistant HVAC Modes to enable | list | options = ["auto", "cool", "dry", "fan_only", "heat", "off"] | default = all options
+                      - "auto"
+                      - "cool"
+                      - "dry"
+                      - "fan_only"
+                      - "heat"
+                      - "off"
+                  fan_modes: # Supported fan modes | list | options = ["auto", "low", "medium_low", "medium", "medium_high", "high", "turbo", "quiet"] | default = all except "turbo" and "quiet"
+                      - "auto"
+                      - "low"
+                      - "medium_low"
+                      - "medium"
+                      - "medium_high"
+                      - "high"
+                      - "turbo"
+                      - "quiet"
+                  swing_modes: # Supported vertical swing modes | list | options = ["default", "full_swing", "fixed_upper", "fixed_upper_middle", "fixed_middle", "fixed_lower_middle", "fixed_lower", "swing_lower", "swing_lower_middle", "swing_middle", "swing_upper_middle", "swing_upper"] | default = all options
+                      - "default"
+                      - "full_swing"
+                      - "fixed_upper"
+                      - "fixed_upper_middle"
+                      - "fixed_middle"
+                      - "fixed_lower_middle"
+                      - "fixed_lower"
+                      - "swing_lower"
+                      - "swing_lower_middle"
+                      - "swing_middle"
+                      - "swing_upper_middle"
+                      - "swing_upper"
+                  swing_horizontal_modes: # Supported horizontal swing modes | list | options = ["default", "full_swing", "left", "left_center", "center", "right_center", "right"] | default = all options
+                      - "default"
+                      - "full_swing"
+                      - "left"
+                      - "left_center"
+                      - "center"
+                      - "right_center"
+                      - "right"
+                  features: # Supported device features | list | options = ["beeper", "air", "xfan", "sleep", "eightdegheat", "lights", "health", "anti_direct_blow", "powersave", "light_sensor", "faults", "humidity_control"] | default = all options
+                      - "beeper"
+                      - "air"
+                      - "xfan"
+                      - "sleep"
+                      - "eightdegheat"
+                      - "lights"
+                      - "health"
+                      - "anti_direct_blow"
+                      - "powersave"
+                      - "light_sensor"
+                      - "faults"
+                      - "humidity_control"
+                  target_temp_step: 1 # Number of degrees increase or decrease when changing the temperature | 0.5 < int < 5, 0.5 increments | default = 1
+                  external_temperature_sensor: "None" # Sets a given temperature sensor as the sensor for the AC | str (Entity ID) | default = "None"
+                  external_humidity_sensor: "None" # Sets a given humidity sensor as the sensor for the AC | str (Entity ID) | default = "None"
+                  restore_states: true # Wether to restore the last HA state to device when HA starts | bool | default = true

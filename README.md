@@ -1,26 +1,15 @@
 [![HACS](https://img.shields.io/badge/HACS-Default-orange.svg)](https://hacs.xyz)
-[![Home Assistant](https://img.shields.io/badge/Compatible-Home_Assistant_2026.4+-blue.svg)](https://www.home-assistant.io)
+[![Home Assistant](https://img.shields.io/badge/Compatible-Home_Assistant_2026.3+-blue.svg)](https://www.home-assistant.io)
 
 # HomeAssistant-GreeClimateComponent
 
-Custom Gree integration for Home Assistant written in Python 3.
+Gree integration for Home Assistant written in Python 3.
 
-This integration connects directly to your HVAC devices via their IP address on the local network, unlike the official mobile app, which establishes a direct connection only during initial setup and subsequently operates through Gree’s servers.
-
-**This integration only supports the Gree UDP protocol. If you have a newer firmware/device that only communicates using the new MQTT protocol, this integration will not work.**
-
-> [!IMPORTANT]
-> Due to the many issues being created revolving "TimeOut"/"Cannot connect" errors, I will be closing these. Feel free to make a PR fixing your TimeOut/Cannot connect error.
-> 
-> More information on the "why" can be found here: https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues/405#issuecomment-4300110823
+The integration supports controlling Gree devices locally (preferred) and through the Gree cloud.
+You can read more about that [below](#connection-methods-and-configuration).
 
 For a comprehensive list of tested devices, see [Supported Devices](supported-devices.md).
-
-The integration attempts to obtain the encryption key through the initial setup protocol, which has been reverse-engineered.
-
-> [!WARNING]
-> If your HVAC device was previously set up for remote access using a mobile app, the integration may fail to retrieve the encryption key automatically. Find out more about methods of obtaining your device key below.
-
+Feel free to open a new issue reporting working or non working devices.
 
 **If you are experiencing issues, please read the [Debugging](#debugging) section.**
 
@@ -53,10 +42,12 @@ The integration can be added from the Home Assistant UI.
 
 1. Navigate to **Settings** > **Devices & Services** and click **Add Integration**.
 2. Search for **Gree Climate**
-3. Choose automatic discovery or manual setup and fill in the desired `name`, `host`, and `MAC address`.
-4. After a successful connection with the device, you will be asked to configure the device options.
+3. Choose Cloud and/or Local setup and fill in the requested details. See [more](#connection-methods-and-configuration) on how these work
+4. After a successful discovery, you will be asked which devices to add.
+5. Select the devices and iterate through their configurations.
 
-You can also **Reconfigure** a device by changing its options. Saving any changes in the options dialog automatically reloads the integration, so new settings take effect immediately without restarting Home Assistant.
+You can also **Reconfigure** a entry by changing its options. Saving any changes in the options dialog automatically reloads the integration, so new settings take effect immediately without restarting Home Assistant.
+While reconfiguring, devices not selected will be removed from the entry.
 
 ### Manual - YAML Configuration
 
@@ -71,11 +62,51 @@ gree_custom:
       - device_name: "Gree AC"
 ```
 
-### Obtaining the Encryption Key
+## Connection Methods and Configuration
 
-The integration has the capability of automatically retrieve the encryption version and key of a device using the gree protocol, which has been reverse-engineered.
+The integration supports both the local UDP protocol and the MQTT cloud protocol to communicate with the devices. It also supports enhancing local devices with cloud info during discovery.
 
-However, if your HVAC device was previously set up for remote access using a mobile app, the integration may fail to retrieve the encryption key automatically.
+During configuration, you can select which of the methods are used to discover and connect to devices.
+
+**For better organization, multiple config entries are required!**
+There is a config entry for all local-only devices and a config entries for each of the configured Gree Accounts.
+
+In a device page you can check which communication protocol is being used.
+
+### Local Configuration
+
+If you perform a local-only setup, the integration will automatically search for devices using the UDP protocol in the networks connected to your HA instance using a broadcast.
+You can specify additional VLANs or hosts that will be scanned using a unicast.
+
+You will then see a list of discovered devices to select which ones to add to HA. This list excludes devices already configured.
+
+After successfully configuring the devices, they will be added to the _Local-only_ config entry.
+
+### Cloud Configuration
+
+If you perform a cloud-only setup, the integration will retrieve the devices bound to your Gree account.
+
+You will then see a list of discovered devices to select which ones to add to HA.
+If a configured local-only device that matches the cloud devices is found, it will be merged with the cloud-device and default to local control.
+
+After successfully configuring the devices, they will be added to a config entry exclusive to the cloud account.
+
+### Mixed Cloud + Local Configuration
+
+If you perform a setup using both methods, the integration will retrieve the devices bound to your Gree account and automatically discovered the local devices as in the [Local Configuration](#local-configuration).
+
+The list of discovered devices will be constrained to the cloud devices and you will see if they were also found locally. If a configured local-only device that matches the cloud devices is found, it will be merged with the cloud-device and default to local control.
+
+If a device responds to local commands, the cloud is only used to improve the discovered info (e.g., device name). This behaviour can be overriden in the Cloud Connection Settings of each device, where you can set it to use the MQTT connection instead.
+
+After successfully configuring the devices, they will be added to a config entry exclusive to the cloud account.
+
+
+## Obtaining the Encryption Key
+
+The integration has the capability of automatically retrieve the encryption version and key of a device from the cloud account or using the Gree local protocol, which has been reverse-engineered.
+
+However, if your HVAC device was previously set up for remote access using a mobile app, the integration may fail to retrieve the encryption key automatically using the local protocol.
 
 #### Method 1: From Gree's cloud server
 
@@ -98,9 +129,6 @@ sqlite3 data.ab 'select privateKey from db_device_20170503;' # but table name ca
 
 Optionally, you can also sniff the `uid` parameter. This is not needed for all devices.
 
-### Icon configuration
-
-You can set custom icons for the climate entity by modifying the icon translation file `icons.json`. Refer to this documentation: https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/icon-translations/
 
 ## Debugging
 
@@ -159,7 +187,7 @@ Depending on the device configuration, specific Gree AC model, and firmware vers
 ### Configuration Controls
 
 - **Beeper**: Controls the beeper sounds from the air conditioner unit. When enabled, the unit will make sounds for button presses and status changes
-- **Lights**: Controls the display lights on the air conditioner unit  
+- **Lights**: Controls the display lights on the air conditioner unit
 - **Auto Light**: Automatically controls the display lights based on HVAC operations. When enabled, lights will turn on/off with the AC unit. *Note: This is an integration feature, not an actual AC unit state*
 - **Light Sensor**: Enables or disables light sensor for automatic brightness. Requires lights to be enabled
 - **Auto X-Fan**: Automatically controls the X-Fan mode based on HVAC operations. When enabled, X-Fan will automatically turn on in cooling and dry modes. *Note: This is an integration feature, not an actual AC unit state*
