@@ -115,11 +115,11 @@ async def async_get_prop_values_all(call: ServiceCall) -> ServiceResponse:
 
     _LOGGER.debug("Service called: get_prop_values_all")
     device: GreeDevice = async_get_device_from_service_call(call)
-    state, missing = await device.query_props_all(error_as_missing=True)
+    query_result = await device.query_props_all(error_as_missing=True)
 
     result: dict[str, Any] = {}
-    result["states"] = state
-    result["missing"] = missing
+    result["states"] = query_result.prop_values
+    result["missing"] = query_result.missing_props
 
     return result
 
@@ -132,11 +132,11 @@ async def async_get_prop_values(call: ServiceCall) -> ServiceResponse:
     props = call.data[ATTR_SVC_PROPS]
 
     device: GreeDevice = async_get_device_from_service_call(call)
-    state, missing = await device.query_props(props=props, error_as_missing=True)
+    query_result = await device.query_props(props=props, error_as_missing=True)
 
     result: dict[str, Any] = {}
-    result["states"] = state
-    result["missing"] = missing
+    result["states"] = query_result.prop_values
+    result["missing"] = query_result.missing_props
 
     return result
 
