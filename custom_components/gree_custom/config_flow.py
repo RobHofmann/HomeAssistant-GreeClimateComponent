@@ -6,7 +6,7 @@ import logging
 from typing import Any, override
 
 from aiomqtt import MqttError
-import probatio
+import voluptuous as vol
 
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN, SensorDeviceClass
@@ -138,9 +138,9 @@ from .helpers import (
 _LOGGER = logging.getLogger(__name__)
 
 
-SETUP_SCHEMA = probatio.Schema(
+SETUP_SCHEMA = vol.Schema(
     {
-        probatio.Required(CONF_DISCOVERY, default=["cloud", "local"]): SelectSelector(
+        vol.Required(CONF_DISCOVERY, default=["cloud", "local"]): SelectSelector(
             SelectSelectorConfig(
                 options=["cloud", "local"],
                 multiple=True,
@@ -151,20 +151,20 @@ SETUP_SCHEMA = probatio.Schema(
 )
 
 
-def _setup_cloud_schema(defaults_values: dict | None = None) -> probatio.Schema:
+def _setup_cloud_schema(defaults_values: dict | None = None) -> vol.Schema:
     defaults = defaults_values or {}
 
-    return probatio.Schema(
+    return vol.Schema(
         {
-            probatio.Required(
+            vol.Required(
                 CONF_EMAIL,
                 default=defaults.get(CONF_EMAIL, ""),
             ): str,
-            probatio.Required(
+            vol.Required(
                 CONF_PASSWORD,
                 default=defaults.get(CONF_PASSWORD, ""),
             ): str,
-            probatio.Required(
+            vol.Required(
                 CONF_REGION,
                 default=defaults.get(CONF_REGION),
             ): SelectSelector(
@@ -177,18 +177,18 @@ def _setup_cloud_schema(defaults_values: dict | None = None) -> probatio.Schema:
     )
 
 
-def _setup_local_schema(default_values: dict | None = None) -> probatio.Schema:
+def _setup_local_schema(default_values: dict | None = None) -> vol.Schema:
     defaults = default_values or {}
 
-    return probatio.Schema(
+    return vol.Schema(
         {
-            probatio.Optional(
+            vol.Optional(
                 CONF_EXTRA_SCAN_NETWORKS,
                 description={
                     "suggested_value": defaults.get(CONF_EXTRA_SCAN_NETWORKS, [])
                 },
             ): TextSelector(TextSelectorConfig(multiple=True, multiline=False)),
-            probatio.Optional(
+            vol.Optional(
                 CONF_EXTRA_SCAN_HOSTS,
                 description={
                     "suggested_value": defaults.get(CONF_EXTRA_SCAN_HOSTS, [])
@@ -200,10 +200,10 @@ def _setup_local_schema(default_values: dict | None = None) -> probatio.Schema:
 
 def _setup_picker_schema(
     default: list[str], options: dict[str, GreeDiscoveredDevice]
-) -> probatio.Schema:
-    return probatio.Schema(
+) -> vol.Schema:
+    return vol.Schema(
         {
-            probatio.Required(CONF_DEVICES, default=default): SelectSelector(
+            vol.Required(CONF_DEVICES, default=default): SelectSelector(
                 SelectSelectorConfig(
                     options=[
                         SelectOptionDict(value=m, label=d.friendly_name)
@@ -218,27 +218,25 @@ def _setup_picker_schema(
 
 def _setup_device_connection_options_schema(
     device_info: GreeDiscoveredDevice, default_values: dict | None = None
-) -> probatio.Schema:
+) -> vol.Schema:
     defaults: dict = default_values or {}
     defaults_local = defaults.get(CONF_DEVICE_CONNECTION_LOCAL, {})
     defaults_cloud = defaults.get(CONF_DEVICE_CONNECTION_CLOUD, {})
 
-    return probatio.Schema(
+    return vol.Schema(
         {
-            probatio.Required(
+            vol.Required(
                 CONF_SCAN_INTERVAL,
                 default=defaults.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
-            ): probatio.All(
-                probatio.Coerce(int), probatio.Range(min=MIN_SCAN_INTERVAL)
-            ),
-            probatio.Required(
+            ): vol.All(vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL)),
+            vol.Required(
                 CONF_DISABLE_AVAILABLE_CHECK,
                 default=defaults.get(
                     CONF_DISABLE_AVAILABLE_CHECK,
                     DEFAULT_DISABLE_AVAILABLE_CHECK,
                 ),
             ): cv.boolean,
-            probatio.Optional(
+            vol.Optional(
                 CONF_ENCRYPTION_KEY,
                 default=(
                     defaults.get(CONF_ENCRYPTION_KEY)
@@ -246,27 +244,27 @@ def _setup_device_connection_options_schema(
                     or DEFAULT_ENCRYPTION_KEY
                 ),
             ): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD)),
-            probatio.Required(
+            vol.Required(
                 CONF_UID,
                 default=defaults.get(CONF_UID, device_info.user_id),
             ): cv.positive_int,
-            probatio.Required(CONF_DEVICE_CONNECTION_LOCAL): section(
-                probatio.Schema(
+            vol.Required(CONF_DEVICE_CONNECTION_LOCAL): section(
+                vol.Schema(
                     {
-                        probatio.Optional(
+                        vol.Optional(
                             CONF_MAC_CONTROLLER_LOCAL,
                             default=(
                                 defaults_local.get(CONF_MAC_CONTROLLER_LOCAL)
                                 or device_info.mac_controller_local
                             ),
                         ): str,
-                        probatio.Optional(
+                        vol.Optional(
                             CONF_HOST,
                             default=(
                                 defaults_local.get(CONF_HOST) or device_info.host or ""
                             ),
                         ): str,
-                        probatio.Optional(
+                        vol.Optional(
                             CONF_PORT,
                             default=(
                                 defaults_local.get(CONF_PORT)
@@ -274,13 +272,13 @@ def _setup_device_connection_options_schema(
                                 or DEFAULT_DEVICE_PORT
                             ),
                         ): cv.port,
-                        probatio.Required(
+                        vol.Required(
                             CONF_TIMEOUT,
                             default=defaults_local.get(
                                 CONF_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT
                             ),
                         ): cv.positive_int,
-                        probatio.Required(
+                        vol.Required(
                             CONF_ENCRYPTION_VERSION,
                             default=defaults_local.get(
                                 CONF_ENCRYPTION_VERSION, DEFAULT_ENCRYPTION_VERSION
@@ -298,7 +296,7 @@ def _setup_device_connection_options_schema(
                                 mode=SelectSelectorMode.DROPDOWN,
                             )
                         ),
-                        probatio.Required(
+                        vol.Required(
                             CONF_MAX_ONLINE_ATTEMPTS,
                             default=defaults_local.get(
                                 CONF_MAX_ONLINE_ATTEMPTS,
@@ -308,17 +306,17 @@ def _setup_device_connection_options_schema(
                     }
                 )
             ),
-            probatio.Required(CONF_DEVICE_CONNECTION_CLOUD): section(
-                probatio.Schema(
+            vol.Required(CONF_DEVICE_CONNECTION_CLOUD): section(
+                vol.Schema(
                     {
-                        probatio.Required(
+                        vol.Required(
                             CONF_PREFER_CLOUD,
                             default=defaults_cloud.get(
                                 CONF_PREFER_CLOUD,
                                 DEFAULT_PREFER_CLOUD,
                             ),
                         ): cv.boolean,
-                        probatio.Optional(
+                        vol.Optional(
                             CONF_MAC_CONTROLLER_CLOUD,
                             default=defaults_cloud.get(CONF_MAC_CONTROLLER_CLOUD)
                             or device_info.mac_controller_mqtt,
@@ -332,13 +330,13 @@ def _setup_device_connection_options_schema(
 
 def _setup_device_options_schema(  # noqa: C901
     hass: HomeAssistant, device: GreeDevice, default_values: Mapping | None
-) -> probatio.Schema:
+) -> vol.Schema:
     defaults = default_values or {}
 
     schema: dict = {}
     schema.update(
         {
-            probatio.Required(
+            vol.Required(
                 CONF_NAME,
                 default=defaults.get(CONF_NAME, device.name),
             ): str
@@ -348,7 +346,7 @@ def _setup_device_options_schema(  # noqa: C901
     if device.supports_property(GreeProp.OP_MODE):
         schema.update(
             {
-                probatio.Optional(
+                vol.Optional(
                     CONF_HVAC_MODES,
                     default=defaults.get(CONF_HVAC_MODES, DEFAULT_HVAC_MODES),
                 ): SelectSelector(
@@ -374,7 +372,7 @@ def _setup_device_options_schema(  # noqa: C901
     if valid_fan_modes:
         schema.update(
             {
-                probatio.Optional(
+                vol.Optional(
                     CONF_FAN_MODES,
                     default=defaults.get(CONF_FAN_MODES, valid_fan_modes),
                 ): SelectSelector(
@@ -390,7 +388,7 @@ def _setup_device_options_schema(  # noqa: C901
     if device.supports_property(GreeProp.SWING_VERTICAL):
         schema.update(
             {
-                probatio.Optional(
+                vol.Optional(
                     CONF_SWING_MODES,
                     default=defaults.get(CONF_SWING_MODES, DEFAULT_SWING_MODES),
                 ): SelectSelector(
@@ -406,7 +404,7 @@ def _setup_device_options_schema(  # noqa: C901
     if device.supports_property(GreeProp.SWING_HORIZONTAL):
         schema.update(
             {
-                probatio.Optional(
+                vol.Optional(
                     CONF_SWING_HORIZONTAL_MODES,
                     default=defaults.get(
                         CONF_SWING_HORIZONTAL_MODES, DEFAULT_SWING_HORIZONTAL_MODES
@@ -429,7 +427,7 @@ def _setup_device_options_schema(  # noqa: C901
     if valid_features:
         schema.update(
             {
-                probatio.Optional(
+                vol.Optional(
                     CONF_FEATURES,
                     default=defaults.get(CONF_FEATURES, valid_features),
                 ): SelectSelector(
@@ -445,7 +443,7 @@ def _setup_device_options_schema(  # noqa: C901
     if device.supports_property(GreeProp.TARGET_TEMPERATURE):
         schema.update(
             {
-                probatio.Required(
+                vol.Required(
                     CONF_TEMPERATURE_STEP,
                     default=defaults.get(
                         CONF_TEMPERATURE_STEP, DEFAULT_TARGET_TEMP_STEP
@@ -464,7 +462,7 @@ def _setup_device_options_schema(  # noqa: C901
 
     schema.update(
         {
-            probatio.Optional(
+            vol.Optional(
                 ATTR_EXTERNAL_TEMPERATURE_SENSOR,
                 description={
                     "suggested_value": defaults.get(
@@ -486,7 +484,7 @@ def _setup_device_options_schema(  # noqa: C901
                     ),
                 )
             ),
-            probatio.Optional(
+            vol.Optional(
                 ATTR_EXTERNAL_HUMIDITY_SENSOR,
                 description={
                     "suggested_value": defaults.get(ATTR_EXTERNAL_HUMIDITY_SENSOR, "")
@@ -505,14 +503,14 @@ def _setup_device_options_schema(  # noqa: C901
                     ),
                 )
             ),
-            probatio.Required(
+            vol.Required(
                 CONF_RESTORE_STATES,
                 default=defaults.get(CONF_RESTORE_STATES, DEFAULT_RESTORE_STATES),
             ): cv.boolean,
         }
     )
 
-    return probatio.Schema(schema)
+    return vol.Schema(schema)
 
 
 class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -675,9 +673,9 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="reconfigure",
-            data_schema=probatio.Schema(
+            data_schema=vol.Schema(
                 {
-                    probatio.Required(
+                    vol.Required(
                         "include_local",
                         default=has_local,
                     ): cv.boolean
