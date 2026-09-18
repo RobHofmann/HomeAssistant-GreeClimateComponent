@@ -1,5 +1,5 @@
 [![HACS](https://img.shields.io/badge/HACS-Default-orange.svg)](https://hacs.xyz)
-[![Home Assistant](https://img.shields.io/badge/Compatible-Home_Assistant_2026.4+-blue.svg)](https://www.home-assistant.io)
+[![Home Assistant](https://img.shields.io/badge/Compatible-Home_Assistant_2026.3+-blue.svg)](https://www.home-assistant.io)
 
 # HomeAssistant-GreeClimateComponent
 
@@ -11,7 +11,7 @@ This integration connects directly to your HVAC devices via their IP address on 
 
 > [!IMPORTANT]
 > Due to the many issues being created revolving "TimeOut"/"Cannot connect" errors, I will be closing these. Feel free to make a PR fixing your TimeOut/Cannot connect error.
-> 
+>
 > More information on the "why" can be found here: https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues/405#issuecomment-4300110823
 
 For a comprehensive list of tested devices, see [Supported Devices](supported-devices.md).
@@ -159,7 +159,7 @@ Depending on the device configuration, specific Gree AC model, and firmware vers
 ### Configuration Controls
 
 - **Beeper**: Controls the beeper sounds from the air conditioner unit. When enabled, the unit will make sounds for button presses and status changes
-- **Lights**: Controls the display lights on the air conditioner unit  
+- **Lights**: Controls the display lights on the air conditioner unit
 - **Auto Light**: Automatically controls the display lights based on HVAC operations. When enabled, lights will turn on/off with the AC unit. *Note: This is an integration feature, not an actual AC unit state*
 - **Light Sensor**: Enables or disables light sensor for automatic brightness. Requires lights to be enabled
 - **Auto X-Fan**: Automatically controls the X-Fan mode based on HVAC operations. When enabled, X-Fan will automatically turn on in cooling and dry modes. *Note: This is an integration feature, not an actual AC unit state*
