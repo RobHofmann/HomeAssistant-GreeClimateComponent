@@ -585,7 +585,7 @@ async def gree_get_response_pack(
     json_data: dict,
     cipher: CipherBase,
     transport: GreeBaseTransport,
-) -> dict:
+) -> dict[str, Any]:
     """Send a request to the device and return the decoded response pack.
 
     Args:
@@ -1025,7 +1025,9 @@ async def gree_get_status(
     return StatusResult(prop_values=status, missing_props=missing)
 
 
-def gree_process_status_pack(pack: dict, props: list[str] | None) -> StatusResult:
+def gree_process_status_pack(
+    pack: dict[str, Any], props: list[str] | None
+) -> StatusResult:
     """Process a status pack.
 
     Args:
@@ -1043,8 +1045,9 @@ def gree_process_status_pack(pack: dict, props: list[str] | None) -> StatusResul
     # dat = best-effort values, possibly incomplete
     # alignment between them is not guaranteed globally
 
-    cols = pack.get("cols")
-    dat = pack.get("dat")
+    # Ensure the lists are parsed as strings
+    cols = [str(value) for value in pack.get("cols", [])]
+    dat = [str(value) for value in pack.get("dat", [])]
 
     if cols is None or dat is None:
         raise GreeProtocolError("No data received while getting device status")

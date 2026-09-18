@@ -8,6 +8,7 @@ from .api import (
     GreeProp,
     InfoProp,
     OtherProps,
+    StatusResult,
     gree_get_status,
     gree_process_status_pack,
     gree_set_status,
@@ -160,7 +161,7 @@ class DeviceApiClient:
         props: list[str],
         request_batch: int = 1,
         error_as_missing: bool = False,
-    ) -> tuple[dict[str, str], list[str]]:
+    ) -> StatusResult:
         """Query the status value of device properties."""
         if not self._bound:
             await self.rebind()
@@ -196,13 +197,13 @@ class DeviceApiClient:
 
         self._available = True
 
-        return state, missing
+        return StatusResult(prop_values=state, missing_props=missing)
 
     async def query_all_props(
         self,
         request_batch: int = 1,
         error_as_missing: bool = False,
-    ) -> tuple[dict[str, str], list[str]]:
+    ) -> StatusResult:
         """Query all possible props."""
 
         all_props = [

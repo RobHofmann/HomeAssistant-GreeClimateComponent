@@ -16,6 +16,7 @@ from .api import (
     InfoProp,
     OperationMode,
     SleepMode,
+    StatusResult,
     TemperatureUnits,
     VerticalSwingMode,
     extract_fw_version,
@@ -204,7 +205,7 @@ class GreeDevice:
 
         try:
             props = [prop.value for prop in InfoProp]
-            raw_info, _ = await self._client.query_props(props, len(props))
+            result = await self._client.query_props(props, len(props))
 
         except GreeConnectionError, GreeProtocolError:
             _LOGGER.exception(
@@ -226,10 +227,13 @@ class GreeDevice:
 
         else:
             _LOGGER.debug(
-                "[%s:%s] Got device info: %s", self.unique_id, self.transport, raw_info
+                "[%s:%s] Got device info: %s",
+                self.unique_id,
+                self.transport,
+                result.prop_values,
             )
 
-            self._state.process_new_state(raw_info)
+            self._state.process_new_state(result.prop_values)
 
             _LOGGER.debug(self._state.info)
 
@@ -250,16 +254,19 @@ class GreeDevice:
         )
 
         try:
-            status, _ = await self._client.query_props(
+            result = await self._client.query_props(
                 [prop.value for prop in self._state.polled_properties],
                 len(self._state.polled_properties),
             )
 
             _LOGGER.debug(
-                "[%s:%s] Got device status: %s", self.unique_id, self.transport, status
+                "[%s:%s] Got device status: %s",
+                self.unique_id,
+                self.transport,
+                result.prop_values,
             )
 
-            self._state.process_new_state(status)
+            self._state.process_new_state(result.prop_values)
 
         except GreeConnectionError, GreeProtocolError:
             _LOGGER.exception(
@@ -385,18 +392,19 @@ class GreeDevice:
         data["state_info"] = dict(self._state.info)
         data["state"] = {str(k): v for k, v in self._state.raw.items()}
         data["state_pending"] = {str(k): v for k, v in self._state.pending.items()}
+        data["state_unknown"] = {str(k): v for k, v in self._state.unknown.items()}
 
         return data
 
     async def query_props(
         self, props: list[str], request_batch: int = 1, error_as_missing: bool = False
-    ) -> tuple[dict[str, str], list[str]]:
+    ) -> StatusResult:
         """Query the value of the given props."""
         return await self._client.query_props(props, request_batch, error_as_missing)
 
     async def query_props_all(
         self, request_batch: int = 1, error_as_missing: bool = False
-    ) -> tuple[dict[str, str], list[str]]:
+    ) -> StatusResult:
         """Query all possible props."""
         return await self._client.query_all_props(request_batch, error_as_missing)
 

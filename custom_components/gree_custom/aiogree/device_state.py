@@ -19,6 +19,7 @@ class DeviceState:
         self._raw: dict[GreeProp, int] = {}
         self._pending: dict[GreeProp, int] = {}
         self._info: dict[InfoProp, str] = {}
+        self._unknown: dict[str, str] = {}
 
         self._capabilities = set(capabilities)
 
@@ -104,6 +105,7 @@ class DeviceState:
                     self._info[INFOPROP_KEY_TO_ENUM[key]] = value
 
                 else:
+                    self._unknown[key] = value
                     unknown.append(key)
 
             except ValueError, TypeError:
@@ -200,3 +202,8 @@ class DeviceState:
     def info(self) -> MappingProxyType[InfoProp, str]:
         """The Device Info property values."""
         return MappingProxyType(self._info)
+
+    @property
+    def unknown(self) -> MappingProxyType[str, str]:
+        """The unknown property values."""
+        return MappingProxyType(self._unknown)
