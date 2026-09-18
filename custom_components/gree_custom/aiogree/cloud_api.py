@@ -102,11 +102,11 @@ class GreeRegion(StrEnum):
     AS = "East South Asia"
     EU = "Europe"
     IN = "India"
-    LA = "Latin American"
+    LA = "Latin America"
     ME = "Middle East"
-    US = "North American"
+    US = "North America"
     RU = "Russia"
-    SA = "South American"
+    SA = "South America"
 
 
 CLOUD_SERVERS = {
