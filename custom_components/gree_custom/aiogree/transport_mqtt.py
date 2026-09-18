@@ -178,11 +178,16 @@ class GreeMqttTransport(GreeBaseTransport):
 
     @override
     async def request(
-        self, mac_controller: str, json_str: str, max_attempts: int | None = None
+        self,
+        mac_controller: str,
+        json_str: str,
+        max_attempts: int | None = None,
+        timeout: float | None = None,
     ) -> str:
         """Publish one MQTT request and wait for its response.
 
         MQTT sends each request once, so max_attempts is accepted for API parity only.
+        timeout overrides the transport's reply timeout for this one request.
         """
 
         if not self._connected or not self._client:
@@ -202,7 +207,7 @@ class GreeMqttTransport(GreeBaseTransport):
 
                 return await asyncio.wait_for(
                     future,
-                    timeout=self._timeout,
+                    timeout=timeout or self._timeout,
                 )
 
             finally:

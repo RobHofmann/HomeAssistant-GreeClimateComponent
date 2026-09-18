@@ -18,7 +18,7 @@ No Home Assistant imports here.
 | `device_api_client.py` | `DeviceApiClient`. Holds the bound session: transport, cipher, controller MAC. Runs the property queries. |
 | `device_state.py` | `DeviceState`. Raw values, pending values, info values, which props are polled. |
 | `helpers.py` | Encrypt and decrypt packs, temperature math, `TempOffsetResolver`, `redact_str`, `chunked`. |
-| `const.py` | Protocol constants: `MAX_PACK_SIZE`, `MAX_PACK_PROPS`, `MAX_UNANSWERED_IN_A_ROW`, temperature and humidity ranges. |
+| `const.py` | Protocol constants: `MAX_PACK_SIZE`, `MIN_PACK_PROPS`, `STATUS_CANARY_PROP`, `PROBE_TIMEOUT`, `MAX_UNANSWERED_IN_A_ROW`, temperature and humidity ranges. |
 | `errors.py` | Exceptions. `GreeConnectionError` means no answer. `GreeProtocolError` means a bad answer. `GreeBindingError` means the key exchange failed. |
 
 ## Home Assistant layer

@@ -107,9 +107,11 @@ class GreeUdpTransport(GreeBaseTransport):
         mac_controller: str,
         json_str: str,
         max_attempts: int | None = None,
+        timeout: float | None = None,
     ) -> str:
         """Send one request and wait for the reply, retrying up to max_attempts."""
         attempts = max_attempts or self.max_retries
+        wait = timeout or self.timeout
         last_error: Exception | None = None
 
         async with self._request_lock:  # prevents concurrent recv/send corruption
@@ -120,7 +122,7 @@ class GreeUdpTransport(GreeBaseTransport):
                     await stream.send(json_str.encode())
 
                     received_data, _ = await asyncio.wait_for(
-                        stream.recv(), timeout=self.timeout
+                        stream.recv(), timeout=wait
                     )
 
                 except Exception as err:  # noqa: BLE001

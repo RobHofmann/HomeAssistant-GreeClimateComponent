@@ -15,7 +15,12 @@ from .api import (
     gree_try_bind,
 )
 from .cipher import CipherBase, EncryptionVersion, get_cipher
-from .const import MAX_UNANSWERED_IN_A_ROW
+from .const import (
+    MAX_UNANSWERED_IN_A_ROW,
+    MIN_PACK_PROPS,
+    PROBE_TIMEOUT,
+    STATUS_CANARY_PROP,
+)
 from .errors import GreeBindingError, GreeConnectionError, GreeError, GreeRuntimeError
 from .helpers import chunked, gree_decrypt_pack, redact_str
 from .transport import GreeBaseTransport
@@ -45,6 +50,15 @@ class DeviceApiClient:
         self._available = False
 
         self._listeners: list[Callable[[dict[str, str]], None]] = []
+
+        # Learned per session: how many columns one status request may carry.
+        # None means no limit found yet. _max_props_failed is the smallest size
+        # the device answered with an empty result.
+        self._max_props: int | None = None
+        self._max_props_failed: int | None = None
+        # Largest request size this session has seen answered. A bigger request
+        # is a probe: one attempt with a short timeout.
+        self._max_props_ok = 0
 
     #
     # Binding
@@ -190,14 +204,8 @@ class DeviceApiClient:
         chunks = list(chunked(props, request_batch))
         for index, chunk in enumerate(chunks):
             try:
-                result = await gree_get_status(
-                    self.controller_mac,
-                    self._mac,
-                    self._userid,
-                    chunk,
-                    self._cipher,
-                    self._transport,
-                    max_attempts,
+                result = await self._get_status_adaptive(
+                    chunk, self._cipher, self._transport, max_attempts
                 )
 
                 state.update(result.prop_values)
@@ -231,6 +239,107 @@ class DeviceApiClient:
         self._available = True
 
         return StatusResult(prop_values=state, missing_props=missing)
+
+    async def _get_status_adaptive(
+        self,
+        props: list[str],
+        cipher: CipherBase,
+        transport: GreeBaseTransport,
+        max_attempts: int | None,
+    ) -> StatusResult:
+        """Get a status while learning how many columns one request may carry.
+
+        Some firmwares answer a request with too many columns with an empty
+        result, or with nothing at all. When the request holds
+        STATUS_CANARY_PROP, which every unit answers, an empty reply can only
+        mean the request was too big. The batch size is then halved and the
+        same props are asked again. The size that worked is kept for the rest
+        of the session. A request that fits between the known good and the
+        known bad size is tried as one packet once, so a device that can take
+        more gets back to one request per poll.
+
+        The first request of a session and the single packet tries are probes:
+        one attempt with PROBE_TIMEOUT, so a unit that goes silent on a too
+        large request does not stall the bind. Every retry after a shrink uses
+        the normal retries again.
+        """
+        wanted = len(props)
+        known_good = self._max_props
+        size = known_good
+        probing = known_good is None and wanted > self._max_props_ok
+
+        # Try one packet when the request sits between known good and known bad
+        if (
+            known_good is not None
+            and known_good < wanted
+            and (self._max_props_failed is None or wanted < self._max_props_failed)
+        ):
+            size = wanted
+            probing = True
+
+        while True:
+            attempted = wanted if size is None else min(size, wanted)
+            try:
+                result = await gree_get_status(
+                    self.controller_mac,
+                    self._mac,
+                    self._userid,
+                    props,
+                    cipher,
+                    transport,
+                    1 if probing else max_attempts,
+                    size,
+                    PROBE_TIMEOUT if probing else None,
+                )
+            except GreeConnectionError:
+                # Silence on a probe means too big, or the device is down.
+                # Shrink once and let the normal retries decide.
+                if not probing or attempted <= MIN_PACK_PROPS:
+                    raise
+                size = self._shrink(attempted, known_good)
+                probing = False
+                _LOGGER.debug(
+                    "[%s] No reply to a %d-column probe, retrying with %d",
+                    self._mac,
+                    attempted,
+                    size,
+                )
+                continue
+
+            too_big = (
+                not result.prop_values
+                and STATUS_CANARY_PROP in props
+                and attempted > MIN_PACK_PROPS
+            )
+            if not too_big:
+                break
+
+            if self._max_props_failed is None or attempted < self._max_props_failed:
+                self._max_props_failed = attempted
+            size = self._shrink(attempted, known_good)
+            probing = False
+            _LOGGER.debug(
+                "[%s] Empty reply to a %d-column request, retrying with %d",
+                self._mac,
+                attempted,
+                size,
+            )
+
+        if size is None:
+            self._max_props_ok = max(self._max_props_ok, wanted)
+        elif size != known_good:
+            self._max_props = size
+            _LOGGER.info(
+                "[%s] Status requests are limited to %d columns", self._mac, size
+            )
+
+        return result
+
+    def _shrink(self, attempted: int, known_good: int | None) -> int:
+        """Next smaller batch size: back to the known good one, or half."""
+        if known_good is not None and known_good < attempted:
+            return known_good
+        return max(MIN_PACK_PROPS, attempted // 2)
 
     async def query_all_props(
         self,
