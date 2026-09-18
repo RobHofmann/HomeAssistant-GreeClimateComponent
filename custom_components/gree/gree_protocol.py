@@ -421,6 +421,8 @@ async def discover_gree_devices(hass, timeout=5, extra_networks=None, extra_host
     DISCOVERY_MESSAGE = b'{"t":"scan"}'
 
     devices = []
+    gateways: list[dict] = []
+    seen_gateways: set[str] = set()
     seen_device_ids: set[tuple[str, str]] = set()
     sockets: list[tuple[socket.socket, list[str], str]] = []
 
@@ -564,30 +566,21 @@ async def discover_gree_devices(hass, timeout=5, extra_networks=None, extra_host
                                     "model": pack_json.get("model", "gree"),
                                     "version": pack_json.get("ver", ""),
                                 }
-                                # If subCnt > 1, fetch sub-device list
-                                if sub_cnt > 1:
-                                    try:
-                                        _LOGGER.debug(f"Fetching sub-devices for {mac_addr} (subCnt={sub_cnt})")
-                                        sub_devices = await get_subunits_list(mac_addr, addr[0], BROADCAST_PORT)
-                                        for sub_device in sub_devices.get("list", []):
-                                            sub_mac = sub_device.get("mac", "")
-                                            if sub_mac:
-                                                sub_device_info = {
-                                                    "name": f"{device_info['name']}_{sub_mac[:4]}",
-                                                    "host": addr[0],
-                                                    "port": BROADCAST_PORT,
-                                                    "mac": f"{sub_mac}@{mac_addr}",
-                                                    "brand": device_info["brand"],
-                                                    "model": sub_device.get("mid", device_info["model"]),
-                                                    "version": device_info["version"],
-                                                }
-                                                device_key = (sub_device_info["host"], sub_device_info["mac"])
-                                                if device_key not in seen_device_ids:
-                                                    seen_device_ids.add(device_key)
-                                                    devices.append(sub_device_info)
-                                                    _LOGGER.debug(f"Discovered sub-device: {sub_device_info}")
-                                    except Exception as e:
-                                        _LOGGER.error(f"Error fetching sub-devices for {mac_addr}: {e}")
+                                # If this is a gateway (has sub-units), defer
+                                # fetching its sub-device list until AFTER the
+                                # receive loop. The subList query involves its
+                                # own retries/timeouts; running it inline here
+                                # would block the receive loop and consume the
+                                # discovery time budget, causing other devices'
+                                # broadcast replies to be dropped (e.g. finding
+                                # 3 of 4 units). A VRF gateway reports every
+                                # connected indoor unit, including when it only
+                                # has one.
+                                if sub_cnt > 0:
+                                    if mac_addr not in seen_gateways:
+                                        seen_gateways.add(mac_addr)
+                                        gateways.append(device_info)
+                                        _LOGGER.debug(f"Discovered gateway {mac_addr} (subCnt={sub_cnt}), deferring sub-device fetch")
                                 else:
                                     device_key = (device_info["host"], device_info["mac"])
                                     if device_key not in seen_device_ids:
@@ -606,6 +599,38 @@ async def discover_gree_devices(hass, timeout=5, extra_networks=None, extra_host
         for sock, _, _ in sockets:
             with suppress(Exception):
                 sock.close()
+
+    # Now that the receive loop is done (and no longer racing the discovery
+    # time budget), query each gateway for its sub-devices. These queries run
+    # concurrently to keep discovery fast.
+    if gateways:
+        _LOGGER.debug(f"Fetching sub-devices for {len(gateways)} gateway(s)")
+        results = await asyncio.gather(
+            *(get_subunits_list(gw["mac"], gw["host"], gw["port"]) for gw in gateways),
+            return_exceptions=True,
+        )
+        for gw, sub_result in zip(gateways, results):
+            if isinstance(sub_result, Exception):
+                _LOGGER.error(f"Error fetching sub-devices for {gw['mac']}: {sub_result}")
+                continue
+            for sub_device in sub_result.get("list", []):
+                sub_mac = sub_device.get("mac", "")
+                if not sub_mac:
+                    continue
+                sub_device_info = {
+                    "name": f"{gw['name']}_{sub_mac[:4]}",
+                    "host": gw["host"],
+                    "port": gw["port"],
+                    "mac": f"{sub_mac}@{gw['mac']}",
+                    "brand": gw["brand"],
+                    "model": sub_device.get("mid", gw["model"]),
+                    "version": gw["version"],
+                }
+                device_key = (sub_device_info["host"], sub_device_info["mac"])
+                if device_key not in seen_device_ids:
+                    seen_device_ids.add(device_key)
+                    devices.append(sub_device_info)
+                    _LOGGER.debug(f"Discovered sub-device: {sub_device_info}")
 
     _LOGGER.debug(f"Discovery completed, found {len(devices)} devices")
     return devices
@@ -640,30 +665,105 @@ async def detect_device_encryption(mac_addr, ip_addr, port):
     _LOGGER.error(f"Could not determine encryption version for device {mac_addr}")
     return None
 
+async def _fetch_subunits_raw(ip_addr, port, json_payload, max_retries=8):
+    """Send a subList query and return the raw decoded JSON response.
+
+    Unlike FetchResult, this does not require an encrypted ``pack`` field in the
+    response. Gree gateways answer the ``subList`` query with the sub-device
+    ``list`` at the top level of the (unencrypted) JSON payload, so we must not
+    assume a ``pack`` is present.
+    """
+    timeout = 2
+    loop = asyncio.get_running_loop()
+    payload = json_payload.encode("utf-8")
+    for attempt in range(max_retries):
+        clientSock = None
+        try:
+            clientSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            clientSock.setblocking(False)
+            await asyncio.wait_for(loop.sock_sendto(clientSock, payload, (ip_addr, port)), timeout=timeout)
+            data, _ = await asyncio.wait_for(loop.sock_recvfrom(clientSock, 64000), timeout=timeout)
+            received_json = simplejson.loads(data)
+            _LOGGER.debug(f"_fetch_subunits_raw: raw response: {received_json}")
+            return received_json
+        except Exception as e:
+            _LOGGER.debug(f"subList attempt {attempt + 1}/{max_retries} failed for {ip_addr}:{port}: {type(e).__name__}: {e}")
+            if attempt == max_retries - 1:
+                raise
+        finally:
+            if clientSock:
+                with suppress(Exception):
+                    clientSock.close()
+
+        if attempt < max_retries - 1:
+            await asyncio.sleep(0.5 + (attempt * 0.3))
+    return None
+
+
 async def get_subunits_list(mac_addr, ip_addr, port):
     """
-    Fetch the list of sub-devices for a Gree device.
+    Fetch the list of sub-devices for a Gree gateway device.
+
+    The gateway answers a ``subList`` query with the list of connected units.
+    Depending on firmware the ``list`` is either returned at the top level of
+    the response, or wrapped in an encrypted ``pack``. When it is encrypted the
+    gateway uses its own *bound* device key (not the generic key), so we bind
+    to the gateway first and decrypt the response with the returned key.
     """
     try:
-        # Prepare the payload
-        encryption_version = await detect_device_encryption(mac_addr, ip_addr, port)
-
-        json_payload = f'{{"mac":"{mac_addr}", "i":"1"}}'
-        if encryption_version == 1:
-            cipher = AES.new(GENERIC_GREE_DEVICE_KEY.encode("utf8"), AES.MODE_ECB)
-            pack = base64.b64encode(cipher.encrypt(Pad(json_payload).encode("utf8"))).decode("utf-8")
-        else:
-            pack, tag = EncryptGCM(GENERIC_GREE_DEVICE_KEY_GCM, json_payload)
-            cipher = GetGCMCipher(GENERIC_GREE_DEVICE_KEY_GCM)
-
+        # subList is a protocol-level query. Send it unencrypted (no pack).
+        # ``i:0`` marks a normal (non-bind/scan) request.
         jsonPayloadToSend = (
-            f'{{"cid": "app","i": 1,"pack": "{pack}","t":"subList","tcid":"{str(mac_addr)}","uid": 0}}'
+            f'{{"cid":"app","i":0,"t":"subList","tcid":"{str(mac_addr)}","uid":0}}'
         )
-        # Use FetchResult to send and receive data
-        result = await FetchResult(cipher, ip_addr, port, jsonPayloadToSend, encryption_version=encryption_version)
-        _LOGGER.debug(f"get_subunits_list: FetchResult: {result}")
 
-        return result
+        received_json = await _fetch_subunits_raw(ip_addr, port, jsonPayloadToSend)
+        if not received_json:
+            return {"list": []}
+
+        # The list may be at the top level (some firmwares) ...
+        if isinstance(received_json.get("list"), list):
+            _LOGGER.debug(f"get_subunits_list: found {len(received_json['list'])} sub-units (top-level)")
+            return {"list": received_json["list"]}
+
+        # ... or inside an encrypted pack. The pack is encrypted with the
+        # gateway's *bound* device key, so bind to obtain it, then decrypt.
+        if "pack" in received_json:
+            encryption_version = await detect_device_encryption(mac_addr, ip_addr, port)
+            if encryption_version == 1:
+                device_key = await GetDeviceKey(mac_addr, ip_addr, port)
+                if not device_key:
+                    _LOGGER.error(f"get_subunits_list: could not bind to gateway {mac_addr} (v1)")
+                    return {"list": []}
+                cipher = AES.new(device_key, AES.MODE_ECB)
+                decoded_pack = base64.b64decode(received_json["pack"])
+                decrypted_pack = cipher.decrypt(decoded_pack)
+            elif encryption_version == 2:
+                device_key = await GetDeviceKeyGCM(mac_addr, ip_addr, port)
+                if not device_key:
+                    _LOGGER.error(f"get_subunits_list: could not bind to gateway {mac_addr} (v2)")
+                    return {"list": []}
+                cipher = GetGCMCipher(device_key)
+                decoded_pack = base64.b64decode(received_json["pack"])
+                decrypted_pack = cipher.decrypt(decoded_pack)
+                tag = received_json.get("tag")
+                if tag:
+                    with suppress(Exception):
+                        cipher.verify(base64.b64decode(tag))
+            else:
+                _LOGGER.error(f"get_subunits_list: unknown encryption for gateway {mac_addr}")
+                return {"list": []}
+
+            decoded_text = decrypted_pack.decode("utf-8", errors="ignore").replace("\x0f", "")
+            last_brace = decoded_text.rfind("}")
+            if last_brace != -1:
+                decoded_text = decoded_text[: last_brace + 1]
+            pack_json = simplejson.loads(decoded_text)
+            _LOGGER.debug(f"get_subunits_list: decrypted pack: {pack_json}")
+            return {"list": pack_json.get("list", [])}
+
+        _LOGGER.warning(f"get_subunits_list: unexpected subList response for {mac_addr}: {received_json}")
+        return {"list": []}
     except Exception as e:
         _LOGGER.error(f"Error fetching sub-device list for {mac_addr}: {e}")
         return {"list": []}
