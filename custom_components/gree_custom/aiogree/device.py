@@ -410,16 +410,27 @@ class GreeDevice:
         return data
 
     async def query_props(
-        self, props: list[str], request_batch: int = 1, error_as_missing: bool = False
+        self,
+        props: list[str],
+        request_batch: int = 1,
+        error_as_missing: bool = False,
+        max_attempts: int | None = None,
     ) -> StatusResult:
         """Query the value of the given props."""
-        return await self._client.query_props(props, request_batch, error_as_missing)
+        return await self._client.query_props(
+            props, request_batch, error_as_missing, max_attempts
+        )
 
     async def query_props_all(
-        self, request_batch: int = 1, error_as_missing: bool = False
+        self,
+        request_batch: int = 1,
+        error_as_missing: bool = False,
+        max_attempts: int | None = None,
     ) -> StatusResult:
         """Query all possible props."""
-        return await self._client.query_all_props(request_batch, error_as_missing)
+        return await self._client.query_all_props(
+            request_batch, error_as_missing, max_attempts
+        )
 
     async def set_props(self, values: Mapping[str, int]) -> None:
         """Allow setting generic property value set to the device.

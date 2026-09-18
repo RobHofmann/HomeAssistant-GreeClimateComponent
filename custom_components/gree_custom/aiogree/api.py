@@ -559,6 +559,7 @@ async def gree_get_response(
     json_data: dict,
     cipher: CipherBase,
     transport: GreeBaseTransport,
+    max_attempts: int | None = None,
 ) -> dict:
     """Send a request to the device and return the decoded response.
 
@@ -574,7 +575,9 @@ async def gree_get_response(
     """
 
     try:
-        data = await transport.request_json(mac_controller, json_data, cipher)
+        data = await transport.request_json(
+            mac_controller, json_data, cipher, max_attempts
+        )
     except GreeConnectionError:
         raise
     except json.JSONDecodeError as err:
@@ -590,6 +593,7 @@ async def gree_get_response_pack(
     json_data: dict,
     cipher: CipherBase,
     transport: GreeBaseTransport,
+    max_attempts: int | None = None,
 ) -> dict[str, Any]:
     """Send a request to the device and return the decoded response pack.
 
@@ -604,7 +608,9 @@ async def gree_get_response_pack(
 
     """
 
-    data = await gree_get_response(mac_controller, json_data, cipher, transport)
+    data = await gree_get_response(
+        mac_controller, json_data, cipher, transport, max_attempts
+    )
 
     pack: dict | None = data.get("pack", None)
 
@@ -945,6 +951,7 @@ async def gree_get_status(
     prop_names: list[str],
     cipher: CipherBase,
     transport: GreeBaseTransport,
+    max_attempts: int | None = None,
 ) -> StatusResult:
     """Retrieve the current values of the requested device properties.
 
@@ -1015,7 +1022,7 @@ async def gree_get_status(
             pack = _create_get_status_pack(mac_addr, batched_props)
             json_payload = _create_payload(pack, "pack", 0, mac_addr_controller, uid)
             result = await gree_get_response_pack(
-                mac_addr_controller, json_payload, cipher, transport
+                mac_addr_controller, json_payload, cipher, transport, max_attempts
             )
             res = gree_process_status_pack(result, batched_props)
             status.update(res.prop_values)

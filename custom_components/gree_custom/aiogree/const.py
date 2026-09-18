@@ -8,6 +8,11 @@ MAX_PACK_SIZE = 512
 # Keep a margin below that.
 MAX_PACK_PROPS = 25
 
+# Diagnostic sweeps ask one prop per request. Some props are never answered by
+# some firmwares (seen: ElcDatDte, ElcDatHor, ElcDatMth), and a few of those in a
+# row are normal. This many in a row means the device stopped talking.
+MAX_UNANSWERED_IN_A_ROW = 5
+
 MIN_TEMP_C = 16
 MAX_TEMP_C = 30
 

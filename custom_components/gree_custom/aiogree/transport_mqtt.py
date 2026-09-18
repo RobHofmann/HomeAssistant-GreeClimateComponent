@@ -177,8 +177,13 @@ class GreeMqttTransport(GreeBaseTransport):
         return None
 
     @override
-    async def request(self, mac_controller: str, json_str: str) -> str:
-        """Publish one MQTT request and wait for its response."""
+    async def request(
+        self, mac_controller: str, json_str: str, max_attempts: int | None = None
+    ) -> str:
+        """Publish one MQTT request and wait for its response.
+
+        MQTT sends each request once, so max_attempts is accepted for API parity only.
+        """
 
         if not self._connected or not self._client:
             raise GreeRuntimeError("Transport not connected")

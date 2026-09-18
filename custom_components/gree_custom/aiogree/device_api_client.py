@@ -15,7 +15,8 @@ from .api import (
     gree_try_bind,
 )
 from .cipher import CipherBase, EncryptionVersion, get_cipher
-from .errors import GreeBindingError, GreeError, GreeRuntimeError
+from .const import MAX_UNANSWERED_IN_A_ROW
+from .errors import GreeBindingError, GreeConnectionError, GreeError, GreeRuntimeError
 from .helpers import chunked, gree_decrypt_pack, redact_str
 from .transport import GreeBaseTransport
 
@@ -163,8 +164,16 @@ class DeviceApiClient:
         props: list[str],
         request_batch: int = 1,
         error_as_missing: bool = False,
+        max_attempts: int | None = None,
     ) -> StatusResult:
-        """Query the status value of device properties."""
+        """Query the status value of device properties.
+
+        With error_as_missing, a request that gets no answer marks its props as
+        missing and the sweep goes on. After MAX_UNANSWERED_IN_A_ROW of those in a
+        row the sweep stops and the rest is reported as missing too.
+        max_attempts limits the transport retries per request, so a diagnostic
+        sweep does not spend timeout x retries on every prop the device ignores.
+        """
         if not self._bound:
             await self.rebind()
 
@@ -176,8 +185,10 @@ class DeviceApiClient:
 
         state: dict[str, str] = {}
         missing: list[str] = []
+        unanswered_in_a_row = 0
 
-        for chunk in chunked(props, request_batch):
+        chunks = list(chunked(props, request_batch))
+        for index, chunk in enumerate(chunks):
             try:
                 result = await gree_get_status(
                     self.controller_mac,
@@ -186,10 +197,30 @@ class DeviceApiClient:
                     chunk,
                     self._cipher,
                     self._transport,
+                    max_attempts,
                 )
 
                 state.update(result.prop_values)
                 missing.extend(result.missing_props)
+                unanswered_in_a_row = 0
+
+            except GreeConnectionError:
+                if not error_as_missing:
+                    raise
+
+                missing.extend(chunk)
+                unanswered_in_a_row += 1
+
+                if unanswered_in_a_row >= MAX_UNANSWERED_IN_A_ROW:
+                    rest = [p for c in chunks[index + 1 :] for p in c]
+                    missing.extend(rest)
+                    _LOGGER.warning(
+                        "[%s] %d requests in a row got no answer, skipping %d props",
+                        self._mac,
+                        unanswered_in_a_row,
+                        len(rest),
+                    )
+                    break
 
             except GreeError:
                 if error_as_missing:
@@ -205,6 +236,7 @@ class DeviceApiClient:
         self,
         request_batch: int = 1,
         error_as_missing: bool = False,
+        max_attempts: int | None = None,
     ) -> StatusResult:
         """Query all possible props."""
 
@@ -214,7 +246,9 @@ class DeviceApiClient:
             *[prop.value for prop in OtherProps],
         ]
 
-        return await self.query_props(all_props, request_batch, error_as_missing)
+        return await self.query_props(
+            all_props, request_batch, error_as_missing, max_attempts
+        )
 
     async def set_props(
         self,
