@@ -12,7 +12,12 @@ from pydantic import BaseModel, ConfigDict
 
 from .cipher import CipherBase, EncryptionVersion, get_cipher
 from .cloud_api import GreeCloudApi
-from .const import DEFAULT_DEVICE_PORT, DEFAULT_DEVICE_USERID, MAX_PACK_SIZE
+from .const import (
+    DEFAULT_DEVICE_PORT,
+    DEFAULT_DEVICE_USERID,
+    MAX_PACK_PROPS,
+    MAX_PACK_SIZE,
+)
 from .errors import GreeBindingError, GreeConnectionError, GreeError, GreeProtocolError
 from .helpers import gree_extract_macs, redact_str
 from .transport import GreeBaseTransport
@@ -973,6 +978,8 @@ async def gree_get_status(
     # Use a lesser value as a safe option (512)
     # Since the device only responds to requests under 1024 bytes
     # here we divide the props in batches so that the request does not pass the limit
+    # Some firmwares also cap the number of columns per request (see MAX_PACK_PROPS),
+    # so a batch is closed on whichever limit is reached first
     batches: list[list[str]] = []
     current: list[str] = []
     current_size = EMPTY_PACK_OVERHEAD
@@ -980,7 +987,7 @@ async def gree_get_status(
     for prop in prop_names:
         prop_size = len(json.dumps([prop]).encode())
 
-        if current_size + prop_size < MAX_PACK_SIZE:
+        if len(current) < MAX_PACK_PROPS and current_size + prop_size < MAX_PACK_SIZE:
             current.append(prop)
             current_size += prop_size
         else:

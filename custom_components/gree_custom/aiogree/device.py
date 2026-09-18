@@ -342,6 +342,13 @@ class GreeDevice:
     def _remove_unsupported_props(self) -> None:
         """Remove unsupported properties from the list to update."""
 
+        # An empty status is a failed request, not proof that nothing is supported.
+        # Pruning on it would leave the device with no properties to poll for good.
+        if self._state.polled_properties and not self._state.raw:
+            raise GreeProtocolError(
+                f"Device '{self._mac_addr}' returned no status values, cannot detect supported properties"
+            )
+
         # Remove all unsupported properties
         self._state.invalidate_missing_properties()
 

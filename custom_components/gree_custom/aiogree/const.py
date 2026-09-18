@@ -2,6 +2,12 @@
 
 MAX_PACK_SIZE = 512
 
+# Some firmwares cap a status request by column count, not by size.
+# Measured on a U-CS532Z V3.75 unit: 29 props answered, 30 returned an empty
+# result and 31 or more got no reply at all, independent of the pack size.
+# Keep a margin below that.
+MAX_PACK_PROPS = 25
+
 MIN_TEMP_C = 16
 MAX_TEMP_C = 30
 

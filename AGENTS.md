@@ -84,9 +84,9 @@ Encryption:
 
 Requests:
 
-- Packs are split into batches so no request passes `MAX_PACK_SIZE` (512 bytes) before encryption. See `api.py`, the status request builder.
+- Packs are split into batches so no request passes `MAX_PACK_SIZE` (512 bytes) before encryption or `MAX_PACK_PROPS` (25 columns), whichever comes first. See `api.py`, the status request builder. The column cap exists because at least one firmware answers 29 columns, returns an empty result for 30 and stops replying at 31, no matter how small the pack is.
 - A device may return fewer columns than asked. That is normal. Missing columns are reported in the result. It is not possible to reliable associate columns and values. 
-- A device may return `r=200` with empty `cols` and `dat`. Treat this as "no data", not as "nothing is supported". At least one device does this for a request of 30 props that is only 347 bytes.
+- A device may return `r=200` with empty `cols` and `dat`. That is "no data", not "nothing is supported". `_remove_unsupported_props()` raises `GreeProtocolError` when the first status comes back empty, so setup fails and retries instead of leaving a device with nothing to poll.
 - The device does not type its values. `InfoProp` values can come back as `int` (seen: `ModelType` as `32768`) while others are `str`. Coerce everything to string on status pack received.
 
 Temperature:
