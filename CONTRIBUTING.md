@@ -30,3 +30,6 @@ If you change your code, you have to restart Home Assistant (rerun the Task)
 ## Styling
 
 Please adhere to the recomended coding style: https://developers.home-assistant.io/docs/development_guidelines
+## Developer documentation
+
+How the code is built, protocol facts learned from real units, the config entry shape and the development workflow are in [docs/](docs/README.md). Coding agents start at `AGENTS.md`.
