@@ -3,13 +3,12 @@
 import logging
 from typing import Any
 
-from config.custom_components.gree_custom.const import CONF_ENCRYPTION_KEY
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.const import CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
 
-from .const import DOMAIN
+from .const import CONF_ENCRYPTION_KEY, DOMAIN
 from .coordinator import GreeConfigEntry, GreeCoordinator
 
 _LOGGER = logging.getLogger(__name__)
