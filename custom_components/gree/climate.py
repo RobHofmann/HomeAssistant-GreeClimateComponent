@@ -7,6 +7,7 @@ This module defines the climate (HVAC) unit for the Gree integration.
 # Standard library imports
 import base64
 import logging
+import time
 from datetime import timedelta
 
 # Third-party imports
@@ -27,6 +28,7 @@ from homeassistant.const import (
     CONF_PORT,
 )
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.event import async_call_later
 
 # Local imports
 from .const import (
@@ -259,6 +261,18 @@ class GreeClimate(ClimateEntity):
 
         # Initialize beeper control
         self._beeper_enabled = True  # Default to beeper ON (silent mode OFF)
+
+        # VRF gateways cache each sub-unit's state and can report a stale
+        # snapshot for a few seconds after we send a command. To stop a poll in
+        # that window from reverting the UI to the old value, remember the
+        # options we just commanded and re-apply them over freshly-read state
+        # until the gateway catches up (or the window expires).
+        self._pending_options: dict = {}
+        self._pending_expiry: float = 0.0
+        # How long to trust our commanded values over device read-back.
+        self._pending_ttl = 8.0
+        # Cancel handle for a one-shot delayed refresh after a command.
+        self._pending_refresh_unsub = None
 
         # helper method to determine TemSen offset
         self._process_temp_sensor = TempOffsetResolver()
@@ -606,6 +620,11 @@ class GreeClimate(ClimateEntity):
             # Set latest status from device
             self._acOptions = self.SetAcOptions(self._acOptions, optionsToFetch, currentValues)
 
+            # Snapshot what the device actually reported this cycle, so we can
+            # confirm pending commands against the *device's* value rather than
+            # our own optimistic overlay.
+            read_values = dict(zip(optionsToFetch, currentValues)) if isinstance(currentValues, list) else {}
+
             # Overwrite status with our choices
             if not (acOptions == {}):
                 self._acOptions = self.SetAcOptions(self._acOptions, acOptions)
@@ -623,14 +642,70 @@ class GreeClimate(ClimateEntity):
                             _LOGGER.info(f"{self._name}: Device marked offline after failed send attempt")
                             self._device_online = False
                         self._handle_comms_failure()
+                    else:
+                        # Command sent successfully: remember these values so a
+                        # stale gateway read-back on the next poll(s) doesn't
+                        # revert the UI before the change propagates. Merge with
+                        # any still-unconfirmed options from earlier commands.
+                        self._pending_options.update(acOptions)
+                        self._pending_expiry = time.monotonic() + self._pending_ttl
+                        # Schedule a quick follow-up read so the UI confirms the
+                        # change within a couple of seconds instead of waiting
+                        # for the next scan interval (up to 60s).
+                        self._schedule_pending_refresh()
             else:
                 # loop used once for Gree Climate initialisation only
                 self._firstTimeRun = False
+
+            # Re-assert recently commanded values over the (possibly stale)
+            # read-back. Confirm against the value the DEVICE reported this
+            # cycle (read_values), not our optimistic overlay, so we keep
+            # forcing the commanded value until the gateway actually catches up.
+            # Skip confirmation on the same cycle that just sent the command
+            # (there is no fresh read reflecting it yet).
+            if self._pending_options:
+                if time.monotonic() >= self._pending_expiry:
+                    self._pending_options = {}
+                else:
+                    just_sent = acOptions != {}
+                    still_pending = {}
+                    for key, want in self._pending_options.items():
+                        device_val = read_values.get(key)
+                        # If the device already reports the commanded value,
+                        # it's confirmed; stop forcing it. Don't confirm on the
+                        # same cycle we sent the command.
+                        if not just_sent and device_val is not None and str(device_val) == str(want):
+                            continue
+                        self._acOptions[key] = want
+                        still_pending[key] = want
+                    self._pending_options = still_pending
 
             # Update HA state to current HVAC state
             self.UpdateHAStateToCurrentACState()
 
             _LOGGER.debug(f"{self._name}: Finished device state sync")
+
+    def _schedule_pending_refresh(self, delay: float = 2.0) -> None:
+        """Schedule a one-shot state refresh shortly after a command.
+
+        VRF gateways need a moment to propagate a command to the indoor unit
+        and update their cached state. A quick follow-up poll lets the UI
+        confirm the new value within a couple of seconds rather than waiting
+        for the next scan interval.
+        """
+        if self._pending_refresh_unsub is not None:
+            self._pending_refresh_unsub()
+            self._pending_refresh_unsub = None
+
+        async def _do_refresh(_now):
+            self._pending_refresh_unsub = None
+            try:
+                await self.async_update()
+                self.async_write_ha_state()
+            except Exception as e:  # noqa: BLE001 - best-effort refresh
+                _LOGGER.debug(f"{self._name}: delayed refresh failed: {e}")
+
+        self._pending_refresh_unsub = async_call_later(self.hass, delay, _do_refresh)
 
     @property
     def should_poll(self):
@@ -948,6 +1023,9 @@ class GreeClimate(ClimateEntity):
 
     async def async_will_remove_from_hass(self) -> None:
         """Clean up when entity is removed."""
+        if self._pending_refresh_unsub is not None:
+            self._pending_refresh_unsub()
+            self._pending_refresh_unsub = None
         for name, entity_id, unsub in self._listeners:
             _LOGGER.debug("Deregistering %s listener for %s", name, entity_id)
             unsub()

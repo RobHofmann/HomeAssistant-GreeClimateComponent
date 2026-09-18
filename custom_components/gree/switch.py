@@ -27,6 +27,28 @@ from .entity import GreeEntity, GreeEntityDescription
 _LOGGER = logging.getLogger(__name__)
 
 
+def _prop_supported(device, prop: str) -> bool:
+    """Return True if the entity should be available for ``prop``.
+
+    Gree (V)RF indoor units return an empty string for properties they do not
+    implement (e.g. ``Lig``, ``Health``, ``StHt`` on many VRF units). A real,
+    supported property comes back as an integer. Treat empty string / None /
+    missing as "not supported" so we don't expose non-functional switches.
+
+    While the device is offline / not yet synced we can't tell, so mirror the
+    device's online state (as the base entity does) instead of hiding.
+    """
+    value = device._acOptions.get(prop, "")
+    if value in ("", None):
+        # Unknown until the first successful sync populates _acOptions. If we
+        # have synced at least once and the value is still empty, the unit
+        # genuinely doesn't support this property.
+        if getattr(device, "_firstTimeRun", False):
+            return getattr(device, "_device_online", True)
+        return False
+    return getattr(device, "_device_online", True) if hasattr(device, "_device_online") else True
+
+
 @dataclass
 class GreeSwitchEntityDescription(GreeEntityDescription, SwitchEntityDescription):
     """Describes Gree Switch entity."""
@@ -93,18 +115,21 @@ SWITCHES: tuple[GreeSwitchEntityDescription, ...] = (
         icon="mdi:fan",
         value_fn=lambda device: device._acOptions.get("Blo") == 1,
         set_fn=_set_xfan,
+        available_fn=lambda device: _prop_supported(device, "Blo"),
     ),
     GreeSwitchEntityDescription(
         property_key="lights",
         icon="mdi:lightbulb",
         value_fn=lambda device: device._acOptions.get("Lig") == 1,
         set_fn=_set_lights,
+        available_fn=lambda device: _prop_supported(device, "Lig"),
     ),
     GreeSwitchEntityDescription(
         property_key="health",
         icon="mdi:shield-check",
         value_fn=lambda device: device._acOptions.get("Health") == 1,
         set_fn=_set_health,
+        available_fn=lambda device: _prop_supported(device, "Health"),
     ),
     GreeSwitchEntityDescription(
         property_key="powersave",
@@ -112,7 +137,7 @@ SWITCHES: tuple[GreeSwitchEntityDescription, ...] = (
         value_fn=lambda device: device._acOptions.get("SvSt") == 1,
         set_fn=_set_powersave,
         exists_fn=lambda description, device: HVACMode.COOL in device._hvac_modes,
-        available_fn=lambda device: device._hvac_mode == HVACMode.COOL,
+        available_fn=lambda device: device._hvac_mode == HVACMode.COOL and _prop_supported(device, "SvSt"),
     ),
     GreeSwitchEntityDescription(
         property_key="eightdegheat",
@@ -120,20 +145,21 @@ SWITCHES: tuple[GreeSwitchEntityDescription, ...] = (
         value_fn=lambda device: device._acOptions.get("StHt") == 1,
         set_fn=_set_eightdegheat,
         exists_fn=lambda description, device: HVACMode.HEAT in device._hvac_modes,
-        available_fn=lambda device: device._hvac_mode == HVACMode.HEAT,
+        available_fn=lambda device: device._hvac_mode == HVACMode.HEAT and _prop_supported(device, "StHt"),
     ),
     GreeSwitchEntityDescription(
         property_key="sleep",
         icon="mdi:sleep",
         value_fn=lambda device: device._acOptions.get("SwhSlp") == 1 and device._acOptions.get("SlpMod") == 1,
         set_fn=_set_sleep,
-        available_fn=lambda device: device._hvac_mode in (HVACMode.COOL, HVACMode.HEAT),
+        available_fn=lambda device: device._hvac_mode in (HVACMode.COOL, HVACMode.HEAT) and _prop_supported(device, "SwhSlp"),
     ),
     GreeSwitchEntityDescription(
         property_key="air",
         icon="mdi:air-filter",
         value_fn=lambda device: device._acOptions.get("Air") == 1,
         set_fn=_set_air,
+        available_fn=lambda device: _prop_supported(device, "Air"),
     ),
     GreeSwitchEntityDescription(
         property_key="anti_direct_blow",
