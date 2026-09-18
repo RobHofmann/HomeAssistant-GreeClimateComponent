@@ -25,7 +25,13 @@ A fake device that speaks the UDP protocol is the best way to test failure paths
 - Build a `GreeDevice` and a `GreeUdpTransport` pointed at it, call `bind_with_transport()`, then assert on `_state.raw`, `_state.polled_properties` and the requests the fake saw.
 - Give the fake a personality: cap the columns it answers, return an empty result, ignore some props, or stop answering part way. Those are the real failure modes.
 
-Things worth a test when you touch the protocol layer: both encryption versions, a device that returns fewer columns than asked, a device that returns nothing, and a device that never answers a specific prop.
+Things worth a test when you touch the protocol layer: both encryption versions, a device that returns fewer columns than asked, a device that returns nothing, a device with a column limit, and a device that never answers a specific prop.
+
+## Tools
+
+`tools/` holds small command line scripts that use the protocol layer directly. They run outside Home Assistant, from the repo root, with any Python 3.14 that has `asyncio_dgram` and `cryptography` (the devcontainer does).
+
+- `probe_status_limit.py --host <ip>`: finds the status request limits of one unit. It binds the unit, then sends `Pow` repeated N times (growing column count) and 10 padded columns (growing byte size), each as exactly one packet, and prints where each run first fails. Use it before you file or answer a report about a unit that shows only default values, and paste the output in the issue. Details on why this matters are in [protocol.md](protocol.md#requests-and-batching).
 
 ## Debug logs
 
