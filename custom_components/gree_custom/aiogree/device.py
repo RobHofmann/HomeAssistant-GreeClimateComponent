@@ -171,6 +171,8 @@ class GreeDevice:
                     exc_info=True,
                 )
             else:
+                self._client.add_status_listener(self._device_pushed_status)
+
                 # Fetch initial information after sucessful bind
                 await self.fetch_device_info()
                 await self.fetch_device_status()
@@ -178,6 +180,10 @@ class GreeDevice:
                 return
 
         raise error
+
+    def _device_pushed_status(self, status: dict[str, str]) -> None:
+        _LOGGER.debug("[%s] Got data pushed from the device", self.unique_id)
+        self._state.process_new_state(status)
 
     async def unbind_device(self) -> None:
         """Properly disconnect the device from transport."""

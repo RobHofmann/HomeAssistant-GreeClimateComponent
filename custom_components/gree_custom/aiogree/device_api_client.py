@@ -124,6 +124,8 @@ class DeviceApiClient:
             self.controller_mac,
         )
 
+        self._listeners.clear()
+
         self._bound = False
         self._available = False
         self._cipher = None
