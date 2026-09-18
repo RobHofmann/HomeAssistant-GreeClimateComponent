@@ -373,7 +373,7 @@ def _setup_device_options_schema(  # noqa: C901
         GreeProp.FEAT_TURBO_MODE: [GATTR_FEAT_TURBO],
         GreeProp.FEAT_QUIET_MODE: [GATTR_FEAT_QUIET_MODE],
     }
-    valid_fan_modes = []
+    valid_fan_modes: list[str] = []
     for prop, modes in fan_mapping.items():
         if device.supports_property(prop):
             valid_fan_modes.extend(modes)
@@ -536,7 +536,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
         self._extra_networks: list[str] = []
         self._extra_hosts: list[str] = []
 
-        self._config_data: dict = {}
+        self._config_data: dict[str, Any] = {}
         self._config_data["device_connections"] = {}
         self._config_data["device_options"] = {}
         self._cloud_api: GreeCloudApi | None = None
@@ -554,6 +554,11 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
         self._connections_by_controller: dict[str, Any] = {}
         self._options_by_controller: dict[str, Any] = {}
         self._options_by_model: dict[str, Any] = {}
+
+    async def async_step_import(self, import_config: dict) -> ConfigFlowResult:
+        """Handle import from configuration.yaml."""
+        # TODO: Implement YAML import
+        return self.async_abort(reason="not_implemented")
 
     @override
     async def async_step_dhcp(
@@ -1191,9 +1196,11 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
         """Create or update the entry."""
 
         if self.source == SOURCE_REAUTH:
+            cloud_conf: dict[str, str] = self._config_data.get(CONF_CLOUD, {})
             return self.async_update_reload_and_abort(
                 self._get_reauth_entry(),
-                data_updates={CONF_CLOUD: self._config_data.get(CONF_CLOUD, {})},
+                title=f"Gree Account: {cloud_conf.get(CONF_UID)} ({cloud_conf.get(CONF_EMAIL)})",
+                data_updates={CONF_CLOUD: cloud_conf},
             )
 
         device_registry = dr.async_get(self.hass)
@@ -1285,8 +1292,11 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                 None,
             )
 
-        title = self._config_data.get(CONF_CLOUD, {}).get(
-            CONF_EMAIL, "Local-only Devices"
+        cloud_conf: dict[str, str] = self._config_data.get(CONF_CLOUD, {})
+        title = (
+            f"Gree Account: {cloud_conf.get(CONF_UID)} ({cloud_conf.get(CONF_EMAIL)})"
+            if cloud_conf.get(CONF_EMAIL)
+            else "Local-only Devices"
         )
 
         if update_entry:
