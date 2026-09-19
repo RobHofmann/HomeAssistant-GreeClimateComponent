@@ -342,6 +342,13 @@ class GreeDevice:
     def _remove_unsupported_props(self) -> None:
         """Remove unsupported properties from the list to update."""
 
+        # An empty status is a failed request, not proof that nothing is supported.
+        # Pruning on it would leave the device with no properties to poll for good.
+        if self._state.polled_properties and not self._state.raw:
+            raise GreeProtocolError(
+                f"Device '{self._mac_addr}' returned no status values, cannot detect supported properties"
+            )
+
         # Remove all unsupported properties
         self._state.invalidate_missing_properties()
 
@@ -403,16 +410,27 @@ class GreeDevice:
         return data
 
     async def query_props(
-        self, props: list[str], request_batch: int = 1, error_as_missing: bool = False
+        self,
+        props: list[str],
+        request_batch: int = 1,
+        error_as_missing: bool = False,
+        max_attempts: int | None = None,
     ) -> StatusResult:
         """Query the value of the given props."""
-        return await self._client.query_props(props, request_batch, error_as_missing)
+        return await self._client.query_props(
+            props, request_batch, error_as_missing, max_attempts
+        )
 
     async def query_props_all(
-        self, request_batch: int = 1, error_as_missing: bool = False
+        self,
+        request_batch: int = 1,
+        error_as_missing: bool = False,
+        max_attempts: int | None = None,
     ) -> StatusResult:
         """Query all possible props."""
-        return await self._client.query_all_props(request_batch, error_as_missing)
+        return await self._client.query_all_props(
+            request_batch, error_as_missing, max_attempts
+        )
 
     async def set_props(self, values: Mapping[str, int]) -> None:
         """Allow setting generic property value set to the device.

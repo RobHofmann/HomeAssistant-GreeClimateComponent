@@ -4,6 +4,7 @@ from collections.abc import Callable, Mapping
 import logging
 
 from .api import (
+    POLLED_PROPS,
     BindingInfo,
     GreeProp,
     InfoProp,
@@ -15,7 +16,13 @@ from .api import (
     gree_try_bind,
 )
 from .cipher import CipherBase, EncryptionVersion, get_cipher
-from .errors import GreeBindingError, GreeError, GreeRuntimeError
+from .const import (
+    MAX_UNANSWERED_IN_A_ROW,
+    MIN_PACK_PROPS,
+    PROBE_TIMEOUT,
+    STATUS_CANARY_PROP,
+)
+from .errors import GreeBindingError, GreeConnectionError, GreeError, GreeRuntimeError
 from .helpers import chunked, gree_decrypt_pack, redact_str
 from .transport import GreeBaseTransport
 
@@ -44,6 +51,11 @@ class DeviceApiClient:
         self._available = False
 
         self._listeners: list[Callable[[dict[str, str]], None]] = []
+
+        # How many columns one status request may carry on this device.
+        # Measured once by probe_device_limits() right after binding.
+        # None means the device has no limit we need to care about.
+        self._max_props: int | None = None
 
     #
     # Binding
@@ -107,6 +119,107 @@ class DeviceApiClient:
         self._bound = True
         self._available = True
 
+        await self.probe_device_limits()
+
+    async def probe_device_limits(self) -> None:
+        """Measure how many columns one status request may carry.
+
+        Some firmwares cap the number of columns per status request. The cap
+        differs per firmware, so it is measured here instead of being fixed.
+        The first probe asks for as many columns as the default poll has,
+        which is the largest status request the component sends. If that
+        works there is nothing to limit and `_max_props` stays None. If it
+        fails, a binary search below it looks for the largest size that
+        still works. The result is kept until `unbind()`.
+
+        A probe never raises. A device that answers nothing at all ends up on
+        MIN_PACK_PROPS, and the empty status guard in `GreeDevice` deals with
+        the rest.
+        """
+        first = len(POLLED_PROPS)
+
+        if await self._probe_columns(first):
+            self._max_props = None
+            _LOGGER.debug(
+                "[%s] Status requests are not limited, %d columns are answered",
+                self._mac,
+                first,
+            )
+            return
+
+        # Largest size that still works, somewhere below the failing first probe
+        low = MIN_PACK_PROPS
+        high = first - 1
+        best: int | None = None
+
+        while low <= high:
+            middle = (low + high) // 2
+            if await self._probe_columns(middle):
+                best = middle
+                low = middle + 1
+            else:
+                high = middle - 1
+
+        if best is None:
+            self._max_props = MIN_PACK_PROPS
+            _LOGGER.warning(
+                "[%s] Not even %d columns were answered, the device may be "
+                "answering nothing at all. Using %d columns per request",
+                self._mac,
+                MIN_PACK_PROPS,
+                MIN_PACK_PROPS,
+            )
+            return
+
+        self._max_props = best
+        _LOGGER.info("[%s] Status requests are limited to %d columns", self._mac, best)
+
+    async def _probe_columns(self, count: int) -> bool:
+        """Ask for `count` columns once and tell if the device answered well.
+
+        The request holds STATUS_CANARY_PROP, which every unit answers, plus
+        throw-away names the device does not know. The probe passes when the
+        canary comes back and no column with an empty name comes back. An empty
+        name is how some firmwares mark a request they had to cut short. No
+        reply, an empty reply or any error is a failure.
+        """
+        if not self._cipher or not self._transport:
+            return False
+
+        props = [STATUS_CANARY_PROP, *[f"X{i:02d}" for i in range(count - 1)]]
+
+        try:
+            result = await gree_get_status(
+                self.controller_mac,
+                self._mac,
+                self._userid,
+                props,
+                self._cipher,
+                self._transport,
+                1,
+                None,
+                PROBE_TIMEOUT,
+            )
+
+        except GreeError as err:
+            _LOGGER.debug("[%s] Probe of %d columns failed: %s", self._mac, count, err)
+            return False
+
+        # A dict that holds the canary is never empty, so this covers the
+        # empty reply case as well.
+        passed = (
+            STATUS_CANARY_PROP in result.prop_values and "" not in result.prop_values
+        )
+
+        _LOGGER.debug(
+            "[%s] Probe of %d columns %s",
+            self._mac,
+            count,
+            "passed" if passed else "failed",
+        )
+
+        return passed
+
     async def unbind(self) -> None:
         """Unbind from the current transport."""
         if not self._bound:
@@ -129,6 +242,7 @@ class DeviceApiClient:
         self._bound = False
         self._available = False
         self._cipher = None
+        self._max_props = None
 
     async def rebind(self) -> None:
         """Try binding with the current transport and existing binding info."""
@@ -163,8 +277,16 @@ class DeviceApiClient:
         props: list[str],
         request_batch: int = 1,
         error_as_missing: bool = False,
+        max_attempts: int | None = None,
     ) -> StatusResult:
-        """Query the status value of device properties."""
+        """Query the status value of device properties.
+
+        With error_as_missing, a request that gets no answer marks its props as
+        missing and the sweep goes on. After MAX_UNANSWERED_IN_A_ROW of those in a
+        row the sweep stops and the rest is reported as missing too.
+        max_attempts limits the transport retries per request, so a diagnostic
+        sweep does not spend timeout x retries on every prop the device ignores.
+        """
         if not self._bound:
             await self.rebind()
 
@@ -176,8 +298,10 @@ class DeviceApiClient:
 
         state: dict[str, str] = {}
         missing: list[str] = []
+        unanswered_in_a_row = 0
 
-        for chunk in chunked(props, request_batch):
+        chunks = list(chunked(props, request_batch))
+        for index, chunk in enumerate(chunks):
             try:
                 result = await gree_get_status(
                     self.controller_mac,
@@ -186,10 +310,31 @@ class DeviceApiClient:
                     chunk,
                     self._cipher,
                     self._transport,
+                    max_attempts,
+                    self._max_props,
                 )
 
                 state.update(result.prop_values)
                 missing.extend(result.missing_props)
+                unanswered_in_a_row = 0
+
+            except GreeConnectionError:
+                if not error_as_missing:
+                    raise
+
+                missing.extend(chunk)
+                unanswered_in_a_row += 1
+
+                if unanswered_in_a_row >= MAX_UNANSWERED_IN_A_ROW:
+                    rest = [p for c in chunks[index + 1 :] for p in c]
+                    missing.extend(rest)
+                    _LOGGER.warning(
+                        "[%s] %d requests in a row got no answer, skipping %d props",
+                        self._mac,
+                        unanswered_in_a_row,
+                        len(rest),
+                    )
+                    break
 
             except GreeError:
                 if error_as_missing:
@@ -205,6 +350,7 @@ class DeviceApiClient:
         self,
         request_batch: int = 1,
         error_as_missing: bool = False,
+        max_attempts: int | None = None,
     ) -> StatusResult:
         """Query all possible props."""
 
@@ -214,7 +360,9 @@ class DeviceApiClient:
             *[prop.value for prop in OtherProps],
         ]
 
-        return await self.query_props(all_props, request_batch, error_as_missing)
+        return await self.query_props(
+            all_props, request_batch, error_as_missing, max_attempts
+        )
 
     async def set_props(
         self,

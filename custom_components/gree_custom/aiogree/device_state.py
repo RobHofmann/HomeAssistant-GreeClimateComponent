@@ -4,7 +4,13 @@ from collections.abc import Iterable
 import logging
 from types import MappingProxyType
 
-from .api import INFOPROP_KEY_TO_ENUM, PROP_KEY_TO_ENUM, GreeProp, InfoProp
+from .api import (
+    INFOPROP_KEY_TO_ENUM,
+    POLLED_PROPS,
+    PROP_KEY_TO_ENUM,
+    GreeProp,
+    InfoProp,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,9 +30,7 @@ class DeviceState:
         self._capabilities = set(capabilities)
 
         # Poll everything but beeper
-        self._props_to_poll: tuple[GreeProp, ...] = tuple(
-            p for p in GreeProp if p not in (GreeProp.BEEPER, GreeProp.BEEPER_NEW)
-        )
+        self._props_to_poll: tuple[GreeProp, ...] = POLLED_PROPS
 
     #
     # State access
