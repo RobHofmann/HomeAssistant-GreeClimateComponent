@@ -985,7 +985,7 @@ async def gree_get_status(
     # Since the device only responds to requests under 1024 bytes
     # here we divide the props in batches so that the request does not pass the limit
     # Some firmwares also cap the number of columns per request. That limit is
-    # learned per session by the caller and passed as max_props, so a batch is
+    # measured at bind time by the caller and passed as max_props, so a batch is
     # closed on whichever limit is reached first
     batches: list[list[str]] = []
     current: list[str] = []

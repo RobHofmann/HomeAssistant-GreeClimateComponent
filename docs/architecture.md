@@ -40,7 +40,7 @@ Also in the repo root: `supported-devices.md`, `manual-configuration.yaml`, `hac
 
 `GreeDevice.bind_with_transport()` runs these steps in order:
 
-1. Bind. Try the local transport first, then MQTT. Binding is the key exchange, see [protocol.md](protocol.md#encryption).
+1. Bind. Try the local transport first, then MQTT. Binding is the key exchange, see [protocol.md](protocol.md#encryption). Right after the key exchange, `probe_device_limits()` measures how many columns one status request may carry on this firmware, see [protocol.md](protocol.md#requests-and-batching).
 2. `fetch_device_info()`. Asks for the `InfoProp` columns (MAC, name, model, firmware).
 3. `fetch_device_status()`. Asks for all polled `GreeProp` columns. The request is split into batches, see [protocol.md](protocol.md#requests-and-batching).
 4. `_remove_unsupported_props()`. Any prop the device did not return is removed from polling for the life of the object. If the device returned nothing at all, this raises `GreeProtocolError` instead, so setup fails and Home Assistant retries later.
