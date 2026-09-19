@@ -96,6 +96,11 @@ class GreeProp(StrEnum):
 
 PROP_KEY_TO_ENUM = {prop.value: prop for prop in GreeProp}
 
+# Props every device is polled for by default; the beeper is only written, never read
+POLLED_PROPS: tuple[GreeProp, ...] = tuple(
+    p for p in GreeProp if p not in (GreeProp.BEEPER, GreeProp.BEEPER_NEW)
+)
+
 
 class InfoProp(StrEnum):
     """Enumeration of props that return device information."""

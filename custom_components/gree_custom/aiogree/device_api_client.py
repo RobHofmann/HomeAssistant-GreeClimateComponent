@@ -4,6 +4,7 @@ from collections.abc import Callable, Mapping
 import logging
 
 from .api import (
+    POLLED_PROPS,
     BindingInfo,
     GreeProp,
     InfoProp,
@@ -125,17 +126,17 @@ class DeviceApiClient:
 
         Some firmwares cap the number of columns per status request. The cap
         differs per firmware, so it is measured here instead of being fixed.
-        The first probe asks for as many columns as there are `GreeProp`
-        names, which is more than any poll needs. If that works there is
-        nothing to limit and `_max_props` stays None. If it fails, a binary
-        search below it looks for the largest size that still works. The
-        result is kept until `unbind()`.
+        The first probe asks for as many columns as the default poll has,
+        which is the largest status request the component sends. If that
+        works there is nothing to limit and `_max_props` stays None. If it
+        fails, a binary search below it looks for the largest size that
+        still works. The result is kept until `unbind()`.
 
         A probe never raises. A device that answers nothing at all ends up on
         MIN_PACK_PROPS, and the empty status guard in `GreeDevice` deals with
         the rest.
         """
-        first = len(GreeProp)
+        first = len(POLLED_PROPS)
 
         if await self._probe_columns(first):
             self._max_props = None
