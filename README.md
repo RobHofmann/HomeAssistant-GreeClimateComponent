@@ -129,7 +129,7 @@ The integration exposes various entities to configure additional features of you
 - **Power Save**: Enables or disables the power saving mode for energy efficiency. Only available in cooling mode
 - **8°C Heat**: Enables or disables the 8°C heating mode for frost protection. Only available in heating mode
 - **Sleep**: Enables or disables the sleep mode for comfortable overnight operation. Only available in cooling or heating mode
-- **Air**: Enables or disables the fresh air circulation mode
+- **Air**: Enables or disables the fresh air circulation mode. On units with an optional ventilation module (e.g. Gree Airy two-way ventilation), this can run while the AC is off; fan speed is still controlled via the climate fan mode.
 
 ### Advanced Control Switches
 - **Anti Direct Blow**: Prevents direct air flow from blowing on people by adjusting the air deflector position
