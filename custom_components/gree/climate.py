@@ -880,28 +880,31 @@ class GreeClimate(ClimateEntity):
                 return
 
     async def async_set_fan_mode(self, fan):
-        """Set fan mode."""
-        # Set the fan mode.
-        if not (self._acOptions["Pow"] == 0):
-            try:
-                wd_spd = MODES_MAPPING.get("WdSpd").get(fan)
+        """Set fan mode.
 
-                # Check if this is turbo mode
-                if fan == "turbo":
-                    _LOGGER.info("Enabling turbo mode")
-                    await self.SyncState({"Tur": 1, "Quiet": 0})
-                # Check if this is quiet mode
-                elif fan == "quiet":
-                    _LOGGER.info("Enabling quiet mode")
-                    await self.SyncState({"Tur": 0, "Quiet": 1})
-                else:
-                    _LOGGER.info(f"{self._name}: Setting normal fan mode to {wd_spd}")
-                    await self.SyncState({"WdSpd": str(wd_spd), "Tur": 0, "Quiet": 0})
+        Fan speed is writable even when HVAC power is off so optional
+        fresh-air / two-way ventilation modules (e.g. Gree Airy) can be
+        controlled independently of the AC.
+        """
+        try:
+            wd_spd = MODES_MAPPING.get("WdSpd").get(fan)
 
-                self.async_write_ha_state()
-            except ValueError:
-                _LOGGER.error(f"Unknown fan mode: {fan}")
-                return
+            # Check if this is turbo mode
+            if fan == "turbo":
+                _LOGGER.info("Enabling turbo mode")
+                await self.SyncState({"Tur": 1, "Quiet": 0})
+            # Check if this is quiet mode
+            elif fan == "quiet":
+                _LOGGER.info("Enabling quiet mode")
+                await self.SyncState({"Tur": 0, "Quiet": 1})
+            else:
+                _LOGGER.info(f"{self._name}: Setting normal fan mode to {wd_spd}")
+                await self.SyncState({"WdSpd": str(wd_spd), "Tur": 0, "Quiet": 0})
+
+            self.async_write_ha_state()
+        except ValueError:
+            _LOGGER.error(f"Unknown fan mode: {fan}")
+            return
 
     async def async_set_hvac_mode(self, hvac_mode):
         """Set new operation mode."""
