@@ -57,6 +57,7 @@ from homeassistant.helpers.selector import (
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from homeassistant.helpers.storage import Store
 
+from . import create_yaml_import_issue, delete_yaml_import_issue
 from .aiogree.api import (
     GreeDiscoveredDevice,
     GreeProp,
@@ -143,6 +144,19 @@ from .helpers import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _matches_cloud_account(
+    stored: Mapping[str, Any] | None, cloud_conf: Mapping[str, Any]
+) -> bool:
+    """Tell if a stored cloud block is the same account as a YAML cloud block."""
+    if not stored:
+        return False
+
+    return all(
+        stored.get(key) == cloud_conf.get(key)
+        for key in (CONF_EMAIL, CONF_REGION, CONF_PASSWORD)
+    )
 
 
 SETUP_SCHEMA = probatio.Schema(
@@ -557,8 +571,128 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_import(self, import_config: dict) -> ConfigFlowResult:
         """Handle import from configuration.yaml."""
-        # TODO: Implement YAML import
-        return self.async_abort(reason="not_implemented")
+
+        cloud_conf: dict[str, Any] | None = import_config.get(CONF_CLOUD)
+        devices: dict[str, Any] = dict(import_config[CONF_DEVICES])
+
+        item_id = cloud_conf[CONF_EMAIL] if cloud_conf else CONFENTRY_ID_LOCAL_ONLY
+
+        stored_cloud: dict[str, Any] | None = None
+        if not cloud_conf:
+            unique_id = CONFENTRY_ID_LOCAL_ONLY
+        else:
+            known_entry = next(
+                (
+                    entry
+                    for entry in get_config_entries(self.hass)
+                    if _matches_cloud_account(entry.data.get(CONF_CLOUD), cloud_conf)
+                    and entry.unique_id
+                ),
+                None,
+            )
+
+            if known_entry and known_entry.unique_id:
+                # Reuse the stored token so there is no login on every restart
+                unique_id = known_entry.unique_id
+                stored_cloud = dict(known_entry.data[CONF_CLOUD])
+            else:
+                cloud_api = GreeCloudApi(
+                    region=GreeRegion(cloud_conf[CONF_REGION]),
+                    username=cloud_conf[CONF_EMAIL],
+                    password=cloud_conf[CONF_PASSWORD],
+                )
+                try:
+                    credentials = await cloud_api.login()
+                except Exception as err:  # noqa: BLE001
+                    return self._abort_yaml_import(item_id, err)
+                finally:
+                    await cloud_api.close()
+
+                unique_id = str(credentials.user_id)
+                stored_cloud = {
+                    **cloud_conf,
+                    CONF_TOKEN: credentials.token,
+                    CONF_UID: credentials.user_id,
+                }
+
+        await self.async_set_unique_id(unique_id)
+
+        self._drop_devices_of_other_entries(devices, unique_id)
+
+        if not devices:
+            create_yaml_import_issue(
+                self.hass,
+                item_id,
+                "every device is already configured in another config entry",
+            )
+            return self.async_abort(reason="import_failed")
+
+        delete_yaml_import_issue(self.hass, item_id)
+
+        data = {
+            CONF_CLOUD: stored_cloud,
+            CONF_DEVICES: devices,
+        }
+        cloud_data: dict[str, Any] = stored_cloud or {}
+        title = (
+            f"Gree Account: {cloud_data.get(CONF_UID)} ({cloud_data.get(CONF_EMAIL)})"
+            if cloud_data.get(CONF_EMAIL)
+            else "Local-only Devices"
+        )
+
+        entry = self.hass.config_entries.async_entry_for_domain_unique_id(
+            DOMAIN, unique_id
+        )
+        if entry:
+            # remove devices that are no longer provided by the YAML
+            # they will be re-added if they exist in another entry
+            device_registry = dr.async_get(self.hass)
+            for mac in entry.data.get(CONF_DEVICES, {}):
+                if mac not in devices:
+                    dev = device_registry.async_get_device(identifiers={(DOMAIN, mac)})
+                    if dev:
+                        device_registry.async_remove_device(dev.id)
+
+            return self.async_update_reload_and_abort(
+                entry,
+                title=title,
+                data=data,
+                reason="reconfigure_successful",
+                reload_even_if_entry_is_unchanged=False,
+            )
+
+        _LOGGER.debug(
+            "YAML import: new entry with config: %s",
+            async_redact_data(data, ["encryption_key", "password", "token"]),
+        )
+        return self.async_create_entry(
+            title=title,
+            data=data,
+        )
+
+    def _drop_devices_of_other_entries(
+        self, devices: dict[str, Any], unique_id: str
+    ) -> None:
+        """Drop the devices that already belong to another config entry."""
+        other_macs = get_configured_macs_in_entries(
+            self.hass, ignore_entries=[unique_id]
+        )
+
+        for mac in list(devices):
+            if mac in other_macs:
+                _LOGGER.error(
+                    "YAML import: device %s is already configured in entry '%s'"
+                    " and is skipped",
+                    mac,
+                    other_macs[mac].title,
+                )
+                devices.pop(mac)
+
+    def _abort_yaml_import(self, item_id: str, err: Exception) -> ConfigFlowResult:
+        """Log a failed cloud login, raise a repair issue and stop the import."""
+        _LOGGER.error("YAML import: cloud login failed for %s: %s", item_id, err)
+        create_yaml_import_issue(self.hass, item_id, f"cloud login failed: {err}")
+        return self.async_abort(reason="import_failed")
 
     @override
     async def async_step_dhcp(
