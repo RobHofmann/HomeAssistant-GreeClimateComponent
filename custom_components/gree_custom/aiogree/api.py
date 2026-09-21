@@ -1251,8 +1251,14 @@ async def _get_sub_devices_list(
         )
 
         response = await gree_get_response(
-            mac_addr_controller, json_payload, cipher, transport
+            mac_addr_controller,
+            json_payload,
+            cipher,
+            transport,
         )
+
+    except GreeConnectionError:
+        raise
 
     except Exception as err:
         raise GreeProtocolError(
@@ -1311,15 +1317,14 @@ async def _get_sub_devices_list(
 
 
 async def _process_local_scan_response(
-    ip_address: str, pack: dict, user_id: int
+    ip_address: str, pack: dict, timeout: int, user_id: int
 ) -> list[GreeDiscoveredDevice]:
-    discovered_devices: list[GreeDiscoveredDevice] = []
 
     device = DeviceScanInfoResponse.model_validate(pack)
 
     if not device.mac:
         _LOGGER.debug("No MAC address in response from %s", ip_address)
-        return discovered_devices
+        return []
 
     mac, mac_controller = gree_extract_macs(device.mac)
 
@@ -1340,9 +1345,12 @@ async def _process_local_scan_response(
         user_id=DEFAULT_DEVICE_USERID,
     )
 
-    if device.subCnt and device.subCnt > 0:
-        # TODO: Ingest subdevices, need debugging.
-        transport = GreeUdpTransport(ip_address, DEFAULT_DEVICE_PORT)
+    if not device.subCnt or device.subCnt == 0:
+        return [discovered_device]
+
+    # TODO: Ingest subdevices, need debugging.
+    transport = GreeUdpTransport(ip_address, DEFAULT_DEVICE_PORT, timeout=timeout)
+    try:
         _LOGGER.debug("Obtaining device binding encryption info for the VRF controller")
         binding_info = await gree_try_bind(
             mac_addr_controller=mac_controller,
@@ -1359,11 +1367,20 @@ async def _process_local_scan_response(
             discovered_device,
             device.subCnt,
         )
-        discovered_devices.extend(sub_devices)
-    else:
-        discovered_devices.append(discovered_device)
 
-    return discovered_devices
+    except GreeConnectionError:
+        # If we cannot connect, simply move on from this gateway as we cannot properly query subdevices
+        # Returning an empty list prevents discovery from complety fail because of one device
+        return []
+
+    except Exception as err:
+        # Other errors should break discovery and be investigated
+        raise GreeProtocolError(
+            f"Failed to discover sub-devices of {mac_controller}"
+        ) from err
+
+    else:
+        return sub_devices
 
 
 async def gree_discover_device_local(
@@ -1397,7 +1414,7 @@ async def gree_discover_device_local(
         return discovered_devices
 
     _LOGGER.debug("Got device info: %s", pack)
-    return await _process_local_scan_response(ip_address, pack, user_id)
+    return await _process_local_scan_response(ip_address, pack, timeout, user_id)
 
 
 async def gree_discover_devices_local(
@@ -1430,7 +1447,7 @@ async def gree_discover_devices_local(
             pack = response.get("pack")
             if pack is not None and pack.get("t") == "dev":
                 discovered_devices.extend(
-                    await _process_local_scan_response(address, pack, user_id)
+                    await _process_local_scan_response(address, pack, timeout, user_id)
                 )
 
     _LOGGER.info("Found total of %d local devices", len(discovered_devices))
