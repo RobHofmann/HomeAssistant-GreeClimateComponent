@@ -15,6 +15,7 @@ seconds. Keep windows short unless the test is about the window.
 
 from collections.abc import AsyncIterator, Callable
 
+from aiogree.transport_udp import GreeUdpTransport
 import pytest
 
 from .conftest import DISCOVERY_PORT, DiscoverAll, DiscoverOne, RecordingHandler
@@ -55,6 +56,24 @@ async def test_one_device_answers_a_targeted_scan(
     assert len(found) == 1
     assert found[0].mac == DEFAULT_MAC
     assert found[0].host == device.host
+
+
+async def test_a_scan_closes_the_transport_it_opened(
+    device: FakeGreeDevice, discover_one: DiscoverOne, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A targeted scan builds its own transport, so it has to close it too."""
+    closed: list[str] = []
+    original = GreeUdpTransport.disconnect
+
+    async def spy(self: GreeUdpTransport) -> None:
+        closed.append(self.ip_addr)
+        await original(self)
+
+    monkeypatch.setattr(GreeUdpTransport, "disconnect", spy)
+
+    await discover_one(device.host, timeout=1)
+
+    assert closed == [device.host]
 
 
 async def test_a_device_that_never_answers_gives_an_empty_list(

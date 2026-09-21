@@ -1400,6 +1400,11 @@ async def _process_local_scan_response(
     else:
         return sub_devices
 
+    finally:
+        # The gateway gets its own transport for the bind and the sub-device
+        # list. Nothing uses it after this, so close it here.
+        await transport.disconnect()
+
 
 async def gree_discover_device_local(
     ip_address: str, timeout: int, max_retries: int, user_id: int
@@ -1418,10 +1423,11 @@ async def gree_discover_device_local(
     """
     discovered_devices: list[GreeDiscoveredDevice] = []
 
+    transport: GreeUdpTransport = GreeUdpTransport(
+        ip_addr=ip_address, timeout=timeout, max_retries=max_retries
+    )
+
     try:
-        transport: GreeUdpTransport = GreeUdpTransport(
-            ip_addr=ip_address, timeout=timeout
-        )
         pack: dict = await gree_get_response_pack(
             "",
             {"t": GreeCommand.SCAN.value},
@@ -1431,6 +1437,10 @@ async def gree_discover_device_local(
     except Exception:
         _LOGGER.exception("Fail in targeted scan")
         return discovered_devices
+    finally:
+        # This transport is only used for the scan. Closing it here keeps the
+        # socket from waiting for the garbage collector.
+        await transport.disconnect()
 
     _LOGGER.debug("Got device info: %s", pack)
     return await _process_local_scan_response(

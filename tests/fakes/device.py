@@ -50,6 +50,7 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
         *,
         answer_scan: bool = True,
         answer_bind: bool = True,
+        answer_status: bool = True,
         scan_delay: float = 0.0,
         reply_delay: float = 0.0,
         max_columns: int | None = None,
@@ -69,6 +70,8 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
             encryption_version: V1 (AES-ECB) or V2 (AES-GCM).
             answer_scan: False means the device never answers a scan.
             answer_bind: False means the device never answers a bind.
+            answer_status: False means the device never answers a status
+                request. Flip it after binding to make a device go quiet.
             scan_delay: Seconds to wait before answering a scan.
             reply_delay: Seconds to wait before answering anything else.
             max_columns: Status requests above this many columns get an empty
@@ -91,6 +94,7 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
 
         self.answer_scan = answer_scan
         self.answer_bind = answer_bind
+        self.answer_status = answer_status
         self.scan_delay = scan_delay
         self.reply_delay = reply_delay
         self.max_columns = max_columns
@@ -101,7 +105,9 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
         self.reply_key = reply_key
         self.scan_info = scan_info
 
-        self.values: dict[str, int] = {"Pow": 1, "Mod": 1, "SetTem": 21, "TemSen": 61}
+        # A device does not type its values. Info columns come back as text
+        # and some units answer an int where others answer a string.
+        self.values: dict[str, Any] = {"Pow": 1, "Mod": 1, "SetTem": 21, "TemSen": 61}
 
         # What went over the wire. Times are monotonic seconds.
         self.requests: list[dict[str, Any]] = []
@@ -136,6 +142,13 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
         if self._transport is not None:
             self._transport.close()
             self._transport = None
+
+    def reset_record(self) -> None:
+        """Forget what was seen so far, so a test can assert on one step."""
+        self.requests.clear()
+        self.packs.clear()
+        self.request_times.clear()
+        self.keys_used.clear()
 
     def rotate_key(self) -> None:
         """Hand out a new session key, as a device does after a power cycle."""
@@ -274,6 +287,8 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
             return self._wrap(body, self.generic_cipher())
 
         if kind == "status":
+            if not self.answer_status:
+                return None
             return self._wrap(self.build_status(pack), self.session_cipher())
 
         if kind == "cmd":

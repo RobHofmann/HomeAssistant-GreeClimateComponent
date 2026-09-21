@@ -17,7 +17,8 @@ Use the devcontainer. `CONTRIBUTING.md` has the steps. Inside it, the VS Code ta
 
 ## Testing
 
-`tests/` holds a pytest suite for the protocol layer. Run it from the repo root:
+`tests/` holds a pytest suite for the protocol layer. Run it from the repo
+root:
 
 ```bash
 pip install -r requirements_dev.txt
@@ -25,7 +26,9 @@ pytest
 ```
 
 It takes about 30 seconds. `pytest -n auto` needs `pytest-xdist` and cuts that
-to about 12 seconds.
+to about 8 seconds. There is also a `run-tests` skill for coding agents in
+`.claude/skills/`, which runs the suite and the three linters and says what to
+report.
 
 ### What it covers
 
@@ -33,29 +36,38 @@ to about 12 seconds.
 |---|---|
 | `test_cipher.py` | V1 and V2, round trips, recorded vectors, the tag check, the JSON trim |
 | `test_payloads.py` | The pack builders, `gree_extract_macs`, `redact_str`, `chunked` |
+| `test_helpers.py` | Temperature and humidity math, `TempOffsetResolver`, pack wrapping |
 | `test_transport_udp.py` | Retries, backoff, the split of a command when batching is off |
+| `test_transport_mqtt.py` | Topics, matching a response to its request, pushed status |
 | `test_discovery_local.py` | Scan, silence, several devices, the listen window, broken replies |
 | `test_discovery_vrf.py` | A gateway with sub-devices, in both reply shapes |
+| `test_discovery_merge.py` | Cloud discovery and merging it with the local list |
+| `test_cloud_api.py` | Login, homes, devices, duplicates, firmware info |
+| `test_device_state.py` | Reads, pending values, what counts as supported, pruning |
+| `test_device_api_client.py` | Bind, the column probe, diagnostic sweeps, listeners |
+| `test_device.py` | The poll cycle and the rules between features |
 
-64 tests today. `cipher.py` is fully covered, `api.py` and the transports are
-mostly covered.
+227 tests, about 94 percent of `aiogree/`. Check the number of the day with:
+
+```bash
+pytest --cov=aiogree --cov-report=term-missing
+```
+
+That needs `pytest-cov`, which is not a dependency of the suite.
 
 ### What is not covered yet
 
-The suite covers the wire. It does not yet cover the layers above it. Run
-`pytest --cov=aiogree --cov-report=term` (needs `pytest-cov`) for the numbers of
-the day. About half of the protocol layer is covered, and none of the Home
-Assistant layer.
+The Home Assistant layer: the entities, the coordinator, the config flow and
+the services. Those need
+[pytest-homeassistant-custom-component](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component),
+which extracts Home Assistant's own test plugins for custom integrations. It
+needs the `enable_custom_integrations` fixture and `asyncio_mode = auto`, which
+`pytest.ini` already sets. It is not a dependency yet because it pulls in all of
+Home Assistant, which CI does not need for the protocol tests. The devcontainer
+already has Home Assistant, so that is where this work starts.
 
-| Not covered | Why it is worth doing |
-|---|---|
-| `device.py`, `device_api_client.py`, `device_state.py` | The bind, the column probe, the pruning of unsupported props and the poll loop. These are where the real device behaviour bites. The fakes in `tests/fakes/` already speak everything they need, so this is the cheapest next step. |
-| The temperature and humidity math in `helpers.py`, and `TempOffsetResolver` | Pure functions with clamping and rounding. Fast to test, no socket needed. |
-| `transport_mqtt.py` and `cloud_api.py` | The cloud paths. They need an MQTT fake and an HTTP fake. |
-| Entities, the coordinator, the config flow | Needs [pytest-homeassistant-custom-component](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component), which extracts Home Assistant's own test plugins for custom integrations. It needs the `enable_custom_integrations` fixture and `asyncio_mode = auto`, which this repo already sets. |
-
-So a green suite does not mean a change is safe. It means the wire still works.
-Say in the PR what else you tested.
+So a green suite does not mean a change is safe. It means the protocol layer
+still works. Say in the PR what else you tested.
 
 ### How the fakes work
 
@@ -65,14 +77,21 @@ decrypt path all run as they do in the field. A mocked transport would test
 none of that.
 
 - `tests/fakes/device.py` has `FakeGreeDevice`. It answers `scan`, `bind`,
-  `status` and `cmd`, and it records every request.
+  `status` and `cmd` over UDP, and it records every request.
 - `tests/fakes/vrf.py` has `FakeVrfGateway`. It adds `subCnt` to the scan reply
   and answers the sub-device list, at the top level or inside a pack.
+- `tests/fakes/cloud.py` has `FakeGreeCloud`. It serves the cloud REST API over
+  real HTTP, with the same encryption the app uses.
+- `tests/fakes/transport.py` has `FakePushTransport`. It answers from a
+  `FakeGreeDevice` without a socket, for the paths UDP does not have.
+- `tests/fakes/mqtt.py` has `FakeMqttClient`. This is the one place where the
+  wire is replaced, because MQTT needs a broker. Everything above the broker is
+  still the shipped code.
 
 A new failure mode is a new keyword on `FakeGreeDevice`, not a new class. The
 ones that exist are `answer_scan`, `answer_bind`, `scan_delay`, `reply_delay`,
 `max_columns`, `unsupported_props`, `ignore_first`, `drop_after`, `raw_reply`,
-`reply_key` and `scan_info`. There is also `rotate_key()`, for a device that
+`reply_key`, `answer_status` and `scan_info`. There is also `rotate_key()`, for a device that
 hands out a new session key.
 
 The fake encrypts with the component's own cipher. That is a trade-off: it
@@ -95,6 +114,10 @@ prop, and a device that goes quiet part way.
   test with a 5 second window takes 5 seconds. Keep windows short.
 - **Retries.** A full failure costs a few seconds. Pass `max_retries=1` in a
   test that is not about retrying.
+- **The column probe.** A probe waits `PROBE_TIMEOUT` (5 seconds) on a unit
+  that says nothing, and a bind runs up to six of them. Shorten it with
+  `monkeypatch.setattr(device_api_client, "PROBE_TIMEOUT", 0.2)` in a test
+  about a silent unit.
 - **Log assertions.** The `gree_logs` fixture records log lines and any line
   that cannot be formatted. Standard logging swallows a formatting error, so a
   test that only reads the text of a log line would miss it. The fixture is
