@@ -46,14 +46,14 @@ gree_custom:
           region: "Europe" # Gree account region | required | str | options = ["Australia", "China Mainland", "East South Asia", "Europe", "India", "Latin America", "Middle East" ,"North America", "Russia", "South America"]
       devices: # List of configured gree devices | required, at least one device
           # Example of single unit
-          "20fabb123456": # MAC Address of the device | required | str
+          "20fabb123456": # MAC Address of the device | required | str | for a VRF sub-device write "<mac>@<controller mac>" so the local controller is known
               connection: # optional, all keys below have a default
                   scan_interval: 60 # Device polling rate | int >= 5 | default = 60
                   disable_available_check: false # Change entity availability based on device connection | boolean | default = false
                   encryption_key: "my_device_key" # Custom encryption key | str | default = "" <fetched from device>
                   uid: 0 # User identifier of device owner which is not needed for all devices, can be sniffed if required | positive int | default = 0
                   local: # optional, if omitted requires cloud
-                      mac_controller_local: "20fabb123456" # MAC Address of the local controller (see above) | single unit: optional, default = the device MAC | VRF sub-device (14 chars): required, the MAC of the unit that holds the IP; it cannot be derived
+                      mac_controller_local: "20fabb123456" # MAC Address of the local controller (see above) | optional | str | default = the device MAC, the first 12 characters of a VRF main device MAC ending in 00, or the part after "@" in the key. A VRF sub-device without "@" must set it
                       host: "192.168.1.100" # IP Address of AC | required | str
                       port: 7000 # Port number to connect to the device | int | default = 7000
                       timeout: 10 # Seconds before a connection attempt times out | positive int (seconds) | default = 10
@@ -61,7 +61,7 @@ gree_custom:
                       max_online_attempts: 3 # Number connection attempts made with device before it is marked as unavailable | positive int | default = 3
                   cloud: # optional, if omitted requires local
                       prefer_cloud: false # When local is present, prefer to use cloud | optional | bool | default = false
-                      mac_controller_cloud: "20fabb123456" # MAC Address of the cloud controller (see above) | optional | str | default = the device MAC, or its first 12 characters for a VRF sub-device
+                      mac_controller_cloud: "20fabb123456" # MAC Address of the cloud controller (see above) | optional | str | default = derived from the key the same way as mac_controller_local
               options: # required
                   name: "Gree AC" # Name for the AC unit | required | str
                   hvac_modes: # Standard Home Assistant HVAC Modes to enable | list | options = ["auto", "cool", "dry", "fan_only", "heat", "off"] | default = all options

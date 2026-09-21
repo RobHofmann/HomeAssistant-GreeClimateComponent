@@ -28,6 +28,7 @@ from homeassistant.helpers import config_validation as cv
 
 from .aiogree.cipher import EncryptionVersion
 from .aiogree.cloud_api import GreeRegion
+from .aiogree.helpers import gree_extract_macs
 from .const import (
     ATTR_EXTERNAL_HUMIDITY_SENSOR,
     ATTR_EXTERNAL_TEMPERATURE_SENSOR,
@@ -244,52 +245,40 @@ DEVICE_SCHEMA = probatio.All(
 )
 
 
-def _normalize_device_macs(value: Any) -> dict[str, Any]:
-    """Re-key the devices mapping on the normalized device MAC address."""
-    if not isinstance(value, dict):
-        raise probatio.Invalid(f"{CONF_DEVICES} must be a mapping keyed by MAC address")
+def _finish_devices(value: dict[str, Any]) -> dict[str, Any]:
+    """Re-key the devices on the normalized MAC and fill the controller MACs.
 
+    The key goes through `gree_extract_macs()`, the same function discovery
+    uses, so it accepts separators, upper case, a VRF main device MAC that
+    ends in `00`, and the `<mac>@<controller mac>` form for a VRF sub-device.
+    A given `mac_controller_local` or `mac_controller_cloud` wins over the
+    derived value.
+    """
     devices: dict[str, Any] = {}
-    for raw_mac, device in value.items():
-        mac = _clean_mac(raw_mac, "device MAC address")
+
+    for raw_key, device in value.items():
+        mac, mac_controller = gree_extract_macs(str(raw_key))
+        _clean_mac(mac, "device MAC address")
 
         if mac in devices:
             raise probatio.Invalid(f"device {mac} is listed more than once")
 
-        devices[mac] = device
-
-    return devices
-
-
-def _fill_device_defaults(value: dict[str, Any]) -> dict[str, Any]:
-    """Fill the controller MAC addresses and the missing connection blocks.
-
-    A normal unit has a 12 character MAC and is its own controller. A VRF
-    sub-device has a 14 character MAC. Its cloud controller is the first 12
-    characters of that MAC, but its local controller is another unit, so
-    `mac_controller_local` cannot be derived and must be given.
-    """
-    devices: dict[str, Any] = {}
-
-    for mac, device in value.items():
-        is_vrf = len(mac) > 12
         connection = dict(device[CONF_DEVICE_CONNECTION])
 
         local = connection.get(CONF_DEVICE_CONNECTION_LOCAL)
         if local is None:
             connection[CONF_DEVICE_CONNECTION_LOCAL] = {}
-        elif is_vrf and not local.get(CONF_MAC_CONTROLLER_LOCAL):
-            raise probatio.Invalid(
-                f"device {mac} is a VRF sub-device (14 character MAC), so "
-                f"{CONF_DEVICE_CONNECTION}.{CONF_DEVICE_CONNECTION_LOCAL}."
-                f"{CONF_MAC_CONTROLLER_LOCAL} must be the MAC of the unit that "
-                "holds the network connection"
-            )
         else:
-            connection[CONF_DEVICE_CONNECTION_LOCAL] = {
-                CONF_MAC_CONTROLLER_LOCAL: mac,
-                **local,
-            }
+            local = {CONF_MAC_CONTROLLER_LOCAL: mac_controller, **local}
+            if len(local[CONF_MAC_CONTROLLER_LOCAL]) != 12:
+                raise probatio.Invalid(
+                    f"device {mac} is a VRF sub-device and its local controller "
+                    "is another unit. Write the key as '<mac>@<controller mac>' "
+                    f"or set {CONF_DEVICE_CONNECTION}.{CONF_DEVICE_CONNECTION_LOCAL}."
+                    f"{CONF_MAC_CONTROLLER_LOCAL} to the 12 character MAC of the "
+                    "unit that holds the network connection"
+                )
+            connection[CONF_DEVICE_CONNECTION_LOCAL] = local
 
         cloud = connection.get(CONF_DEVICE_CONNECTION_CLOUD)
         if cloud is None:
@@ -299,7 +288,7 @@ def _fill_device_defaults(value: dict[str, Any]) -> dict[str, Any]:
             }
         else:
             connection[CONF_DEVICE_CONNECTION_CLOUD] = {
-                CONF_MAC_CONTROLLER_CLOUD: mac[:12],
+                CONF_MAC_CONTROLLER_CLOUD: mac_controller,
                 **cloud,
             }
 
@@ -367,9 +356,8 @@ ITEM_SCHEMA = probatio.All(
         {
             probatio.Optional(CONF_CLOUD): CLOUD_SCHEMA,
             probatio.Required(CONF_DEVICES): probatio.All(
-                _normalize_device_macs,
                 {str: DEVICE_SCHEMA},
-                _fill_device_defaults,
+                _finish_devices,
             ),
         }
     ),
