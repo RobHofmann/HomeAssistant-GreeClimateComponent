@@ -37,13 +37,25 @@ to about 12 seconds.
 | `test_discovery_local.py` | Scan, silence, several devices, the listen window, broken replies |
 | `test_discovery_vrf.py` | A gateway with sub-devices, in both reply shapes |
 
-Not covered yet: the Home Assistant entities, the coordinator, the config flow,
-the cloud API and MQTT. The entity side needs
-[pytest-homeassistant-custom-component](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component),
-which extracts Home Assistant's own test plugins for custom integrations. It
-needs the `enable_custom_integrations` fixture and `asyncio_mode = auto`, which
-this repo already sets. That is the obvious next step. The cloud and MQTT paths
-need an HTTP and an MQTT fake.
+64 tests today. `cipher.py` is fully covered, `api.py` and the transports are
+mostly covered.
+
+### What is not covered yet
+
+The suite covers the wire. It does not yet cover the layers above it. Run
+`pytest --cov=aiogree --cov-report=term` (needs `pytest-cov`) for the numbers of
+the day. About half of the protocol layer is covered, and none of the Home
+Assistant layer.
+
+| Not covered | Why it is worth doing |
+|---|---|
+| `device.py`, `device_api_client.py`, `device_state.py` | The bind, the column probe, the pruning of unsupported props and the poll loop. These are where the real device behaviour bites. The fakes in `tests/fakes/` already speak everything they need, so this is the cheapest next step. |
+| The temperature and humidity math in `helpers.py`, and `TempOffsetResolver` | Pure functions with clamping and rounding. Fast to test, no socket needed. |
+| `transport_mqtt.py` and `cloud_api.py` | The cloud paths. They need an MQTT fake and an HTTP fake. |
+| Entities, the coordinator, the config flow | Needs [pytest-homeassistant-custom-component](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component), which extracts Home Assistant's own test plugins for custom integrations. It needs the `enable_custom_integrations` fixture and `asyncio_mode = auto`, which this repo already sets. |
+
+So a green suite does not mean a change is safe. It means the wire still works.
+Say in the PR what else you tested.
 
 ### How the fakes work
 
