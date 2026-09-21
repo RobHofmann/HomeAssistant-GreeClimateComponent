@@ -1307,6 +1307,7 @@ async def _get_sub_devices_list(
                     ),
                     mac=sub_dev.get("mac", ""),
                     mid=sub_dev.get("mid", ""),
+                    key=cipher.key,
                 )
             else:
                 new_dev = GreeDiscoveredDevice(
@@ -1319,6 +1320,7 @@ async def _get_sub_devices_list(
                     host=transport.ip_addr,
                     port=transport.port,
                     mid=sub_dev.get("mid", ""),
+                    key=cipher.key,
                 )
             discovered_subdevices.append(new_dev)
 
