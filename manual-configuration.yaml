@@ -8,7 +8,26 @@
 # If an option is not provided the default values will be used.
 # For option lists, pass empty list ([]) to disable the option.
 #
-# MAC address Format is lowercase without separators
+# How the YAML is applied
+#
+#   - The YAML is read at every start of Home Assistant.
+#   - It creates the config entry when it is missing and updates it when the YAML
+#     changed. An unchanged YAML causes no reload.
+#   - A device you remove from the YAML is removed from the config entry.
+#   - Each item in the list is one config entry. There can be only one item
+#     without a "cloud" block, because all local-only devices share one entry.
+#   - Do not change a YAML managed entry in the UI. The next restart puts the
+#     YAML values back.
+#   - A device that is already in another config entry is skipped. You get an
+#     error in the log and a repair issue.
+#   - A "cloud" block logs in to the Gree account only when no config entry
+#     stores the same email, region and password yet: on the first import, and
+#     again after you change one of those three values. Every login ends the
+#     other sessions of that account, so the Gree app logs you out. An
+#     unchanged "cloud" block reuses the stored session and does not log in.
+#
+# MAC address Format is lowercase without separators.
+# Upper case and ":" or "-" separators are accepted and cleaned up.
 #
 # For VRF units the MACs are:
 #   MAC: xxxxxxxxxxxxyy <14 chars>
@@ -21,29 +40,29 @@
 #   MAC Controller Cloud: xxxxxxxxxxxx <12 chars, same as MAC>
 
 gree_custom:
-    - cloud: # Info about a Gree cloud accont | optional
+    - cloud: # Info about a Gree cloud account | optional
           email: "user@server.com" # User email | required | str
           password: "my-password" # User password | required | str
           region: "Europe" # Gree account region | required | str | options = ["Australia", "China Mainland", "East South Asia", "Europe", "India", "Latin America", "Middle East" ,"North America", "Russia", "South America"]
-      devices: # List of configured gree devices | required
+      devices: # List of configured gree devices | required, at least one device
           # Example of single unit
-          "20fabb123456": # MAC Address of the device | required | str
-              connection:
-                  scan_interval: 60 # Device polling rate | int > 5 | default = 60
+          "20fabb123456": # MAC Address of the device | required | str | for a VRF sub-device write "<mac>@<controller mac>" so the local controller is known
+              connection: # optional, all keys below have a default
+                  scan_interval: 60 # Device polling rate | int >= 5 | default = 60
                   disable_available_check: false # Change entity availability based on device connection | boolean | default = false
                   encryption_key: "my_device_key" # Custom encryption key | str | default = "" <fetched from device>
                   uid: 0 # User identifier of device owner which is not needed for all devices, can be sniffed if required | positive int | default = 0
-                  local: # optional, if ommitted requires cloud
-                      mac_controller_local: "20fabb123456" # MAC Address of the local controller (see above) | required | str
+                  local: # optional, if omitted requires cloud
+                      mac_controller_local: "20fabb123456" # MAC Address of the local controller (see above) | optional | str | default = the device MAC, the first 12 characters of a VRF main device MAC ending in 00, or the part after "@" in the key. A VRF sub-device without "@" must set it
                       host: "192.168.1.100" # IP Address of AC | required | str
                       port: 7000 # Port number to connect to the device | int | default = 7000
                       timeout: 10 # Seconds before a connection attempt times out | positive int (seconds) | default = 10
-                      encryption_version: # The encryption version to use with the device | options = "0", "1", "2" | default = "0" <auto-detect>
+                      encryption_version: "0" # The encryption version to use with the device | options = "0", "1", "2" | default = "0" <auto-detect>
                       max_online_attempts: 3 # Number connection attempts made with device before it is marked as unavailable | positive int | default = 3
-                  cloud: # optional, if ommitted requires local
+                  cloud: # optional, if omitted requires local
                       prefer_cloud: false # When local is present, prefer to use cloud | optional | bool | default = false
-                      mac_controller_cloud: "20fabb123456" # MAC Address of the local controller (see above) | required | str
-              options:
+                      mac_controller_cloud: "20fabb123456" # MAC Address of the cloud controller (see above) | optional | str | default = derived from the key the same way as mac_controller_local
+              options: # required
                   name: "Gree AC" # Name for the AC unit | required | str
                   hvac_modes: # Standard Home Assistant HVAC Modes to enable | list | options = ["auto", "cool", "dry", "fan_only", "heat", "off"] | default = all options
                       - "auto"
@@ -82,20 +101,19 @@ gree_custom:
                       - "center"
                       - "right_center"
                       - "right"
-                  features: # Supported device features | list | options = ["beeper", "air", "xfan", "sleep", "eightdegheat", "lights", "health", "anti_direct_blow", "powersave", "light_sensor", "faults", "humidity_control"] | default = all options
+                  features: # Supported device features | list | options = ["beeper", "air", "xfan", "sleep", "eightdegheat", "lights", "light_sensor", "health", "anti_direct_blow", "powersave", "humidity_control"] | default = all options
                       - "beeper"
                       - "air"
                       - "xfan"
                       - "sleep"
                       - "eightdegheat"
                       - "lights"
+                      - "light_sensor"
                       - "health"
                       - "anti_direct_blow"
                       - "powersave"
-                      - "light_sensor"
-                      - "faults"
                       - "humidity_control"
-                  target_temp_step: 1 # Number of degrees increase or decrease when changing the temperature | 0.5 < int < 5, 0.5 increments | default = 1
-                  external_temperature_sensor: "None" # Sets a given temperature sensor as the sensor for the AC | str (Entity ID) | default = "None"
-                  external_humidity_sensor: "None" # Sets a given humidity sensor as the sensor for the AC | str (Entity ID) | default = "None"
+                  target_temp_step: 1 # Number of degrees increase or decrease when changing the temperature | 0.5 <= number <= 5, 0.5 increments | default = 1
+                  external_temperature_sensor: "sensor.living_room_temperature" # Sets a given temperature sensor as the sensor for the AC | str (Entity ID) | omit the key to not use one
+                  external_humidity_sensor: "sensor.living_room_humidity" # Sets a given humidity sensor as the sensor for the AC | str (Entity ID) | omit the key to not use one
                   restore_states: true # Wether to restore the last HA state to device when HA starts | bool | default = true

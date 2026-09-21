@@ -1,0 +1,400 @@
+{
+    "config": {
+        "error": {
+            "unknown": "Er is iets misgegaan, probeer het opnieuw. Blijft het probleem bestaan, controleer dan de logs.",
+            "cannot_connect": "Kan geen verbinding maken met het apparaat. Controleer de apparaatconfiguratie en de netwerkverbinding en probeer het opnieuw. Blijft het probleem bestaan, controleer dan de logs.",
+            "cannot_bind": "Kan het apparaat niet koppelen. De encryptieversie of -sleutel van het apparaat is niet gevonden. Blijft het probleem bestaan, controleer dan de logs.",
+            "invalid_network": "Ongeldige CIDR. Voorbeeld: 192.168.30.0/24",
+            "invalid_host": "Ongeldig IP-adres. Voorbeeld: 192.168.30.50",
+            "network_too_large": "Het netwerk is groter dan het maximum van 65536 hosts (een /16). Splits het in meerdere CIDR's of geef specifieke hosts op.",
+            "too_many_targets": "De opgegeven netwerken en hosts overschrijden het maximum van 65536 hosts (een /16). Splits ze in meerdere CIDR's of geef specifieke hosts op.",
+            "cloud_bad_login": "Inloggen mislukt. Controleer de gegevens en probeer het opnieuw.",
+            "cloud_unknown": "Fout tijdens het inloggen. Controleer de logs en neem contact op met de ontwikkelaars",
+            "no_devices_selected": "Selecteer minimaal één apparaat om verder te gaan",
+            "no_methods_selected": "Selecteer minimaal één ontdekkingsmethode"
+        },
+        "abort": {
+            "reconfigure_successful": "Apparaten zijn opnieuw geconfigureerd.",
+            "already_configured": "Een apparaat met dit MAC-adres is al geconfigureerd.",
+            "unique_id_mismatch": "De entry die wordt geconfigureerd komt niet overeen met de bedoelde configuratie.",
+            "no_devices_to_add": "Geen nieuwe apparaten ontdekt. Pas de ontdekkingsopties aan en probeer het opnieuw.",
+            "import_failed": "De YAML-configuratie kon niet worden geïmporteerd. Zie het herstelprobleem en de log voor de reden."
+        },
+        "step": {
+            "user": {
+                "title": "Gree Climate instellen",
+                "description": "Kies hoe je Gree-apparaat wordt ontdekt",
+                "data": {
+                    "discovery": "Ontdekkingsmethode"
+                }
+            },
+            "cloud_add": {
+                "title": "Gree-account",
+                "description": "Vul de gegevens in om verbinding te maken met je Gree-account",
+                "data": {
+                    "email": "E-mail",
+                    "password": "Wachtwoord",
+                    "region": "Regio"
+                }
+            },
+            "local_add": {
+                "title": "Lokale ontdekking",
+                "description": "Apparaten worden automatisch ontdekt door de beschikbare netwerken te scannen.\n\nHeb je apparaten in een ander subnet of VLAN, vul dan een of meer netwerken en/of specifieke IP-adressen in die via unicast worden benaderd. De routering tussen VLAN's en de firewallregels moeten UDP-poort 7000 van Home Assistant naar het doelsubnet toestaan.",
+                "data": {
+                    "extra_scan_hosts": "Extra hosts",
+                    "extra_scan_networks": "Extra netwerken"
+                },
+                "data_description": {
+                    "extra_scan_hosts": "(IP-adressen, bijv. 192.168.30.50, 192.168.30.51)",
+                    "extra_scan_networks": "(CIDR's, bijv. 192.168.20.0/24, 192.168.30.0/24)"
+                }
+            },
+            "device_picker": {
+                "title": "Ontdekte apparaten",
+                "description": "{devices_found} Gree-apparaat/apparaten gevonden. Selecteer de apparaten die je wilt configureren.\n\nLet op: als je apparaten opnieuw configureert, worden niet-geselecteerde apparaten verwijderd.",
+                "data": {
+                    "devices": "Apparaten"
+                }
+            },
+            "connection_options": {
+                "title": "Verbindingsopties {device_idx} van {device_cnt}",
+                "description": "Stel de verbindingsopties in voor het apparaat:\n\n{device_name}",
+                "data": {
+                    "disable_available_check": "Beschikbaarheidscontrole uitschakelen",
+                    "encryption_key": "Encryptiesleutel",
+                    "scan_interval": "Scaninterval",
+                    "uid": "Gebruikers-ID"
+                },
+                "data_description": {
+                    "encryption_key": "Leeg laten om de sleutel automatisch op te halen",
+                    "scan_interval": "Hoe vaak de apparaatgegevens worden opgehaald (in seconden)",
+                    "uid": "Het gebruikers-ID van de eigenaar van het apparaat. Mag 0 zijn als het onbekend is"
+                },
+                "sections": {
+                    "local": {
+                        "name": "Instellingen lokale verbinding",
+                        "data": {
+                            "encryption_version": "Encryptieversie",
+                            "host": "IP-adres (ontdekt: {discovered_ip})",
+                            "mac_controller_local": "MAC van de lokale controller (ontdekt: {discovered_mac_local})",
+                            "max_online_attempts": "Maximaal aantal verbindingspogingen",
+                            "port": "Poort",
+                            "timeout": "Verbindingstime-out"
+                        },
+                        "data_description": {
+                            "max_online_attempts": "Het aantal pogingen om met het apparaat te communiceren voordat het als niet beschikbaar wordt gemarkeerd",
+                            "timeout": "De time-out voor elke verbindingspoging"
+                        }
+                    },
+                    "cloud": {
+                        "name": "Instellingen cloudverbinding",
+                        "data": {
+                            "mac_controller_cloud": "MAC van de cloudcontroller (ontdekt: {discovered_mac_cloud})",
+                            "prefer_cloud": "Voorkeur voor cloudverbinding"
+                        },
+                        "data_description": {
+                            "prefer_cloud": "Apparaten gebruiken bij voorkeur een lokale verbinding. Vink aan als dit apparaat via de cloud moet verbinden"
+                        }
+                    }
+                }
+            },
+            "device_options": {
+                "title": "Apparaatfuncties {device_idx} van {device_cnt}",
+                "description": "De Gree API heeft geen betrouwbare manier om de ondersteunde functies van een apparaat op te vragen. Vul de opties hieronder zo goed mogelijk in op basis van wat je van je apparaat weet:\n\n {device_name}",
+                "data": {
+                    "name": "Apparaatnaam",
+                    "hvac_modes": "HVAC-modi",
+                    "fan_modes": "Ventilatorsnelheden",
+                    "swing_modes": "Verticale swingmodi",
+                    "swing_horizontal_modes": "Horizontale swingmodi",
+                    "features": "Apparaatfuncties en -modi",
+                    "target_temp_step": "Temperatuurstap",
+                    "external_temperature_sensor": "Externe temperatuursensor",
+                    "external_humidity_sensor": "Externe vochtigheidssensor",
+                    "restore_states": "Entiteiten herstellen"
+                },
+                "data_description": {
+                    "external_temperature_sensor": "Als deze is ingesteld, vervangt hij de ingebouwde temperatuursensor van de airco voor de gegevens van de climate-entiteit",
+                    "external_humidity_sensor": "Als deze is ingesteld, vervangt hij de ingebouwde vochtigheidssensor van de airco voor de gegevens van de climate-entiteit",
+                    "restore_states": "Als dit is aangevinkt, krijgt het apparaat bij het starten van de integratie de eerder opgeslagen toestand terug in plaats van de huidige toestand van het apparaat.",
+                    "target_temp_step": "Stelt de stapgrootte in voor het aanpassen van de doeltemperatuur. Graden Fahrenheit worden afgerond op een geheel getal."
+                }
+            },
+            "reconfigure": {
+                "title": "Apparaten opnieuw configureren",
+                "description": "Je configureert een entry met een cloudaccount opnieuw. Wil je zoeken naar lokale apparaten die overeenkomen met je cloudapparaten?",
+                "data": {
+                    "include_local": "Lokale apparaten meenemen"
+                }
+            }
+        }
+    },
+    "selector": {
+        "discovery": {
+            "options": {
+                "cloud": "Gree Cloud-account",
+                "local": "Lokaal netwerk"
+            }
+        },
+        "encryption_version": {
+            "options": {
+                "0": "Automatisch detecteren",
+                "1": "V1",
+                "2": "V2"
+            }
+        },
+        "hvac_modes": {
+            "options": {
+                "auto": "Automatisch",
+                "cool": "Koelen",
+                "dry": "Drogen",
+                "fan_only": "Alleen ventilator",
+                "heat": "Verwarmen",
+                "off": "Uit"
+            }
+        },
+        "fan_modes": {
+            "options": {
+                "auto": "Automatisch",
+                "low": "Laag",
+                "medium_low": "Gemiddeld laag",
+                "medium": "Gemiddeld",
+                "medium_high": "Gemiddeld hoog",
+                "high": "Hoog",
+                "turbo": "Turbo",
+                "quiet": "Stil"
+            }
+        },
+        "swing_modes": {
+            "options": {
+                "default": "Standaard",
+                "full_swing": "Volledig swingen",
+                "fixed_upper": "Vast in de hoogste stand",
+                "fixed_upper_middle": "Vast in de stand middenboven",
+                "fixed_middle": "Vast in de middenstand",
+                "fixed_lower_middle": "Vast in de stand middenonder",
+                "fixed_lower": "Vast in de laagste stand",
+                "swing_lower": "Swingen in het laagste bereik",
+                "swing_lower_middle": "Swingen in het bereik middenonder",
+                "swing_middle": "Swingen in het middenbereik",
+                "swing_upper_middle": "Swingen in het bereik middenboven",
+                "swing_upper": "Swingen in het hoogste bereik"
+            }
+        },
+        "swing_horizontal_modes": {
+            "options": {
+                "default": "Standaard",
+                "full_swing": "Volledig swingen",
+                "left": "Vast in de meest linkse stand",
+                "left_center": "Vast in de stand middenlinks",
+                "center": "Vast in de middenstand",
+                "right_center": "Vast in de stand middenrechts",
+                "right": "Vast in de meest rechtse stand"
+            }
+        },
+        "features": {
+            "options": {
+                "beeper": "Pieptoon",
+                "air": "Verse lucht",
+                "xfan": "X-Fan",
+                "sleep": "Slaapstand",
+                "eightdegheat": "8ºC Smart Heat",
+                "lights": "Displayverlichting",
+                "health": "Health",
+                "anti_direct_blow": "Anti Direct Blow",
+                "powersave": "Energiebesparing",
+                "light_sensor": "Automatische displayhelderheid",
+                "faults": "Storingsdetectie",
+                "humidity_control": "Vochtigheidsregeling"
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "indoor_temperature": {
+                "name": "Binnentemperatuur"
+            },
+            "outdoor_temperature": {
+                "name": "Buitentemperatuur"
+            },
+            "room_humidity": {
+                "name": "Luchtvochtigheid binnen"
+            }
+        },
+        "binary_sensor": {
+            "faults": {
+                "name": "Storingsdetectie"
+            }
+        },
+        "climate": {
+            "hvac": {
+                "state_attributes": {
+                    "fan_mode": {
+                        "state": {
+                            "auto": "Automatisch",
+                            "low": "Laag",
+                            "medium_low": "Gemiddeld laag",
+                            "medium": "Gemiddeld",
+                            "medium_high": "Gemiddeld hoog",
+                            "high": "Hoog",
+                            "turbo": "Turbo",
+                            "quiet": "Stil"
+                        }
+                    },
+                    "swing_mode": {
+                        "state": {
+                            "default": "Standaard",
+                            "full_swing": "Volledig swingen",
+                            "fixed_upper": "Vast in de hoogste stand",
+                            "fixed_upper_middle": "Vast in de stand middenboven",
+                            "fixed_middle": "Vast in de middenstand",
+                            "fixed_lower_middle": "Vast in de stand middenonder",
+                            "fixed_lower": "Vast in de laagste stand",
+                            "swing_lower": "Swingen in het laagste bereik",
+                            "swing_lower_middle": "Swingen in het bereik middenonder",
+                            "swing_middle": "Swingen in het middenbereik",
+                            "swing_upper_middle": "Swingen in het bereik middenboven",
+                            "swing_upper": "Swingen in het hoogste bereik"
+                        }
+                    },
+                    "swing_horizontal_mode": {
+                        "state": {
+                            "default": "Standaard",
+                            "full_swing": "Volledig swingen",
+                            "left": "Vast in de meest linkse stand",
+                            "left_center": "Vast in de stand middenlinks",
+                            "center": "Vast in de middenstand",
+                            "right_center": "Vast in de stand middenrechts",
+                            "right": "Vast in de meest rechtse stand"
+                        }
+                    }
+                }
+            }
+        },
+        "number": {
+            "target_temp_step": {
+                "name": "Temperatuurstap"
+            },
+            "humidity_control_target": {
+                "name": "Doel vochtigheidsregeling"
+            }
+        },
+        "select": {
+            "temperature_units": {
+                "name": "Temperatuureenheid"
+            },
+            "humidity_control": {
+                "name": "Vochtigheidsregeling",
+                "state": {
+                    "disabled": "Uitgeschakeld",
+                    "target_dry": "Normaal drogen",
+                    "smart_dry": "Slim drogen",
+                    "continuous_dry": "Continu drogen"
+                }
+            }
+        },
+        "switch": {
+            "auto_light": {
+                "name": "Automatische displayverlichting"
+            },
+            "auto_xfan": {
+                "name": "Automatische X-Fan"
+            },
+            "lights": {
+                "name": "Displayverlichting"
+            },
+            "xfan": {
+                "name": "X-Fan"
+            },
+            "health": {
+                "name": "Health"
+            },
+            "powersave": {
+                "name": "Energiebesparing"
+            },
+            "eightdegheat": {
+                "name": "Smart Heat 8ºC"
+            },
+            "sleep": {
+                "name": "Slaapstand"
+            },
+            "air": {
+                "name": "Verse lucht"
+            },
+            "anti_direct_blow": {
+                "name": "Anti Direct Blow"
+            },
+            "light_sensor": {
+                "name": "Automatische displayhelderheid"
+            },
+            "beeper": {
+                "name": "Pieptoon"
+            }
+        }
+    },
+    "exceptions": {
+        "turbo_availability": {
+            "message": "De turbomodus is alleen beschikbaar in de modi Koelen en Verwarmen."
+        },
+        "entity_unavailable": {
+            "message": "De entiteit is niet beschikbaar."
+        },
+        "generic": {
+            "message": "Er is een probleem opgetreden bij het uitvoeren van de gevraagde wijziging. Raadpleeg de log van de integratie."
+        },
+        "invalid_device_id": {
+            "message": "Er is een probleem opgetreden bij het uitvoeren van de actie. Er is een ongeldig apparaat geselecteerd."
+        },
+        "entry_not_loaded": {
+            "message": "Er is een probleem opgetreden bij het uitvoeren van de actie. De configuratie-entry van het apparaat is niet geladen."
+        },
+        "config_entry_not_found": {
+            "message": "Er is een probleem opgetreden bij het uitvoeren van de actie. De configuratie-entry van het apparaat is niet gevonden."
+        },
+        "invalid_config_data": {
+            "message": "Er is een probleem opgetreden bij het uitvoeren van de actie. De configuratie-entry bevat ongeldige gegevens."
+        },
+        "humidity_mode_unavailable": {
+            "message": "Vochtigheidsregeling is alleen beschikbaar in de modi Koelen en Drogen."
+        },
+        "continuous_dry_unavailable": {
+            "message": "Continu drogen is alleen beschikbaar in de modus Drogen."
+        },
+        "smart_dry_unavailable": {
+            "message": "Slim drogen is alleen beschikbaar in de modus Koelen."
+        }
+    },
+    "issues": {
+        "device_connection_failed": {
+            "title": "Verbinding met apparaat mislukt",
+            "description": "Kan geen verbinding maken met apparaat {device}."
+        },
+        "yaml_import_failed": {
+            "title": "YAML-import mislukt",
+            "description": "De YAML-configuratie voor {item} kon niet worden geïmporteerd: {reason}"
+        }
+    },
+    "services": {
+        "get_prop_values_all": {
+            "name": "Alle eigenschappen opvragen",
+            "description": "Vraag alle eigenschappen van een Gree-apparaat op",
+            "fields": {
+                "device_id": {
+                    "name": "Apparaat-ID"
+                }
+            }
+        },
+        "get_prop_values": {
+            "name": "Eigenschappen opvragen",
+            "description": "Vraag eigenschappen van een Gree-apparaat op",
+            "fields": {
+                "device_id": {
+                    "name": "Apparaat-ID"
+                },
+                "prop_list": {
+                    "name": "Lijst van eigenschappen om op te vragen"
+                }
+            }
+        }
+    }
+}

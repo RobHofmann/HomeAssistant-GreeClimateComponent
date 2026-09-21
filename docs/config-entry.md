@@ -53,6 +53,22 @@ For a cloud entry, `cloud` holds the account email, region, user id and token. T
 | `options.features` | Which optional switches to create. Only features the unit reported as supported are offered. |
 | `options.restore_states` | Restore the last known entity states after a restart. |
 
+## YAML import
+
+An entry can also come from `configuration.yaml`. The parts:
+
+- `config_schema.py` holds `CONFIG_SCHEMA`. It validates the `gree_custom:` block, normalizes the MAC addresses and fills the defaults, so an imported item already has the shape above. The device key goes through `gree_extract_macs()`, the same function discovery uses, so the controller MACs default the way discovery sets them: the device MAC for a normal unit, the first 12 characters for a VRF main device MAC that ends in `00`, and the part after `@` for a key written as `<mac>@<controller mac>`. A VRF sub-device key without `@` has no known local controller, so the schema requires `mac_controller_local` for it (see [protocol.md](protocol.md#mac-addresses)). `__init__.py` imports `CONFIG_SCHEMA` so Home Assistant and hassfest find it.
+- `async_setup` in `__init__.py` starts one import flow per item in the list.
+- `async_step_import` in `config_flow.py` resolves the target entry. Without a `cloud` block that is the local-only entry (`unique_id` `local_only`). With a `cloud` block it first looks for an entry that already stores the same email, region and password. If it finds one, it reuses that `unique_id` and the stored `uid` and `token`, so there is no cloud login on every restart. Only when there is no such entry does it log in and use the returned user id as `unique_id`. A login matters: Gree allows one session per account, so every login logs the Gree app out. It happens on the first import and after a change of email, region or password. A changed email still lands on the same entry, because the user id from the login is the `unique_id`.
+- The step then creates the entry, or updates the existing one with `async_update_reload_and_abort`. Unchanged YAML changes nothing and causes no reload. Changed YAML updates the entry and reloads it once, after startup. A device that is already in another entry is skipped, with an error in the log and a repair issue (`yaml_import_failed`).
+- Devices that are in the entry but not in the YAML are removed, together with their device registry rows.
+
+The YAML wins at every start, so values that change after the import are not preserved:
+
+- `connection.local.host` updated by discovery goes back to the `host` in the YAML at the next start. Keep the YAML current, or give the unit a fixed IP.
+- The import does not bind the device, so it stores the `encryption_key` and `encryption_version` as written. With a blank key and version `"0"`, entry setup fetches the key and detects the version on every start. That is the normal path.
+- Changes made in the UI to a YAML managed entry are replaced by the YAML values at the next start.
+
 ## Older entries
 
 Releases 4.x used the domain `gree` and a flat entry: one device per entry, all fields at the top level. Those entries are not compatible with this shape and there is no migration. Users set the integration up again.

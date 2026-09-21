@@ -17,7 +17,8 @@
             "reconfigure_successful": "Devices reconfigured with success.",
             "already_configured": "A device with this MAC address is already configured.",
             "unique_id_mismatch": "The entry being configured does not match the configuration intent.",
-            "no_devices_to_add": "No new devices discovered. Adjust your discovery options and try again."
+            "no_devices_to_add": "No new devices discovered. Adjust your discovery options and try again.",
+            "import_failed": "The YAML configuration could not be imported. See the repair issue and the log for the reason."
         },
         "step": {
             "user": {
@@ -367,6 +368,10 @@
         "device_connection_failed": {
             "title": "Device connection failed",
             "description": "Unable to connect to device {device}."
+        },
+        "yaml_import_failed": {
+            "title": "YAML import failed",
+            "description": "The YAML configuration for {item} could not be imported: {reason}"
         }
     },
     "services": {

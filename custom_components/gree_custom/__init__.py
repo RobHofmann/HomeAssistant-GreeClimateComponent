@@ -30,6 +30,7 @@ from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeConnectionError
 from .aiogree.transport_mqtt import GreeMqttTransport
 from .aiogree.transport_udp import GreeUdpTransport
+from .config_schema import CONFIG_SCHEMA as CONFIG_SCHEMA
 
 # Local imports
 from .const import (
@@ -66,6 +67,7 @@ from .helpers import try_find_new_ip
 from .services import async_setup_services
 
 ISSUE_DEVICE_CONNECTION_FAILED = "device_connection_failed"
+ISSUE_YAML_IMPORT_FAILED = "yaml_import_failed"
 PLATFORMS = [
     Platform.BINARY_SENSOR,
     Platform.CLIMATE,
@@ -332,6 +334,42 @@ def delete_device_connection_issue(
         hass,
         DOMAIN,
         _device_issue_id(config_entry_id, device_id),
+    )
+
+
+def _yaml_import_issue_id(item_id: str) -> str:
+    return f"{ISSUE_YAML_IMPORT_FAILED}_{item_id}"
+
+
+def create_yaml_import_issue(
+    hass: HomeAssistant,
+    item_id: str,
+    reason: str,
+) -> None:
+    """Create a YAML import issue."""
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        _yaml_import_issue_id(item_id),
+        is_fixable=False,
+        severity=ir.IssueSeverity.ERROR,
+        translation_key=ISSUE_YAML_IMPORT_FAILED,
+        translation_placeholders={
+            "item": item_id,
+            "reason": reason,
+        },
+    )
+
+
+def delete_yaml_import_issue(
+    hass: HomeAssistant,
+    item_id: str,
+) -> None:
+    """Delete a YAML import issue."""
+    ir.async_delete_issue(
+        hass,
+        DOMAIN,
+        _yaml_import_issue_id(item_id),
     )
 
 
