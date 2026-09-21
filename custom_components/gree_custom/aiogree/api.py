@@ -1260,9 +1260,9 @@ async def _get_sub_devices_list(
         ) from err
 
     else:
-        # Response in format:
-        # {"t":"subList","i":0,"c":6,"r":200,"list":[{"mac":"09c4a41d000000","mid":"6049"},...]}
         # The list may be at the top level (some firmwares) or inside a pack.
+        # Response pack in format:
+        # {"t":"subList","i":0,"c":6,"r":200,"list":[{"mac":"09c4a41d000000","mid":"6049"},...]}
 
         sub_devs: list[dict[str, Any]] = []
 
@@ -1281,7 +1281,7 @@ async def _get_sub_devices_list(
                 len(sub_devs),
             )
 
-        if expected and (response.get("c") != expected or len(sub_devs) != expected):
+        if expected and len(sub_devs) != expected:
             _LOGGER.warning(
                 "[%s] Expected %d sub-devices and found %d",
                 mac_addr_controller,
