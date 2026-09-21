@@ -32,3 +32,25 @@ jobs:
         uses: hacs/action@22.5.0
         with:
           category: integration
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: "actions/checkout@v6"
+
+      - name: Set up Python
+        uses: "actions/setup-python@v5"
+        with:
+          # The code uses 3.14 syntax (PEP 758) and does not import on
+          # anything older.
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: pip install -r requirements_dev.txt
+
+      - name: Run the tests
+        # The tests bind loopback addresses out of 127.0.0.0/8, which needs
+        # Linux.
+        run: pytest -q --durations=10

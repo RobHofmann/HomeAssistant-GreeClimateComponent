@@ -17,15 +17,94 @@ Use the devcontainer. `CONTRIBUTING.md` has the steps. Inside it, the VS Code ta
 
 ## Testing
 
-There is no unit test suite. Testing means running Home Assistant against a device. If you do not have a device, say so in the PR.
+`tests/` holds a pytest suite for the protocol layer. Run it from the repo root:
 
-A fake device that speaks the UDP protocol is the best way to test failure paths without touching real hardware. The pattern that works:
+```bash
+pip install -r requirements_dev.txt
+pytest
+```
 
-- A small UDP server on `127.0.0.1` that answers `scan`, `bind` and `status`, using the component's own `CipherV1` for encryption.
-- Build a `GreeDevice` and a `GreeUdpTransport` pointed at it, call `bind_with_transport()`, then assert on `_state.raw`, `_state.polled_properties` and the requests the fake saw.
-- Give the fake a personality: cap the columns it answers, return an empty result, ignore some props, or stop answering part way. Those are the real failure modes.
+It takes about 30 seconds. `pytest -n auto` needs `pytest-xdist` and cuts that
+to about 12 seconds.
 
-Things worth a test when you touch the protocol layer: both encryption versions, a device that returns fewer columns than asked, a device that returns nothing, a device with a column limit, and a device that never answers a specific prop.
+### What it covers
+
+| File | Covers |
+|---|---|
+| `test_cipher.py` | V1 and V2, round trips, recorded vectors, the tag check, the JSON trim |
+| `test_payloads.py` | The pack builders, `gree_extract_macs`, `redact_str`, `chunked` |
+| `test_transport_udp.py` | Retries, backoff, the split of a command when batching is off |
+| `test_discovery_local.py` | Scan, silence, several devices, the listen window, broken replies |
+| `test_discovery_vrf.py` | A gateway with sub-devices, in both reply shapes |
+
+Not covered yet: the Home Assistant entities, the coordinator, the config flow,
+the cloud API and MQTT. The entity side needs
+[pytest-homeassistant-custom-component](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component),
+which extracts Home Assistant's own test plugins for custom integrations. It
+needs the `enable_custom_integrations` fixture and `asyncio_mode = auto`, which
+this repo already sets. That is the obvious next step. The cloud and MQTT paths
+need an HTTP and an MQTT fake.
+
+### How the fakes work
+
+The fakes bind a real UDP socket on loopback and answer real packets. Nothing
+about the transport is replaced, so retries, timeouts, the stream reset and the
+decrypt path all run as they do in the field. A mocked transport would test
+none of that.
+
+- `tests/fakes/device.py` has `FakeGreeDevice`. It answers `scan`, `bind`,
+  `status` and `cmd`, and it records every request.
+- `tests/fakes/vrf.py` has `FakeVrfGateway`. It adds `subCnt` to the scan reply
+  and answers the sub-device list, at the top level or inside a pack.
+
+A new failure mode is a new keyword on `FakeGreeDevice`, not a new class. The
+ones that exist are `answer_scan`, `answer_bind`, `scan_delay`, `reply_delay`,
+`max_columns`, `unsupported_props`, `ignore_first`, `drop_after`, `raw_reply`,
+`reply_key` and `scan_info`. There is also `rotate_key()`, for a device that
+hands out a new session key.
+
+The fake encrypts with the component's own cipher. That is a trade-off: it
+keeps the fake short and gives V2 for free, but a bug in the cipher could
+cancel itself out. `test_cipher.py` uses recorded vectors for that reason.
+
+Failure modes worth covering when you touch the protocol layer: both encryption
+versions, a device that returns fewer columns than asked, a device that returns
+nothing, a device with a column limit, a device that never answers a specific
+prop, and a device that goes quiet part way.
+
+### Things that cost time
+
+- **Ports.** Discovery has no port argument, so it always uses 7000. Tests that
+  go through discovery bind their own address out of `127.0.0.0/8` instead,
+  which is why they need Linux. The transport tests use an ephemeral port on
+  `127.0.0.1` and run anywhere.
+- **The listen window.** `async_udp_broadcast_request` sleeps for the whole
+  timeout. Discovery does not stop early when it has heard from everyone, so a
+  test with a 5 second window takes 5 seconds. Keep windows short.
+- **Retries.** A full failure costs a few seconds. Pass `max_retries=1` in a
+  test that is not about retrying.
+- **Log assertions.** The `gree_logs` fixture records log lines and any line
+  that cannot be formatted. Standard logging swallows a formatting error, so a
+  test that only reads the text of a log line would miss it. The fixture is
+  autouse, so every test checks it.
+
+### Tests and Home Assistant's own rules
+
+Home Assistant's [testing guidelines](https://developers.home-assistant.io/docs/development_testing)
+are written for core integrations. What applies here:
+
+- pytest with `asyncio_mode = auto`, which is what core and the custom
+  component plugin both use.
+- A pylint warning you cannot avoid gets a `# pylint: disable=` comment with a
+  reason, not a change to the shared config.
+- Assert through the public interface. Here that is the protocol functions in
+  `aiogree/api.py`, not the private state of a transport.
+- Snapshot tests with syrupy are not used. The replies are small and a plain
+  assert says more.
+
+One rule does not carry over. Core moves the clock instead of sleeping. These
+tests drive a real socket, so the packet has to really arrive and the sleeps
+are real. That is the cost of testing the transport as it ships.
 
 ## Tools
 
@@ -66,4 +145,12 @@ Never log an encryption key, cloud password or token in clear text.
 
 ## CI
 
-`validate.yaml` runs hassfest and HACS validation on every push and PR. Neither imports or compiles the Python. Run ruff, pylint and mypy yourself before you push.
+`validate.yaml` runs three jobs on every push and PR:
+
+- **Hassfest** and **HACS** validation. Neither imports or compiles the Python.
+- **Tests**: `pytest` on Python 3.14, on an Ubuntu runner. This one does import
+  the protocol layer, so a syntax error or a broken import fails the build.
+
+CI does not run ruff, pylint or mypy. Pylint and mypy need the Home Assistant
+core checkout in `.ha-core`, which only the devcontainer has. Run all three
+yourself before you push.

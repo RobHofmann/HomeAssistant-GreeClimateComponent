@@ -21,7 +21,20 @@ This repository includes a DevContainer to improve the development experience. T
 
 ## Testing
 
-Use the **Run Home Assistant** Task to start Home Assistant.
+Run the test suite before you open a pull request:
+
+```bash
+pip install -r requirements_dev.txt
+pytest
+```
+
+It takes about 30 seconds and needs Python 3.14. The devcontainer already has
+everything. A change to the protocol layer in `custom_components/gree_custom/aiogree/`
+is expected to come with a test. [docs/development.md](docs/development.md#testing)
+explains what the suite covers and how to add a new fake device.
+
+For everything the suite does not cover, run Home Assistant itself. Use the
+**Run Home Assistant** Task to start it.
 
 You should also be able to set and hit breakpoints in your code.
 
