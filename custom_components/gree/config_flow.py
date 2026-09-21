@@ -294,7 +294,24 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_import(self, import_data: dict) -> FlowResult:
         """Handle configuration via YAML import."""
-        return await self.async_step_user(import_data)
+        self._data.update(import_data)
+
+        self._data.setdefault(CONF_ENCRYPTION_KEY, "")
+        self._data.setdefault(CONF_UID, 0)
+        self._data.setdefault(CONF_PORT, DEFAULT_PORT)
+        self._data.setdefault(CONF_ENCRYPTION_VERSION, 1)
+
+        await self.async_set_unique_id(self._data[CONF_MAC])
+        self._abort_if_unique_id_configured()
+
+        is_connection_valid = await test_connection(self._data)
+        if not is_connection_valid:
+            return self.async_abort(reason="cannot_connect")
+
+        return self.async_create_entry(
+            title=self._data[CONF_NAME],
+            data=self._data,
+        )
 
     @staticmethod
     @callback

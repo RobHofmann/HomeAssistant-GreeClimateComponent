@@ -129,7 +129,7 @@ The integration exposes various entities to configure additional features of you
 - **Power Save**: Enables or disables the power saving mode for energy efficiency. Only available in cooling mode
 - **8°C Heat**: Enables or disables the 8°C heating mode for frost protection. Only available in heating mode
 - **Sleep**: Enables or disables the sleep mode for comfortable overnight operation. Only available in cooling or heating mode
-- **Air**: Enables or disables the fresh air circulation mode
+- **Air**: Enables or disables the fresh air circulation mode. On units with an optional ventilation module (e.g. Gree Airy two-way ventilation), this can run while the AC is off; fan speed is still controlled via the climate fan mode.
 
 ### Advanced Control Switches
 - **Anti Direct Blow**: Prevents direct air flow from blowing on people by adjusting the air deflector position
@@ -150,5 +150,56 @@ This project is based on the work of several contributors and projects:
 
 ## Issues
 
-Due to the many issues being created revolving TimeOut errors, I will be closing these. Feel free to make a PR fixing your TimeOut error.
+Due to the many issues being created revolving "TimeOut"/"Cannot connect" errors, I will be closing these. Feel free to make a PR fixing your TimeOut/Cannot connect error.
 More information on the "why" can be found here: https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues/405#issuecomment-4300110823
+
+### Reading the failure message
+
+When all attempts fail, the component now probes the device once more to work out *why*, and the
+log says which of three situations you are in. Please check this before opening an issue.
+
+**"The device REFUSED the request (ICMP port unreachable)"**
+The device is on the network but nothing is listening on UDP 7000, so it is not running the local
+Gree protocol at all. This is typically a WiFi module whose firmware ships without local control,
+in which case there is nothing to fix on this side; the unit is cloud-only. Retrying, changing the
+encryption version or re-pairing will not help.
+
+**"the device DID answer a plain discovery probe"**
+The port is open and the device is talking, so the network is fine and the *encrypted* exchange is
+what is failing. Look at the device key and `encryption_version` rather than at connectivity. This
+message also reports the WiFi module's `hid` and `ver`; please include them in any issue.
+
+**"No response of any kind"**
+Nothing came back at all: wrong IP address, a firewall or VLAN in between, the device is offline,
+or a cloud-only module that drops the request silently. Start with the usual network
+troubleshooting, but note the last case: **not** getting the REFUSED message does not prove your
+module supports local control. Many modules never send an ICMP error, so a cloud-only unit can
+look identical to a wrong IP address.
+
+### What to include when reporting a connection issue
+
+The WiFi module firmware, not the AC model, is what decides whether local control works. Two
+fields identify it, and they are the most useful thing you can send:
+
+- `hid` - the module's firmware image name, for example `362001000748+U-CS532Z(LT)V3.75.bin`
+- `ver` - the module's protocol version, for example `V1.2.1`
+
+If the integration loads at all, both appear in the "DID answer a plain discovery probe" error.
+Otherwise ask the device directly from any machine on the same network:
+
+```bash
+python3 - <<'EOF'
+import base64, json, socket
+from Crypto.Cipher import AES  # pip install pycryptodome
+IP = "192.168.1.50"  # your device
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.settimeout(3)
+s.sendto(b'{"t":"scan"}', (IP, 7000))
+pack = json.loads(s.recvfrom(64000)[0])["pack"]
+raw = AES.new(b"a3K8Bx%2r8Y7#xDh", AES.MODE_ECB).decrypt(base64.b64decode(pack))
+txt = raw.decode("utf-8", "ignore")
+info = json.loads(txt[: txt.rindex("}") + 1])
+print({k: info.get(k) for k in ("hid", "ver", "brand", "model")})
+EOF
+```
+
+No output means the device did not answer discovery either, which is itself worth reporting.
