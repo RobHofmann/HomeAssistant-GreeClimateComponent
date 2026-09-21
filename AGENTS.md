@@ -35,7 +35,8 @@ Code:
 
 - Match the style of the code around you. Do not reformat lines you did not need to touch.
 - The version in `manifest.json` belongs to the maintainers. Do not change it in a normal PR unless asked.
-- There is no unit test suite. Test against a real device, or against a fake device that speaks the protocol, and say in the PR which one you did.
+- `tests/` holds a pytest suite for the protocol layer. Run it with `pytest`. A change to `aiogree/` is expected to come with a test. See [docs/development.md](docs/development.md#testing).
+- The suite does not cover the Home Assistant entities, the config flow, the cloud or MQTT. For those, test against a real device or a fake one, and say in the PR which one you did.
 
 Writing, for everything you produce in this repo:
 
@@ -49,6 +50,7 @@ Writing, for everything you produce in this repo:
 ## Before you open a PR
 
 - [ ] Ruff, Pylint and Mypy pass.
+- [ ] `pytest` passes, and a protocol change comes with a test.
 - [ ] Both encryption versions are covered by your reasoning if you touched keys, ciphers or transports.
 - [ ] No new secret can reach a log line.
 - [ ] You tested against a real device, or you said in the PR that you could not.

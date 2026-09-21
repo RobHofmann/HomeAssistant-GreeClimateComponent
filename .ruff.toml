@@ -139,6 +139,11 @@ ignore = [
   "LOG004",
 ]
 
+[lint.per-file-ignores]
+# The ban on importing "tests" is there so the component never pulls in test
+# code. The tests themselves have to import their own fakes and fixtures.
+"tests/**" = ["TID251"]
+
 [lint.flake8-tidy-imports.banned-api]
 "async_timeout".msg = "use asyncio.timeout instead"
 "pytz".msg = "use zoneinfo instead"

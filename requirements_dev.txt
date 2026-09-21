@@ -5,7 +5,17 @@ ruff>=0.16.3
 pylint>=4.0.7
 mypy>=2.3.1
 
+# Tests
+pytest>=8.4
+pytest-asyncio>=1.0
+pytest-timeout>=2.3
+
 # Integration dependencies (from manifest)
 asyncio-dgram
 aiomqtt
 pydantic
+
+# Home Assistant brings these at runtime. The tests import the protocol layer
+# on its own, so they have to be here as well.
+aiohttp
+cryptography

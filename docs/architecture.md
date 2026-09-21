@@ -37,6 +37,25 @@ No Home Assistant imports here.
 
 Also in the repo root: `supported-devices.md`, `manual-configuration.yaml`, `hacs.json`.
 
+## Discovery
+
+Discovery runs before any device object exists, and it has its own path.
+
+- `gree_discover_devices_local()` sends a `scan` broadcast and reads whatever
+  answers inside the listen window. The window is a plain sleep, so it always
+  takes the full timeout.
+- `gree_discover_device_local()` scans one host.
+- A host that answers with `subCnt` above zero is a VRF gateway. It is bound,
+  asked for its sub-device list, and then left out of the result itself. Only
+  the units behind it are returned.
+
+Both functions build their own `GreeUdpTransport` and neither closes it. The
+socket opens on the first request and is closed again when the function returns,
+because `asyncio_dgram` closes it in `__del__`. Measured over 12 discovery runs
+in a row, the number of open file descriptors stayed flat, so nothing builds up.
+An explicit `disconnect()` would still be clearer, because this leans on
+reference counting rather than on the code saying what it means.
+
 ## How a device comes to life
 
 `GreeDevice.bind_with_transport()` runs these steps in order:

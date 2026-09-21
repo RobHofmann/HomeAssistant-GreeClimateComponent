@@ -978,10 +978,15 @@ class GreeDevice:
     def feature_humidity_control(self) -> HumidityControlMode:
         """Returns the current humidity control mode."""
 
-        return HumidityControlMode(
-            self._state.get(GreeProp.FEATURE_HUMIDITY_CONTROL)
-            or HumidityControlMode.disabled.value
-        )
+        # HumidityControlMode.target_dry is 0 and disabled is 15, so a missing
+        # value has to be told apart from a real 0. Falling back with "or" would
+        # read every target_dry device as disabled.
+        raw_value = self._state.get(GreeProp.FEATURE_HUMIDITY_CONTROL)
+
+        if raw_value is None:
+            return HumidityControlMode.disabled
+
+        return HumidityControlMode(raw_value)
 
     def set_feature_humidity_control(self, mode: HumidityControlMode) -> None:
         """Set the Humidy Control mode.
