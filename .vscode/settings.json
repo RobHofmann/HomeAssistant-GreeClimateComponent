@@ -9,6 +9,7 @@
 
     "python.analysis.typeCheckingMode": "basic",
     "python.analysis.autoImportCompletions": true,
+    "python.analysis.extraPaths": ["${workspaceFolder}/custom_components"],
 
     "pylint.args": ["--rcfile=${workspaceFolder}/.pylintrc"],
     "mypy-type-checker.args": ["--config-file=${workspaceFolder}/mypy.ini"],
