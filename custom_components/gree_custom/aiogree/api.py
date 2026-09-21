@@ -1245,12 +1245,12 @@ async def _get_sub_devices_list(
         json_payload = _create_payload(
             pack,
             "subList",
-            1,
+            0,
             mac_addr_controller,
             uid,
         )
 
-        response = await gree_get_response_pack(
+        response = await gree_get_response(
             mac_addr_controller, json_payload, cipher, transport
         )
 
@@ -1262,7 +1262,25 @@ async def _get_sub_devices_list(
     else:
         # Response in format:
         # {"t":"subList","i":0,"c":6,"r":200,"list":[{"mac":"09c4a41d000000","mid":"6049"},...]}
-        sub_devs = response.get("list", [])
+        # The list may be at the top level (some firmwares) or inside a pack.
+
+        sub_devs: list[dict[str, Any]] = []
+
+        if isinstance(response.get("list"), list):
+            sub_devs = response.get("list", [])
+            _LOGGER.debug(
+                "[%s] Found %d sub-units (top-level)",
+                mac_addr_controller,
+                len(sub_devs),
+            )
+        else:
+            sub_devs = response.get("pack", {}).get("list", [])
+            _LOGGER.debug(
+                "[%s] Found %d sub-units (pack)",
+                mac_addr_controller,
+                len(sub_devs),
+            )
+
         if expected and (response.get("c") != expected or len(sub_devs) != expected):
             _LOGGER.warning(
                 "[%s] Expected %d sub-devices and found %d",
@@ -1281,11 +1299,11 @@ async def _get_sub_devices_list(
                 )
             else:
                 new_dev = GreeDiscoveredDevice(
-                    mac=sub_dev.get("mac"),
+                    mac=sub_dev.get("mac", ""),
                     mac_controller_local=mac_addr_controller,
                     host=transport.ip_addr,
                     port=transport.port,
-                    mid=sub_dev.get("mid"),
+                    mid=sub_dev.get("mid", ""),
                 )
             discovered_subdevices.append(new_dev)
 
@@ -1321,21 +1339,30 @@ async def _process_local_scan_response(
         ver=device.ver or "",
         user_id=DEFAULT_DEVICE_USERID,
     )
-    discovered_devices.append(discovered_device)
 
     if device.subCnt and device.subCnt > 0:
         # TODO: Ingest subdevices, need debugging.
-        # TODO: Is the device above also added, or only sub_devices?
         transport = GreeUdpTransport(ip_address, DEFAULT_DEVICE_PORT)
+        _LOGGER.debug("Obtaining device binding encryption info for the VRF controller")
+        binding_info = await gree_try_bind(
+            mac_addr_controller=mac_controller,
+            uid=DEFAULT_DEVICE_USERID,
+            version=None,
+            key=None,
+            transport=transport,
+        )
         sub_devices = await _get_sub_devices_list(
             mac_controller,
             user_id,
-            get_cipher(EncryptionVersion.V1),
+            get_cipher(binding_info.encryption_version, binding_info.encryption_key),
             transport,
             discovered_device,
             device.subCnt,
         )
         discovered_devices.extend(sub_devices)
+    else:
+        discovered_devices.append(discovered_device)
+
     return discovered_devices
 
 
