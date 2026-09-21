@@ -91,6 +91,8 @@ from .const import (
     CONFENTRY_ID_LOCAL_ONLY,
     CURRENT_CONF_VERSION,
     DEFAULT_DEVICE_UID,
+    DEFAULT_DISABLE_AVAILABLE_CHECK,
+    DEFAULT_DISCOVERY_RETRIES,
     DEFAULT_DISCOVERY_TIMEOUT,
     DEFAULT_ENCRYPTION_VERSION,
     DEFAULT_PREFER_CLOUD,
@@ -292,7 +294,10 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
         # Check what's under that device: Main device and sub-devices
         # If it does not respond locally, there's no use of this information
         discover = await gree_discover_device_local(
-            discovery_info.ip, DEFAULT_DISCOVERY_TIMEOUT, DEFAULT_DEVICE_UID
+            discovery_info.ip,
+            DEFAULT_DISCOVERY_TIMEOUT,
+            DEFAULT_DISCOVERY_RETRIES,
+            DEFAULT_DEVICE_UID,
         )
 
         entries_to_reload: list[GreeConfigEntry] = []
@@ -592,6 +597,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                 discovered = await gree_discover_devices_local(
                     broadcast_addresses=await get_discovery_addresses(self.hass),
                     timeout=DEFAULT_DISCOVERY_TIMEOUT,
+                    max_retries=DEFAULT_DISCOVERY_RETRIES,
                     user_id=0,
                 )
 

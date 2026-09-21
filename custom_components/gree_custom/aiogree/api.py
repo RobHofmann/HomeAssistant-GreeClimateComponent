@@ -1245,14 +1245,20 @@ async def _get_sub_devices_list(
         json_payload = _create_payload(
             pack,
             "subList",
-            1,
+            0,
             mac_addr_controller,
             uid,
         )
 
-        response = await gree_get_response_pack(
-            mac_addr_controller, json_payload, cipher, transport
+        response = await gree_get_response(
+            mac_addr_controller,
+            json_payload,
+            cipher,
+            transport,
         )
+
+    except GreeConnectionError:
+        raise
 
     except Exception as err:
         raise GreeProtocolError(
@@ -1260,32 +1266,61 @@ async def _get_sub_devices_list(
         ) from err
 
     else:
-        # Response in format:
+        # The list may be at the top level (some firmwares) or inside a pack.
+        # Response pack in format:
         # {"t":"subList","i":0,"c":6,"r":200,"list":[{"mac":"09c4a41d000000","mid":"6049"},...]}
-        sub_devs = response.get("list", [])
-        if expected and (response.get("c") != expected or len(sub_devs) != expected):
+
+        sub_devs: list[dict[str, Any]] = []
+
+        if isinstance(response.get("list"), list):
+            sub_devs = response.get("list", [])
+            _LOGGER.debug(
+                "[%s] Found %d sub-units (top-level)",
+                mac_addr_controller,
+                len(sub_devs),
+            )
+        else:
+            sub_devs = response.get("pack", {}).get("list", [])
+            _LOGGER.debug(
+                "[%s] Found %d sub-units (pack)",
+                mac_addr_controller,
+                len(sub_devs),
+            )
+
+        if expected and len(sub_devs) != expected:
             _LOGGER.warning(
                 "[%s] Expected %d sub-devices and found %d",
                 mac_addr_controller,
                 expected,
-                response.get("c"),
+                len(sub_devs),
             )
 
         for sub_dev in sub_devs:
             new_dev: GreeDiscoveredDevice
             if parent_device:
+                # TODO: get real-data from VRF discovery to check the result list fields
                 new_dev = replace(
                     parent_device,
-                    mac=sub_dev.get("mac"),
-                    mid=sub_dev.get("mid"),
+                    name=sub_dev.get(
+                        "name",
+                        f"{sub_dev.get('mac', '')[-5:]} VRF at {parent_device.name}",
+                    ),
+                    mac=sub_dev.get("mac", ""),
+                    mid=sub_dev.get("mid", ""),
+                    key=cipher.key,
                 )
             else:
                 new_dev = GreeDiscoveredDevice(
-                    mac=sub_dev.get("mac"),
+                    name=sub_dev.get(
+                        "name",
+                        f"{sub_dev.get('mac', '')[-5:]} VRF at {mac_addr_controller[-5:]}",
+                    ),
+                    mac=sub_dev.get("mac", ""),
                     mac_controller_local=mac_addr_controller,
                     host=transport.ip_addr,
                     port=transport.port,
-                    mid=sub_dev.get("mid"),
+                    mid=sub_dev.get("mid", ""),
+                    key=cipher.key,
                 )
             discovered_subdevices.append(new_dev)
 
@@ -1293,15 +1328,14 @@ async def _get_sub_devices_list(
 
 
 async def _process_local_scan_response(
-    ip_address: str, pack: dict, user_id: int
+    ip_address: str, pack: dict, timeout: int, max_retries: int, user_id: int
 ) -> list[GreeDiscoveredDevice]:
-    discovered_devices: list[GreeDiscoveredDevice] = []
 
     device = DeviceScanInfoResponse.model_validate(pack)
 
     if not device.mac:
         _LOGGER.debug("No MAC address in response from %s", ip_address)
-        return discovered_devices
+        return []
 
     mac, mac_controller = gree_extract_macs(device.mac)
 
@@ -1321,32 +1355,61 @@ async def _process_local_scan_response(
         ver=device.ver or "",
         user_id=DEFAULT_DEVICE_USERID,
     )
-    discovered_devices.append(discovered_device)
 
-    if device.subCnt and device.subCnt > 0:
-        # TODO: Ingest subdevices, need debugging.
-        # TODO: Is the device above also added, or only sub_devices?
-        transport = GreeUdpTransport(ip_address, DEFAULT_DEVICE_PORT)
+    if not device.subCnt or device.subCnt == 0:
+        return [discovered_device]
+
+    # If we are dealing wiht a VRF gateway, procceed by scaning its subdevices
+    # The gateway itselft is not a valid dicovered device
+
+    # TODO: Ingest subdevices, need real-world tests.
+    transport = GreeUdpTransport(ip_address, DEFAULT_DEVICE_PORT, max_retries, timeout)
+    try:
+        _LOGGER.debug("Obtaining device binding encryption info for the VRF controller")
+        binding_info = await gree_try_bind(
+            mac_addr_controller=mac_controller,
+            uid=DEFAULT_DEVICE_USERID,
+            version=None,
+            key=None,
+            transport=transport,
+        )
         sub_devices = await _get_sub_devices_list(
             mac_controller,
             user_id,
-            get_cipher(EncryptionVersion.V1),
+            get_cipher(binding_info.encryption_version, binding_info.encryption_key),
             transport,
             discovered_device,
             device.subCnt,
         )
-        discovered_devices.extend(sub_devices)
-    return discovered_devices
+
+    except GreeBindingError, GreeConnectionError:
+        # If we cannot connect or bind, simply move on from this gateway as we cannot properly query subdevices
+        # Returning an empty list prevents discovery from complety fail because of one device
+        _LOGGER.warning(
+            "Could not connect to VRF gateway %s. Its subdevices will be ignored",
+            mac_controller,
+        )
+        return []
+
+    except Exception as err:
+        # Other errors should break discovery and be investigated
+        raise GreeProtocolError(
+            f"Failed to discover sub-devices of {mac_controller}"
+        ) from err
+
+    else:
+        return sub_devices
 
 
 async def gree_discover_device_local(
-    ip_address: str, timeout: int, user_id: int
+    ip_address: str, timeout: int, max_retries: int, user_id: int
 ) -> list[GreeDiscoveredDevice]:
     """Target scan to a single Gree device.
 
     Args:
         ip_address: IP address of the target device
         timeout: Timeout (s) to wait for device responses
+        max_retries: Connection attempts to the device
         user_id: User ID for the request
 
     Returns:
@@ -1370,17 +1433,20 @@ async def gree_discover_device_local(
         return discovered_devices
 
     _LOGGER.debug("Got device info: %s", pack)
-    return await _process_local_scan_response(ip_address, pack, user_id)
+    return await _process_local_scan_response(
+        ip_address, pack, timeout, max_retries, user_id
+    )
 
 
 async def gree_discover_devices_local(
-    broadcast_addresses: list[str], timeout: int, user_id: int
+    broadcast_addresses: list[str], timeout: int, max_retries: int, user_id: int
 ) -> list[GreeDiscoveredDevice]:
     """Discover Gree devices on the network.
 
     Args:
         broadcast_addresses: List of broadcast addresses to search
         timeout: Timeout (s) to wait for device responses
+        max_retries: Connection attempts to the device
         user_id: User ID for the request
 
     Returns:
@@ -1403,7 +1469,9 @@ async def gree_discover_devices_local(
             pack = response.get("pack")
             if pack is not None and pack.get("t") == "dev":
                 discovered_devices.extend(
-                    await _process_local_scan_response(address, pack, user_id)
+                    await _process_local_scan_response(
+                        address, pack, timeout, max_retries, user_id
+                    )
                 )
 
     _LOGGER.info("Found total of %d local devices", len(discovered_devices))
@@ -1452,6 +1520,7 @@ async def gree_discover_devices_cloud(
 async def gree_discover_devices(
     cloud_api: GreeCloudApi | None,
     broadcast_addresses: list[str] | None,
+    max_retries: int = 2,
     timeout: int = 3,
 ) -> list[GreeDiscoveredDevice]:
     """Discover Gree Devices.
@@ -1460,6 +1529,7 @@ async def gree_discover_devices(
         cloud_api: The cloud API endpoint to get the devices from (Optional)
         broadcast_addresses: List of broadcast addresses to search (Optional)
         timeout: Timeout (s) to wait for device responses
+        max_retries: Connection attempts to the device
 
     Returns:
         De-duplicated list of discovered devices.
@@ -1477,6 +1547,7 @@ async def gree_discover_devices(
         local_devices = await gree_discover_devices_local(
             broadcast_addresses,
             timeout,
+            max_retries,
             cloud_api.user_id if cloud_api and cloud_api.user_id else 0,
         )
 
