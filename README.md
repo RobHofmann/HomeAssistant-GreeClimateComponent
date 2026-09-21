@@ -51,16 +51,27 @@ While reconfiguring, devices not selected will be removed from the entry.
 
 ### Manual - YAML Configuration
 
-See [`manual-configuration.yaml`](manual-configuration.yaml) for a complete configuration example with all available options and detailed comments.
+You can set the integration up in `configuration.yaml` instead of the UI.
 
-Basic example:
+Minimal example with one local device:
 ```yaml
 gree_custom:
-  - host: "192.168.1.100"
-    mac: "20-FA-BB-12-34-56"
-    devices:
-      - device_name: "Gree AC"
+  - devices:
+      "20-FA-BB-12-34-56":
+        connection:
+          local:
+            host: "192.168.1.100"
+        options:
+          name: "Gree AC"
 ```
+
+Home Assistant reads the YAML at every start. It creates the config entry when it is missing and updates it when the YAML changed. An unchanged YAML causes no reload. A device you remove from the YAML is removed from the config entry, so do not change a YAML managed entry in the UI: the next restart puts the YAML values back.
+
+Every item in the list is one config entry. An item with a `cloud` block is the entry for that Gree account, and the one item without a `cloud` block is the entry for all local-only devices. A device that is already in another config entry is skipped, with an error in the log and a repair issue.
+
+A `cloud` block logs in to the Gree account only on the first import, and again when you change the email, region or password. Every login ends the other sessions of that account, so the Gree app logs you out at that moment. An unchanged `cloud` block reuses the stored session.
+
+See [`manual-configuration.yaml`](manual-configuration.yaml) for a complete configuration example with all available options and detailed comments.
 
 ## Connection Methods and Configuration
 

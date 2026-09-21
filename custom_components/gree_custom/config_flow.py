@@ -16,7 +16,6 @@ else:
         import voluptuous as probatio
 
 from homeassistant.components.diagnostics import async_redact_data
-from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN, SensorDeviceClass
 from homeassistant.config_entries import (
     SOURCE_REAUTH,
     SOURCE_RECONFIGURE,
@@ -29,37 +28,18 @@ from homeassistant.const import (
     CONF_DISCOVERY,
     CONF_EMAIL,
     CONF_HOST,
-    CONF_NAME,
     CONF_PASSWORD,
     CONF_PORT,
     CONF_REGION,
-    CONF_SCAN_INTERVAL,
-    CONF_TIMEOUT,
     CONF_TOKEN,
 )
-from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import section
 from homeassistant.helpers import config_validation as cv, device_registry as dr
-from homeassistant.helpers.selector import (
-    EntitySelector,
-    EntitySelectorConfig,
-    NumberSelector,
-    NumberSelectorConfig,
-    NumberSelectorMode,
-    SelectOptionDict,
-    SelectSelector,
-    SelectSelectorConfig,
-    SelectSelectorMode,
-    TextSelector,
-    TextSelectorConfig,
-    TextSelectorType,
-)
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from homeassistant.helpers.storage import Store
 
+from . import create_yaml_import_issue, delete_yaml_import_issue
 from .aiogree.api import (
     GreeDiscoveredDevice,
-    GreeProp,
     gree_discover_device_local,
     gree_discover_devices_cloud,
     gree_discover_devices_local,
@@ -76,10 +56,15 @@ from .aiogree.errors import (
 )
 from .aiogree.transport_mqtt import GreeMqttTransport
 from .aiogree.transport_udp import GreeUdpTransport
+from .config_schema import (
+    SETUP_SCHEMA,
+    setup_cloud_schema,
+    setup_device_connection_options_schema,
+    setup_device_options_schema,
+    setup_local_schema,
+    setup_picker_schema,
+)
 from .const import (
-    ATTR_EXTERNAL_HUMIDITY_SENSOR,
-    ATTR_EXTERNAL_TEMPERATURE_SENSOR,
-    ATTR_FEATURES_TO_PROP_MAP,
     CONF_ALL_DEVICE_CONNECTIONS,
     CONF_ALL_DEVICE_OPTIONS,
     CONF_CLOUD,
@@ -88,7 +73,6 @@ from .const import (
     CONF_DEVICE_CONNECTION_LOCAL,
     CONF_DEVICE_OPTIONS,
     CONF_DEVICES,
-    CONF_DISABLE_AVAILABLE_CHECK,
     CONF_DISCOVERY_PREFS_KEY,
     CONF_DISCOVERY_PREFS_VERSION,
     CONF_ENCRYPTION_KEY,
@@ -100,37 +84,19 @@ from .const import (
     CONF_HVAC_MODES,
     CONF_MAC_CONTROLLER_CLOUD,
     CONF_MAC_CONTROLLER_LOCAL,
-    CONF_MAX_ONLINE_ATTEMPTS,
     CONF_PREFER_CLOUD,
-    CONF_RESTORE_STATES,
     CONF_SWING_HORIZONTAL_MODES,
     CONF_SWING_MODES,
-    CONF_TEMPERATURE_STEP,
     CONF_UID,
     CONFENTRY_ID_LOCAL_ONLY,
     CURRENT_CONF_VERSION,
-    DEFAULT_CONNECTION_MAX_ATTEMPTS,
-    DEFAULT_CONNECTION_TIMEOUT,
-    DEFAULT_DEVICE_PORT,
     DEFAULT_DEVICE_UID,
-    DEFAULT_DISABLE_AVAILABLE_CHECK,
     DEFAULT_DISCOVERY_TIMEOUT,
-    DEFAULT_ENCRYPTION_KEY,
     DEFAULT_ENCRYPTION_VERSION,
-    DEFAULT_FAN_MODES,
-    DEFAULT_HVAC_MODES,
     DEFAULT_PREFER_CLOUD,
-    DEFAULT_RESTORE_STATES,
-    DEFAULT_SCAN_INTERVAL,
-    DEFAULT_SWING_HORIZONTAL_MODES,
-    DEFAULT_SWING_MODES,
-    DEFAULT_TARGET_TEMP_STEP,
     DOMAIN,
     ENCRYPTION_VERSION_AUTO,
-    GATTR_FEAT_QUIET_MODE,
-    GATTR_FEAT_TURBO,
     MAX_UNICAST_SCAN_HOSTS,
-    MIN_SCAN_INTERVAL,
 )
 from .coordinator import GreeConfigEntry
 from .helpers import (
@@ -138,388 +104,23 @@ from .helpers import (
     get_config_entries,
     get_configured_macs_in_entries,
     get_discovery_addresses,
-    get_entity_ids_from_unique_ids,
     get_entry_matching_mac,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 
-SETUP_SCHEMA = probatio.Schema(
-    {
-        probatio.Required(CONF_DISCOVERY, default=["cloud", "local"]): SelectSelector(
-            SelectSelectorConfig(
-                options=["cloud", "local"],
-                multiple=True,
-                translation_key=CONF_DISCOVERY,
-            )
-        )
-    }
-)
+def _matches_cloud_account(
+    stored: Mapping[str, Any] | None, cloud_conf: Mapping[str, Any]
+) -> bool:
+    """Tell if a stored cloud block is the same account as a YAML cloud block."""
+    if not stored:
+        return False
 
-
-def _setup_cloud_schema(defaults_values: dict | None = None) -> probatio.Schema:
-    defaults = defaults_values or {}
-
-    return probatio.Schema(
-        {
-            probatio.Required(
-                CONF_EMAIL,
-                default=defaults.get(CONF_EMAIL, ""),
-            ): str,
-            probatio.Required(
-                CONF_PASSWORD,
-                default=defaults.get(CONF_PASSWORD, ""),
-            ): str,
-            probatio.Required(
-                CONF_REGION,
-                default=defaults.get(CONF_REGION),
-            ): SelectSelector(
-                SelectSelectorConfig(
-                    options=[region.value for region in GreeRegion],
-                    multiple=False,
-                )
-            ),
-        }
+    return all(
+        stored.get(key) == cloud_conf.get(key)
+        for key in (CONF_EMAIL, CONF_REGION, CONF_PASSWORD)
     )
-
-
-def _setup_local_schema(default_values: dict | None = None) -> probatio.Schema:
-    defaults = default_values or {}
-
-    return probatio.Schema(
-        {
-            probatio.Optional(
-                CONF_EXTRA_SCAN_NETWORKS,
-                description={
-                    "suggested_value": defaults.get(CONF_EXTRA_SCAN_NETWORKS, [])
-                },
-            ): TextSelector(TextSelectorConfig(multiple=True, multiline=False)),
-            probatio.Optional(
-                CONF_EXTRA_SCAN_HOSTS,
-                description={
-                    "suggested_value": defaults.get(CONF_EXTRA_SCAN_HOSTS, [])
-                },
-            ): TextSelector(TextSelectorConfig(multiple=True, multiline=False)),
-        }
-    )
-
-
-def _setup_picker_schema(
-    default: list[str], options: dict[str, GreeDiscoveredDevice]
-) -> probatio.Schema:
-    return probatio.Schema(
-        {
-            probatio.Required(CONF_DEVICES, default=default): SelectSelector(
-                SelectSelectorConfig(
-                    options=[
-                        SelectOptionDict(value=m, label=d.friendly_name)
-                        for m, d in options.items()
-                    ],
-                    multiple=True,
-                )
-            )
-        }
-    )
-
-
-def _setup_device_connection_options_schema(
-    device_info: GreeDiscoveredDevice, default_values: dict | None = None
-) -> probatio.Schema:
-    defaults: dict = default_values or {}
-    defaults_local = defaults.get(CONF_DEVICE_CONNECTION_LOCAL, {})
-    defaults_cloud = defaults.get(CONF_DEVICE_CONNECTION_CLOUD, {})
-
-    return probatio.Schema(
-        {
-            probatio.Required(
-                CONF_SCAN_INTERVAL,
-                default=defaults.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
-            ): probatio.All(
-                probatio.Coerce(int), probatio.Range(min=MIN_SCAN_INTERVAL)
-            ),
-            probatio.Required(
-                CONF_DISABLE_AVAILABLE_CHECK,
-                default=defaults.get(
-                    CONF_DISABLE_AVAILABLE_CHECK,
-                    DEFAULT_DISABLE_AVAILABLE_CHECK,
-                ),
-            ): cv.boolean,
-            probatio.Optional(
-                CONF_ENCRYPTION_KEY,
-                default=(
-                    defaults.get(CONF_ENCRYPTION_KEY)
-                    or device_info.key
-                    or DEFAULT_ENCRYPTION_KEY
-                ),
-            ): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD)),
-            probatio.Required(
-                CONF_UID,
-                default=defaults.get(CONF_UID, device_info.user_id),
-            ): cv.positive_int,
-            probatio.Required(CONF_DEVICE_CONNECTION_LOCAL): section(
-                probatio.Schema(
-                    {
-                        probatio.Optional(
-                            CONF_MAC_CONTROLLER_LOCAL,
-                            default=(
-                                defaults_local.get(CONF_MAC_CONTROLLER_LOCAL)
-                                or device_info.mac_controller_local
-                            ),
-                        ): str,
-                        probatio.Optional(
-                            CONF_HOST,
-                            default=(
-                                defaults_local.get(CONF_HOST) or device_info.host or ""
-                            ),
-                        ): str,
-                        probatio.Optional(
-                            CONF_PORT,
-                            default=(
-                                defaults_local.get(CONF_PORT)
-                                or device_info.port
-                                or DEFAULT_DEVICE_PORT
-                            ),
-                        ): cv.port,
-                        probatio.Required(
-                            CONF_TIMEOUT,
-                            default=defaults_local.get(
-                                CONF_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT
-                            ),
-                        ): cv.positive_int,
-                        probatio.Required(
-                            CONF_ENCRYPTION_VERSION,
-                            default=defaults_local.get(
-                                CONF_ENCRYPTION_VERSION, DEFAULT_ENCRYPTION_VERSION
-                            ),
-                        ): SelectSelector(
-                            SelectSelectorConfig(
-                                translation_key=CONF_ENCRYPTION_VERSION,
-                                options=[
-                                    ENCRYPTION_VERSION_AUTO,
-                                    *(
-                                        str(version.value)
-                                        for version in EncryptionVersion
-                                    ),
-                                ],
-                                mode=SelectSelectorMode.DROPDOWN,
-                            )
-                        ),
-                        probatio.Required(
-                            CONF_MAX_ONLINE_ATTEMPTS,
-                            default=defaults_local.get(
-                                CONF_MAX_ONLINE_ATTEMPTS,
-                                DEFAULT_CONNECTION_MAX_ATTEMPTS,
-                            ),
-                        ): cv.positive_int,
-                    }
-                )
-            ),
-            probatio.Required(CONF_DEVICE_CONNECTION_CLOUD): section(
-                probatio.Schema(
-                    {
-                        probatio.Required(
-                            CONF_PREFER_CLOUD,
-                            default=defaults_cloud.get(
-                                CONF_PREFER_CLOUD,
-                                DEFAULT_PREFER_CLOUD,
-                            ),
-                        ): cv.boolean,
-                        probatio.Optional(
-                            CONF_MAC_CONTROLLER_CLOUD,
-                            default=defaults_cloud.get(CONF_MAC_CONTROLLER_CLOUD)
-                            or device_info.mac_controller_mqtt,
-                        ): str,
-                    }
-                )
-            ),
-        }
-    )
-
-
-def _setup_device_options_schema(  # noqa: C901
-    hass: HomeAssistant, device: GreeDevice, default_values: Mapping | None
-) -> probatio.Schema:
-    defaults = default_values or {}
-
-    schema: dict = {}
-    schema.update(
-        {
-            probatio.Required(
-                CONF_NAME,
-                default=defaults.get(CONF_NAME, device.name),
-            ): str
-        }
-    )
-
-    if device.supports_property(GreeProp.OP_MODE):
-        schema.update(
-            {
-                probatio.Optional(
-                    CONF_HVAC_MODES,
-                    default=defaults.get(CONF_HVAC_MODES, DEFAULT_HVAC_MODES),
-                ): SelectSelector(
-                    config=SelectSelectorConfig(
-                        options=DEFAULT_HVAC_MODES,
-                        multiple=True,
-                        translation_key=CONF_HVAC_MODES,
-                    )
-                ),
-            }
-        )
-
-    fan_mapping = {
-        GreeProp.FAN_SPEED: DEFAULT_FAN_MODES,
-        GreeProp.FEAT_TURBO_MODE: [GATTR_FEAT_TURBO],
-        GreeProp.FEAT_QUIET_MODE: [GATTR_FEAT_QUIET_MODE],
-    }
-    valid_fan_modes: list[str] = []
-    for prop, modes in fan_mapping.items():
-        if device.supports_property(prop):
-            valid_fan_modes.extend(modes)
-
-    if valid_fan_modes:
-        schema.update(
-            {
-                probatio.Optional(
-                    CONF_FAN_MODES,
-                    default=defaults.get(CONF_FAN_MODES, valid_fan_modes),
-                ): SelectSelector(
-                    config=SelectSelectorConfig(
-                        options=valid_fan_modes,
-                        multiple=True,
-                        translation_key=CONF_FAN_MODES,
-                    )
-                ),
-            }
-        )
-
-    if device.supports_property(GreeProp.SWING_VERTICAL):
-        schema.update(
-            {
-                probatio.Optional(
-                    CONF_SWING_MODES,
-                    default=defaults.get(CONF_SWING_MODES, DEFAULT_SWING_MODES),
-                ): SelectSelector(
-                    config=SelectSelectorConfig(
-                        options=DEFAULT_SWING_MODES,
-                        multiple=True,
-                        translation_key=CONF_SWING_MODES,
-                    )
-                ),
-            }
-        )
-
-    if device.supports_property(GreeProp.SWING_HORIZONTAL):
-        schema.update(
-            {
-                probatio.Optional(
-                    CONF_SWING_HORIZONTAL_MODES,
-                    default=defaults.get(
-                        CONF_SWING_HORIZONTAL_MODES, DEFAULT_SWING_HORIZONTAL_MODES
-                    ),
-                ): SelectSelector(
-                    config=SelectSelectorConfig(
-                        options=DEFAULT_SWING_HORIZONTAL_MODES,
-                        multiple=True,
-                        translation_key=CONF_SWING_HORIZONTAL_MODES,
-                    )
-                ),
-            }
-        )
-
-    valid_features = []
-    for feat, props in ATTR_FEATURES_TO_PROP_MAP.items():
-        if all(device.supports_property(p) for p in props):
-            valid_features.append(feat)
-
-    if valid_features:
-        schema.update(
-            {
-                probatio.Optional(
-                    CONF_FEATURES,
-                    default=defaults.get(CONF_FEATURES, valid_features),
-                ): SelectSelector(
-                    config=SelectSelectorConfig(
-                        options=valid_features,
-                        multiple=True,
-                        translation_key=CONF_FEATURES,
-                    )
-                )
-            }
-        )
-
-    if device.supports_property(GreeProp.TARGET_TEMPERATURE):
-        schema.update(
-            {
-                probatio.Required(
-                    CONF_TEMPERATURE_STEP,
-                    default=defaults.get(
-                        CONF_TEMPERATURE_STEP, DEFAULT_TARGET_TEMP_STEP
-                    ),
-                ): NumberSelector(
-                    NumberSelectorConfig(
-                        min=0.5,
-                        max=5,
-                        step=0.5,
-                        mode=NumberSelectorMode.BOX,
-                        unit_of_measurement="ºC",
-                    )
-                )
-            }
-        )
-
-    schema.update(
-        {
-            probatio.Optional(
-                ATTR_EXTERNAL_TEMPERATURE_SENSOR,
-                description={
-                    "suggested_value": defaults.get(
-                        ATTR_EXTERNAL_TEMPERATURE_SENSOR, ""
-                    )
-                },
-            ): EntitySelector(
-                config=EntitySelectorConfig(
-                    domain=SENSOR_DOMAIN,
-                    device_class=SensorDeviceClass.TEMPERATURE,
-                    multiple=False,
-                    exclude_entities=get_entity_ids_from_unique_ids(
-                        hass,
-                        SENSOR_DOMAIN,
-                        [
-                            f"{device.mac_address}_indoor_temperature",
-                            f"{device.mac_address}_outdoor_temperature",
-                        ],
-                    ),
-                )
-            ),
-            probatio.Optional(
-                ATTR_EXTERNAL_HUMIDITY_SENSOR,
-                description={
-                    "suggested_value": defaults.get(ATTR_EXTERNAL_HUMIDITY_SENSOR, "")
-                },
-            ): EntitySelector(
-                config=EntitySelectorConfig(
-                    domain=SENSOR_DOMAIN,
-                    device_class=SensorDeviceClass.HUMIDITY,
-                    multiple=False,
-                    exclude_entities=get_entity_ids_from_unique_ids(
-                        hass,
-                        SENSOR_DOMAIN,
-                        [
-                            f"{device.mac_address}_room_humidity",
-                        ],
-                    ),
-                )
-            ),
-            probatio.Required(
-                CONF_RESTORE_STATES,
-                default=defaults.get(CONF_RESTORE_STATES, DEFAULT_RESTORE_STATES),
-            ): cv.boolean,
-        }
-    )
-
-    return probatio.Schema(schema)
 
 
 class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -557,8 +158,128 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_import(self, import_config: dict) -> ConfigFlowResult:
         """Handle import from configuration.yaml."""
-        # TODO: Implement YAML import
-        return self.async_abort(reason="not_implemented")
+
+        cloud_conf: dict[str, Any] | None = import_config.get(CONF_CLOUD)
+        devices: dict[str, Any] = dict(import_config[CONF_DEVICES])
+
+        item_id = cloud_conf[CONF_EMAIL] if cloud_conf else CONFENTRY_ID_LOCAL_ONLY
+
+        stored_cloud: dict[str, Any] | None = None
+        if not cloud_conf:
+            unique_id = CONFENTRY_ID_LOCAL_ONLY
+        else:
+            known_entry = next(
+                (
+                    entry
+                    for entry in get_config_entries(self.hass)
+                    if _matches_cloud_account(entry.data.get(CONF_CLOUD), cloud_conf)
+                    and entry.unique_id
+                ),
+                None,
+            )
+
+            if known_entry and known_entry.unique_id:
+                # Reuse the stored token so there is no login on every restart
+                unique_id = known_entry.unique_id
+                stored_cloud = dict(known_entry.data[CONF_CLOUD])
+            else:
+                cloud_api = GreeCloudApi(
+                    region=GreeRegion(cloud_conf[CONF_REGION]),
+                    username=cloud_conf[CONF_EMAIL],
+                    password=cloud_conf[CONF_PASSWORD],
+                )
+                try:
+                    credentials = await cloud_api.login()
+                except Exception as err:  # noqa: BLE001
+                    return self._abort_yaml_import(item_id, err)
+                finally:
+                    await cloud_api.close()
+
+                unique_id = str(credentials.user_id)
+                stored_cloud = {
+                    **cloud_conf,
+                    CONF_TOKEN: credentials.token,
+                    CONF_UID: credentials.user_id,
+                }
+
+        await self.async_set_unique_id(unique_id)
+
+        self._drop_devices_of_other_entries(devices, unique_id)
+
+        if not devices:
+            create_yaml_import_issue(
+                self.hass,
+                item_id,
+                "every device is already configured in another config entry",
+            )
+            return self.async_abort(reason="import_failed")
+
+        delete_yaml_import_issue(self.hass, item_id)
+
+        data = {
+            CONF_CLOUD: stored_cloud,
+            CONF_DEVICES: devices,
+        }
+        cloud_data: dict[str, Any] = stored_cloud or {}
+        title = (
+            f"Gree Account: {cloud_data.get(CONF_UID)} ({cloud_data.get(CONF_EMAIL)})"
+            if cloud_data.get(CONF_EMAIL)
+            else "Local-only Devices"
+        )
+
+        entry = self.hass.config_entries.async_entry_for_domain_unique_id(
+            DOMAIN, unique_id
+        )
+        if entry:
+            # remove devices that are no longer provided by the YAML
+            # they will be re-added if they exist in another entry
+            device_registry = dr.async_get(self.hass)
+            for mac in entry.data.get(CONF_DEVICES, {}):
+                if mac not in devices:
+                    dev = device_registry.async_get_device(identifiers={(DOMAIN, mac)})
+                    if dev:
+                        device_registry.async_remove_device(dev.id)
+
+            return self.async_update_reload_and_abort(
+                entry,
+                title=title,
+                data=data,
+                reason="reconfigure_successful",
+                reload_even_if_entry_is_unchanged=False,
+            )
+
+        _LOGGER.debug(
+            "YAML import: new entry with config: %s",
+            async_redact_data(data, ["encryption_key", "password", "token"]),
+        )
+        return self.async_create_entry(
+            title=title,
+            data=data,
+        )
+
+    def _drop_devices_of_other_entries(
+        self, devices: dict[str, Any], unique_id: str
+    ) -> None:
+        """Drop the devices that already belong to another config entry."""
+        other_macs = get_configured_macs_in_entries(
+            self.hass, ignore_entries=[unique_id]
+        )
+
+        for mac in list(devices):
+            if mac in other_macs:
+                _LOGGER.error(
+                    "YAML import: device %s is already configured in entry '%s'"
+                    " and is skipped",
+                    mac,
+                    other_macs[mac].title,
+                )
+                devices.pop(mac)
+
+    def _abort_yaml_import(self, item_id: str, err: Exception) -> ConfigFlowResult:
+        """Log a failed cloud login, raise a repair issue and stop the import."""
+        _LOGGER.error("YAML import: cloud login failed for %s: %s", item_id, err)
+        create_yaml_import_issue(self.hass, item_id, f"cloud login failed: {err}")
+        return self.async_abort(reason="import_failed")
 
     @override
     async def async_step_dhcp(
@@ -795,7 +516,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="cloud_add",
-            data_schema=_setup_cloud_schema(defaults),
+            data_schema=setup_cloud_schema(defaults),
             errors=errors,
         )
 
@@ -925,7 +646,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="local_add",
-            data_schema=_setup_local_schema(
+            data_schema=setup_local_schema(
                 {
                     CONF_EXTRA_SCAN_NETWORKS: default_networks,
                     CONF_EXTRA_SCAN_HOSTS: default_hosts,
@@ -976,7 +697,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="device_picker",
-            data_schema=_setup_picker_schema(selected, self._discovered_devices),
+            data_schema=setup_picker_schema(selected, self._discovered_devices),
             description_placeholders={
                 "devices_found": str(len(self._discovered_devices))
             },
@@ -1105,7 +826,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="connection_options",
-            data_schema=_setup_device_connection_options_schema(d, defaults),
+            data_schema=setup_device_connection_options_schema(d, defaults),
             description_placeholders={
                 "device_name": str(d.friendly_name),
                 "device_idx": str(self._current_setup_device_index + 1),
@@ -1172,7 +893,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                 .get(CONF_DEVICE_OPTIONS, {})
             )
 
-        data_schema = _setup_device_options_schema(
+        data_schema = setup_device_options_schema(
             hass=self.hass,
             device=device,
             default_values=(
