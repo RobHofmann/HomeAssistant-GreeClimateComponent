@@ -1298,13 +1298,22 @@ async def _get_sub_devices_list(
         for sub_dev in sub_devs:
             new_dev: GreeDiscoveredDevice
             if parent_device:
+                # TODO: get real-data from VRF discovery to check the result list fields
                 new_dev = replace(
                     parent_device,
-                    mac=sub_dev.get("mac"),
-                    mid=sub_dev.get("mid"),
+                    name=sub_dev.get(
+                        "name",
+                        f"{sub_dev.get('mac', '')[-5:]} VRF at {parent_device.name}",
+                    ),
+                    mac=sub_dev.get("mac", ""),
+                    mid=sub_dev.get("mid", ""),
                 )
             else:
                 new_dev = GreeDiscoveredDevice(
+                    name=sub_dev.get(
+                        "name",
+                        f"{sub_dev.get('mac', '')[-5:]} VRF at {mac_addr_controller[-5:]}",
+                    ),
                     mac=sub_dev.get("mac", ""),
                     mac_controller_local=mac_addr_controller,
                     host=transport.ip_addr,
@@ -1371,6 +1380,10 @@ async def _process_local_scan_response(
     except GreeConnectionError:
         # If we cannot connect, simply move on from this gateway as we cannot properly query subdevices
         # Returning an empty list prevents discovery from complety fail because of one device
+        _LOGGER.warning(
+            "Could not connect to VRF gateway %s. Its subdevices will be ignored",
+            mac_controller,
+        )
         return []
 
     except Exception as err:
