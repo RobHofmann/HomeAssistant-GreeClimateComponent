@@ -1,4 +1,4 @@
-"""
+/"""
 Gree Climate Entity for Home Assistant.
 
 This module defines the climate (HVAC) unit for the Gree integration.
@@ -511,7 +511,7 @@ class GreeClimate(ClimateEntity):
             except Exception:
                 _LOGGER.debug("Could not determine whether device has an built-in temperature sensor. Retrying at next update()")
             else:
-                if temp_sensor:
+                if temp_sensor is not None:
                     self._has_temp_sensor = True
                     self._acOptions.update({"TemSen": None})
                     self._optionsToFetch.append("TemSen")
@@ -528,7 +528,7 @@ class GreeClimate(ClimateEntity):
             except Exception:
                 _LOGGER.debug("Could not determine whether device has an anti direct blow feature. Retrying at next update()")
             else:
-                if anti_direct_blow:
+                if anti_direct_blow is not None:
                     self._has_anti_direct_blow = True
                     self._acOptions.update({"AntiDirectBlow": None})
                     self._optionsToFetch.append("AntiDirectBlow")
@@ -562,7 +562,7 @@ class GreeClimate(ClimateEntity):
             except Exception:
                 _LOGGER.debug("Could not determine whether device has an outside temperature sensor. Retrying at next update()")
             else:
-                if outside_temp_sensor:
+                if outside_temp_sensor is not None:
                     self._has_outside_temp_sensor = True
                     self._acOptions.update({"OutEnvTem": None})
                     self._optionsToFetch.append("OutEnvTem")
@@ -579,7 +579,7 @@ class GreeClimate(ClimateEntity):
             except Exception:
                 _LOGGER.debug("Could not determine whether device has a room humidity sensor. Retrying at next update()")
             else:
-                if humidity_sensor:
+                if humidity_sensor is not None:
                     self._has_room_humidity_sensor = True
                     self._acOptions.update({"DwatSen": None})
                     self._optionsToFetch.append("DwatSen")
