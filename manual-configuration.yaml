@@ -20,6 +20,11 @@
 #     YAML values back.
 #   - A device that is already in another config entry is skipped. You get an
 #     error in the log and a repair issue.
+#   - A "cloud" block logs in to the Gree account only when no config entry
+#     stores the same email, region and password yet: on the first import, and
+#     again after you change one of those three values. Every login ends the
+#     other sessions of that account, so the Gree app logs you out. An
+#     unchanged "cloud" block reuses the stored session and does not log in.
 #
 # MAC address Format is lowercase without separators.
 # Upper case and ":" or "-" separators are accepted and cleaned up.
@@ -48,7 +53,7 @@ gree_custom:
                   encryption_key: "my_device_key" # Custom encryption key | str | default = "" <fetched from device>
                   uid: 0 # User identifier of device owner which is not needed for all devices, can be sniffed if required | positive int | default = 0
                   local: # optional, if omitted requires cloud
-                      mac_controller_local: "20fabb123456" # MAC Address of the local controller (see above) | optional | str | default = the controller MAC derived from the device MAC
+                      mac_controller_local: "20fabb123456" # MAC Address of the local controller (see above) | single unit: optional, default = the device MAC | VRF sub-device (14 chars): required, the MAC of the unit that holds the IP; it cannot be derived
                       host: "192.168.1.100" # IP Address of AC | required | str
                       port: 7000 # Port number to connect to the device | int | default = 7000
                       timeout: 10 # Seconds before a connection attempt times out | positive int (seconds) | default = 10
@@ -56,7 +61,7 @@ gree_custom:
                       max_online_attempts: 3 # Number connection attempts made with device before it is marked as unavailable | positive int | default = 3
                   cloud: # optional, if omitted requires local
                       prefer_cloud: false # When local is present, prefer to use cloud | optional | bool | default = false
-                      mac_controller_cloud: "20fabb123456" # MAC Address of the cloud controller (see above) | optional | str | default = the controller MAC derived from the device MAC
+                      mac_controller_cloud: "20fabb123456" # MAC Address of the cloud controller (see above) | optional | str | default = the device MAC, or its first 12 characters for a VRF sub-device
               options: # required
                   name: "Gree AC" # Name for the AC unit | required | str
                   hvac_modes: # Standard Home Assistant HVAC Modes to enable | list | options = ["auto", "cool", "dry", "fan_only", "heat", "off"] | default = all options

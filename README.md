@@ -69,6 +69,8 @@ Home Assistant reads the YAML at every start. It creates the config entry when i
 
 Every item in the list is one config entry. An item with a `cloud` block is the entry for that Gree account, and the one item without a `cloud` block is the entry for all local-only devices. A device that is already in another config entry is skipped, with an error in the log and a repair issue.
 
+A `cloud` block logs in to the Gree account only on the first import, and again when you change the email, region or password. Every login ends the other sessions of that account, so the Gree app logs you out at that moment. An unchanged `cloud` block reuses the stored session.
+
 See [`manual-configuration.yaml`](manual-configuration.yaml) for a complete configuration example with all available options and detailed comments.
 
 ## Connection Methods and Configuration

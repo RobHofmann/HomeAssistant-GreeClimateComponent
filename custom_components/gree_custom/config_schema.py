@@ -28,7 +28,6 @@ from homeassistant.helpers import config_validation as cv
 
 from .aiogree.cipher import EncryptionVersion
 from .aiogree.cloud_api import GreeRegion
-from .aiogree.helpers import gree_extract_macs
 from .const import (
     ATTR_EXTERNAL_HUMIDITY_SENSOR,
     ATTR_EXTERNAL_TEMPERATURE_SENSOR,
@@ -252,7 +251,7 @@ def _normalize_device_macs(value: Any) -> dict[str, Any]:
 
     devices: dict[str, Any] = {}
     for raw_mac, device in value.items():
-        mac, _ = gree_extract_macs(_clean_mac(raw_mac, "device MAC address"))
+        mac = _clean_mac(raw_mac, "device MAC address")
 
         if mac in devices:
             raise probatio.Invalid(f"device {mac} is listed more than once")
@@ -263,19 +262,32 @@ def _normalize_device_macs(value: Any) -> dict[str, Any]:
 
 
 def _fill_device_defaults(value: dict[str, Any]) -> dict[str, Any]:
-    """Fill the controller MAC addresses and the missing connection blocks."""
+    """Fill the controller MAC addresses and the missing connection blocks.
+
+    A normal unit has a 12 character MAC and is its own controller. A VRF
+    sub-device has a 14 character MAC. Its cloud controller is the first 12
+    characters of that MAC, but its local controller is another unit, so
+    `mac_controller_local` cannot be derived and must be given.
+    """
     devices: dict[str, Any] = {}
 
     for mac, device in value.items():
-        _, mac_controller = gree_extract_macs(mac)
+        is_vrf = len(mac) > 12
         connection = dict(device[CONF_DEVICE_CONNECTION])
 
         local = connection.get(CONF_DEVICE_CONNECTION_LOCAL)
         if local is None:
             connection[CONF_DEVICE_CONNECTION_LOCAL] = {}
+        elif is_vrf and not local.get(CONF_MAC_CONTROLLER_LOCAL):
+            raise probatio.Invalid(
+                f"device {mac} is a VRF sub-device (14 character MAC), so "
+                f"{CONF_DEVICE_CONNECTION}.{CONF_DEVICE_CONNECTION_LOCAL}."
+                f"{CONF_MAC_CONTROLLER_LOCAL} must be the MAC of the unit that "
+                "holds the network connection"
+            )
         else:
             connection[CONF_DEVICE_CONNECTION_LOCAL] = {
-                CONF_MAC_CONTROLLER_LOCAL: mac_controller,
+                CONF_MAC_CONTROLLER_LOCAL: mac,
                 **local,
             }
 
@@ -287,7 +299,7 @@ def _fill_device_defaults(value: dict[str, Any]) -> dict[str, Any]:
             }
         else:
             connection[CONF_DEVICE_CONNECTION_CLOUD] = {
-                CONF_MAC_CONTROLLER_CLOUD: mac_controller,
+                CONF_MAC_CONTROLLER_CLOUD: mac[:12],
                 **cloud,
             }
 
