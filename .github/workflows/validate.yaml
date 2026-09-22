@@ -5,11 +5,11 @@ on:
   push:
     branches:
       - master
-      - 4.0-pre-release
+      - 5.0-dev
   pull_request:
     branches:
       - master
-      - 4.0-pre-release
+      - 5.0-dev
   schedule:
     - cron: "0 0 * * *"
 
