@@ -24,6 +24,7 @@ Older releases (4.x) used the domain `gree` and a different code base. Their con
 | Read or change the config entry, add a config option | [docs/config-entry.md](docs/config-entry.md) |
 | Set up the devcontainer, run lint, test against a device, read debug logs, translations, releases | [docs/development.md](docs/development.md) |
 | Set up the environment step by step | `CONTRIBUTING.md` |
+| Change anything a user can see: an option, an entity, a flow step, a message | The user docs in [docs/](docs/README.md#user-documentation), so they stay exact |
 
 ## Rules
 
@@ -55,4 +56,4 @@ Writing, for everything you produce in this repo:
 - [ ] No new secret can reach a log line.
 - [ ] You tested against a real device, or you said in the PR that you could not.
 - [ ] `en.json` is complete if you changed the flow or entity names.
-- [ ] `docs/` and the root docs are updated if behavior changed.
+- [ ] `docs/` is updated if behavior changed: the developer docs for how it works, the user docs for what a user sees.

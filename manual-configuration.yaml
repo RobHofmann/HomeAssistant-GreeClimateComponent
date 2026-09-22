@@ -101,7 +101,7 @@ gree_custom:
                       - "center"
                       - "right_center"
                       - "right"
-                  features: # Supported device features | list | options = ["beeper", "air", "xfan", "sleep", "eightdegheat", "lights", "light_sensor", "health", "anti_direct_blow", "powersave", "humidity_control"] | default = all options
+                  features: # Supported device features | list | options = ["beeper", "air", "xfan", "sleep", "eightdegheat", "lights", "light_sensor", "health", "anti_direct_blow", "powersave", "humidity_control"] | default = all options except "humidity_control"
                       - "beeper"
                       - "air"
                       - "xfan"
