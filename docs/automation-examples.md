@@ -1,6 +1,6 @@
 # Automation examples
 
-Ideas for automations with the entities of this integration. The examples use a device named **Living Room AC**, so the entity IDs start with `living_room_ac`. Replace them with your own. See [entities.md](entities.md) for the full list.
+Ideas for automations with the entities of this integration. The examples use a device named **Living Room AC** in an English Home Assistant, so the entity IDs start with `living_room_ac`. Home Assistant builds an entity ID from the device name and the translated entity name, so in another language the IDs differ. Copy them from the device page. See [entities.md](entities.md) for the full list.
 
 All examples use the automation syntax of Home Assistant 2024.10 and later, which every supported version has.
 
@@ -147,10 +147,10 @@ automation:
           hvac_mode: heat
       - action: switch.turn_on
         target:
-          entity_id: switch.living_room_ac_smart_heat_8c
+          entity_id: switch.living_room_ac_smart_heat_8oc
 ```
 
-Check the exact entity ID of the switch on the device page. Home Assistant builds it from the name **Smart Heat 8ºC**.
+The `8oc` in the entity ID is how Home Assistant writes the name **Smart Heat 8ºC**. Check the exact ID on the device page.
 
 ## Read raw properties in a script
 

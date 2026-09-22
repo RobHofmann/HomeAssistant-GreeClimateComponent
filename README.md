@@ -5,8 +5,8 @@
 [![HACS](https://img.shields.io/badge/HACS-Default-orange.svg)](https://hacs.xyz)
 [![Home Assistant](https://img.shields.io/badge/Compatible-Home_Assistant_2026.3+-blue.svg)](https://www.home-assistant.io)
 
-[![Validate](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/actions/workflows/validate.yaml/badge.svg?branch=4.0-pre-release)](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/actions/workflows/validate.yaml?query=branch%3A4.0-pre-release)
-[![Lint](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/actions/workflows/lint.yml/badge.svg?branch=4.0-pre-release)](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/actions/workflows/lint.yml?query=branch%3A4.0-pre-release)
+[![Validate](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/actions/workflows/validate.yaml/badge.svg)](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/actions/workflows/validate.yaml)
+[![Lint](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/actions/workflows/lint.yml/badge.svg)](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/actions/workflows/lint.yml)
 
 Gree integration for Home Assistant. It controls Gree air conditioners, and the many brands that use the Gree protocol, over your local network or through the Gree cloud.
 

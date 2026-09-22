@@ -6,7 +6,7 @@ Every device gets one climate entity and a set of sensors, switches, selects and
 2. **What you enabled.** The **Device Features and Modes** option decides which optional switches and selects are created. See [configuration.md](configuration.md#device-features).
 3. **The current mode.** Some features only exist in some HVAC modes. The entity then shows as unavailable in the other modes.
 
-Entity IDs start with the device name. A device named `Living Room AC` gets `climate.living_room_ac`, `sensor.living_room_ac_indoor_temperature`, `switch.living_room_ac_x_fan`, and so on. The examples below use `climate.your_ac`.
+Entity IDs start with the device name, followed by the entity name in the language of your Home Assistant. In English, a device named `Living Room AC` gets `climate.living_room_ac`, `sensor.living_room_ac_indoor_temperature`, `switch.living_room_ac_x_fan`, and so on. A Dutch Home Assistant gives `switch.living_room_ac_pieptoon` for the beeper. Copy the IDs from the device page. The examples below use `climate.your_ac`.
 
 ## Climate
 
