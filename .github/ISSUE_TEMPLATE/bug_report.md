@@ -53,4 +53,4 @@ If applicable, paste the config here
 
 **Logs**
 
-Please share your Home Assistant logs here. Make sure to remove any personal/secret information. See [here](https://github.com/p-monteiro/HomeAssistant-GreeClimateComponent-Rewrite/tree/gree-rewrite?tab=readme-ov-file#debugging).
+Please share your Home Assistant logs here. Make sure to remove any personal/secret information. See [Troubleshooting](../../docs/troubleshooting.md#enable-debug-logging).

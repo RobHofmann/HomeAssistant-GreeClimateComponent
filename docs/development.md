@@ -180,12 +180,13 @@ Never log an encryption key, cloud password or token in clear text.
 
 ## CI
 
+`lint.yml` runs `ruff check` and `ruff format --check` on every push and PR.
+
 `validate.yaml` runs three jobs on every push and PR:
 
 - **Hassfest** and **HACS** validation. Neither imports or compiles the Python.
 - **Tests**: `pytest` on Python 3.14, on an Ubuntu runner. This one does import
   the protocol layer, so a syntax error or a broken import fails the build.
 
-CI does not run ruff, pylint or mypy. Pylint and mypy need the Home Assistant
-core checkout in `.ha-core`, which only the devcontainer has. Run all three
-yourself before you push.
+CI does not run pylint or mypy. They need the Home Assistant core checkout in
+`.ha-core`, which only the devcontainer has. Run both yourself before you push.

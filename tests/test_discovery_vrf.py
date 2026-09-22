@@ -4,7 +4,7 @@ A gateway answers the scan with `subCnt` above zero. The client then asks it
 for the list of indoor units. Real gateways answer that in two shapes, with the
 list at the top level or inside an encrypted pack, and both have to work.
 
-These tests were written against `4.0-pre-release` before PR 514, where
+These tests were written against the code before PR 514, where
 discovery of a device with `subCnt` above zero was broken: the request went out
 with the generic key and the reply was read as a pack, so the gateway answer
 raised `GreeProtocolError` and discovery returned nothing. PR 514 fixed that
@@ -157,8 +157,8 @@ async def test_a_gateway_that_never_answers_the_list_does_not_lose_the_others(
 ) -> None:
     """The gateway binds and then goes quiet. The plain device is still found.
 
-    This one is slow on `4.0-pre-release`, about 8 seconds, because the old
-    code builds its own transport with the default 3 retries and 2 second
+    This one was slow before PR 514, about 8 seconds, because the old
+    code built its own transport with the default 3 retries and 2 second
     timeout. With PR 514 the retries come from the caller and it drops to
     about 2 seconds.
     """

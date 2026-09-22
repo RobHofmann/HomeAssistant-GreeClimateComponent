@@ -1,0 +1,39 @@
+name: Lint
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - 4.0-pre-release
+  pull_request:
+    branches:
+      - master
+      - 4.0-pre-release
+
+jobs:
+  ruff:
+    name: Ruff
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: "actions/checkout@v6"
+
+      - name: Set up Python
+        uses: "actions/setup-python@v7"
+        with:
+          # .ruff.toml targets py314. Ruff itself does not run the code.
+          python-version: "3.14"
+
+      - name: Install Ruff
+        # Same floor as requirements_dev.txt.
+        run: pip install "ruff>=0.16.3"
+
+      - name: Ruff check
+        run: ruff check .
+
+      - name: Ruff format
+        run: ruff format --check .
+
+# Pylint and Mypy are not run here. They need the Home Assistant core checkout
+# in .ha-core, which only the devcontainer has. See docs/development.md.
