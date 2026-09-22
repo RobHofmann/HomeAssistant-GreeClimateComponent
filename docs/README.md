@@ -13,6 +13,7 @@ All docs follow the writing rules in `AGENTS.md`: plain English, short sentences
 | [connection-methods.md](connection-methods.md) | You want to know how local, cloud and mixed setups work, and which one a device uses. |
 | [entities.md](entities.md) | You want to know which entities you get, what they do, and when they are available. |
 | [actions.md](actions.md) | You want to read raw device properties, or download diagnostics. |
+| [automation-examples.md](automation-examples.md) | You want ideas for automations with the climate entity, the switches and the sensors. |
 | [encryption-key.md](encryption-key.md) | The integration cannot get the device key by itself. |
 | [troubleshooting.md](troubleshooting.md) | Something does not work. Debug logging, repair issues, common errors, and how to report a bug. |
 | [../supported-devices.md](../supported-devices.md) | You want to know if your unit is known to work. |
