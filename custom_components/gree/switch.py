@@ -36,7 +36,8 @@ def _prop_supported(device, prop: str) -> bool:
     missing as "not supported" so we don't expose non-functional switches.
 
     While the device is offline / not yet synced we can't tell, so mirror the
-    device's online state (as the base entity does) instead of hiding.
+    climate entity's availability instead of hiding. That also honours
+    "Disable Available Check", which leaves ``_device_online`` unset.
     """
     value = device._acOptions.get(prop, "")
     if value in ("", None):
@@ -44,9 +45,9 @@ def _prop_supported(device, prop: str) -> bool:
         # have synced at least once and the value is still empty, the unit
         # genuinely doesn't support this property.
         if getattr(device, "_firstTimeRun", False):
-            return getattr(device, "_device_online", True)
+            return bool(device.available)
         return False
-    return getattr(device, "_device_online", True) if hasattr(device, "_device_online") else True
+    return bool(device.available)
 
 
 @dataclass
