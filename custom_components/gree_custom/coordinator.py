@@ -1,12 +1,13 @@
 """Data update coordinator for Gree integration."""
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 import logging
 from typing import Any, override
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .aiogree.api import OperationMode
@@ -15,6 +16,11 @@ from .aiogree.errors import GreeBindingError, GreeConnectionError
 from .helpers import try_find_new_ip
 
 _LOGGER = logging.getLogger(__name__)
+
+# Seconds between a command and one extra poll, when the device did not confirm
+# the command on the read right after it. A VRF gateway needs a moment to pass
+# a command on to the indoor unit and to update its cached state.
+FOLLOW_UP_REFRESH_DELAY = 2.0
 
 # Home Assistant config entry where the runtime data are Gree coordinators keyed by normalized MAC addresses ("xxxxxxxxxxxx").
 type GreeConfigEntry = ConfigEntry[dict[str, GreeCoordinator]]
@@ -51,6 +57,7 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         self.device: GreeDevice = device
         self._feature_auto_xfan: bool = False
         self._feature_auto_light: bool = False
+        self._unsub_follow_up_refresh: CALLBACK_TYPE | None = None
 
     async def _setup(self) -> None:
         """Bind to the device before the first coordinator refresh.
@@ -70,6 +77,7 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
     @override
     async def async_shutdown(self) -> None:
         """Clean up the coordinator and Gree device resources."""
+        self._cancel_follow_up_refresh()
         self.device.api_client.remove_status_listener(self._device_pushed_status)
 
         await self.device.unbind_device()
@@ -122,6 +130,49 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
 
             # retry once after recovering IP
             await self.device.push_device_status()
+
+        self._schedule_follow_up_refresh()
+
+    def _schedule_follow_up_refresh(self) -> None:
+        """Poll again shortly after a command the device did not confirm yet.
+
+        The read right after a command can still show the old state on a VRF
+        gateway. The sent values are held meanwhile, see `DeviceState.hold()`.
+        This extra poll lets the device confirm them within a few seconds
+        instead of at the next scan interval. A standalone unit confirms on
+        the first read, so it never gets this extra poll.
+
+        `async_refresh()` is used instead of `async_request_refresh()`,
+        because the request debouncer would push a second request within its
+        cooldown back to 10 seconds.
+        """
+        if self._unsub_follow_up_refresh is not None:
+            return
+
+        if not self.device.has_held_values:
+            return
+
+        self._unsub_follow_up_refresh = async_call_later(
+            self.hass, FOLLOW_UP_REFRESH_DELAY, self._async_follow_up_refresh
+        )
+
+    async def _async_follow_up_refresh(self, _now: datetime) -> None:
+        """Run the follow-up poll, and plan the next one while values are held.
+
+        The polls repeat until the device confirms the sent values or their
+        hold ends. The poll after the hold ends shows what the device really
+        reports, so a rejected command is not shown until the next scan
+        interval.
+        """
+        self._unsub_follow_up_refresh = None
+        await self.async_refresh()
+        self._schedule_follow_up_refresh()
+
+    def _cancel_follow_up_refresh(self) -> None:
+        """Cancel a follow-up poll that has not run yet."""
+        if self._unsub_follow_up_refresh is not None:
+            self._unsub_follow_up_refresh()
+            self._unsub_follow_up_refresh = None
 
     def get_coordinator_diagnostics(self) -> dict[str, Any]:
         """Return diagnostic information for the coordinator.

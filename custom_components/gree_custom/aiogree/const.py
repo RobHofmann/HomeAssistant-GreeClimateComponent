@@ -24,6 +24,13 @@ PROBE_TIMEOUT = 5.0
 # row are normal. This many in a row means the device stopped talking.
 MAX_UNANSWERED_IN_A_ROW = 5
 
+# After a command, the sent values are shown for at most this many seconds
+# while the device still reports the old ones. A VRF gateway caches the state of
+# its indoor units and can answer with the old state for a few seconds after a
+# command. After this time the reported value wins, so a command the device
+# rejected is not shown for ever.
+HELD_VALUE_TTL = 8.0
+
 MIN_TEMP_C = 16
 MAX_TEMP_C = 30
 

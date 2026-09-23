@@ -1,5 +1,6 @@
 """Contains the API to interface with the Gree device."""
 
+import asyncio
 from collections.abc import Mapping
 from dataclasses import dataclass, fields, replace
 from enum import IntEnum, StrEnum, unique
@@ -479,6 +480,19 @@ class GreeCommand(StrEnum):
     SCAN = "scan"
 
 
+@unique
+class SubListForm(StrEnum):
+    """The request forms a VRF gateway may answer with its sub-device list.
+
+    Different WiFi module firmwares answer different forms, so all of them are
+    asked. See docs/protocol.md for the details of each form.
+    """
+
+    DEVICE_KEY = "device-key"
+    GENERIC_KEY = "generic-key"
+    SUB_DEV = "subDev"
+
+
 class DeviceScanInfoResponse(BaseModel):
     """Response data for a Gree device returned in a UDP scan."""
 
@@ -561,6 +575,7 @@ async def gree_get_response(
     transport: GreeBaseTransport,
     max_attempts: int | None = None,
     timeout: float | None = None,
+    response_cipher: CipherBase | None = None,
 ) -> dict:
     """Send a request to the device and return the decoded response.
 
@@ -569,6 +584,10 @@ async def gree_get_response(
         json_data: JSON payload to send
         cipher: Device cipher to encrypt and decrypt the JSON pack, if present
         transport: Transport to send the emssage throuhg
+        max_attempts: Attempts for this request instead of the transport's own
+        timeout: Reply timeout for this request instead of the transport's own
+        response_cipher: Cipher to decrypt the reply with, if it differs from
+            the request cipher
 
     Returns:
         Decrypted JSON response
@@ -577,7 +596,12 @@ async def gree_get_response(
 
     try:
         data = await transport.request_json(
-            mac_controller, json_data, cipher, max_attempts, timeout
+            mac_controller,
+            json_data,
+            cipher,
+            max_attempts,
+            timeout,
+            response_cipher=response_cipher,
         )
     except GreeConnectionError:
         raise
@@ -659,21 +683,42 @@ def _create_bind_pack(mac_addr_controller: str, uid: int, cipher: CipherBase) ->
     return pack
 
 
-def _create_get_subdevices_pack(mac_addr_controller: str) -> dict:
-    """Create a sub-device list request pack.
+def _create_get_subdevices_payload(
+    form: SubListForm, mac_addr_controller: str, uid: int
+) -> dict:
+    """Create the request for one form of the sub-device list query.
+
+    Every form encrypts its pack with the bound device key. Only the reply
+    differs, see `_get_sub_devices_list`.
 
     Args:
+        form: Which form of the query to build
         mac_addr_controller: The MAC address of the device that controls the sub devices
+        uid: User ID for the device
 
     Returns:
-        The created get sub-devices pack
+        The full payload, with the pack still in clear text
 
     """
 
-    pack: dict = {"mac": mac_addr_controller, "i": 1}
+    if form is SubListForm.DEVICE_KEY:
+        pack: dict = {"mac": mac_addr_controller, "t": "subList", "i": 0}
+        payload_type, i = "pack", 0
+    elif form is SubListForm.GENERIC_KEY:
+        pack = {"mac": mac_addr_controller, "i": 1}
+        payload_type, i = "subList", 1
+    else:
+        # Older W06 class modules do not answer subList at all, only subDev.
+        pack = {
+            "cid": mac_addr_controller,
+            "i": 0,
+            "mac": mac_addr_controller,
+            "t": "subDev",
+        }
+        payload_type, i = "pack", 0
 
-    _LOGGER.debug("Sub Bind Pack: %s", pack)
-    return pack
+    _LOGGER.debug("Sub-device list pack (%s): %s", form, pack)
+    return _create_payload(pack, payload_type, i, mac_addr_controller, uid)
 
 
 def _create_get_status_pack(mac_addr: str, props: list[str]) -> dict:
@@ -1213,6 +1258,40 @@ def extract_fw_version(hid: str) -> tuple[str | None, str | None]:
     return fw_version, fw_code
 
 
+def _parse_sub_devices_list(
+    mac_addr_controller: str, form: SubListForm, response: dict[str, Any]
+) -> list[dict[str, Any]] | None:
+    """Take the sub-device list out of one reply.
+
+    The list may be at the top level (some firmwares) or inside a pack.
+    Reply in format:
+    {"t":"subList","i":0,"c":6,"r":200,"list":[{"mac":"09c4a41d000000","mid":"6049"},...]}
+
+    Returns:
+        The list, or None if the reply holds no list at all
+
+    """
+
+    if isinstance(response.get("list"), list):
+        sub_devs: list[dict[str, Any]] = response["list"]
+        where = "top-level"
+    else:
+        pack = response.get("pack")
+        if not isinstance(pack, dict) or not isinstance(pack.get("list"), list):
+            return None
+        sub_devs = pack["list"]
+        where = "pack"
+
+    _LOGGER.debug(
+        "[%s] Found %d sub-units (%s, %s)",
+        mac_addr_controller,
+        len(sub_devs),
+        form,
+        where,
+    )
+    return sub_devs
+
+
 async def _get_sub_devices_list(
     mac_addr_controller: str,
     uid: int,
@@ -1223,14 +1302,23 @@ async def _get_sub_devices_list(
 ) -> list[GreeDiscoveredDevice]:
     """Retrieve the list of sub-devices exposed by a main controller device.
 
+    Different WiFi module firmwares answer different forms of the query, and
+    some gateways return a different subset of units in each form. So with V1
+    all three forms are asked and the lists are joined by MAC, in the order
+    device key, generic key, subDev. With V2 only the device key form is known
+    to work. A form that gets no answer, or an answer that cannot be read, is
+    skipped. Each form uses the retries and timeout of the transport.
+
     Args:
         mac_addr_controller: The MAC address of the device that controls the connection
         uid: User ID for the device
-        cipher: Device cipher to encrypt and decrypt the JSON pack, if present
+        cipher: Bound device cipher of the gateway
         transport: Transport used to communicate with the device
+        parent_device: The gateway as it was discovered. Sub-devices copy its fields
+        expected: The number of sub-devices the gateway promised in its scan reply
 
     Returns:
-        List of sub-devices directly from the controller response
+        List of sub-devices, empty if no form was answered
 
     """
 
@@ -1238,93 +1326,102 @@ async def _get_sub_devices_list(
         "Retrieving subdevices for '%s' using '%s'", mac_addr_controller, transport
     )
 
-    discovered_subdevices: list[GreeDiscoveredDevice] = []
-    try:
-        pack = _create_get_subdevices_pack(mac_addr_controller)
+    forms: list[SubListForm] = [SubListForm.DEVICE_KEY]
+    if cipher.version == EncryptionVersion.V1:
+        forms += [SubListForm.GENERIC_KEY, SubListForm.SUB_DEV]
 
-        json_payload = _create_payload(
-            pack,
-            "subList",
-            0,
-            mac_addr_controller,
-            uid,
+    merged: dict[str, dict[str, Any]] = {}
+    counts: dict[SubListForm, int | None] = {}
+
+    for form in forms:
+        # The generic key form is encrypted with the device key, but the
+        # gateway answers it with the generic key, like a scan or a bind.
+        response_cipher = (
+            get_cipher(cipher.version) if form is SubListForm.GENERIC_KEY else None
         )
 
-        response = await gree_get_response(
-            mac_addr_controller,
-            json_payload,
-            cipher,
-            transport,
-        )
-
-    except GreeConnectionError:
-        raise
-
-    except Exception as err:
-        raise GreeProtocolError(
-            f"Error fetching sub-device list for '{mac_addr_controller}'"
-        ) from err
-
-    else:
-        # The list may be at the top level (some firmwares) or inside a pack.
-        # Response pack in format:
-        # {"t":"subList","i":0,"c":6,"r":200,"list":[{"mac":"09c4a41d000000","mid":"6049"},...]}
-
-        sub_devs: list[dict[str, Any]] = []
-
-        if isinstance(response.get("list"), list):
-            sub_devs = response.get("list", [])
-            _LOGGER.debug(
-                "[%s] Found %d sub-units (top-level)",
+        try:
+            response = await gree_get_response(
                 mac_addr_controller,
-                len(sub_devs),
+                _create_get_subdevices_payload(form, mac_addr_controller, uid),
+                cipher,
+                transport,
+                response_cipher=response_cipher,
+            )
+        except GreeConnectionError, GreeProtocolError:
+            _LOGGER.debug(
+                "[%s] No usable answer to the %s sub-device list form",
+                mac_addr_controller,
+                form,
+            )
+            counts[form] = None
+            continue
+
+        sub_devs = _parse_sub_devices_list(mac_addr_controller, form, response)
+        counts[form] = None if sub_devs is None else len(sub_devs)
+
+        for sub_dev in sub_devs or []:
+            sub_mac = sub_dev.get("mac", "")
+            # A unit without a MAC cannot be addressed, so it is left out.
+            if sub_mac and sub_mac not in merged:
+                merged[sub_mac] = sub_dev
+
+    per_form = ", ".join(
+        f"{form}={'n/a' if count is None else count}" for form, count in counts.items()
+    )
+    _LOGGER.debug(
+        "[%s] Sub-device list per form: %s, merged=%d",
+        mac_addr_controller,
+        per_form,
+        len(merged),
+    )
+
+    if all(count is None for count in counts.values()):
+        _LOGGER.warning(
+            "[%s] VRF gateway did not answer any form of the sub-device list request. Its sub-devices will be ignored",
+            mac_addr_controller,
+        )
+        return []
+
+    if expected and len(merged) != expected:
+        _LOGGER.warning(
+            "[%s] Expected %d sub-devices and found %d",
+            mac_addr_controller,
+            expected,
+            len(merged),
+        )
+
+    discovered_subdevices: list[GreeDiscoveredDevice] = []
+    for sub_mac, sub_dev in merged.items():
+        new_dev: GreeDiscoveredDevice
+        if parent_device:
+            # TODO: get real-data from VRF discovery to check the result list fields
+            new_dev = replace(
+                parent_device,
+                name=sub_dev.get(
+                    "name",
+                    f"{sub_mac[-5:]} VRF at {parent_device.name}",
+                ),
+                mac=sub_mac,
+                mid=sub_dev.get("mid", ""),
+                key=cipher.key,
             )
         else:
-            sub_devs = response.get("pack", {}).get("list", [])
-            _LOGGER.debug(
-                "[%s] Found %d sub-units (pack)",
-                mac_addr_controller,
-                len(sub_devs),
+            new_dev = GreeDiscoveredDevice(
+                name=sub_dev.get(
+                    "name",
+                    f"{sub_mac[-5:]} VRF at {mac_addr_controller[-5:]}",
+                ),
+                mac=sub_mac,
+                mac_controller_local=mac_addr_controller,
+                host=transport.ip_addr,
+                port=transport.port,
+                mid=sub_dev.get("mid", ""),
+                key=cipher.key,
             )
+        discovered_subdevices.append(new_dev)
 
-        if expected and len(sub_devs) != expected:
-            _LOGGER.warning(
-                "[%s] Expected %d sub-devices and found %d",
-                mac_addr_controller,
-                expected,
-                len(sub_devs),
-            )
-
-        for sub_dev in sub_devs:
-            new_dev: GreeDiscoveredDevice
-            if parent_device:
-                # TODO: get real-data from VRF discovery to check the result list fields
-                new_dev = replace(
-                    parent_device,
-                    name=sub_dev.get(
-                        "name",
-                        f"{sub_dev.get('mac', '')[-5:]} VRF at {parent_device.name}",
-                    ),
-                    mac=sub_dev.get("mac", ""),
-                    mid=sub_dev.get("mid", ""),
-                    key=cipher.key,
-                )
-            else:
-                new_dev = GreeDiscoveredDevice(
-                    name=sub_dev.get(
-                        "name",
-                        f"{sub_dev.get('mac', '')[-5:]} VRF at {mac_addr_controller[-5:]}",
-                    ),
-                    mac=sub_dev.get("mac", ""),
-                    mac_controller_local=mac_addr_controller,
-                    host=transport.ip_addr,
-                    port=transport.port,
-                    mid=sub_dev.get("mid", ""),
-                    key=cipher.key,
-                )
-            discovered_subdevices.append(new_dev)
-
-        return discovered_subdevices
+    return discovered_subdevices
 
 
 async def _process_local_scan_response(
@@ -1362,7 +1459,6 @@ async def _process_local_scan_response(
     # If we are dealing wiht a VRF gateway, procceed by scaning its subdevices
     # The gateway itselft is not a valid dicovered device
 
-    # TODO: Ingest subdevices, need real-world tests.
     transport = GreeUdpTransport(ip_address, DEFAULT_DEVICE_PORT, max_retries, timeout)
     try:
         _LOGGER.debug("Obtaining device binding encryption info for the VRF controller")
@@ -1474,15 +1570,31 @@ async def gree_discover_devices_local(
         get_cipher(EncryptionVersion.V1),
     )
 
+    scan_packs: list[tuple[str, dict]] = []
     for address, response in responses.items():
         if response is not None:
             pack = response.get("pack")
             if pack is not None and pack.get("t") == "dev":
-                discovered_devices.extend(
-                    await _process_local_scan_response(
-                        address, pack, timeout, max_retries, user_id
-                    )
-                )
+                scan_packs.append((address, pack))
+
+    # A VRF gateway needs a bind and a sub-device list, which can take several
+    # seconds per gateway. Run them side by side, in scan order. Each gateway
+    # has its own transport, so the replies cannot cross.
+    results = await asyncio.gather(
+        *(
+            _process_local_scan_response(address, pack, timeout, max_retries, user_id)
+            for address, pack in scan_packs
+        ),
+        return_exceptions=True,
+    )
+
+    for result in results:
+        # An unexpected error still breaks discovery, as it did when the
+        # devices were handled one after another. Waiting for all of them
+        # first means no request is left running in the background.
+        if isinstance(result, BaseException):
+            raise result
+        discovered_devices.extend(result)
 
     _LOGGER.info("Found total of %d local devices", len(discovered_devices))
     return discovered_devices

@@ -272,6 +272,62 @@ async def test_the_beeper_setting_is_forced_on_every_push(
     assert bound.beeper is True
 
 
+async def test_a_standalone_unit_confirms_a_command_on_the_first_read(
+    unit: FakeGreeDevice, bound: GreeDevice
+) -> None:
+    """The read right after the command already shows the new value."""
+    bound.set_power_mode(False)
+
+    await bound.push_device_status()
+
+    assert not bound.has_held_values
+    assert bound.power_mode is False
+    assert bound.gather_diagnostics()["state_held"] == {}
+
+
+async def test_a_stale_read_after_a_command_keeps_the_sent_value(
+    unit: FakeGreeDevice, bound: GreeDevice
+) -> None:
+    """A VRF gateway answers from its cache for a while. The UI must not flip back."""
+    unit.stale_reads_after_cmd = 100
+    bound.set_power_mode(False)
+
+    await bound.push_device_status()
+
+    assert unit.values[GreeProp.POWER.value] == 0
+    assert bound.has_held_values
+    assert bound.power_mode is False
+    assert bound.gather_diagnostics()["state_held"] == {GreeProp.POWER.value: 0}
+
+    await bound.fetch_device_status()
+
+    assert bound.power_mode is False
+
+    unit.catch_up()
+    await bound.fetch_device_status()
+
+    assert not bound.has_held_values
+    assert bound.power_mode is False
+
+
+async def test_a_command_the_unit_ignores_stays_held_until_the_ttl(
+    unit: FakeGreeDevice, bound: GreeDevice
+) -> None:
+    """The unit acknowledges but keeps its old value. That is never a confirmation.
+
+    What happens when the TTL runs out is tested in test_device_state.py with a
+    fake clock.
+    """
+    unit.apply_commands = False
+    bound.set_power_mode(False)
+
+    await bound.push_device_status()
+
+    assert unit.values[GreeProp.POWER.value] == 1
+    assert bound.has_held_values
+    assert bound.power_mode is False
+
+
 async def test_a_poll_that_gets_no_answer_raises(
     unit: FakeGreeDevice, bound: GreeDevice
 ) -> None:

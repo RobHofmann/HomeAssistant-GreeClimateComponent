@@ -40,10 +40,10 @@ report.
 | `test_transport_udp.py` | Retries, backoff, the split of a command when batching is off |
 | `test_transport_mqtt.py` | Topics, matching a response to its request, pushed status |
 | `test_discovery_local.py` | Scan, silence, several devices, the listen window, broken replies |
-| `test_discovery_vrf.py` | A gateway with sub-devices, in both reply shapes |
+| `test_discovery_vrf.py` | A gateway with sub-devices: the three request forms, joining their lists, both reply shapes, gateways side by side |
 | `test_discovery_merge.py` | Cloud discovery and merging it with the local list |
 | `test_cloud_api.py` | Login, homes, devices, duplicates, firmware info |
-| `test_device_state.py` | Reads, pending values, what counts as supported, pruning |
+| `test_device_state.py` | Reads, pending values, held values and their TTL, what counts as supported, pruning |
 | `test_device_api_client.py` | Bind, the column probe, diagnostic sweeps, listeners |
 | `test_device.py` | The poll cycle and the rules between features |
 
@@ -79,7 +79,8 @@ none of that.
 - `tests/fakes/device.py` has `FakeGreeDevice`. It answers `scan`, `bind`,
   `status` and `cmd` over UDP, and it records every request.
 - `tests/fakes/vrf.py` has `FakeVrfGateway`. It adds `subCnt` to the scan reply
-  and answers the sub-device list, at the top level or inside a pack.
+  and answers the sub-device list, at the top level or inside a pack. `forms`
+  picks which of the three request forms it answers, each with its own units.
 - `tests/fakes/cloud.py` has `FakeGreeCloud`. It serves the cloud REST API over
   real HTTP, with the same encryption the app uses.
 - `tests/fakes/transport.py` has `FakePushTransport`. It answers from a
@@ -91,8 +92,9 @@ none of that.
 A new failure mode is a new keyword on `FakeGreeDevice`, not a new class. The
 ones that exist are `answer_scan`, `answer_bind`, `scan_delay`, `reply_delay`,
 `max_columns`, `unsupported_props`, `ignore_first`, `drop_after`, `raw_reply`,
-`reply_key`, `answer_status` and `scan_info`. There is also `rotate_key()`, for a device that
-hands out a new session key.
+`reply_key`, `answer_status`, `scan_info`, `stale_reads_after_cmd` and
+`apply_commands`. There is also `rotate_key()`, for a device that hands out a
+new session key, and `catch_up()`, which ends the stale reads at once.
 
 The fake encrypts with the component's own cipher. That is a trade-off: it
 keeps the fake short and gives V2 for free, but a bug in the cipher could

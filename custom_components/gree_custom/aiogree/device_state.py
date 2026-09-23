@@ -1,7 +1,8 @@
 """Contains the ``DeviceState`` class that holds and manages the device state."""
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable, Mapping
 import logging
+import time
 from types import MappingProxyType
 
 from .api import (
@@ -11,6 +12,7 @@ from .api import (
     GreeProp,
     InfoProp,
 )
+from .const import HELD_VALUE_TTL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -18,12 +20,29 @@ _LOGGER = logging.getLogger(__name__)
 class DeviceState:
     """Represents the local state of a Gree device."""
 
-    def __init__(self, device_id: str, capabilities: Iterable[GreeProp]) -> None:
-        """Initialize the device state."""
+    def __init__(
+        self,
+        device_id: str,
+        capabilities: Iterable[GreeProp],
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        """Initialize the device state.
+
+        Args:
+            device_id: Name of the device in log lines
+            capabilities: The props this device may be told to change
+            clock: Source of monotonic seconds for the held values. Tests pass
+                their own so they do not have to wait.
+
+        """
         self._device_id: str = device_id
+        self._clock = clock
 
         self._raw: dict[GreeProp, int] = {}
         self._pending: dict[GreeProp, int] = {}
+        # Values that were sent and are not confirmed yet, with the monotonic
+        # time at which the hold ends.
+        self._held: dict[GreeProp, tuple[int, float]] = {}
         self._info: dict[InfoProp, str] = {}
         self._unknown: dict[str, str] = {}
 
@@ -39,15 +58,19 @@ class DeviceState:
     def get(self, prop: GreeProp, default: int | None = None) -> int | None:
         """Get the raw value of a property.
 
-        Returns the pending value from ``pending`` if present, otherwise the
-        last known value from ``raw``. If the property does not exist in
-        either state, returns ``default``.
+        Returns the pending value from ``pending`` if present, then the held
+        value from ``held``, otherwise the last known value from ``raw``. If
+        the property does not exist in any of them, returns ``default``.
         """
 
         # Query first the transient state, so we can make changes to the device state
         # before having to push it to the device, preventing the need for a push for each change
         if prop in self._pending:
             return self._pending[prop]
+
+        held = self._held_value(prop)
+        if held is not None:
+            return held
 
         if prop in self._raw:
             return self._raw[prop]
@@ -89,6 +112,76 @@ class DeviceState:
         self._pending.clear()
 
     #
+    # Held values
+    #
+
+    def hold(self, values: Mapping[GreeProp, int]) -> None:
+        """Keep showing values that were just sent, until the device confirms them.
+
+        A VRF gateway can answer with its old cached state for a few seconds
+        after a command. While a prop is held, `get()` returns the sent value
+        instead of the reported one. The hold ends when the device reports the
+        sent value, or after `HELD_VALUE_TTL` seconds, after which the reported
+        value wins again. That way a command the device rejected is not shown
+        for ever.
+
+        Props that are not polled, like the beeper, are never reported, so
+        they are not held.
+        """
+        expires = self._clock() + HELD_VALUE_TTL
+        for prop, value in values.items():
+            if prop in self._props_to_poll:
+                self._held[prop] = (value, expires)
+
+    def _held_value(self, prop: GreeProp) -> int | None:
+        """Return the held value of a prop, or None when it is not held."""
+        entry = self._held.get(prop)
+        if entry is None:
+            return None
+
+        value, expires = entry
+        if self._clock() >= expires:
+            del self._held[prop]
+            _LOGGER.debug(
+                "[%s] Device did not confirm %s=%d in time, using the reported value",
+                self._device_id,
+                prop,
+                value,
+            )
+            return None
+
+        return value
+
+    def _drop_expired_holds(self) -> None:
+        """Drop every hold whose time is up."""
+        for prop in list(self._held):
+            self._held_value(prop)
+
+    def _confirm_hold(self, prop: GreeProp, reported: int) -> None:
+        """End the hold on a prop if the device reported the sent value.
+
+        This compares with what the device really sent, never with the held
+        value that `get()` shows.
+        """
+        entry = self._held.get(prop)
+        if entry is None:
+            return
+
+        if reported == entry[0]:
+            del self._held[prop]
+            _LOGGER.debug(
+                "[%s] Device confirmed %s=%d", self._device_id, prop, reported
+            )
+        else:
+            _LOGGER.debug(
+                "[%s] Device still reports %s=%d, holding the sent value %d",
+                self._device_id,
+                prop,
+                reported,
+                entry[0],
+            )
+
+    #
     # Raw protocol processing
     #
 
@@ -97,6 +190,8 @@ class DeviceState:
         unknown = []
         errors = []
 
+        self._drop_expired_holds()
+
         for key, value in new_state.items():
             try:
                 if key in PROP_KEY_TO_ENUM:
@@ -104,6 +199,7 @@ class DeviceState:
 
                     if prop in self._props_to_poll:
                         self._raw[prop] = int(value)
+                        self._confirm_hold(prop, self._raw[prop])
 
                 elif key in INFOPROP_KEY_TO_ENUM:
                     self._info[INFOPROP_KEY_TO_ENUM[key]] = value
@@ -143,6 +239,7 @@ class DeviceState:
         self._props_to_poll = tuple(p for p in self._props_to_poll if p != prop)
         self._raw.pop(prop, None)
         self._pending.pop(prop, None)
+        self._held.pop(prop, None)
         _LOGGER.debug(
             "[%s] No longer updating property: %s", self._device_id, repr(prop)
         )
@@ -181,8 +278,17 @@ class DeviceState:
 
     @property
     def has_pending_updates(self) -> bool:
-        """Does the state have pending values to be committed."""
-        return any(self._raw.get(k) != v for k, v in self._pending.items())
+        """Does the state have pending values to be committed.
+
+        A pending value is compared with the held value first, because that
+        is what the device was last told. Comparing with a stale reported
+        value would skip a change back to that value.
+        """
+        return any(
+            (held if (held := self._held_value(k)) is not None else self._raw.get(k))
+            != v
+            for k, v in self._pending.items()
+        )
 
     #
     # Read-only views
@@ -201,6 +307,12 @@ class DeviceState:
     def pending(self) -> MappingProxyType[GreeProp, int]:
         """The pending uncommitted device state values."""
         return MappingProxyType(self._pending)
+
+    @property
+    def held(self) -> MappingProxyType[GreeProp, int]:
+        """The values that were sent and are not confirmed by the device yet."""
+        self._drop_expired_holds()
+        return MappingProxyType({k: v for k, (v, _) in self._held.items()})
 
     @property
     def info(self) -> MappingProxyType[InfoProp, str]:

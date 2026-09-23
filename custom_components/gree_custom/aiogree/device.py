@@ -314,11 +314,13 @@ class GreeDevice:
         self._state.set(GreeProp.BEEPER_NEW, 1 if self._beeper else 0)
 
         try:
-            await self._client.set_props(
-                {k.value: v for k, v in self._state.pending.items()}
-            )
+            sent = dict(self._state.pending)
+            await self._client.set_props({k.value: v for k, v in sent.items()})
 
             _LOGGER.debug("[%s:%s] Device status set", self.unique_id, self.transport)
+            # Keep showing what was sent until the device reports it. A VRF
+            # gateway answers the read below with its old cached state.
+            self._state.hold(sent)
             self._state.clear_pending()
 
             await self.fetch_device_status()
@@ -405,6 +407,7 @@ class GreeDevice:
         data["state_info"] = dict(self._state.info)
         data["state"] = {str(k): v for k, v in self._state.raw.items()}
         data["state_pending"] = {str(k): v for k, v in self._state.pending.items()}
+        data["state_held"] = {str(k): v for k, v in self._state.held.items()}
         data["state_unknown"] = {str(k): v for k, v in self._state.unknown.items()}
 
         return data
@@ -557,6 +560,11 @@ class GreeDevice:
     def available(self) -> bool:
         """Return True if the device is bound and last connection was successful."""
         return self._client.bound and self._client.available
+
+    @property
+    def has_held_values(self) -> bool:
+        """Return True if sent values still wait for the device to confirm them."""
+        return bool(self._state.held)
 
     @property
     def is_bound(self) -> bool:
