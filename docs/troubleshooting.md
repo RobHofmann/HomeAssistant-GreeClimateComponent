@@ -2,10 +2,7 @@
 
 ## Time out and cannot connect errors
 
-Due to the many issues being created revolving "TimeOut"/"Cannot connect" errors, I will be closing these. Feel free to make a PR fixing your TimeOut/Cannot connect error.
-More information on the "why" can be found here: https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues/405#issuecomment-4300110823
-
-In short: a time out means the device did not answer a UDP packet. In almost every case the cause is in the network or on the device, not in the integration. The checks below find most of them.
+A time out means the device did not answer a UDP packet. In almost every case the cause is in the network or on the device, not in the integration. The checks below find most of them.
 
 1. **Can Home Assistant reach the device?** Ping the IP from the Home Assistant host. A device that does not answer a ping is asleep, on another network, or has a new IP.
 2. **Is UDP port 7000 open on the way?** Devices on another VLAN need a firewall rule that allows UDP 7000 from Home Assistant to the device. See [Local discovery](configuration.md#local-discovery).
@@ -62,13 +59,13 @@ The integration raises repair issues under **Settings** > **System** > **Repairs
 
 **The unit ignores Turbo or Quiet.** The unit does that while Power Save or Smart Heat 8°C is on. Turn those off first.
 
-**A feature I expect is missing.** The device did not answer the property behind it at setup, or the feature is not enabled. Reconfigure the entry and check **Device Features and Modes**. Use the `get_prop_values` action to see what the device answers. See [actions.md](actions.md).
+**A feature I expect is missing.** The device did not answer the property behind it at setup, or the feature is not enabled. Reconfigure the entry and check **Device Features and Modes**. Use the `get_prop_values` action to see what the device answers. See [actions.md](actions.md). If the device answers the property but the integration has no entity for it, open an issue. We may need to add it.
 
 **The unit shows only default values, or every entity has the same value after every restart.** Some firmwares refuse a status request with too many columns. The integration measures the limit right after it binds and stays below it, so this should not happen. If it does, run `tools/probe_status_limit.py --host <ip>` from a checkout of the repo. Attach the output to an issue. See [development.md](development.md#tools).
 
 **Changes made in the UI are undone after a restart.** The entry is managed by the `gree_custom:` block in `configuration.yaml`. The YAML wins at every start. Change the YAML instead, or remove the block to manage the entry in the UI. See [YAML configuration](configuration.md#yaml-configuration).
 
-**The Gree app logs me out.** Gree allows one session per account. Every login by the integration ends the app session. The integration logs in at setup, when the cloud block in the YAML changes, and when you reauthenticate. Not at every restart.
+**The Gree app logs me out.** Gree allows one session per account, and every login by the integration ends the app session. The integration logs in only when it has no session token yet. That is at the first setup of an account, at a YAML import with new account details, and at reauthentication. Loading or reloading the entry uses the stored token. See [Gree account](configuration.md#gree-account).
 
 **The device is on another VLAN and is not found.** Broadcasts do not cross VLANs. Add the network or the IP under **Extra Networks** or **Extra Hosts**, and allow UDP 7000 in the firewall.
 
@@ -76,7 +73,7 @@ The integration raises repair issues under **Settings** > **System** > **Repairs
 
 ## How to report a bug
 
-Time out and cannot connect reports are closed, see the top of this page. For everything else, open an issue with:
+Run the checks under [Time out and cannot connect errors](#time-out-and-cannot-connect-errors) first. Then open an issue with:
 
 1. The device brand, model and firmware version. The firmware is on the device page in Home Assistant.
 2. The Home Assistant version and the integration version, from HACS or `manifest.json`.

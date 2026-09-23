@@ -1,6 +1,6 @@
 # Automation examples
 
-Ideas for automations with the entities of this integration. The examples use a device named **Living Room AC** in an English Home Assistant, so the entity IDs start with `living_room_ac`. Home Assistant builds an entity ID from the device name and the translated entity name, so in another language the IDs differ. Copy them from the device page. See [entities.md](entities.md) for the full list.
+Ideas for automations with the entities of this integration. The examples use a device named **Living Room AC** in an English Home Assistant, with the entity IDs Home Assistant gives by default. Your IDs can differ: Home Assistant builds them from the device name and your language, and you may have renamed them. Copy them from the device page. See [entities.md](entities.md) for the full list.
 
 All examples use the automation syntax of Home Assistant 2024.10 and later, which every supported version has.
 
