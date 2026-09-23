@@ -775,14 +775,22 @@ async def get_subunits_list(mac_addr, ip_addr, port):
         payload_fb = f'{{"cid":"app","i":1,"pack":"{pack_fb}","t":"subList","tcid":"{mac_addr}","uid":0}}'
         generic_units = await _subunits_send_ecb(ip_addr, port, payload_fb, generic_key)
 
-        if device_units is None and generic_units is None:
+        # subDev form: older W06-class modules answer a "subDev" command (not
+        # "subList") wrapped in a device-key pack. The response is a subList
+        # encrypted with the device key.
+        inner_sd = f'{{"cid":"{mac_addr}","i":0,"mac":"{mac_addr}","t":"subDev"}}'
+        pack_sd = base64.b64encode(AES.new(device_key, AES.MODE_ECB).encrypt(Pad(inner_sd).encode("utf8"))).decode("utf-8")
+        payload_sd = f'{{"cid":"app","i":0,"pack":"{pack_sd}","t":"pack","tcid":"{mac_addr}","uid":0}}'
+        subdev_units = await _subunits_send_ecb(ip_addr, port, payload_sd, device_key)
+
+        if device_units is None and generic_units is None and subdev_units is None:
             _LOGGER.warning(f"get_subunits_list: no subList form answered for {mac_addr}")
             return {"list": []}
 
-        # Union both forms by MAC, preserving first-seen order (device-key first).
+        # Union all forms by MAC, preserving first-seen order.
         merged: list = []
         seen: set = set()
-        for units in ((device_units or []), (generic_units or [])):
+        for units in ((device_units or []), (generic_units or []), (subdev_units or [])):
             for unit in units:
                 unit_mac = unit.get("mac")
                 if unit_mac and unit_mac not in seen:
@@ -791,7 +799,8 @@ async def get_subunits_list(mac_addr, ip_addr, port):
 
         _LOGGER.debug(
             f"get_subunits_list: {mac_addr} device-key={len(device_units) if device_units is not None else 'n/a'}, "
-            f"generic-key={len(generic_units) if generic_units is not None else 'n/a'}, merged={len(merged)}"
+            f"generic-key={len(generic_units) if generic_units is not None else 'n/a'}, "
+            f"subDev={len(subdev_units) if subdev_units is not None else 'n/a'}, merged={len(merged)}"
         )
         return {"list": merged}
     except Exception as e:
