@@ -131,9 +131,15 @@ async def FetchResult(cipher, ip_addr, port, json_data, encryption_version=1, ma
         try:
             clientSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             clientSock.settimeout(timeout)
+            # Connect the socket to the target device so the kernel only
+            # delivers datagrams from that peer. Unconnected UDP sockets can
+            # receive replies meant for other concurrent requests (observed:
+            # one gateway returning another gateway's bind key when several are
+            # probed at once).
+            clientSock.connect((ip_addr, port))
 
             # Send data to device
-            clientSock.sendto(bytes(json_data, "utf-8"), (ip_addr, port))
+            clientSock.send(bytes(json_data, "utf-8"))
 
             # Receive response with event loop yielding
             data, _ = await asyncio.wait_for(asyncio.get_event_loop().run_in_executor(None, clientSock.recvfrom, 64000), timeout=timeout)
@@ -680,8 +686,13 @@ async def _subunits_send_ecb(ip_addr, port, payload, decrypt_key, max_retries=3)
         try:
             clientSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             clientSock.setblocking(False)
-            await asyncio.wait_for(loop.sock_sendto(clientSock, data_bytes, (ip_addr, port)), timeout=timeout)
-            data, _ = await asyncio.wait_for(loop.sock_recvfrom(clientSock, 64000), timeout=timeout)
+            # Connect the socket to the target so the kernel drops datagrams
+            # from any other peer. Without this, concurrent probes to multiple
+            # gateways can receive each other's replies (observed: one gateway
+            # returning another's bind key).
+            await loop.sock_connect(clientSock, (ip_addr, port))
+            await asyncio.wait_for(loop.sock_sendall(clientSock, data_bytes), timeout=timeout)
+            data = await asyncio.wait_for(loop.sock_recv(clientSock, 64000), timeout=timeout)
             recv = simplejson.loads(data)
             raw_pack = recv.get("pack")
             if not raw_pack:
