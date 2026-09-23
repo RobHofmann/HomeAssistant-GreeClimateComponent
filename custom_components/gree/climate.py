@@ -647,12 +647,16 @@ class GreeClimate(ClimateEntity):
                         # stale gateway read-back on the next poll(s) doesn't
                         # revert the UI before the change propagates. Merge with
                         # any still-unconfirmed options from earlier commands.
-                        self._pending_options.update(acOptions)
-                        self._pending_expiry = time.monotonic() + self._pending_ttl
-                        # Schedule a quick follow-up read so the UI confirms the
-                        # change within a couple of seconds instead of waiting
-                        # for the next scan interval (up to 60s).
-                        self._schedule_pending_refresh()
+                        # Only VRF sub-units are held. A standalone unit that
+                        # corrects a value it cannot take (e.g. an unsupported
+                        # swing mode) should show the corrected value at once.
+                        if self._sub_mac_addr != self._mac_addr:
+                            self._pending_options.update(acOptions)
+                            self._pending_expiry = time.monotonic() + self._pending_ttl
+                            # Schedule a quick follow-up read so the UI confirms the
+                            # change within a couple of seconds instead of waiting
+                            # for the next scan interval (up to 60s).
+                            self._schedule_pending_refresh()
             else:
                 # loop used once for Gree Climate initialisation only
                 self._firstTimeRun = False
