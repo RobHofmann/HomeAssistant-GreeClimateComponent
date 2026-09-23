@@ -64,6 +64,12 @@ from .const import (
 )
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .helpers import try_find_new_ip
+from .migration import (
+    async_migrate_legacy_registry,
+    async_prepare_legacy_migration,
+    async_remove_unprovided_entities,
+    async_unload_legacy_entries,
+)
 from .services import async_setup_services
 
 ISSUE_DEVICE_CONNECTION_FAILED = "device_connection_failed"
@@ -85,8 +91,11 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     async_setup_services(hass)
 
-    # Setup YAML entries
-    for gree_config in config.get(DOMAIN, []):
+    # Bring over a 4.x setup, then set up the YAML entries
+    items = await async_prepare_legacy_migration(
+        hass, config, list(config.get(DOMAIN, []))
+    )
+    for gree_config in items:
         hass.async_create_task(
             hass.config_entries.flow.async_init(
                 DOMAIN,
@@ -124,6 +133,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
     local_transports: dict[str, GreeUdpTransport] = {}
 
     cleanup_device_connection_issues(hass, entry.entry_id, set(device_configs.keys()))
+
+    # Stop the 4.x entries of these devices, so only one client talks to a unit
+    await async_unload_legacy_entries(hass, entry)
 
     for mac, dev_config in device_configs.items():
         connection = dev_config.get(CONF_DEVICE_CONNECTION)
@@ -242,7 +254,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
     entry.runtime_data = {}
     entry.runtime_data = coordinators
 
+    # Move the 4.x registry rows before the entities are created
+    moved = await async_migrate_legacy_registry(hass, entry)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    async_remove_unprovided_entities(hass, entry, moved)
     return True
 
 

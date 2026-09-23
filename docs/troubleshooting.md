@@ -38,6 +38,8 @@ The integration raises repair issues under **Settings** > **System** > **Repairs
 |---|---|---|
 | Device connection failed | The device did not answer during setup of the entry. | Work through the time out checks above. The issue clears when the device answers again. |
 | YAML import failed | An item in the `gree_custom:` block could not be imported. The text says why. | Fix the YAML and restart. Common causes: a device that is already in another entry, a wrong MAC, a failed cloud login. |
+| Update your Gree configuration from 4.x | Devices still come from the 4.x `gree:` block, or from 4.x UI entries while YAML manages the local devices. They work. | Paste the block from the issue into `configuration.yaml` and restart. See [Legacy gree: block](configuration.md#legacy-gree-block). |
+| Remove the old Gree 4.x files | The folder `custom_components/gree` from 4.x is still installed. The old 4.x entries are disabled. | Delete the folder and restart. The integration then removes the old entries. |
 | Reauthentication required | The device refused the key exchange, or the cloud session is no longer valid. | For a cloud account, log in again. For a local device, check the key. See [encryption-key.md](encryption-key.md). |
 
 ## Messages in the setup flow
@@ -48,6 +50,7 @@ The integration raises repair issues under **Settings** > **System** > **Repairs
 | Unable to bind the device | The device answered but refused the key exchange, or no encryption version worked. See [encryption-key.md](encryption-key.md). |
 | No new devices discovered | Every device that was found is already configured, or nothing answered the broadcast. Add the device IP under **Extra Hosts**. |
 | A device with this MAC address is already configured | The device is in another entry. Remove it there first, or reconfigure that entry. |
+| Your Gree 4.x devices are being moved to this integration | You opened the setup flow while only 4.x was set up. The flow started the move from 4.x and stopped. The devices show up a few seconds later. |
 | Login failed | Wrong email, password or region for the Gree account. |
 | Invalid CIDR, Invalid IP address, Network exceeds the maximum | A value in the local discovery options is wrong or too large. See [Local discovery](configuration.md#local-discovery). |
 

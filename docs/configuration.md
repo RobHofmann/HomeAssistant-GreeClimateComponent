@@ -151,6 +151,18 @@ How the YAML is applied:
 - A device that is already in another entry is skipped, with an error in the log and a repair issue.
 - A `cloud` block logs in to the Gree account only on the first import, and again when you change the email, region or password. An unchanged `cloud` block reuses the stored session. Every login logs the Gree app out.
 
+### Legacy gree: block
+
+The `gree:` block of release 4.x still works, only to make the move easy. At every start the integration converts it to the format above and imports it. It raises a repair issue that shows the `gree_custom:` block to use instead, and it writes a warning to the log.
+
+The legacy import will be removed in a later version. Update your configuration now:
+
+1. Open the repair issue under **Settings** > **System** > **Repairs**.
+2. Copy the block and replace the `gree:` block with it. If you already have a `gree_custom:` block, add the devices under its `devices:` instead.
+3. Restart Home Assistant. The entry does not change and the repair issue goes away.
+
+The block also holds the devices you set up in the UI of 4.x, when a YAML block manages the local devices. Otherwise those devices would only be kept by the old 4.x entries.
+
 ### Device keys and MAC addresses
 
 The key of every device is its MAC address. Write it in lower case without separators. Upper case and `:` or `-` separators are accepted and cleaned up.

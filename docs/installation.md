@@ -41,14 +41,20 @@ To set up the Wi-Fi without an app, see the guide in [gree-hvac-mqtt-bridge](htt
 
 Releases 4.x used the domain `gree`. This version uses the domain `gree_custom`, because Home Assistant ships its own `gree` integration and the two cannot share a name.
 
-The config entries of 4.x are not compatible with this version and there is no migration. To move:
+Your devices move to this version by themselves. Their entity IDs, areas, names and history stay, so your automations, scripts and dashboards keep working.
 
-1. Note your device settings, so you can enter them again.
-2. Remove the old Gree entries under **Settings** > **Devices & Services**.
-3. Remove the old `custom_components/gree` folder.
-4. Install this version and set it up again. See [configuration.md](configuration.md).
+1. Update through HACS and restart Home Assistant.
+2. The devices move at that start. If you came from a 4.x release older than the last one, nothing happens yet. Then go to **Settings** > **Devices & Services** > **Add Integration**, pick **Gree A/C**, and the move starts. You do not have to fill in anything.
+3. HACS leaves the old `custom_components/gree` folder in place. A repair issue asks you to delete it. Delete the folder and restart. At that start the integration removes the old, disabled 4.x entries.
+4. If you used a `gree:` block in `configuration.yaml`, it keeps working for now. A repair issue shows the `gree_custom:` block that replaces it. See [Legacy gree: block](configuration.md#legacy-gree-block).
 
-Entity IDs change too, because the new entities belong to a new integration. Check your automations, scripts and dashboards after the move.
+What changes:
+
+- The number entity for the temperature step and the selects for the external sensors are gone. Their values become the options **Temperature Step**, **External Temperature Sensor** and **External Humidity Sensor**.
+- Switches for features your unit does not have are removed. 4.x created them for every unit.
+- `temp_sensor_offset` is gone. This version detects the offset itself.
+- The swing modes have other names. The migration picks the name that moves the louvers to the same position as before.
+- New entities, such as the indoor temperature sensor, get new entity IDs.
 
 ## Next step
 
