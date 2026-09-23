@@ -180,6 +180,9 @@ LEGACY_STATE_OPTIONS = {
     "external_humidity_sensor": ATTR_EXTERNAL_HUMIDITY_SENSOR,
 }
 
+# Entity states that hold no value
+LEGACY_EMPTY_STATES = {"unknown", "unavailable", "None", ""}
+
 # The 4.x YAML schema, without its defaults. Unknown keys are allowed, so a
 # typo in an old block does not stop the whole migration.
 LEGACY_DEVICE_SCHEMA = probatio.Schema(
@@ -393,12 +396,16 @@ def _restored_options(
             continue
 
         value = stored.state.state
+        # No value was ever set, or 4.x stored "None" for no sensor
+        if value in LEGACY_EMPTY_STATES:
+            continue
+
         try:
             if option == CONF_TEMPERATURE_STEP:
                 step = _target_temp_step(value)
                 if step != DEFAULT_TARGET_TEMP_STEP:
                     options[option] = step
-            elif value not in ("None", "unknown", "unavailable", ""):
+            else:
                 options[option] = cv.entity_id(value)
         except probatio.Invalid:
             _LOGGER.info(
