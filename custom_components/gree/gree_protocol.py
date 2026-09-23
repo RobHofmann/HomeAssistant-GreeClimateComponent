@@ -665,105 +665,124 @@ async def detect_device_encryption(mac_addr, ip_addr, port):
     _LOGGER.error(f"Could not determine encryption version for device {mac_addr}")
     return None
 
-async def _fetch_subunits_raw(ip_addr, port, json_payload, max_retries=8):
-    """Send a subList query and return the raw decoded JSON response.
+async def _subunits_send_ecb(ip_addr, port, payload, decrypt_key, max_retries=3):
+    """Send a subList payload and decrypt the (v1/ECB) response with decrypt_key.
 
-    Unlike FetchResult, this does not require an encrypted ``pack`` field in the
-    response. Gree gateways answer the ``subList`` query with the sub-device
-    ``list`` at the top level of the (unencrypted) JSON payload, so we must not
-    assume a ``pack`` is present.
+    Returns the sub-unit ``list`` (possibly empty) if a well-formed response
+    arrives, otherwise None (no reply / undecodable), so the caller can try the
+    next form.
     """
     timeout = 2
     loop = asyncio.get_running_loop()
-    payload = json_payload.encode("utf-8")
+    data_bytes = payload.encode("utf-8")
     for attempt in range(max_retries):
         clientSock = None
         try:
             clientSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             clientSock.setblocking(False)
-            await asyncio.wait_for(loop.sock_sendto(clientSock, payload, (ip_addr, port)), timeout=timeout)
+            await asyncio.wait_for(loop.sock_sendto(clientSock, data_bytes, (ip_addr, port)), timeout=timeout)
             data, _ = await asyncio.wait_for(loop.sock_recvfrom(clientSock, 64000), timeout=timeout)
-            received_json = simplejson.loads(data)
-            _LOGGER.debug(f"_fetch_subunits_raw: raw response: {received_json}")
-            return received_json
+            recv = simplejson.loads(data)
+            raw_pack = recv.get("pack")
+            if not raw_pack:
+                return None
+            decrypted = AES.new(decrypt_key, AES.MODE_ECB).decrypt(base64.b64decode(raw_pack))
+            text = decrypted.decode("utf-8", errors="ignore").replace("\x0f", "")
+            last = text.rfind("}")
+            if last != -1:
+                text = text[: last + 1]
+            parsed = simplejson.loads(text)
+            if isinstance(parsed.get("list"), list):
+                return parsed["list"]
+            return None
         except Exception as e:
-            _LOGGER.debug(f"subList attempt {attempt + 1}/{max_retries} failed for {ip_addr}:{port}: {type(e).__name__}: {e}")
-            if attempt == max_retries - 1:
-                raise
+            _LOGGER.debug(f"_subunits_send_ecb attempt {attempt + 1}/{max_retries} failed for {ip_addr}:{port}: {type(e).__name__}: {e}")
         finally:
             if clientSock:
                 with suppress(Exception):
                     clientSock.close()
-
         if attempt < max_retries - 1:
-            await asyncio.sleep(0.5 + (attempt * 0.3))
+            await asyncio.sleep(0.4 + attempt * 0.3)
     return None
 
 
 async def get_subunits_list(mac_addr, ip_addr, port):
-    """
-    Fetch the list of sub-devices for a Gree gateway device.
+    """Fetch the list of sub-devices for a Gree gateway device.
 
-    The gateway answers a ``subList`` query with the list of connected units.
-    Depending on firmware the ``list`` is either returned at the top level of
-    the response, or wrapped in an encrypted ``pack``. When it is encrypted the
-    gateway uses its own *bound* device key (not the generic key), so we bind
-    to the gateway first and decrypt the response with the returned key.
+    The subList query is answered encrypted, but *how* depends on the request
+    envelope, which varies by WiFi-module firmware:
+
+    * Device-key form (``i:0`` / ``t:"pack"``): the response is encrypted with
+      the gateway's *bound* device key. This is what GR-Gcloud V3.2.M answers.
+    * Generic-key form (``i:1`` / ``t:"subList"``, the classic app form): the
+      response is encrypted with the *generic* key (like scan/bind). Some
+      modules only answer this form.
+
+    On v1 we query *both* forms and union the results by MAC: different
+    firmwares answer different forms, and some gateways return a slightly
+    different subset in each, so merging maximises the units we recover and
+    never returns fewer than either form alone. v2 (GCM) modules use the
+    device-key form only.
     """
     try:
-        # subList is a protocol-level query. Send it unencrypted (no pack).
-        # ``i:0`` marks a normal (non-bind/scan) request.
-        jsonPayloadToSend = (
-            f'{{"cid":"app","i":0,"t":"subList","tcid":"{str(mac_addr)}","uid":0}}'
-        )
+        encryption_version = await detect_device_encryption(mac_addr, ip_addr, port)
 
-        received_json = await _fetch_subunits_raw(ip_addr, port, jsonPayloadToSend)
-        if not received_json:
+        if encryption_version == 2:
+            device_key = await GetDeviceKeyGCM(mac_addr, ip_addr, port)
+            if not device_key:
+                _LOGGER.error(f"get_subunits_list: could not bind to gateway {mac_addr} (v2)")
+                return {"list": []}
+            inner = f'{{"mac":"{mac_addr}","t":"subList","i":0}}'
+            enc_pack, tag = EncryptGCM(device_key, inner)
+            payload = f'{{"cid":"app","i":0,"pack":"{enc_pack}","t":"pack","tcid":"{mac_addr}","uid":0,"tag":"{tag}"}}'
+            result = await FetchResult(GetGCMCipher(device_key), ip_addr, port, payload, encryption_version=2)
+            if isinstance(result, dict) and isinstance(result.get("list"), list):
+                _LOGGER.debug(f"get_subunits_list: found {len(result['list'])} sub-units (v2)")
+                return {"list": result["list"]}
+            _LOGGER.warning(f"get_subunits_list: unexpected v2 subList response for {mac_addr}: {result}")
             return {"list": []}
 
-        # The list may be at the top level (some firmwares) ...
-        if isinstance(received_json.get("list"), list):
-            _LOGGER.debug(f"get_subunits_list: found {len(received_json['list'])} sub-units (top-level)")
-            return {"list": received_json["list"]}
+        if encryption_version != 1:
+            _LOGGER.error(f"get_subunits_list: unknown encryption for gateway {mac_addr}")
+            return {"list": []}
 
-        # ... or inside an encrypted pack. The pack is encrypted with the
-        # gateway's *bound* device key, so bind to obtain it, then decrypt.
-        if "pack" in received_json:
-            encryption_version = await detect_device_encryption(mac_addr, ip_addr, port)
-            if encryption_version == 1:
-                device_key = await GetDeviceKey(mac_addr, ip_addr, port)
-                if not device_key:
-                    _LOGGER.error(f"get_subunits_list: could not bind to gateway {mac_addr} (v1)")
-                    return {"list": []}
-                cipher = AES.new(device_key, AES.MODE_ECB)
-                decoded_pack = base64.b64decode(received_json["pack"])
-                decrypted_pack = cipher.decrypt(decoded_pack)
-            elif encryption_version == 2:
-                device_key = await GetDeviceKeyGCM(mac_addr, ip_addr, port)
-                if not device_key:
-                    _LOGGER.error(f"get_subunits_list: could not bind to gateway {mac_addr} (v2)")
-                    return {"list": []}
-                cipher = GetGCMCipher(device_key)
-                decoded_pack = base64.b64decode(received_json["pack"])
-                decrypted_pack = cipher.decrypt(decoded_pack)
-                tag = received_json.get("tag")
-                if tag:
-                    with suppress(Exception):
-                        cipher.verify(base64.b64decode(tag))
-            else:
-                _LOGGER.error(f"get_subunits_list: unknown encryption for gateway {mac_addr}")
-                return {"list": []}
+        device_key = await GetDeviceKey(mac_addr, ip_addr, port)
+        if not device_key:
+            _LOGGER.error(f"get_subunits_list: could not bind to gateway {mac_addr} (v1)")
+            return {"list": []}
+        generic_key = GENERIC_GREE_DEVICE_KEY.encode("utf8")
 
-            decoded_text = decrypted_pack.decode("utf-8", errors="ignore").replace("\x0f", "")
-            last_brace = decoded_text.rfind("}")
-            if last_brace != -1:
-                decoded_text = decoded_text[: last_brace + 1]
-            pack_json = simplejson.loads(decoded_text)
-            _LOGGER.debug(f"get_subunits_list: decrypted pack: {pack_json}")
-            return {"list": pack_json.get("list", [])}
+        # Device-key form: i:0 / t:pack -> response encrypted with the device key.
+        inner = f'{{"mac":"{mac_addr}","t":"subList","i":0}}'
+        pack = base64.b64encode(AES.new(device_key, AES.MODE_ECB).encrypt(Pad(inner).encode("utf8"))).decode("utf-8")
+        payload = f'{{"cid":"app","i":0,"pack":"{pack}","t":"pack","tcid":"{mac_addr}","uid":0}}'
+        device_units = await _subunits_send_ecb(ip_addr, port, payload, device_key)
 
-        _LOGGER.warning(f"get_subunits_list: unexpected subList response for {mac_addr}: {received_json}")
-        return {"list": []}
+        # Generic-key form: i:1 / t:subList -> response encrypted with generic key.
+        inner_fb = f'{{"mac":"{mac_addr}","i":1}}'
+        pack_fb = base64.b64encode(AES.new(device_key, AES.MODE_ECB).encrypt(Pad(inner_fb).encode("utf8"))).decode("utf-8")
+        payload_fb = f'{{"cid":"app","i":1,"pack":"{pack_fb}","t":"subList","tcid":"{mac_addr}","uid":0}}'
+        generic_units = await _subunits_send_ecb(ip_addr, port, payload_fb, generic_key)
+
+        if device_units is None and generic_units is None:
+            _LOGGER.warning(f"get_subunits_list: no subList form answered for {mac_addr}")
+            return {"list": []}
+
+        # Union both forms by MAC, preserving first-seen order (device-key first).
+        merged: list = []
+        seen: set = set()
+        for units in ((device_units or []), (generic_units or [])):
+            for unit in units:
+                unit_mac = unit.get("mac")
+                if unit_mac and unit_mac not in seen:
+                    seen.add(unit_mac)
+                    merged.append(unit)
+
+        _LOGGER.debug(
+            f"get_subunits_list: {mac_addr} device-key={len(device_units) if device_units is not None else 'n/a'}, "
+            f"generic-key={len(generic_units) if generic_units is not None else 'n/a'}, merged={len(merged)}"
+        )
+        return {"list": merged}
     except Exception as e:
         _LOGGER.error(f"Error fetching sub-device list for {mac_addr}: {e}")
         return {"list": []}
