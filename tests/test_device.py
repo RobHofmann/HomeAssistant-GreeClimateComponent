@@ -105,6 +105,20 @@ async def bound(unit: FakeGreeDevice) -> AsyncIterator[GreeDevice]:
         await transport.disconnect()
 
 
+@pytest.fixture
+async def bound_sub_unit(unit: FakeGreeDevice) -> AsyncIterator[GreeDevice]:
+    """Bind an indoor unit that sits behind the fake unit as its VRF gateway."""
+    transport = GreeUdpTransport(unit.host, unit.port, max_retries=1, timeout=0.3)
+    device = GreeDevice(name="Zolderkamer VRF", mac_addr=f"{unit.mac}01")
+    await device.bind_with_transport(
+        local_controller_mac=unit.mac, local_transport=transport
+    )
+    try:
+        yield device
+    finally:
+        await transport.disconnect()
+
+
 #
 # Bind and poll
 #
@@ -286,9 +300,10 @@ async def test_a_standalone_unit_confirms_a_command_on_the_first_read(
 
 
 async def test_a_stale_read_after_a_command_keeps_the_sent_value(
-    unit: FakeGreeDevice, bound: GreeDevice
+    unit: FakeGreeDevice, bound_sub_unit: GreeDevice
 ) -> None:
     """A VRF gateway answers from its cache for a while. The UI must not flip back."""
+    bound = bound_sub_unit
     unit.stale_reads_after_cmd = 100
     bound.set_power_mode(False)
 
@@ -311,13 +326,14 @@ async def test_a_stale_read_after_a_command_keeps_the_sent_value(
 
 
 async def test_a_command_the_unit_ignores_stays_held_until_the_ttl(
-    unit: FakeGreeDevice, bound: GreeDevice
+    unit: FakeGreeDevice, bound_sub_unit: GreeDevice
 ) -> None:
     """The unit acknowledges but keeps its old value. That is never a confirmation.
 
     What happens when the TTL runs out is tested in test_device_state.py with a
     fake clock.
     """
+    bound = bound_sub_unit
     unit.apply_commands = False
     bound.set_power_mode(False)
 
@@ -326,6 +342,42 @@ async def test_a_command_the_unit_ignores_stays_held_until_the_ttl(
     assert unit.values[GreeProp.POWER.value] == 1
     assert bound.has_held_values
     assert bound.power_mode is False
+
+
+async def test_a_unit_that_is_not_behind_a_gateway_is_never_held(
+    unit: FakeGreeDevice, bound: GreeDevice, gree_logs: RecordingHandler
+) -> None:
+    """Only sub-units are held. Other units behave as before the hold existed."""
+    assert not bound.is_sub_unit
+    unit.stale_reads_after_cmd = 100
+    bound.set_power_mode(False)
+
+    await bound.push_device_status()
+
+    assert not bound.has_held_values
+    assert bound.power_mode is True
+    assert any(
+        "The read right after the command reports Pow=1, but 0 was sent" in line
+        and "sub-unit: False" in line
+        for line in gree_logs.messages()
+    )
+
+
+async def test_a_value_the_unit_corrects_shows_at_once(
+    unit: FakeGreeDevice, bound: GreeDevice
+) -> None:
+    """A unit that refuses a value reports its own one, and the UI follows it.
+
+    For example a swing mode the unit does not support: it answers with a valid
+    one, and there is no hold that keeps the refused value on screen.
+    """
+    unit.apply_commands = False
+    bound.set_power_mode(False)
+
+    await bound.push_device_status()
+
+    assert not bound.has_held_values
+    assert bound.power_mode is True
 
 
 async def test_a_poll_that_gets_no_answer_raises(

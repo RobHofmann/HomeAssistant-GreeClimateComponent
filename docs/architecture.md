@@ -79,7 +79,7 @@ State lives in `DeviceState`, one per device.
 
 - `raw` is what the device last reported, as integers.
 - `pending` is what we want to send next. `set()` writes here. Reads check `pending` first, then `held`, then `raw`.
-- `held` is what was sent in the last commands and is not confirmed by the device yet. A hold ends when the device reports the sent value, or after 8 s. See [protocol.md](protocol.md#stale-state-after-a-command).
+- `held` is what was sent in the last commands to a VRF sub-unit and is not confirmed by the gateway yet. A hold ends when the device reports the sent value, or after 8 s. See [protocol.md](protocol.md#stale-state-after-a-command).
 - `push_device_status()` sends the pending values in one command, moves them to `held`, and then refreshes `raw`.
 - `info` holds the `InfoProp` values as strings.
 - `unknown` holds columns the device sent that we do not know. They show up in diagnostics.

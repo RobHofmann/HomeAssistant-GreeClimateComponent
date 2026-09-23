@@ -67,12 +67,13 @@ There are three forms of the request. Different WiFi module firmwares answer dif
 
 A gateway keeps a cached copy of the state of every indoor unit. For a few seconds after a command it can answer a status request from that cache, with the old values. Without a guard, the UI would jump back to the old value.
 
-- After a successful command, `push_device_status()` calls `DeviceState.hold()` with the values it sent. While a prop is held, `get()` returns the sent value instead of the reported one.
+- After a successful command to a sub-unit, `push_device_status()` calls `DeviceState.hold()` with the values it sent. While a prop is held, `get()` returns the sent value instead of the reported one.
 - A hold ends when the device reports the sent value. That check uses the value the device reported, never the held value.
 - A hold also ends after `HELD_VALUE_TTL` (8 s) seconds. After that the reported value wins, so a command the device rejected is not shown for ever.
 - Props that are not polled, like the beeper, are not held, because they are never reported.
-- This applies to every device. A standalone unit reports the new value on the read right after the command, so its hold ends at once.
-- While a hold is open after a command, the coordinator polls again every 2 s (`FOLLOW_UP_REFRESH_DELAY`), so the UI shows the confirmed value soon instead of at the next scan interval. The polls stop when the device confirms, or with the first poll after the hold ends. That poll shows what the device really reports, so a rejected command is visible within about 8 s. A standalone unit confirms on the read right after the command and gets no extra poll.
+- Only sub-units are held (`GreeDevice.is_sub_unit`, true when the device MAC differs from the controller MAC). The stale cache was only seen on VRF gateways. A standalone unit is not held, because a hold has a cost there: when the unit corrects a value it cannot take, for example a swing mode it does not support, it reports its own value, and a hold would keep the refused value on screen for up to 8 s.
+- If a standalone unit or the MQTT transport turns out to cache as well, the UI shows the old value for a moment after a command, as it did before the hold existed. For every device, `push_device_status()` logs at debug level when the read right after a command does not report the sent value, with the transport and whether it is a sub-unit. That line is how to find out, before the hold is extended.
+- While a hold is open after a command, the coordinator polls again every 2 s (`FOLLOW_UP_REFRESH_DELAY`), so the UI shows the confirmed value soon instead of at the next scan interval. The polls stop when the device confirms, or with the first poll after the hold ends. That poll shows what the device really reports, so a rejected command is visible within about 8 s. A standalone unit is never held, so it gets no extra poll.
 
 ## MAC addresses
 
