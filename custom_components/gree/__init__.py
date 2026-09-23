@@ -20,6 +20,8 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.loader import IntegrationNotFound, async_get_integration
+from homeassistant.setup import async_setup_component
 
 # Local imports
 from .const import (
@@ -44,6 +46,9 @@ from .const import (
 PLATFORMS = [Platform.CLIMATE, Platform.SWITCH, Platform.NUMBER, Platform.SELECT, Platform.SENSOR]
 _LOGGER = logging.getLogger(__name__)
 
+# Version 5 of this integration uses its own domain, see _start_successor()
+SUCCESSOR_DOMAIN = "gree_custom"
+
 # YAML configuration schema
 CLIMATE_SCHEMA = vol.Schema(
     {
@@ -66,8 +71,30 @@ CLIMATE_SCHEMA = vol.Schema(
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.All(cv.ensure_list, [CLIMATE_SCHEMA])}, extra=vol.ALLOW_EXTRA)
 
 
+def _start_successor(hass: HomeAssistant, config: ConfigType) -> None:
+    """Start version 5 when it is installed next to this version.
+
+    Version 5 uses the domain gree_custom and moves the devices of this
+    version over when it starts. Home Assistant only sets up an integration
+    that has a config entry or a YAML key, and after an update through HACS
+    gree_custom has neither yet. So this version starts it.
+    """
+
+    async def _setup() -> None:
+        try:
+            await async_get_integration(hass, SUCCESSOR_DOMAIN)
+        except IntegrationNotFound:
+            return
+        _LOGGER.info("Starting %s, which replaces this integration", SUCCESSOR_DOMAIN)
+        await async_setup_component(hass, SUCCESSOR_DOMAIN, config)
+
+    hass.async_create_task(_setup())
+
+
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Gree component from yaml."""
+    _start_successor(hass, config)
+
     if DOMAIN not in config:
         return True
 
