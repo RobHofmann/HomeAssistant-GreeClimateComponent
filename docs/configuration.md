@@ -22,7 +22,9 @@ Shown when you picked the cloud method.
 | Email, Password | Your Gree account. |
 | Region | The region of your account. The integration uses it to pick the right Gree server. |
 
-Every login ends the other sessions of the account, so the Gree app on your phone logs out. The integration stores the session and does not log in again on every restart.
+The login returns a session token. The integration stores the token in the config entry and uses it every time the entry loads. A restart or a reload does not log in again. Only when the stored token stops working does the entry ask for [reauthentication](#reauthentication), which logs in once more and stores the new token.
+
+This matters because Gree allows one session per account. Every login ends the other sessions, so the Gree app on your phone logs out at that moment. A YAML entry works the same way: a matching entry keeps its token, and a changed email, region or password triggers a new login.
 
 ### Local discovery
 
@@ -41,7 +43,10 @@ The values you enter are remembered and offered again in the next setup flow.
 
 ### Discovered devices
 
-The list holds every device that was found and is not configured yet. Pick the ones to add. When you are reconfiguring, the devices you do not pick are removed from the entry.
+The list holds every device that was found and is not configured yet. Pick the ones to add.
+
+> [!WARNING]
+> When you are reconfiguring, the devices you do not pick are removed from the entry.
 
 With a cloud account, the list holds the devices of the account. It shows whether each one was also found on the local network.
 
@@ -80,7 +85,7 @@ One page per device. Gree devices do not report reliably which features they hav
 
 | Field | Default | Meaning |
 |---|---|---|
-| Device Name | the name the unit reports | Used for the device and as the start of every entity ID. |
+| Device Name | the name the unit reports | The name of the device in Home Assistant. By default Home Assistant also uses it in the entity IDs. |
 | HVAC Modes | all | The modes the climate entity offers: Auto, Cool, Dry, Fan only, Heat, Off. |
 | Fan Speeds | all the unit supports | Auto, Low, Medium-Low, Medium, Medium-High, High, and Turbo and Quiet when the unit has them. |
 | Vertical Swing Modes | all | The vertical positions and swing ranges. |
@@ -99,7 +104,9 @@ Open the entry under **Settings** > **Devices & Services**, click the three dots
 
 - On the **Local-only Devices** entry the flow starts at local discovery.
 - On an account entry the flow first asks whether to also look for local devices. The account itself cannot be removed from the entry. To make a device local-only, remove it from the account entry and add it again with the local method.
-- Devices you do not pick in the device list are removed from the entry.
+
+> [!WARNING]
+> Devices you do not pick in the device list are removed from the entry.
 
 ## Removing a device
 

@@ -6,7 +6,7 @@ Every device gets one climate entity and a set of sensors, switches, selects and
 2. **What you enabled.** The **Device Features and Modes** option decides which optional switches and selects are created. See [configuration.md](configuration.md#device-features).
 3. **The current mode.** Some features only exist in some HVAC modes. The entity then shows as unavailable in the other modes.
 
-Entity IDs start with the device name, followed by the entity name in the language of your Home Assistant. In English, a device named `Living Room AC` gets `climate.living_room_ac`, `sensor.living_room_ac_indoor_temperature`, `switch.living_room_ac_x_fan`, and so on. A Dutch Home Assistant gives `switch.living_room_ac_pieptoon` for the beeper. Copy the IDs from the device page. The examples below use `climate.your_ac`.
+Home Assistant chooses the entity IDs, not the integration. By default it builds them from the device name and the translated entity name. A device named `Living Room AC` in an English Home Assistant then gets `climate.living_room_ac` and `switch.living_room_ac_x_fan`. That default depends on your language and on your Home Assistant version, and you can change any ID yourself. Copy the IDs from the device page instead of guessing them. The examples below use `climate.your_ac`.
 
 ## Climate
 
@@ -16,8 +16,8 @@ The main entity. Its name is the device name.
 |---|---|
 | HVAC mode | Auto, Cool, Dry, Fan only, Heat, Off. You choose the list at setup. Off turns the unit off, every other mode turns it on. |
 | Target temperature | 16 to 30 degrees C, or 61 to 86 degrees F. Available when Heat, Cool or Auto is in the mode list. The step is the **Temperature Step** option. In Auto mode the unit uses its own factory setting, so a temperature sent with Auto is ignored and logged as a warning. |
-| Current temperature | The unit's room sensor, converted to the unit's temperature scale. Replaced by the **External Temperature Sensor** when one is set. |
-| Current humidity | The unit's humidity sensor, when it has one. Replaced by the **External Humidity Sensor** when one is set. |
+| Current temperature | The unit's room sensor, converted to the unit's temperature scale. Replaced by the **External Temperature Sensor** when one is set. That changes only what Home Assistant shows; the unit keeps regulating on its own sensor. |
+| Current humidity | The unit's humidity sensor, when it has one. Replaced by the **External Humidity Sensor** when one is set. Display only, like the temperature. |
 | Fan mode | Auto, Low, Medium-Low, Medium, Medium-High, High, plus Turbo and Quiet when the unit has them. See below. |
 | Swing mode | Vertical positions and swing ranges. |
 | Horizontal swing mode | Horizontal positions and swing ranges, when the unit has them. |

@@ -25,9 +25,9 @@ Gree integration for Home Assistant. It controls Gree air conditioners, and the 
 Home Assistant ships a `gree` integration that works on the local network only. This one goes further.
 
 - **Local first, cloud when you need it.** Devices are controlled over UDP on your own network. The Gree cloud is there for devices you cannot reach, and to fetch device names and encryption keys during setup. See [connection methods](docs/connection-methods.md).
-- **Every feature the remote has.** X-Fan, Health, Sleep, 8°C Smart Heat, Power Save, Anti Direct Blow, Fresh Air, Humidity Control, display light and brightness, beeper, Turbo and Quiet. Each one is a switch, select or fan mode. See [entities](docs/entities.md).
-- **Swing positions.** Twelve vertical and seven horizontal modes: fixed positions and partial swing ranges, not just on and off. The built-in integration only gained these in Home Assistant 2026.8.
-- **Sensors.** Indoor and outdoor temperature, humidity and fault detection, when the unit has them. An external sensor can replace the unit's own room sensor in the climate entity.
+- **The features on the remote.** X-Fan, Health, Sleep, 8°C Smart Heat, Power Save, Anti Direct Blow, Fresh Air, Humidity Control, display light and brightness, beeper, Turbo and Quiet. Each one is a switch, select or fan mode. See [entities](docs/entities.md).
+- **Swing positions.** Twelve vertical and seven horizontal modes: fixed positions and partial swing ranges, not just on and off.
+- **Sensors.** Indoor and outdoor temperature, humidity and fault detection, when the unit has them. An external sensor can replace the unit's own reading in the climate entity. That changes only what Home Assistant shows; the unit keeps using its own sensor.
 - **Works across VLANs.** Add networks or hosts to the discovery, and they are probed with unicast. See [local discovery](docs/configuration.md#local-discovery).
 - **VRF systems.** A controller with several indoor units is discovered and set up as separate devices.
 - **Built for real firmware.** Both encryption versions, detected by itself. The request limit of each firmware is measured at bind time, so units that choke on large requests still work. A changed IP is picked up from DHCP or by rediscovery.
@@ -61,19 +61,12 @@ Your devices are under **Settings** > **Devices & Services** > **Gree Climate**.
 
 📖 **[Full installation guide](docs/installation.md)** · **[Full configuration guide](docs/configuration.md)**
 
-## ⚠️ Issues
-
-Due to the many issues being created revolving "TimeOut"/"Cannot connect" errors, I will be closing these. Feel free to make a PR fixing your TimeOut/Cannot connect error.
-More information on the "why" can be found here: https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues/405#issuecomment-4300110823
-
-Before you open any other issue, read [Troubleshooting](docs/troubleshooting.md). It says what to include.
-
 ## ❓ Help and support
 
 - 🔧 **[Troubleshooting](docs/troubleshooting.md)**: debug logging, repair issues, common errors, and how to report a bug
 - 🔑 **[Encryption key](docs/encryption-key.md)**: when the integration cannot get the device key by itself
 - 📋 **[Supported devices](supported-devices.md)**: units that are known to work, and how to add yours
-- 🐛 **[Report an issue](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues/new/choose)**: read the Issues section above first
+- 🐛 **[Report an issue](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues/new/choose)**: read [Troubleshooting](docs/troubleshooting.md) first, it says what to include
 
 ## 🤝 Contributing
 
