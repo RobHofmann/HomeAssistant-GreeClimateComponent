@@ -18,7 +18,8 @@
             "already_configured": "A device with this MAC address is already configured.",
             "unique_id_mismatch": "The entry being configured does not match the configuration intent.",
             "no_devices_to_add": "No new devices discovered. Adjust your discovery options and try again.",
-            "import_failed": "The YAML configuration could not be imported. See the repair issue and the log for the reason."
+            "import_failed": "The YAML configuration could not be imported. See the repair issue and the log for the reason.",
+            "legacy_migration_started": "Your Gree 4.x devices are being moved to this integration. They show up in a few seconds, with the same entity IDs."
         },
         "step": {
             "user": {
@@ -372,6 +373,14 @@
         "yaml_import_failed": {
             "title": "YAML import failed",
             "description": "The YAML configuration for {item} could not be imported: {reason}"
+        },
+        "legacy_yaml": {
+            "title": "Update your Gree configuration from 4.x",
+            "description": "Some Gree devices still come from the configuration of Gree 4.x: the `gree:` block in `configuration.yaml`, or devices you set up in the 4.x UI while a YAML block manages the local devices. This version converts them at every start, so they keep working. This legacy import will be removed in a later version.\n\nReplace the `gree:` block with the block below. If you already have a `gree_custom:` block, add the devices below under its `devices:` instead. Then restart Home Assistant. This message goes away when no device depends on the 4.x configuration any more.\n\n```yaml\n{yaml}\n```"
+        },
+        "legacy_folder": {
+            "title": "Remove the old Gree 4.x files",
+            "description": "The folder `custom_components/gree` from Gree 4.x is still installed. HACS does not remove it when it installs this version. The devices of Gree 4.x are moved to this integration, and the old 4.x config entries are disabled.\n\nDelete the folder `custom_components/gree` and restart Home Assistant. At that start this integration removes the old config entries."
         }
     },
     "services": {

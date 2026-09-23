@@ -18,7 +18,8 @@
             "already_configured": "Een apparaat met dit MAC-adres is al geconfigureerd.",
             "unique_id_mismatch": "De entry die wordt geconfigureerd komt niet overeen met de bedoelde configuratie.",
             "no_devices_to_add": "Geen nieuwe apparaten ontdekt. Pas de ontdekkingsopties aan en probeer het opnieuw.",
-            "import_failed": "De YAML-configuratie kon niet worden geïmporteerd. Zie het herstelprobleem en de log voor de reden."
+            "import_failed": "De YAML-configuratie kon niet worden geïmporteerd. Zie het herstelprobleem en de log voor de reden.",
+            "legacy_migration_started": "Je Gree 4.x-apparaten worden naar deze integratie verhuisd. Ze verschijnen over een paar seconden, met dezelfde entity-ID's."
         },
         "step": {
             "user": {
@@ -372,6 +373,14 @@
         "yaml_import_failed": {
             "title": "YAML-import mislukt",
             "description": "De YAML-configuratie voor {item} kon niet worden geïmporteerd: {reason}"
+        },
+        "legacy_yaml": {
+            "title": "Werk je Gree-configuratie uit 4.x bij",
+            "description": "Sommige Gree-apparaten komen nog uit de configuratie van Gree 4.x: het blok `gree:` in `configuration.yaml`, of apparaten die je in de 4.x-UI hebt ingesteld terwijl een YAML-blok de lokale apparaten beheert. Deze versie zet ze bij elke start om, dus ze blijven werken. Deze legacy import verdwijnt in een latere versie.\n\nVervang het blok `gree:` door het blok hieronder. Heb je al een blok `gree_custom:`, zet de apparaten hieronder dan onder de `devices:` daarvan. Start Home Assistant daarna opnieuw. Deze melding verdwijnt als geen apparaat nog van de 4.x-configuratie afhangt.\n\n```yaml\n{yaml}\n```"
+        },
+        "legacy_folder": {
+            "title": "Verwijder de oude Gree 4.x-bestanden",
+            "description": "De map `custom_components/gree` van Gree 4.x is nog geïnstalleerd. HACS verwijdert die niet als het deze versie installeert. De apparaten van Gree 4.x zijn naar deze integratie verhuisd, en de oude 4.x config entries zijn uitgeschakeld.\n\nVerwijder de map `custom_components/gree` en start Home Assistant opnieuw. Bij die start verwijdert deze integratie de oude config entries."
         }
     },
     "services": {

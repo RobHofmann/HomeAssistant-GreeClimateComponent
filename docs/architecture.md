@@ -29,6 +29,7 @@ No Home Assistant imports here.
 | `coordinator.py` | `GreeCoordinator`. Polls on `scan_interval` and listens for status pushed by the device. |
 | `config_flow.py` | Setup, reconfigure, reauth and YAML import flows. Local discovery, cloud login, device picker, per device options. `async_step_import` turns one validated YAML item into a config entry. |
 | `config_schema.py` | `CONFIG_SCHEMA` for the `gree_custom:` block in `configuration.yaml`. Validates the YAML, normalizes the MAC addresses and fills the defaults. It also holds the form schemas that the config flow shows. |
+| `migration.py` | Moves a 4.x setup (domain `gree`) to this integration: config entries, the `gree:` YAML block, and the device and entity registry rows. See [config-entry.md](config-entry.md#migration-from-4x). |
 | `climate.py`, `switch.py`, `sensor.py`, `binary_sensor.py`, `number.py`, `select.py` | Entity platforms. |
 | `entity.py`, `platform_helpers.py` | Base entity, availability logic, shared helpers. |
 | `services.py`, `services.yaml` | Services `get_prop_values` and `get_prop_values_all`. |

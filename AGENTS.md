@@ -8,7 +8,7 @@ A custom Home Assistant integration for Gree air conditioners. Domain `gree_cust
 
 The domain is `gree_custom` and not `gree` because Home Assistant ships its own `gree` integration. Do not rename it.
 
-Older releases (4.x) used the domain `gree` and a different code base. Their config entries are not compatible with this version and there is no migration.
+Older releases (4.x) used the domain `gree` and a different code base. `migration.py` moves a 4.x setup over; see [docs/config-entry.md](docs/config-entry.md#migration-from-4x).
 
 ## Versions
 

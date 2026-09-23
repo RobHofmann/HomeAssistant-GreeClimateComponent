@@ -107,6 +107,7 @@ from .helpers import (
     get_discovery_addresses,
     get_entry_matching_mac,
 )
+from .migration import async_setup_from_flow
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -282,6 +283,48 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
         create_yaml_import_issue(self.hass, item_id, f"cloud login failed: {err}")
         return self.async_abort(reason="import_failed")
 
+    async def async_step_migrate(self, migrate_data: dict) -> ConfigFlowResult:
+        """Add the devices of 4.x config entries to the local-only entry.
+
+        Started by `migration.py` when no YAML block manages the local devices.
+        Unlike the YAML import, this only adds devices and never removes one.
+        """
+        devices: dict[str, Any] = dict(migrate_data[CONF_DEVICES])
+
+        await self.async_set_unique_id(CONFENTRY_ID_LOCAL_ONLY)
+
+        other_macs = get_configured_macs_in_entries(
+            self.hass, ignore_entries=[CONFENTRY_ID_LOCAL_ONLY]
+        )
+        for mac in [m for m in devices if m in other_macs]:
+            _LOGGER.info(
+                "Migration from 4.x: device %s is already in entry '%s'",
+                mac,
+                other_macs[mac].title,
+            )
+            devices.pop(mac)
+
+        entry = self.hass.config_entries.async_entry_for_domain_unique_id(
+            DOMAIN, CONFENTRY_ID_LOCAL_ONLY
+        )
+        known: dict[str, Any] = dict(entry.data.get(CONF_DEVICES, {})) if entry else {}
+        new_devices = {m: d for m, d in devices.items() if m not in known}
+
+        if not new_devices:
+            return self.async_abort(reason="already_configured")
+
+        if entry:
+            return self.async_update_reload_and_abort(
+                entry,
+                data={**entry.data, CONF_DEVICES: {**known, **new_devices}},
+                reason="reconfigure_successful",
+            )
+
+        return self.async_create_entry(
+            title="Local-only Devices",
+            data={CONF_CLOUD: None, CONF_DEVICES: new_devices},
+        )
+
     @override
     async def async_step_dhcp(
         self, discovery_info: DhcpServiceInfo
@@ -289,6 +332,9 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
         """Handle discovery via dhcp."""
 
         _LOGGER.debug("Gree device discovered from dhcp: %s", discovery_info)
+
+        if await async_setup_from_flow(self.hass):
+            return self.async_abort(reason="legacy_migration_started")
 
         # Check what's under that device: Main device and sub-devices
         # If it does not respond locally, there's no use of this information
@@ -343,6 +389,9 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
     @override
     async def async_step_user(self, user_input: dict | None = None) -> ConfigFlowResult:
         """Handle the initial step - how to add devices."""
+        if user_input is None and await async_setup_from_flow(self.hass):
+            return self.async_abort(reason="legacy_migration_started")
+
         errors: dict[str, str] = {}
         if user_input is not None:
             self._selected_setup_methods = user_input[CONF_DISCOVERY]

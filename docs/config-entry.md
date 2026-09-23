@@ -69,9 +69,61 @@ The YAML wins at every start, so values that change after the import are not pre
 - The import does not bind the device, so it stores the `encryption_key` and `encryption_version` as written. With a blank key and version `"0"`, entry setup fetches the key and detects the version on every start. That is the normal path.
 - Changes made in the UI to a YAML managed entry are replaced by the YAML values at the next start.
 
-## Older entries
+## Migration from 4.x
 
-Releases 4.x used the domain `gree` and a flat entry: one device per entry, all fields at the top level. Those entries are not compatible with this shape and there is no migration. Users set the integration up again.
+Releases 4.x used the domain `gree` and a flat entry: one device per entry, all fields at the top level. `async_migrate_entry` cannot help here, because it only works inside one domain. `migration.py` moves a 4.x setup over in two phases instead.
+
+### What starts it
+
+Home Assistant only sets up an integration that has a config entry or a YAML key. After an update through HACS, `gree_custom` has neither. HACS also leaves the old `custom_components/gree` folder in place: it installs into the folder named after the new domain and only removes a folder on uninstall. So something else has to start `gree_custom` once:
+
+- The last 4.x release calls `async_setup_component("gree_custom")` from its own `async_setup` when that integration is installed. This is the path without user action.
+- Without that release, the setup flow starts it. `async_step_user` and `async_step_dhcp` call `async_setup_from_flow()`, which sets the integration up when it is not set up yet and 4.x entries exist. The flow then stops with `legacy_migration_started`. So a user who opens **Add Integration** > **Gree A/C** starts the migration with that one action.
+
+After the first run `gree_custom` has its own entry and starts by itself.
+
+### Phase 1, in `async_setup`
+
+`async_prepare_legacy_migration()` reads the 4.x entries (domain `gree` with `mac` and `host` in the data, so the entries of the built-in `gree` integration are left alone) and the `gree:` block, if there is one. It merges the entry options over the data, like 4.x did, and converts every device with `convert_legacy_device()`:
+
+| 4.x | Here |
+|---|---|
+| `name` | `options.name` |
+| `mac`, with `:` and `-` removed | device key, `<mac>@<controller mac>` for VRF |
+| `host`, `port` | `connection.local.host`, `connection.local.port` |
+| `encryption_version` 1 or 2 | `connection.local.encryption_version` `"1"` or `"2"`, kept so no detection is needed |
+| `encryption_key`, `uid`, `disable_available_check` | `connection.*` |
+| `hvac_modes`, `fan_modes` | the same names |
+| `swing_modes`, `swing_horizontal_modes` | other names, matched on the value sent to the unit (4.x `swing_downmost` and 5.0 `swing_upper` both send 7) |
+| `temp_sensor_offset` | dropped, the offset is detected here |
+| state of the 4.x `target_temp_step` number and the two external sensor selects | `options.target_temp_step`, `options.external_temperature_sensor`, `options.external_humidity_sensor` |
+
+A missing mode list counts as the 4.x default list, because 4.x used that list at runtime. Values that equal the defaults here are left out. A mode list that holds every mode is left out too, except `fan_modes`: the 4.x default holds `turbo` and `quiet`, the default here does not, so that list is written out. Every converted device then goes through `ITEM_SCHEMA`, so a device that is not valid here is skipped with an error in the log.
+
+Then the devices come in one of two ways:
+
+- When a YAML block manages the local devices (a `gree:` block, or a local item in `gree_custom:`), the devices are merged into the local YAML item and the YAML import handles them at every start. A device the user already wrote in `gree_custom:` wins. The repair issue `legacy_yaml` shows the `gree_custom:` block to paste, and a warning goes to the log at every start.
+- Otherwise the `migrate` flow step adds them to the local-only entry. That step only adds devices and never removes one, and it skips devices that are already in another entry.
+
+The repair issue `legacy_folder` is raised while `custom_components/gree` holds the 4.x component. Both issues are checked at every start and removed when they no longer apply.
+
+### Phase 2, in `async_setup_entry`
+
+Before the platforms are set up, `async_migrate_legacy_registry()` handles every 4.x entry whose device is in this entry:
+
+1. Unload the 4.x entry. A setup in progress is awaited first, because Home Assistant cannot unload it. The same unload also runs at the start of the entry setup, so the two clients do not talk to the unit at the same time.
+2. Move the entity rows with `async_update_entity_platform()`. The climate entity `gree_<mac>` becomes `<mac>_hvac`, `outside_temperature` becomes `outdoor_temperature`, the switches and `room_humidity` keep their key. The number and the two selects have no entity here and stay behind. Moving the row keeps the entity ID, so history, automations and dashboards keep working.
+3. Move the device row with `async_update_device()`, so its area and user name stay. The entities have to move first: Home Assistant removes the entities of the old entry when their device moves.
+4. Disable the 4.x entry while the 4.x folder is still there, so 4.x does not load it or import it again. Remove the entry when the folder is gone. Removing it also removes the rows that did not move.
+
+After the platforms are set up, `async_remove_unprovided_entities()` removes the moved rows that got no entity, for a device that is bound. 4.x created every switch, also for features the unit does not have.
+
+Everything is safe to run again. A row that already moved is not found under `gree` any more.
+
+Limits:
+
+- For a VRF unit only the climate entity moves. 4.x used the controller MAC in the unique IDs of all other entities, so the sub-devices cannot be told apart.
+- Home Assistant writes the registries during startup with a delay of 180 seconds. If Home Assistant is killed before that, the next start moves the rows again, which gives the same result.
 
 ## Changing the shape
 
