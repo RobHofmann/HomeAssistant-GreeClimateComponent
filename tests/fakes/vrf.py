@@ -6,8 +6,8 @@ WiFi module may answer only some of them (see docs/protocol.md):
 
 - device-key: a `pack` envelope with `t: subList` inside. The reply uses the
   bound device key.
-- generic-key: a `subList` envelope with `i: 1`. The request uses the bound
-  device key, but the reply uses the generic key.
+- generic-key: a `subList` envelope with `i: 1`. Request and reply use the
+  generic key.
 - subDev: a `pack` envelope with `t: subDev` inside, for older W06 modules.
   The reply uses the bound device key.
 

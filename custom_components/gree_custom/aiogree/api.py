@@ -575,7 +575,6 @@ async def gree_get_response(
     transport: GreeBaseTransport,
     max_attempts: int | None = None,
     timeout: float | None = None,
-    response_cipher: CipherBase | None = None,
 ) -> dict:
     """Send a request to the device and return the decoded response.
 
@@ -586,8 +585,6 @@ async def gree_get_response(
         transport: Transport to send the emssage throuhg
         max_attempts: Attempts for this request instead of the transport's own
         timeout: Reply timeout for this request instead of the transport's own
-        response_cipher: Cipher to decrypt the reply with, if it differs from
-            the request cipher
 
     Returns:
         Decrypted JSON response
@@ -596,12 +593,7 @@ async def gree_get_response(
 
     try:
         data = await transport.request_json(
-            mac_controller,
-            json_data,
-            cipher,
-            max_attempts,
-            timeout,
-            response_cipher=response_cipher,
+            mac_controller, json_data, cipher, max_attempts, timeout
         )
     except GreeConnectionError:
         raise
@@ -688,8 +680,8 @@ def _create_get_subdevices_payload(
 ) -> dict:
     """Create the request for one form of the sub-device list query.
 
-    Every form encrypts its pack with the bound device key. Only the reply
-    differs, see `_get_sub_devices_list`.
+    The `generic-key` form uses the generic key, the other two use the bound
+    device key, see `_get_sub_devices_list`.
 
     Args:
         form: Which form of the query to build
@@ -1334,19 +1326,19 @@ async def _get_sub_devices_list(
     counts: dict[SubListForm, int | None] = {}
 
     for form in forms:
-        # The generic key form is encrypted with the device key, but the
-        # gateway answers it with the generic key, like a scan or a bind.
-        response_cipher = (
-            get_cipher(cipher.version) if form is SubListForm.GENERIC_KEY else None
+        # The generic key form is answered with the generic key, like a scan
+        # or a bind. A GR-Gcloud gateway ignores the request pack of this form,
+        # so the generic key is used for the request as well.
+        form_cipher = (
+            get_cipher(cipher.version) if form is SubListForm.GENERIC_KEY else cipher
         )
 
         try:
             response = await gree_get_response(
                 mac_addr_controller,
                 _create_get_subdevices_payload(form, mac_addr_controller, uid),
-                cipher,
+                form_cipher,
                 transport,
-                response_cipher=response_cipher,
             )
         except GreeConnectionError, GreeProtocolError:
             _LOGGER.debug(

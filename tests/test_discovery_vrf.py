@@ -122,10 +122,16 @@ async def test_every_sub_unit_is_addressable(
     assert {dev.host for dev in found} == {gateway.host}
 
 
-async def test_every_form_is_sent_with_the_bound_key(
+async def test_each_form_is_sent_with_its_own_key(
     gateway_factory: GatewayFactory, discover_one: DiscoverOne
 ) -> None:
-    """The gateway is bound first, so each form is readable with its key."""
+    """The generic key form uses the generic key, the other two the bound key.
+
+    The generic key form is answered with the generic key. On a GR-Gcloud
+    V3.2.M gateway the request pack of that form made no difference: the
+    device key, the generic key and a random key all got the same answer
+    (PR 507). So the request uses the generic key too.
+    """
     gateway = await gateway_factory(sub_count=4)
 
     await discover_one(gateway.host, timeout=1)
@@ -135,7 +141,7 @@ async def test_every_form_is_sent_with_the_bound_key(
         SubListForm.GENERIC_KEY,
         SubListForm.SUB_DEV,
     ]
-    assert gateway.sublist_keys == ["session", "session", "session"]
+    assert gateway.sublist_keys == ["session", "generic", "session"]
     assert [(req["t"], req["i"]) for req in gateway.sublist_requests] == [
         ("pack", 0),
         ("subList", 1),
@@ -199,8 +205,8 @@ async def test_a_gateway_that_only_answers_the_generic_key_form(
 ) -> None:
     """One unit behind the gateway, found through the generic key form alone.
 
-    The reply comes in a pack encrypted with the generic key, while the request
-    used the bound key. Reading the reply with the bound key would fail.
+    The reply comes in a pack encrypted with the generic key. Reading it with
+    the bound key would fail.
     """
     gateway = await gateway_factory(
         sub_count=1, list_shape="pack", forms={SubListForm.GENERIC_KEY: None}

@@ -47,13 +47,13 @@ A VRF gateway is one WiFi module (seen: GR-Gcloud, firmware V3.2.M) with several
 
 There are three forms of the request. Different WiFi module firmwares answer different forms, and some gateways return a different subset of units in each form. All three were seen on real hardware in PR 507 of the 4.x line.
 
-| Form (`SubListForm`) | Envelope `t`, `i` | Pack | Reply encrypted with |
+| Form (`SubListForm`) | Envelope `t`, `i` | Pack | Key, request and reply |
 |---|---|---|---|
 | `device-key` | `pack`, `0` | `{"mac": <gw>, "t": "subList", "i": 0}` | the bound device key |
 | `generic-key` | `subList`, `1` | `{"mac": <gw>, "i": 1}` | the generic key |
 | `subDev` | `pack`, `0` | `{"cid": <gw>, "i": 0, "mac": <gw>, "t": "subDev"}` | the bound device key |
 
-- The request pack is always encrypted with the bound device key. Only the `generic-key` form has a reply in another key: the generic key, as for a scan or a bind. `transport.request_json()` takes a `response_cipher` for this one case. Every other request decrypts the reply with the request cipher.
+- The `generic-key` form is answered with the generic key, as a scan or a bind is, so its request uses the generic key too. The other two forms use the bound device key both ways. A GR-Gcloud V3.2.M gateway ignores the request pack of the `generic-key` form: a pack encrypted with the device key, with the generic key and with a random key all got the same answer, readable with the generic key (probe in PR 507). No gateway is known that reads the pack of this form.
 - The `subDev` form is for older W06 class modules (seen: `362001067012+U-W06AV30.bin`, ver `V1.1.0.0`). They do not answer `subList` at all.
 - With V1, `_get_sub_devices_list()` sends all three forms in the order of the table and joins the lists by `mac`, in the order the units were first seen. On the GR-Gcloud V3.2.M gateway from PR 507 the counts were device key 4, generic key 3, subDev 4, joined 4. One debug line per gateway shows the count per form and the joined count.
 - With V2 (GCM) only the `device-key` form is sent. It is the only form known to work with V2.

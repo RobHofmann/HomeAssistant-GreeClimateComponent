@@ -79,15 +79,8 @@ class GreeBaseTransport(ABC):
         cipher: CipherBase,
         max_attempts: int | None = None,
         timeout: float | None = None,
-        response_cipher: CipherBase | None = None,
     ) -> dict[str, Any]:
-        """Send and receive a JSON payload.
-
-        The request pack is encrypted with cipher. The reply pack is decrypted
-        with response_cipher when it is given, and with cipher otherwise. Only
-        one form of the VRF sub-device list query needs this: its request uses
-        the device key and its reply uses the generic key.
-        """
+        """Send and receive a JSON payload."""
 
         requests: list[dict[str, Any]]
 
@@ -122,7 +115,7 @@ class GreeBaseTransport(ABC):
             )
 
             response = json.loads(raw_response)
-            response = gree_decrypt_pack(response, response_cipher or cipher)
+            response = gree_decrypt_pack(response, cipher)
 
             responses.append(response)
 
