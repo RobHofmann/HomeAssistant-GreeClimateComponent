@@ -314,14 +314,21 @@ class GreeDevice:
         self._state.set(GreeProp.BEEPER_NEW, 1 if self._beeper else 0)
 
         try:
-            await self._client.set_props(
-                {k.value: v for k, v in self._state.pending.items()}
-            )
+            sent = dict(self._state.pending)
+            await self._client.set_props({k.value: v for k, v in sent.items()})
 
             _LOGGER.debug("[%s:%s] Device status set", self.unique_id, self.transport)
+            # A VRF gateway answers the read below from its cache, with the old
+            # state of the indoor unit. So for a sub-unit, keep showing what was
+            # sent until the gateway reports it. Other units are not held: a
+            # value the unit corrects, for example an unsupported swing mode,
+            # then shows at once.
+            if self.is_sub_unit:
+                self._state.hold(sent)
             self._state.clear_pending()
 
             await self.fetch_device_status()
+            self._log_unconfirmed_values(sent)
 
         except GreeConnectionError, GreeProtocolError:
             _LOGGER.exception(
@@ -405,6 +412,7 @@ class GreeDevice:
         data["state_info"] = dict(self._state.info)
         data["state"] = {str(k): v for k, v in self._state.raw.items()}
         data["state_pending"] = {str(k): v for k, v in self._state.pending.items()}
+        data["state_held"] = {str(k): v for k, v in self._state.held.items()}
         data["state_unknown"] = {str(k): v for k, v in self._state.unknown.items()}
 
         return data
@@ -557,6 +565,35 @@ class GreeDevice:
     def available(self) -> bool:
         """Return True if the device is bound and last connection was successful."""
         return self._client.bound and self._client.available
+
+    def _log_unconfirmed_values(self, sent: Mapping[GreeProp, int]) -> None:
+        """Log sent values that the read right after the command does not show.
+
+        This runs for every device, held or not. It shows in the field which
+        devices and transports answer with an old or a corrected value.
+        """
+        for prop, value in sent.items():
+            reported = self._state.raw.get(prop)
+            if reported is not None and reported != value:
+                _LOGGER.debug(
+                    "[%s:%s] The read right after the command reports %s=%d, but %d was sent (sub-unit: %s)",
+                    self.unique_id,
+                    self.transport,
+                    prop,
+                    reported,
+                    value,
+                    self.is_sub_unit,
+                )
+
+    @property
+    def is_sub_unit(self) -> bool:
+        """Return True if the device is an indoor unit behind a VRF gateway."""
+        return self.mac_address != self.mac_address_controller
+
+    @property
+    def has_held_values(self) -> bool:
+        """Return True if sent values still wait for the device to confirm them."""
+        return bool(self._state.held)
 
     @property
     def is_bound(self) -> bool:

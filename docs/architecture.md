@@ -26,7 +26,7 @@ No Home Assistant imports here.
 | File | What it does |
 |---|---|
 | `__init__.py` | Entry setup. Builds transports and devices, binds them, starts one `GreeCoordinator` per device. |
-| `coordinator.py` | `GreeCoordinator`. Polls on `scan_interval` and listens for status pushed by the device. |
+| `coordinator.py` | `GreeCoordinator`. Polls on `scan_interval` and listens for status pushed by the device. Polls again every 2 s after a command while the device has not confirmed it, until the hold ends. |
 | `config_flow.py` | Setup, reconfigure, reauth and YAML import flows. Local discovery, cloud login, device picker, per device options. `async_step_import` turns one validated YAML item into a config entry. |
 | `config_schema.py` | `CONFIG_SCHEMA` for the `gree_custom:` block in `configuration.yaml`. Validates the YAML, normalizes the MAC addresses and fills the defaults. It also holds the form schemas that the config flow shows. |
 | `migration.py` | Moves a 4.x setup (domain `gree`) to this integration: config entries, the `gree:` YAML block, and the device and entity registry rows. See [config-entry.md](config-entry.md#migration-from-4x). |
@@ -48,7 +48,10 @@ Discovery runs before any device object exists, and it has its own path.
 - `gree_discover_device_local()` scans one host.
 - A host that answers with `subCnt` above zero is a VRF gateway. It is bound,
   asked for its sub-device list, and then left out of the result itself. Only
-  the units behind it are returned.
+  the units behind it are returned. The list request has three forms, see
+  [protocol.md](protocol.md#vrf-gateways).
+- `gree_discover_devices_local()` handles the scan replies side by side, so
+  one slow gateway does not hold up the others.
 
 Both functions build their own `GreeUdpTransport` and neither closes it. The
 socket opens on the first request and is closed again when the function returns,
@@ -75,8 +78,9 @@ Entities are only created for props the device supports. A device with few featu
 State lives in `DeviceState`, one per device.
 
 - `raw` is what the device last reported, as integers.
-- `pending` is what we want to send next. `set()` writes here. Reads check `pending` first, then `raw`.
-- `push_device_status()` sends the pending values in one command and then refreshes `raw`.
+- `pending` is what we want to send next. `set()` writes here. Reads check `pending` first, then `held`, then `raw`.
+- `held` is what was sent in the last commands to a VRF sub-unit and is not confirmed by the gateway yet. A hold ends when the device reports the sent value, or after 8 s. See [protocol.md](protocol.md#stale-state-after-a-command).
+- `push_device_status()` sends the pending values in one command, moves them to `held`, and then refreshes `raw`.
 - `info` holds the `InfoProp` values as strings.
 - `unknown` holds columns the device sent that we do not know. They show up in diagnostics.
 - `supports(prop)` is true only if the prop is in `raw` and in the capability list. The beeper is always supported.

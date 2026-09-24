@@ -60,6 +60,8 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
         raw_reply: bytes | None = None,
         reply_key: str | None = None,
         scan_info: dict[str, Any] | None = None,
+        stale_reads_after_cmd: int = 0,
+        apply_commands: bool = True,
     ) -> None:
         """Set up the device.
 
@@ -85,6 +87,12 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
             reply_key: Encrypt replies with this key instead of the session
                 key, which is what a device with a rotated key looks like.
             scan_info: Extra fields for the scan reply, for example subCnt.
+            stale_reads_after_cmd: After a command, answer this many status
+                requests with the values from before the command, as a VRF
+                gateway does from its cache. Counted per request, and one poll
+                can be several requests. `catch_up()` ends it at once.
+            apply_commands: False means a command is acknowledged but the
+                values do not change. That is a command the unit rejected.
 
         """
         self.mac = mac
@@ -104,6 +112,13 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
         self.raw_reply = raw_reply
         self.reply_key = reply_key
         self.scan_info = scan_info
+        self.stale_reads_after_cmd = stale_reads_after_cmd
+        self.apply_commands = apply_commands
+
+        # The cached state a gateway answers with after a command, and how
+        # many more status requests it is used for.
+        self._stale_values: dict[str, Any] | None = None
+        self._stale_reads_left = 0
 
         # A device does not type its values. Info columns come back as text
         # and some units answer an int where others answer a string.
@@ -149,6 +164,11 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
         self.packs.clear()
         self.request_times.clear()
         self.keys_used.clear()
+
+    def catch_up(self) -> None:
+        """Stop answering with the state from before the last command."""
+        self._stale_values = None
+        self._stale_reads_left = 0
 
     def rotate_key(self) -> None:
         """Hand out a new session key, as a device does after a power cycle."""
@@ -327,21 +347,36 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
             # A unit at its column limit answers r=200 with nothing in it.
             return {"t": "dat", "mac": self.mac, "r": 200, "cols": [], "dat": []}
 
+        values = self.values
+        if self._stale_values is not None and self._stale_reads_left > 0:
+            values = self._stale_values
+            self._stale_reads_left -= 1
+            if self._stale_reads_left == 0:
+                self._stale_values = None
+
         answered = [col for col in cols if col not in self.unsupported_props]
         return {
             "t": "dat",
             "mac": self.mac,
             "r": 200,
             "cols": answered,
-            "dat": [self.values.get(col, 0) for col in answered],
+            "dat": [values.get(col, 0) for col in answered],
         }
 
     def build_command_result(self, pack: dict[str, Any]) -> dict[str, Any]:
         """Acknowledge a command by mirroring its options and values."""
         options = list(pack.get("opt", []))
         values = list(pack.get("p", []))
-        for option, value in zip(options, values, strict=False):
-            self.values[option] = value
+
+        if self.stale_reads_after_cmd > 0:
+            # Keep the oldest cache when commands follow each other quickly.
+            if self._stale_values is None:
+                self._stale_values = dict(self.values)
+            self._stale_reads_left = self.stale_reads_after_cmd
+
+        if self.apply_commands:
+            for option, value in zip(options, values, strict=False):
+                self.values[option] = value
         return {
             "t": "res",
             "mac": self.mac,

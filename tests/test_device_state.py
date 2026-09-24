@@ -4,6 +4,10 @@ Pure state handling, no socket. The rules that matter here are which value a
 read returns, when a property counts as supported, and when a property is
 dropped from polling. A property only ever leaves the poll list, it never
 comes back, so a wrong drop is permanent for the life of the object.
+
+Held values are what was sent in the last command and is not confirmed yet. A
+VRF gateway can report its old cached state for a few seconds after a command.
+The hold tests use a fake clock, so no test waits for the real time to pass.
 """
 
 # pylint: disable=redefined-outer-name
@@ -11,6 +15,7 @@ comes back, so a wrong drop is permanent for the life of the object.
 # pytest pattern, not shadowing.
 
 from aiogree.api import GreeProp, InfoProp
+from aiogree.const import HELD_VALUE_TTL
 from aiogree.device_state import DeviceState
 import pytest
 
@@ -23,6 +28,34 @@ DEVICE_ID = "f4911e3f1ac8"
 def state() -> DeviceState:
     """Build a state object that knows every property."""
     return DeviceState(device_id=DEVICE_ID, capabilities=list(GreeProp))
+
+
+class FakeClock:
+    """Monotonic seconds that only move when a test says so."""
+
+    def __init__(self) -> None:
+        """Start at a fixed time."""
+        self.now = 1000.0
+
+    def __call__(self) -> float:
+        """Return the current time."""
+        return self.now
+
+    def advance(self, seconds: float) -> None:
+        """Move the time forward."""
+        self.now += seconds
+
+
+@pytest.fixture
+def clock() -> FakeClock:
+    """Return a clock the test controls."""
+    return FakeClock()
+
+
+@pytest.fixture
+def timed_state(clock: FakeClock) -> DeviceState:
+    """Build a state object that reads the time from the fake clock."""
+    return DeviceState(device_id=DEVICE_ID, capabilities=list(GreeProp), clock=clock)
 
 
 def seed(state: DeviceState, values: dict[GreeProp, int]) -> None:
@@ -199,3 +232,129 @@ def test_the_views_are_read_only(state: DeviceState) -> None:
 
     with pytest.raises(TypeError):
         state.raw[GreeProp.POWER] = 0  # type: ignore[index]
+
+
+#
+# Held values
+#
+
+
+def test_a_stale_report_does_not_undo_a_sent_value(timed_state: DeviceState) -> None:
+    """The gateway still reports the old value, but the read shows the sent one."""
+    seed(timed_state, {GreeProp.TARGET_TEMPERATURE: 21})
+    timed_state.hold({GreeProp.TARGET_TEMPERATURE: 24})
+
+    seed(timed_state, {GreeProp.TARGET_TEMPERATURE: 21})
+
+    assert timed_state.get(GreeProp.TARGET_TEMPERATURE) == 24
+    assert timed_state.raw[GreeProp.TARGET_TEMPERATURE] == 21
+    assert timed_state.held == {GreeProp.TARGET_TEMPERATURE: 24}
+
+
+def test_a_report_of_the_sent_value_ends_the_hold(timed_state: DeviceState) -> None:
+    """Once confirmed, later reports count again, for example from a remote."""
+    seed(timed_state, {GreeProp.TARGET_TEMPERATURE: 21})
+    timed_state.hold({GreeProp.TARGET_TEMPERATURE: 24})
+
+    seed(timed_state, {GreeProp.TARGET_TEMPERATURE: 24})
+
+    assert timed_state.held == {}
+
+    seed(timed_state, {GreeProp.TARGET_TEMPERATURE: 19})
+
+    assert timed_state.get(GreeProp.TARGET_TEMPERATURE) == 19
+
+
+def test_a_hold_ends_when_its_time_is_up(
+    timed_state: DeviceState, clock: FakeClock
+) -> None:
+    """After the TTL the reported value wins, even without a new report."""
+    seed(timed_state, {GreeProp.POWER: 1})
+    timed_state.hold({GreeProp.POWER: 0})
+    seed(timed_state, {GreeProp.POWER: 1})
+
+    clock.advance(HELD_VALUE_TTL - 0.1)
+    assert timed_state.get(GreeProp.POWER) == 0
+
+    clock.advance(0.1)
+    assert timed_state.get(GreeProp.POWER) == 1
+    assert timed_state.held == {}
+
+
+def test_a_rejected_command_is_not_shown_for_ever(
+    timed_state: DeviceState, clock: FakeClock
+) -> None:
+    """A device that keeps its old value gets the last word after the TTL."""
+    seed(timed_state, {GreeProp.FAN_SPEED: 0})
+    timed_state.hold({GreeProp.FAN_SPEED: 3})
+
+    for _ in range(4):
+        seed(timed_state, {GreeProp.FAN_SPEED: 0})
+        assert timed_state.get(GreeProp.FAN_SPEED) == 3
+        clock.advance(HELD_VALUE_TTL / 4)
+
+    seed(timed_state, {GreeProp.FAN_SPEED: 0})
+
+    assert timed_state.get(GreeProp.FAN_SPEED) == 0
+    assert timed_state.held == {}
+
+
+def test_a_new_command_starts_a_new_hold(
+    timed_state: DeviceState, clock: FakeClock
+) -> None:
+    """The TTL counts from the last time a value was sent."""
+    seed(timed_state, {GreeProp.POWER: 1})
+    timed_state.hold({GreeProp.POWER: 0})
+    clock.advance(HELD_VALUE_TTL - 1)
+
+    timed_state.hold({GreeProp.POWER: 0})
+    clock.advance(2)
+
+    assert timed_state.get(GreeProp.POWER) == 0
+
+
+def test_a_pending_value_wins_over_a_held_one(timed_state: DeviceState) -> None:
+    """A change that is not sent yet is newer than the one that was sent."""
+    seed(timed_state, {GreeProp.TARGET_TEMPERATURE: 21})
+    timed_state.hold({GreeProp.TARGET_TEMPERATURE: 24})
+    timed_state.set(GreeProp.TARGET_TEMPERATURE, 25)
+
+    assert timed_state.get(GreeProp.TARGET_TEMPERATURE) == 25
+    assert timed_state.pending == {GreeProp.TARGET_TEMPERATURE: 25}
+    assert timed_state.held == {GreeProp.TARGET_TEMPERATURE: 24}
+
+    timed_state.clear_pending()
+
+    assert timed_state.get(GreeProp.TARGET_TEMPERATURE) == 24
+
+
+def test_a_change_back_to_the_stale_value_is_still_sent(
+    timed_state: DeviceState,
+) -> None:
+    """The device was told 24, so going back to 21 is a real change."""
+    seed(timed_state, {GreeProp.TARGET_TEMPERATURE: 21})
+    timed_state.hold({GreeProp.TARGET_TEMPERATURE: 24})
+
+    timed_state.set(GreeProp.TARGET_TEMPERATURE, 21)
+    assert timed_state.has_pending_updates
+
+    timed_state.set(GreeProp.TARGET_TEMPERATURE, 24)
+    assert not timed_state.has_pending_updates
+
+
+def test_props_that_are_not_polled_are_not_held(timed_state: DeviceState) -> None:
+    """The beeper is never reported, so there is nothing to wait for."""
+    seed(timed_state, {GreeProp.POWER: 1})
+    timed_state.hold({GreeProp.POWER: 0, GreeProp.BEEPER: 1, GreeProp.BEEPER_NEW: 0})
+
+    assert timed_state.held == {GreeProp.POWER: 0}
+
+
+def test_removing_a_prop_drops_its_hold(timed_state: DeviceState) -> None:
+    """A prop that is no longer polled can never be confirmed."""
+    seed(timed_state, {GreeProp.FEAT_LIGHT: 1})
+    timed_state.hold({GreeProp.FEAT_LIGHT: 0})
+
+    timed_state.remove(GreeProp.FEAT_LIGHT)
+
+    assert timed_state.held == {}

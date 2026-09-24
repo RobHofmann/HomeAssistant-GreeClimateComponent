@@ -70,6 +70,10 @@ The integration raises repair issues under **Settings** > **System** > **Repairs
 
 **The Gree app logs me out.** Gree allows one session per account, and every login by the integration ends the app session. The integration logs in only when it has no session token yet. That is at the first setup of an account, at a YAML import with new account details, and at reauthentication. Loading or reloading the entry uses the stored token. See [Gree account](configuration.md#gree-account).
 
+**A setting jumps back after a few seconds.** After a change, the integration shows the new value for up to 8 seconds while the device still reports the old one. A VRF controller does this for a few seconds after every change. If the device still reports the old value after 8 seconds, it did not take the change, and the old value is shown again. Check that the setting is allowed in the current mode.
+
+**Not every indoor unit of a VRF system is found.** The controller is asked for its units in three ways, because WiFi modules differ. Turn on [debug logging](#enable-debug-logging) and run the discovery again. The line `Sub-device list per form` shows how many units each way returned. Attach it to an issue.
+
 **The device is on another VLAN and is not found.** Broadcasts do not cross VLANs. Add the network or the IP under **Extra Networks** or **Extra Hosts**, and allow UDP 7000 in the firewall.
 
 **Two Gree integrations show up.** Home Assistant ships its own `gree` integration. This one is called **Gree Climate** in the setup dialog and has the domain `gree_custom`. Both can be installed, but do not add the same device to both.
