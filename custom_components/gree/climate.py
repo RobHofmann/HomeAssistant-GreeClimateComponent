@@ -1,4 +1,4 @@
-/"""
+"""
 Gree Climate Entity for Home Assistant.
 
 This module defines the climate (HVAC) unit for the Gree integration.
@@ -273,8 +273,11 @@ class GreeClimate(ClimateEntity):
             jsonPayloadToSend = '{"cid":"app","i":0,"pack":"' + pack + '","t":"pack","tcid":"' + str(self._mac_addr) + '","uid":{}'.format(self._uid) + ',"tag" : "' + tag + '"}'
             cipher = GetGCMCipher(self._encryption_key)
         result = await FetchResult(cipher, self._ip_addr, self._port, jsonPayloadToSend, encryption_version=self.encryption_version)
-        return None if len(result["dat"]) == 0 else result["dat"][0] if len(result["dat"]) == 1 else result["dat"]
-        
+
+        if not result["dat"]:
+            return None
+        return result["dat"][0] if len(result["dat"]) == 1 else result["dat"]
+
     def SetAcOptions(self, acOptions, newOptionsToOverride, optionValuesToOverride=None):
         if optionValuesToOverride is not None:
             # Build a list of key-value pairs for a single log line
