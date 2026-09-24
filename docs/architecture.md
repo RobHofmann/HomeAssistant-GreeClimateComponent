@@ -80,7 +80,8 @@ The indoor units behind one local VRF gateway are grouped under a controller dev
 
 - A sub-unit is a device whose `connection.local.mac_controller_local` is set and differs from its own MAC. The runtime `mac_address_controller` is not used, because for MQTT it comes from the cloud MAC.
 - Every local controller MAC with at least one sub-unit gets one controller device. Its identifier is `(gree_custom, "controller_<mac>")`, its model is `VRF gateway`, and its name comes from the `vrf_controller` device translation.
-- The controller has no entities and no `connections`. A MAC connection would merge it with any other device that has the same MAC.
+- The controller has no entities. Its `connections` hold the gateway MAC. Discovery never returns the gateway itself as a device, so no other device of this integration has that MAC.
+- Its `sw_version` and `hw_version` come from the first bound sub-unit, because the firmware belongs to the WiFi module of the gateway. With no bound sub-unit the registry keeps the last known values.
 - A cloud-only VRF has no local controller MAC, so it gets no controller device yet.
 
 `reconcile_vrf_controllers()` in `helpers.py` does the work. Entry setup calls it twice. The first call, before the platforms are set up, creates the wanted controllers and removes the ones without a sub-unit. A wanted controller is never removed and created again, so its device id, user name and area survive a restart. The second call, after the platforms are set up, links each sub-unit with `async_update_device(via_device_id=...)`. The sub-unit devices only exist once their entities are added.

@@ -43,14 +43,6 @@ class GreeEntity(CoordinatorEntity[GreeCoordinator]):
     @override
     def device_info(self) -> DeviceInfo:
         """Return the device info."""
-        if self.device.mac_address != self.device.mac_address_controller:
-            return DeviceInfo(
-                connections={(CONNECTION_NETWORK_MAC, self.device.mac_address)},
-                identifiers={(DOMAIN, self.device.unique_id)},
-                name=self.device.name,
-                manufacturer="Gree",
-                sw_version=self.device.firmware_version,
-            )
         return DeviceInfo(
             connections={(CONNECTION_NETWORK_MAC, self.device.mac_address)},
             identifiers={(DOMAIN, self.device.unique_id)},

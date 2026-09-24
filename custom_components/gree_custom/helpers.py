@@ -11,6 +11,7 @@ from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.storage import Store
+from homeassistant.helpers.typing import UNDEFINED, UndefinedType
 
 from .aiogree.api import GreeDiscoveredDevice, gree_discover_devices
 from .aiogree.device import GreeDevice
@@ -404,13 +405,26 @@ def reconcile_vrf_controllers(
             device_registry.async_remove_device(device_entry.id)
 
     controller_ids: dict[str, str] = {}
-    for controller_mac in sub_units:
-        # No connections on purpose: a device with the same MAC would be merged
+    for controller_mac, sub_macs in sub_units.items():
+        # The firmware belongs to the WiFi module of the gateway, so take it
+        # from a bound sub-unit. Without one, keep what the registry has.
+        sw_version: str | UndefinedType | None = UNDEFINED
+        hw_version: str | UndefinedType | None = UNDEFINED
+        for sub_mac in sorted(sub_macs):
+            coordinator = entry.runtime_data.get(sub_mac)
+            if coordinator is not None and coordinator.device.is_bound:
+                sw_version = coordinator.device.firmware_version
+                hw_version = coordinator.device.firmware_code
+                break
+
         controller = device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{VRF_CONTROLLER_ID_PREFIX}{controller_mac}")},
+            connections={(dr.CONNECTION_NETWORK_MAC, controller_mac)},
             manufacturer="Gree",
             model="VRF gateway",
+            sw_version=sw_version,
+            hw_version=hw_version,
             translation_key=VRF_CONTROLLER_TRANSLATION_KEY,
             translation_placeholders={"mac": controller_mac[-5:]},
         )
