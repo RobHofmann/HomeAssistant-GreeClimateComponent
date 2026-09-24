@@ -63,6 +63,7 @@ Your devices are under **Settings** > **Devices & Services** > **Gree Climate**.
 
 ## ❓ Help and support
 
+- 💬 **[Discord](https://discord.gg/JPcBkvRhTS)**: questions and chat with other users and the maintainers. Report bugs as a GitHub issue, not on Discord.
 - 🔧 **[Troubleshooting](docs/troubleshooting.md)**: debug logging, repair issues, common errors, and how to report a bug
 - 🔑 **[Encryption key](docs/encryption-key.md)**: when the integration cannot get the device key by itself
 - 📋 **[Supported devices](supported-devices.md)**: units that are known to work, and how to add yours
