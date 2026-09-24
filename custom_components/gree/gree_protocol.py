@@ -726,8 +726,10 @@ async def get_subunits_list(mac_addr, ip_addr, port):
     * Device-key form (``i:0`` / ``t:"pack"``): the response is encrypted with
       the gateway's *bound* device key. This is what GR-Gcloud V3.2.M answers.
     * Generic-key form (``i:1`` / ``t:"subList"``, the classic app form): the
-      response is encrypted with the *generic* key (like scan/bind). Some
-      modules only answer this form.
+      response is encrypted with the *generic* key (like scan/bind), so the
+      request uses the generic key too. GR-Gcloud V3.2.M ignores the request
+      pack of this form: device, generic and random keys all got the same
+      answer (PR 507). Some modules only answer this form.
 
     On v1 we query *both* forms and union the results by MAC: different
     firmwares answer different forms, and some gateways return a slightly
@@ -769,9 +771,9 @@ async def get_subunits_list(mac_addr, ip_addr, port):
         payload = f'{{"cid":"app","i":0,"pack":"{pack}","t":"pack","tcid":"{mac_addr}","uid":0}}'
         device_units = await _subunits_send_ecb(ip_addr, port, payload, device_key)
 
-        # Generic-key form: i:1 / t:subList -> response encrypted with generic key.
+        # Generic-key form: i:1 / t:subList -> request and response use the generic key.
         inner_fb = f'{{"mac":"{mac_addr}","i":1}}'
-        pack_fb = base64.b64encode(AES.new(device_key, AES.MODE_ECB).encrypt(Pad(inner_fb).encode("utf8"))).decode("utf-8")
+        pack_fb = base64.b64encode(AES.new(generic_key, AES.MODE_ECB).encrypt(Pad(inner_fb).encode("utf8"))).decode("utf-8")
         payload_fb = f'{{"cid":"app","i":1,"pack":"{pack_fb}","t":"subList","tcid":"{mac_addr}","uid":0}}'
         generic_units = await _subunits_send_ecb(ip_addr, port, payload_fb, generic_key)
 
