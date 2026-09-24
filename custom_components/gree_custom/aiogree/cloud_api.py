@@ -23,6 +23,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from pydantic import BaseModel, ConfigDict, Field
 
 from .errors import GreeCloudError, GreeCloudLoginError
+from .helpers import redact_str
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -416,7 +417,7 @@ class GreeCloudApi:
         )
         decrypted = self._decrypt(base64.b64decode(encrypted_response))
         data = json.loads(decrypted)
-        _LOGGER.debug(data)
+        # Not logged raw: it holds the device keys. See get_all_devices().
 
         devices = []
         for room in data["rooms"]:
@@ -443,6 +444,13 @@ class GreeCloudApi:
         for home in homes:
             devices = await self.get_devices(home.id)
             all_devices.extend(devices)
+
+        # Log the raw list, so users with a cloud VRF can share the pmac of the
+        # sub-units. A later change can then group them under their gateway.
+        _LOGGER.debug(
+            "Raw cloud device list: %s",
+            [d.model_dump() | {"key": redact_str(d.key)} for d in all_devices],
+        )
 
         # Filter duplicates: when same key exists with MACs where one ends with '00'
         filtered_devices = self._filter_duplicate_devices_complete(all_devices)

@@ -40,6 +40,7 @@ For a cloud entry, `cloud` holds the account email, region, user id and token. T
 
 | Field | Meaning |
 |---|---|
+| `connection.local.mac_controller_local` | MAC of the unit that answers UDP. The device MAC for a normal unit, the gateway MAC for a VRF sub-unit. Every distinct gateway MAC with a sub-unit gets a controller device without config of its own, see [architecture.md](architecture.md#vrf-controller-device). |
 | `connection.local.host`, `port` | Where the unit answers UDP. Port is 7000 for every known unit. |
 | `connection.local.timeout` | Seconds to wait for one UDP reply. |
 | `connection.local.encryption_version` | `"0"` auto, `"1"` ECB, `"2"` GCM. After a successful bind the detected version is written back here. |

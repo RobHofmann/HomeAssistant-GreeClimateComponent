@@ -210,6 +210,11 @@
             }
         }
     },
+    "device": {
+        "vrf_controller": {
+            "name": "VRF gateway {mac}"
+        }
+    },
     "entity": {
         "sensor": {
             "indoor_temperature": {
@@ -363,6 +368,9 @@
         },
         "smart_dry_unavailable": {
             "message": "Smart Dry is only available in Cool mode."
+        },
+        "remove_vrf_controller": {
+            "message": "This is a VRF controller. Delete its sub-units first, and the controller is deleted automatically."
         }
     },
     "issues": {

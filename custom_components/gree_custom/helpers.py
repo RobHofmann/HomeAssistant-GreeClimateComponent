@@ -9,7 +9,7 @@ from homeassistant.components import network
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.storage import Store
 
 from .aiogree.api import GreeDiscoveredDevice, gree_discover_devices
@@ -33,6 +33,8 @@ from .const import (
     DEFAULT_DISCOVERY_TIMEOUT,
     DOMAIN,
     MAX_UNICAST_SCAN_HOSTS,
+    VRF_CONTROLLER_ID_PREFIX,
+    VRF_CONTROLLER_TRANSLATION_KEY,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -336,3 +338,106 @@ def get_subdevices_mac_matching_controller(
         return None
 
     return matched_entry, matched_devices
+
+
+def get_vrf_sub_units(device_configs: Mapping[str, Any]) -> dict[str, set[str]]:
+    """Return the sub-unit macs per local VRF controller mac.
+
+    A sub-unit is a device whose saved local controller mac is set and differs
+    from its own mac. The runtime controller mac of the bound transport is not
+    used, because for MQTT it is derived from the cloud mac.
+    """
+    sub_units: dict[str, set[str]] = {}
+
+    for mac, device in device_configs.items():
+        controller_local = (
+            device.get(CONF_DEVICE_CONNECTION, {})
+            .get(CONF_DEVICE_CONNECTION_LOCAL, {})
+            .get(CONF_MAC_CONTROLLER_LOCAL)
+        )
+
+        if not controller_local or controller_local == mac:
+            continue
+
+        sub_units.setdefault(controller_local, set()).add(mac)
+
+    return sub_units
+
+
+def get_vrf_controller_mac(device_entry: dr.DeviceEntry) -> str | None:
+    """Return the controller mac if the device is a VRF controller device."""
+    return next(
+        (
+            identifier.removeprefix(VRF_CONTROLLER_ID_PREFIX)
+            for domain, identifier in device_entry.identifiers
+            if domain == DOMAIN and identifier.startswith(VRF_CONTROLLER_ID_PREFIX)
+        ),
+        None,
+    )
+
+
+def reconcile_vrf_controllers(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    device_configs: Mapping[str, Any],
+    link_sub_units: bool = True,
+) -> None:
+    """Create, remove and link the VRF controller devices of a config entry.
+
+    Every local controller mac with at least one sub-unit gets a controller
+    device without entities. A wanted controller is never recreated, so its
+    device id, user name and area survive restarts.
+
+    The sub-units are linked from here and not through DeviceInfo, because HA
+    2026.3 only has via_device and newer versions only have via_device_id.
+    The link needs the sub-unit devices, so they must exist first.
+    """
+    device_registry = dr.async_get(hass)
+    sub_units = get_vrf_sub_units(device_configs)
+    entry_devices = dr.async_entries_for_config_entry(device_registry, entry.entry_id)
+
+    # Remove the controllers that have no sub-unit anymore
+    for device_entry in entry_devices:
+        controller_mac = get_vrf_controller_mac(device_entry)
+        if controller_mac is not None and controller_mac not in sub_units:
+            _LOGGER.debug("Removing VRF controller device %s", controller_mac)
+            device_registry.async_remove_device(device_entry.id)
+
+    controller_ids: dict[str, str] = {}
+    for controller_mac in sub_units:
+        # No connections on purpose: a device with the same MAC would be merged
+        controller = device_registry.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={(DOMAIN, f"{VRF_CONTROLLER_ID_PREFIX}{controller_mac}")},
+            manufacturer="Gree",
+            model="VRF gateway",
+            translation_key=VRF_CONTROLLER_TRANSLATION_KEY,
+            translation_placeholders={"mac": controller_mac[-5:]},
+        )
+        controller_ids[controller_mac] = controller.id
+
+    if not link_sub_units:
+        return
+
+    # Look up the sub-units in the entry devices, async_get_device is
+    # deprecated in newer HA versions and its replacement is not in 2026.3
+    devices_by_mac: dict[str, dr.DeviceEntry] = {
+        identifier: device_entry
+        for device_entry in entry_devices
+        for domain, identifier in device_entry.identifiers
+        if domain == DOMAIN
+    }
+
+    for controller_mac, sub_macs in sub_units.items():
+        controller_id = controller_ids[controller_mac]
+        for sub_mac in sub_macs:
+            sub_device = devices_by_mac.get(sub_mac)
+            if sub_device is None or sub_device.via_device_id == controller_id:
+                continue
+
+            _LOGGER.debug(
+                "Linking VRF sub-unit %s to controller %s", sub_mac, controller_mac
+            )
+            device_registry.async_update_device(
+                sub_device.id, via_device_id=controller_id
+            )

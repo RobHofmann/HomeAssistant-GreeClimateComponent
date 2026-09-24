@@ -6,6 +6,8 @@ Every device gets one climate entity and a set of sensors, switches, selects and
 2. **What you enabled.** The **Device Features and Modes** option decides which optional switches and selects are created. See [configuration.md](configuration.md#device-features).
 3. **The current mode.** Some features only exist in some HVAC modes. The entity then shows as unavailable in the other modes.
 
+A VRF system also gets a **VRF gateway** device for its WiFi gateway. It has no entities. Its device page lists the indoor units under **Connected devices**. You cannot delete it. Delete its indoor units, and the gateway device goes away with the last one. You can rename it and give it an area. A VRF that is only added through the cloud gets no gateway device yet.
+
 Home Assistant chooses the entity IDs, not the integration. By default it builds them from the device name and the translated entity name. A device named `Living Room AC` in an English Home Assistant then gets `climate.living_room_ac` and `switch.living_room_ac_x_fan`. That default depends on your language and on your Home Assistant version, and you can change any ID yourself. Copy the IDs from the device page instead of guessing them. The examples below use `climate.your_ac`.
 
 ## Climate

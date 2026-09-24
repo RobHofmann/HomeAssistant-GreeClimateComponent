@@ -50,7 +50,6 @@ class GreeEntity(CoordinatorEntity[GreeCoordinator]):
                 name=self.device.name,
                 manufacturer="Gree",
                 sw_version=self.device.firmware_version,
-                # via_device=(DOMAIN, self.device.mac_address_controller),
             )
         return DeviceInfo(
             connections={(CONNECTION_NETWORK_MAC, self.device.mac_address)},
