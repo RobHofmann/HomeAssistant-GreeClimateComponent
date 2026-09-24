@@ -17,7 +17,9 @@
             "reconfigure_successful": "Dispositivos reconfigurados com sucesso",
             "already_configured": "Um dispositivo com o este endere;o MAC j]a est]a configurado.",
             "unique_id_mismatch": "A entrada a ser configurada não corresponde o tipo de configuração.",
-            "no_devices_to_add": "Não foram encontrados novos dispositivos. Ajuste as opções de procura e tente de novo."
+            "no_devices_to_add": "Não foram encontrados novos dispositivos. Ajuste as opções de procura e tente de novo.",
+            "import_failed": "A configuração YAML não pôde ser importada. Consulte as correções sugeridas e o log para saber o motivo.",
+            "legacy_migration_started": "Os seus dispositivos Gree da versão 4.x estão a ser migrados para a nova versão. Eles irão aparecer dentro de segundos, com os mesmos IDs de entidade."
         },
         "step": {
             "user": {
@@ -141,14 +143,6 @@
         },
         "climate": {
             "hvac": {
-                "state": {
-                    "auto": "Automático",
-                    "cool": "Arrefecer",
-                    "dry": "Secar",
-                    "fan_only": "Ventilação",
-                    "heat": "Aquecer",
-                    "off": "Desligado"
-                },
                 "state_attributes": {
                     "fan_mode": {
                         "state": {
@@ -383,6 +377,18 @@
         "device_connection_failed": {
             "title": "Falha de comunicação",
             "description": "Não foi possível comunicar com o dispositivo {device}."
+        },
+        "legacy_folder": {
+            "description": "A pasta `custom_components/gree` relativa à versão 4.x da integração ainda está instalada. O HACS não a remove quando a versão é instalada. Os dispositivos da versão 4.x são migrados para esta nova versão, e as configurações anteriores desativadas.\n\nRemova a pasta `custom_components/gree` e reinicie o Home Assistant. No arranque, esta nova versão da integração remove as configurações anteriores.",
+            "title": "Remover os ficheiros antigos da versão 4.x"
+        },
+        "legacy_yaml": {
+            "description": "Alguns dispositivos Gree ainda vêm da configuração do Gree 4.x: o bloco `gree:` em `configuration.yaml`, ou dispositivos que você configura pela UI 4.x enquanto um bloco YAML gerencia os dispositivos locais. Esta versão converte-os a cada inicialização, para que continuem a funcionar. Esta migração será removida numa versão posterior.\n\nSubstitua o bloco `gree:` pelo bloco abaixo. Se já possui um bloco `gree_custom:`, adicione os dispositivos em `devices:`. De seguida, reinicie o Home Assistant. Esta mensagem desaparece quando mais nenhum dispositivo dependa da configuração 4.x.\n\n```yaml\n{yaml}\n```",
+            "title": "Atualize a sua confiuração Gree 4.x"
+        },
+        "yaml_import_failed": {
+            "description": "Não foi possível importar a configuração YAML para {item}: {reason}",
+            "title": "Falha na importação de YAML"
         }
     },
     "services": {
