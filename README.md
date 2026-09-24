@@ -10,6 +10,8 @@
 
 Gree integration for Home Assistant. It controls Gree air conditioners, and the many brands that use the Gree protocol, over your local network or through the Gree cloud.
 
+[![Join our Discord](https://img.shields.io/badge/Discord-Join%20the%20chat-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/JPcBkvRhTS)
+
 ## 📖 Documentation
 
 **[Complete documentation](docs/README.md)**, in the `docs/` folder of this repository:
