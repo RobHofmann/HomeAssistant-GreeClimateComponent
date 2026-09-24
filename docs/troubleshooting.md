@@ -74,6 +74,10 @@ The integration raises repair issues under **Settings** > **System** > **Repairs
 
 **Not every indoor unit of a VRF system is found.** The controller is asked for its units in three ways, because WiFi modules differ. Turn on [debug logging](#enable-debug-logging) and run the discovery again. The line `Sub-device list per form` shows how many units each way returned. Attach it to an issue.
 
+**My cloud VRF has no gateway device.** Only a VRF with a local gateway MAC gets a gateway device for now. To help group cloud units later, turn on [debug logging](#enable-debug-logging) and run the cloud setup flow again. The line `Raw cloud device list` shows each unit with its `mac` and `pmac`, with the key redacted. Attach it to an issue.
+
+**The VRF gateway device cannot be deleted.** That is by design. The gateway device has no config of its own. Delete its indoor units, and it goes away with the last one.
+
 **The device is on another VLAN and is not found.** Broadcasts do not cross VLANs. Add the network or the IP under **Extra Networks** or **Extra Hosts**, and allow UDP 7000 in the firewall.
 
 **Two Gree integrations show up.** Home Assistant ships its own `gree` integration. This one is called **Gree Climate** in the setup dialog and has the domain `gree_custom`. Both can be installed, but do not add the same device to both.

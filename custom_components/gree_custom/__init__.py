@@ -20,7 +20,11 @@ from homeassistant.const import (
     Platform,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.exceptions import (
+    ConfigEntryAuthFailed,
+    ConfigEntryNotReady,
+    HomeAssistantError,
+)
 from homeassistant.helpers import device_registry as dr, issue_registry as ir
 from homeassistant.helpers.typing import ConfigType
 
@@ -63,7 +67,7 @@ from .const import (
     ENCRYPTION_VERSION_AUTO,
 )
 from .coordinator import GreeConfigEntry, GreeCoordinator
-from .helpers import try_find_new_ip
+from .helpers import get_vrf_controller_mac, reconcile_vrf_controllers, try_find_new_ip
 from .migration import (
     async_migrate_legacy_registry,
     async_prepare_legacy_migration,
@@ -257,9 +261,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
     # Move the 4.x registry rows before the entities are created
     moved = await async_migrate_legacy_registry(hass, entry)
 
+    # Create the VRF controller devices before their sub-units
+    reconcile_vrf_controllers(hass, entry, device_configs, link_sub_units=False)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     async_remove_unprovided_entities(hass, entry, moved)
+
+    # The sub-unit devices exist now, link them to their controller
+    reconcile_vrf_controllers(hass, entry, device_configs)
     return True
 
 
@@ -272,6 +282,12 @@ async def async_remove_config_entry_device(
     hass: HomeAssistant, config_entry: GreeConfigEntry, device_entry: dr.DeviceEntry
 ) -> bool:
     """Remove a device from a config entry."""
+
+    # A controller has no config of its own, it goes with its last sub-unit
+    if get_vrf_controller_mac(device_entry) is not None:
+        raise HomeAssistantError(
+            translation_domain=DOMAIN, translation_key="remove_vrf_controller"
+        )
 
     # Find MAC address for this device (from identifiers)
     mac: str | None = next(
@@ -308,7 +324,10 @@ async def async_remove_config_entry_device(
 
     if new_device_configs:
         # There are still other devices, update the entry
-        return hass.config_entries.async_update_entry(config_entry, data=data)
+        updated = hass.config_entries.async_update_entry(config_entry, data=data)
+        # Remove the controller at once when this was its last sub-unit
+        reconcile_vrf_controllers(hass, config_entry, new_device_configs)
+        return updated
 
     # No other devices, remove the entry if local
     if config_entry.unique_id == CONFENTRY_ID_LOCAL_ONLY:

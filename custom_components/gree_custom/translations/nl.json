@@ -210,6 +210,11 @@
             }
         }
     },
+    "device": {
+        "vrf_controller": {
+            "name": "VRF-gateway {mac}"
+        }
+    },
     "entity": {
         "sensor": {
             "indoor_temperature": {
@@ -363,6 +368,9 @@
         },
         "smart_dry_unavailable": {
             "message": "Slim drogen is alleen beschikbaar in de modus Koelen."
+        },
+        "remove_vrf_controller": {
+            "message": "Dit is een VRF-controller. Verwijder eerst de sub-units, dan wordt de controller automatisch verwijderd."
         }
     },
     "issues": {

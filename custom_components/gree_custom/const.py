@@ -16,6 +16,10 @@ from .aiogree.api import (
 
 DOMAIN = "gree_custom"
 
+# Device identifier prefix of the VRF controller (gateway) device
+VRF_CONTROLLER_ID_PREFIX = "controller_"
+VRF_CONTROLLER_TRANSLATION_KEY = "vrf_controller"
+
 CURRENT_CONF_VERSION = 3
 
 CONFENTRY_ID_LOCAL_ONLY = "local_only"

@@ -25,7 +25,7 @@ No Home Assistant imports here.
 
 | File | What it does |
 |---|---|
-| `__init__.py` | Entry setup. Builds transports and devices, binds them, starts one `GreeCoordinator` per device. |
+| `__init__.py` | Entry setup. Builds transports and devices, binds them, starts one `GreeCoordinator` per device. Creates and links the VRF controller devices, see [VRF controller device](#vrf-controller-device). |
 | `coordinator.py` | `GreeCoordinator`. Polls on `scan_interval` and listens for status pushed by the device. Polls again every 2 s after a command while the device has not confirmed it, until the hold ends. |
 | `config_flow.py` | Setup, reconfigure, reauth and YAML import flows. Local discovery, cloud login, device picker, per device options. `async_step_import` turns one validated YAML item into a config entry. |
 | `config_schema.py` | `CONFIG_SCHEMA` for the `gree_custom:` block in `configuration.yaml`. Validates the YAML, normalizes the MAC addresses and fills the defaults. It also holds the form schemas that the config flow shows. |
@@ -34,6 +34,7 @@ No Home Assistant imports here.
 | `entity.py`, `platform_helpers.py` | Base entity, availability logic, shared helpers. |
 | `services.py`, `services.yaml` | Services `get_prop_values` and `get_prop_values_all`. |
 | `diagnostics.py` | Diagnostics download for the entry and for a device. Redacts keys and passwords. |
+| `helpers.py` | Discovery addresses, IP recovery, config entry lookups, and `reconcile_vrf_controllers()`. |
 | `const.py` | Config keys, defaults, mode maps, `CURRENT_CONF_VERSION`. |
 
 Also in the repo root: `supported-devices.md`, `manual-configuration.yaml`, `hacs.json`.
@@ -72,6 +73,22 @@ reference counting rather than on the code saying what it means.
 After that the coordinator calls `fetch_device_status()` every `scan_interval` seconds (default 60).
 
 Entities are only created for props the device supports. A device with few features gets few entities. That is by design.
+
+## VRF controller device
+
+The indoor units behind one local VRF gateway are grouped under a controller device in the device registry. The device page of the gateway then shows the units under **Connected devices**.
+
+- A sub-unit is a device whose `connection.local.mac_controller_local` is set and differs from its own MAC. The runtime `mac_address_controller` is not used, because for MQTT it comes from the cloud MAC.
+- Every local controller MAC with at least one sub-unit gets one controller device. Its identifier is `(gree_custom, "controller_<mac>")`, its model is `VRF gateway`, and its name comes from the `vrf_controller` device translation.
+- The controller has no entities. Its `connections` hold the gateway MAC. Discovery never returns the gateway itself as a device, so no other device of this integration has that MAC.
+- Its `sw_version` and `hw_version` come from the first bound sub-unit, because the firmware belongs to the WiFi module of the gateway. With no bound sub-unit the registry keeps the last known values.
+- A cloud-only VRF has no local controller MAC, so it gets no controller device yet.
+
+`reconcile_vrf_controllers()` in `helpers.py` does the work. Entry setup calls it twice. The first call, before the platforms are set up, creates the wanted controllers and removes the ones without a sub-unit. A wanted controller is never removed and created again, so its device id, user name and area survive a restart. The second call, after the platforms are set up, links each sub-unit with `async_update_device(via_device_id=...)`. The sub-unit devices only exist once their entities are added.
+
+The link is set from setup code and not through `DeviceInfo`, because the API differs per Home Assistant version. In 2026.3 `DeviceInfo` only has `via_device`, a tuple. In 2026.9 it only has `via_device_id`, and `via_device` is deprecated. `async_update_device(via_device_id=...)` exists in both. The sub-units are looked up in `async_entries_for_config_entry()`, because `async_get_device()` is deprecated in 2026.9 and its replacement is not in 2026.3.
+
+A user cannot delete the controller. `async_remove_config_entry_device()` raises the `remove_vrf_controller` error for it. After a sub-unit is deleted, the reconcile runs with the new device list, so a controller without sub-units goes away at once. The device diagnostics of a controller list the diagnostics of its sub-units.
 
 ## State model
 
