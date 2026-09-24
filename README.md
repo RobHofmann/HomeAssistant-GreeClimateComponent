@@ -9,6 +9,8 @@ Tested on Home Assistant 2025.6.3
 
 **If you are experiencing issues please be sure to provide details about your device, Home Assistant version and what exactly went wrong.**
 
+Questions or want to chat? Join us on [Discord](https://discord.gg/JPcBkvRhTS). Please report bugs as a GitHub issue, not on Discord.
+
 This integration connects directly to your HVAC devices via their IP address on the local network, unlike the official mobile app, which establish a direct connection only during initial setup and subsequently operate through Gree’s servers.
 The integration attempts to obtain the encryption key by the initial setup protocol, which has been reverse-engineered.
 
@@ -149,6 +151,8 @@ This project is based on the work of several contributors and projects:
 - [Home Assistant Developer Documentation](https://developers.home-assistant.io/) - Official development guidelines and best practices
 
 ## Issues
+
+For questions, use [Discord](https://discord.gg/JPcBkvRhTS). Bugs go in a GitHub issue, so others can find them later.
 
 Due to the many issues being created revolving "TimeOut"/"Cannot connect" errors, I will be closing these. Feel free to make a PR fixing your TimeOut/Cannot connect error.
 More information on the "why" can be found here: https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues/405#issuecomment-4300110823
