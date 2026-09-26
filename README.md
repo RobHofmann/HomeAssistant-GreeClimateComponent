@@ -1,4 +1,4 @@
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/hacs/integration) [![Join our Discord](https://img.shields.io/badge/Discord-Join%20the%20chat-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/JPcBkvRhTS)
 
 # HomeAssistant-GreeClimateComponent
 Custom Gree climate component written in Python3 for Home Assistant. Controls ACs supporting the Gree protocol.
