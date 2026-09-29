@@ -168,6 +168,9 @@ class GreeClimate(ClimateEntity):
         self._disable_available_check = disable_available_check
 
         self._target_temperature = None
+        # Some Celsius firmwares use Add0.5 rather than the Fahrenheit TemRec bit.
+        self._has_half_degree_option = None
+        self._use_add_half_degree = True
         # Initialize target temperature step with default value (will be overridden by number entity when available)
         self._target_temperature_step = DEFAULT_TARGET_TEMP_STEP
         # Device uses a combination of Celsius + a set bit for Fahrenheit, so the integration needs to be aware of the units.
@@ -310,8 +313,20 @@ class GreeClimate(ClimateEntity):
             _LOGGER.debug(f"{self._name}: Overwriting device options with new settings: {', '.join(settings)}")
         return acOptions
 
+    @property
+    def uses_add_half_degree(self):
+        """Whether Celsius control should use the optional half-degree field."""
+        return (
+            self._unit_of_measurement == "°C"
+            and self._has_half_degree_option is True
+            and self._use_add_half_degree
+        )
+
     async def SendStateToAc(self):
         opt_list = ["Pow", "Mod", "SetTem", "WdSpd", "Air", "Blo", "Health", "SwhSlp", "Lig", "SwingLfRig", "SwUpDn", "Quiet", "Tur", "StHt", "TemUn", "HeatCoolType", "TemRec", "SvSt", "SlpMod", "AntiDirectBlow", "LigSen"]
+
+        if self.uses_add_half_degree:
+            opt_list.append("Add0.5")
 
         # Collect values from _acOptions
         p_values = [self._acOptions.get(k) for k in opt_list]
@@ -352,7 +367,10 @@ class GreeClimate(ClimateEntity):
             self._target_temperature = 8
             _LOGGER.debug(f"{self._name}: Target temperature set to 8°C for 8°C heating mode")
         else:
-            temp_c = decode_temp_c(SetTem=self._acOptions["SetTem"], TemRec=self._acOptions["TemRec"])  # takes care of 1/2 degrees
+            half_bit = self._acOptions.get("Add0.5") if self.uses_add_half_degree else None
+            if half_bit not in (0, 1):
+                half_bit = self._acOptions["TemRec"]
+            temp_c = decode_temp_c(SetTem=self._acOptions["SetTem"], TemRec=half_bit)
             temp_f = gree_c_to_f(SetTem=self._acOptions["SetTem"], TemRec=self._acOptions["TemRec"])
 
             if self._unit_of_measurement == "°C":
@@ -520,6 +538,19 @@ class GreeClimate(ClimateEntity):
     async def SyncState(self, acOptions={}):
         # Fetch current settings from HVAC
         _LOGGER.debug(f"{self._name}: Starting device state sync")
+
+        # Probe the optional Celsius half-degree field before adding it to polls.
+        if self._has_half_degree_option is None:
+            try:
+                half_bit = await self.GreeGetValues(["Add0.5"])
+            except Exception:
+                _LOGGER.debug("Could not query Add0.5; retrying at the next update")
+            else:
+                self._has_half_degree_option = half_bit in (0, 1)
+                if self._has_half_degree_option:
+                    self._acOptions["Add0.5"] = half_bit
+                    self._optionsToFetch.append("Add0.5")
+                    _LOGGER.info("%s: Supports Add0.5 for Celsius half-degree setpoints", self._name)
 
         if self._has_temp_sensor is None:
             _LOGGER.debug("Attempt to check whether device has an built-in temperature sensor")
@@ -930,8 +961,11 @@ class GreeClimate(ClimateEntity):
                     _LOGGER.error("Unable to set temperature. Units not set to °C or °F")
                     return
 
-                await self.SyncState({"SetTem": int(SetTem), "TemRec": int(TemRec)})
-                _LOGGER.debug(f"{self._name}: async_set_temperature: Set Temp to {target_temperature}{self._unit_of_measurement} ->  SyncState with SetTem={SetTem}, SyncState with TemRec={TemRec}")
+                half_option = "TemRec"
+                if self.uses_add_half_degree:
+                    half_option = "Add0.5"
+                await self.SyncState({"SetTem": int(SetTem), half_option: int(TemRec)})
+                _LOGGER.debug(f"{self._name}: async_set_temperature: Set Temp to {target_temperature}{self._unit_of_measurement} ->  SyncState with SetTem={SetTem}, {half_option}={TemRec}")
 
                 self.async_write_ha_state()
 

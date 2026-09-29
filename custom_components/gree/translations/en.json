@@ -213,6 +213,10 @@
       }
     },
     "switch": {
+      "half_degree_control": {
+        "name": "New half-degree control",
+        "description": "Turn on to use the new control method, or off to use the original method. Switching does not change the AC setpoint. The selection is restored after restart."
+      },
       "xfan": {
         "name": "X-Fan",
         "description": "Enables or disables the X-Fan mode for extra drying when turning off."
