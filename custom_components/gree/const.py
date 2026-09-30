@@ -28,6 +28,9 @@ TEMSEN_OFFSET = 40
 # HVAC modes - these come from Home Assistant and are standard
 DEFAULT_HVAC_MODES = ["auto", "cool", "dry", "fan_only", "heat", "off"] 
 
+# AssHt values verified against the Gree+ app on a device with three heat modes.
+AUX_HEAT_MODES = {"off": 0, "always_on": 1, "auto": 2}
+
 DEFAULT_FAN_MODES = ["auto", "low", "medium_low", "medium", "medium_high", "high", "turbo", "quiet"]
 DEFAULT_SWING_MODES = ["default", "swing_full", "fixed_upmost", "fixed_middle_up", "fixed_middle", "fixed_middle_low", "fixed_lowest", "swing_downmost", "swing_middle_low", "swing_middle", "swing_middle_up", "swing_upmost"]
 DEFAULT_SWING_HORIZONTAL_MODES = ["default", "swing_full", "fixed_leftmost", "fixed_middle_left", "fixed_middle", "fixed_middle_right", "fixed_rightmost"]
