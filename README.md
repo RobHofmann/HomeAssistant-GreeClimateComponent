@@ -138,6 +138,8 @@ The integration exposes various entities to configure additional features of you
 - **Light Sensor**: Enables or disables light sensor for automatic brightness. Requires lights to be enabled
 
 ### Configuration Controls
+
+- **Auxiliary heat**: Select Off, Always on, or Auto for auxiliary electric heating. Available in heating mode when the device reports `AssHt` (`0` = Off, `1` = Always on, `2` = Auto). This mapping was verified on one device; other models may differ. The selection follows the device's reported state rather than restoring a saved value on startup.
 - **Auto X-Fan**: Automatically controls the X-Fan mode based on HVAC operations. When enabled, X-Fan will automatically turn on in cooling and dry modes. *Note: This is an integration feature, not an actual AC unit state*
 - **Auto Light**: Automatically controls the display lights based on HVAC operations. When enabled, lights will turn on/off with the AC unit. *Note: This is an integration feature, not an actual AC unit state*
 - **Temperature Step**: Sets the increment step for adjusting the target temperature. This allows you to configure how much the temperature changes when using the up/down controls in Home Assistant
