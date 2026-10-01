@@ -9,9 +9,10 @@ Releases 4.x used the domain `gree`, a flat config entry per device and a flat
    the YAML import when a YAML block manages the local devices, or through
    the `migrate` config flow step otherwise. It also raises the repair issues.
 2. `async_migrate_legacy_registry()` runs in `async_setup_entry`, when the
-   new entry exists. It moves the device and entity registry rows of the old
-   entries to the new entry, so entity IDs, areas and history stay, and then
-   disables or removes the old entries.
+   new entry exists. It records in each old entry which rows move, moves the
+   device and entity registry rows of the old entries to the new entry, so
+   entity IDs, areas and history stay, and then disables the old entries.
+   The record lets 4.x move the rows back when the user goes back to 4.x.
 
 The details are in `docs/config-entry.md`.
 """
@@ -99,6 +100,13 @@ SOURCE_MIGRATE = "migrate"
 
 ISSUE_LEGACY_YAML = "legacy_yaml"
 ISSUE_LEGACY_FOLDER = "legacy_folder"
+ISSUE_LEGACY_ENTRIES = "legacy_entries"
+
+# Option key in a 4.x entry that records which registry rows moved here. It is
+# a contract with 4.x 4.0.12 and later, which reads it to move the rows back.
+# Do not change its shape without a matching 4.x change.
+LEGACY_RECORD_KEY = "gree_custom_migration"
+LEGACY_RECORD_VERSION = 1
 
 DATA_LEGACY_MIGRATION = f"{DOMAIN}_legacy_migration"
 
@@ -624,6 +632,67 @@ def _async_update_folder_issue(hass: HomeAssistant, folder_present: bool) -> Non
     )
 
 
+def _removable_legacy_entries(
+    hass: HomeAssistant, state: LegacyMigration, folder_present: bool
+) -> list[ConfigEntry]:
+    """Return the disabled 4.x entries that nothing needs any more.
+
+    An entry qualifies when its device is in an entry of this integration, the
+    4.x folder is gone, and no `gree:` YAML device depends on the entry. These
+    entries are only kept so the user can go back to 4.x.
+    """
+    if folder_present:
+        return []
+
+    configured: set[str] = {
+        mac
+        for entry in hass.config_entries.async_entries(DOMAIN)
+        for mac in entry.data.get(CONF_DEVICES) or {}
+    }
+    removable: list[ConfigEntry] = []
+
+    for legacy_entry in get_legacy_entries(hass):
+        if legacy_entry.disabled_by is None:
+            continue
+        mac, _ = gree_extract_macs(legacy_device_key(legacy_entry.data[CONF_MAC]))
+        if mac in configured and mac not in state.macs_needing_old_entry:
+            removable.append(legacy_entry)
+
+    return removable
+
+
+def _async_update_entries_issue(hass: HomeAssistant, state: LegacyMigration) -> None:
+    """Offer to remove the disabled 4.x entries while some are left."""
+    if not _removable_legacy_entries(hass, state, state.folder_present):
+        ir.async_delete_issue(hass, DOMAIN, ISSUE_LEGACY_ENTRIES)
+        return
+
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        ISSUE_LEGACY_ENTRIES,
+        is_fixable=True,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key=ISSUE_LEGACY_ENTRIES,
+    )
+
+
+async def async_remove_legacy_entries(hass: HomeAssistant) -> None:
+    """Remove the disabled 4.x entries, for the `legacy_entries` repair.
+
+    The check runs again here, so a folder that came back since the start
+    keeps its entries.
+    """
+    state: LegacyMigration = hass.data.get(DATA_LEGACY_MIGRATION) or LegacyMigration()
+    folder_present = await async_legacy_folder_present(hass)
+
+    for legacy_entry in _removable_legacy_entries(hass, state, folder_present):
+        _LOGGER.info("Migration from 4.x: removing entry '%s'", legacy_entry.title)
+        await hass.config_entries.async_remove(legacy_entry.entry_id)
+
+    ir.async_delete_issue(hass, DOMAIN, ISSUE_LEGACY_ENTRIES)
+
+
 def _keep_migrated_options(hass: HomeAssistant, devices: list[LegacyDevice]) -> None:
     """Keep the options that came from 4.x entity states once they are migrated.
 
@@ -684,6 +753,7 @@ async def async_prepare_legacy_migration(
             _async_start_migrate_flow(hass, to_add)
 
     _async_update_folder_issue(hass, state.folder_present)
+    _async_update_entries_issue(hass, state)
 
     return items
 
@@ -816,29 +886,28 @@ async def async_migrate_legacy_registry(
             continue
 
         # From here to the disable call nothing awaits, so the old entry
-        # cannot load again while its rows move. The entities move first:
+        # cannot load again while its rows move. The record is written first,
+        # so 4.x can move the rows back. The entities move before the device:
         # moving a device removes the entities that still belong to the old
         # entry.
         legacy_device, target_device_id = _find_devices(
             dev_reg, legacy_entry, mac, mac_controller
         )
-        moved[mac] = _async_move_entities(
-            hass, ent_reg, entry, legacy_entry, mac, mac_controller, target_device_id
-        )
+        rows = _rows_to_move(hass, ent_reg, legacy_entry, mac, mac_controller)
+        _async_record_move(hass, legacy_entry, rows, legacy_device)
+        moved[mac] = _async_move_entities(ent_reg, entry, rows, target_device_id)
         if legacy_device is not None:
             _async_move_device(dev_reg, entry, legacy_entry, legacy_device, mac)
 
-        if state.folder_present or mac in state.macs_needing_old_entry:
-            if legacy_entry.disabled_by is None:
-                _LOGGER.info(
-                    "Migration from 4.x: disabling entry '%s'", legacy_entry.title
-                )
-                await hass.config_entries.async_set_disabled_by(
-                    legacy_entry.entry_id, ConfigEntryDisabler.USER
-                )
-        else:
-            _LOGGER.info("Migration from 4.x: removing entry '%s'", legacy_entry.title)
-            await hass.config_entries.async_remove(legacy_entry.entry_id)
+        # The entry stays, disabled, so the user can go back to 4.x. The
+        # `legacy_entries` repair removes it when the user asks.
+        if legacy_entry.disabled_by is None:
+            _LOGGER.info("Migration from 4.x: disabling entry '%s'", legacy_entry.title)
+            await hass.config_entries.async_set_disabled_by(
+                legacy_entry.entry_id, ConfigEntryDisabler.USER
+            )
+
+    _async_update_entries_issue(hass, state)
 
     return moved
 
@@ -899,17 +968,68 @@ def _async_move_device(
 
 
 @callback
-def _async_move_entities(
+def _async_record_move(
+    hass: HomeAssistant,
+    legacy_entry: ConfigEntry,
+    rows: list[tuple[er.RegistryEntry, str]],
+    legacy_device: dr.DeviceEntry | None,
+) -> None:
+    """Record in the options of the 4.x entry which rows move to this integration.
+
+    4.x 4.0.12 and later read this record when this integration is not
+    installed, and move the rows back. The record is merged with the one of
+    an earlier run, so no row that moved before is lost. The shape is a
+    contract with 4.x, see `docs/config-entry.md`.
+    """
+    old_record = legacy_entry.options.get(LEGACY_RECORD_KEY)
+    if not isinstance(old_record, Mapping):
+        old_record = {}
+    old_entities = old_record.get("entities")
+    old_devices = old_record.get("devices")
+
+    entities: dict[str, str] = dict(
+        old_entities if isinstance(old_entities, Mapping) else {}
+    )
+    devices: dict[str, list[list[str]]] = dict(
+        old_devices if isinstance(old_devices, Mapping) else {}
+    )
+    entities.update({row.entity_id: row.unique_id for row, _ in rows})
+    if legacy_device is not None:
+        # The identifiers before the move, so 4.x can give them back
+        devices[legacy_device.id] = [
+            list(identifier) for identifier in sorted(legacy_device.identifiers)
+        ]
+
+    if not entities and not devices:
+        return
+
+    record = {
+        "version": LEGACY_RECORD_VERSION,
+        "entities": dict(sorted(entities.items())),
+        "devices": dict(sorted(devices.items())),
+    }
+    if record == old_record:
+        return
+
+    _LOGGER.info(
+        "Migration from 4.x: recording the moved rows in entry '%s'",
+        legacy_entry.title,
+    )
+    hass.config_entries.async_update_entry(
+        legacy_entry, options={**legacy_entry.options, LEGACY_RECORD_KEY: record}
+    )
+
+
+@callback
+def _rows_to_move(
     hass: HomeAssistant,
     ent_reg: er.EntityRegistry,
-    entry: ConfigEntry,
     legacy_entry: ConfigEntry,
     mac: str,
     mac_controller: str,
-    target_device_id: str | None,
-) -> list[str]:
-    """Move the 4.x entity rows that have a counterpart here to `entry`."""
-    moved: list[str] = []
+) -> list[tuple[er.RegistryEntry, str]]:
+    """Return the 4.x entity rows that have a counterpart here, with the new unique ID."""
+    rows: list[tuple[er.RegistryEntry, str]] = []
     loaded = entity_sources(hass)
 
     for row in er.async_entries_for_config_entry(ent_reg, legacy_entry.entry_id):
@@ -932,6 +1052,22 @@ def _async_move_entities(
             )
             continue
 
+        rows.append((row, new_unique_id))
+
+    return rows
+
+
+@callback
+def _async_move_entities(
+    ent_reg: er.EntityRegistry,
+    entry: ConfigEntry,
+    rows: list[tuple[er.RegistryEntry, str]],
+    target_device_id: str | None,
+) -> list[str]:
+    """Move the 4.x entity rows from `_rows_to_move()` to `entry`."""
+    moved: list[str] = []
+
+    for row, new_unique_id in rows:
         if row.disabled_by is er.RegistryEntryDisabler.CONFIG_ENTRY:
             # Disabled only because the old entry was disabled
             ent_reg.async_update_entity(row.entity_id, disabled_by=None)

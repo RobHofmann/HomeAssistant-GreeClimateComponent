@@ -384,11 +384,22 @@
         },
         "legacy_yaml": {
             "title": "Update your Gree configuration from 4.x",
-            "description": "Some Gree devices still come from the configuration of Gree 4.x: the `gree:` block in `configuration.yaml`, or devices you set up in the 4.x UI while a YAML block manages the local devices. This version converts them at every start, so they keep working. This legacy import will be removed in a later version.\n\nReplace the `gree:` block with the block below. If you already have a `gree_custom:` block, add the devices below under its `devices:` instead. Then restart Home Assistant. This message goes away when no device depends on the 4.x configuration any more.\n\n```yaml\n{yaml}\n```"
+            "description": "Some Gree devices still come from the configuration of Gree 4.x: the `gree:` block in `configuration.yaml`, or devices you set up in the 4.x UI while a YAML block manages the local devices. This version converts them at every start, so they keep working. This legacy import will be removed in a later version.\n\nComment out the `gree:` block, and keep it in case you want to go back to 4.x. Then paste the block below. If you already have a `gree_custom:` block, add the devices below under its `devices:` instead. Then restart Home Assistant. This message goes away when no device depends on the 4.x configuration any more.\n\n```yaml\n{yaml}\n```"
         },
         "legacy_folder": {
             "title": "Remove the old Gree 4.x files",
-            "description": "The folder `custom_components/gree` from Gree 4.x is still installed. HACS does not remove it when it installs this version. The devices of Gree 4.x are moved to this integration, and the old 4.x config entries are disabled.\n\nDelete the folder `custom_components/gree` and restart Home Assistant. At that start this integration removes the old config entries."
+            "description": "The folder `custom_components/gree` from Gree 4.x is still installed. HACS does not remove it when it installs this version. The devices of Gree 4.x are moved to this integration, and the old 4.x config entries are disabled.\n\nDelete the folder `custom_components/gree` and restart Home Assistant. The old config entries stay disabled, so you can go back to 4.x. A separate repair lets you remove them."
+        },
+        "legacy_entries": {
+            "title": "Remove the old Gree 4.x config entries",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Remove the old Gree 4.x config entries",
+                        "description": "Your devices now run on this integration. The old config entries of Gree 4.x are kept, disabled, so you can go back to 4.x without setting it up again.\n\nSelect **Submit** to remove these old entries. After that, going back to 4.x means setting it up again."
+                    }
+                }
+            }
         }
     },
     "services": {

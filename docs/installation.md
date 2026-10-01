@@ -45,7 +45,7 @@ Your devices move to this version by themselves. Their entity IDs, areas, names 
 
 1. Update through HACS and restart Home Assistant.
 2. The devices move at that start. If you came from a 4.x release older than the last one, nothing happens yet. Then go to **Settings** > **Devices & Services** > **Add Integration**, pick **Gree A/C**, and the move starts. You do not have to fill in anything.
-3. HACS leaves the old `custom_components/gree` folder in place. A repair issue asks you to delete it. Delete the folder and restart. At that start the integration removes the old, disabled 4.x entries.
+3. HACS leaves the old `custom_components/gree` folder in place. A repair issue asks you to delete it. Delete the folder and restart. The old 4.x entries stay, disabled, so you can go back to 4.x. A second repair issue, **Remove the old Gree 4.x config entries**, lets you remove them when you are sure you will not go back.
 4. If you used a `gree:` block in `configuration.yaml`, it keeps working for now. A repair issue shows the `gree_custom:` block that replaces it. See [Legacy gree: block](configuration.md#legacy-gree-block).
 
 What changes:
@@ -55,6 +55,26 @@ What changes:
 - `temp_sensor_offset` is gone. This version detects the offset itself.
 - The swing modes have other names. The migration picks the name that moves the louvers to the same position as before.
 - New entities, such as the indoor temperature sensor, get new entity IDs.
+
+## Going back to 4.x
+
+You can go back to 4.x without setting it up again, and keep your entity IDs, areas and device names. This needs **4.0.12 or later**. Older 4.x releases do not move your devices back.
+
+1. In HACS, install 4.0.12 or later of the 4.x line.
+2. Delete the folder `custom_components/gree_custom`. HACS leaves it in place.
+3. If you have a `gree_custom:` block in `configuration.yaml`, comment it out.
+4. If you had a `gree:` block, un-comment it. Otherwise go to **Settings** > **Devices & services**, and enable one of the disabled Gree 4.x entries. Until the restart in the next step, that entry shows an error that this version is still installed. That is expected.
+5. Restart Home Assistant.
+
+4.x then moves your devices and entities back and enables its entries.
+
+Good to know:
+
+- If you removed the old 4.x entries through the repair issue, they cannot come back. Then you set 4.x up again.
+- If you moved to this version with an early alpha, your devices are not moved back.
+- Switches that this version removed come back with 4.x.
+- Entities that only exist in this version are removed. They come back when you install this version again.
+- If you install this version again later, your devices move again, like the first time.
 
 ## Next step
 

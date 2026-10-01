@@ -158,7 +158,7 @@ The `gree:` block of release 4.x still works, only to make the move easy. At eve
 The legacy import will be removed in a later version. Update your configuration now:
 
 1. Open the repair issue under **Settings** > **System** > **Repairs**.
-2. Copy the block and replace the `gree:` block with it. If you already have a `gree_custom:` block, add the devices under its `devices:` instead.
+2. Comment out the `gree:` block, and keep it in case you want to go back to 4.x. Then paste the block from the issue. If you already have a `gree_custom:` block, add the devices under its `devices:` instead.
 3. Restart Home Assistant. The entry does not change and the repair issue goes away.
 
 The block also holds the devices you set up in the UI of 4.x, when a YAML block manages the local devices. Otherwise those devices would only be kept by the old 4.x entries.
