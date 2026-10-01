@@ -382,7 +382,8 @@
             "fix_flow": {
                 "step": {
                     "confirm": {
-                        "description": "Os seus dispositivos funcionam agora com esta integração. As configurações anteriores da versão 4.x foram mantidas, desativadas, para que possa voltar à versão 4.x sem a configurar de novo.\n\nSelecione **Submeter** para remover estas configurações anteriores. Depois disso, voltar à versão 4.x obriga a configurá-la de novo.",
+                        "description": "Os seus dispositivos funcionam agora com esta integração. As configurações anteriores da versão 4.x foram mantidas, desativadas, para que possa voltar à versão 4.x sem a configurar de novo.\n\nSelecione **Remover** para remover estas configurações anteriores. Depois disso, voltar à versão 4.x obriga a configurá-la de novo.",
+                        "submit": "Remover",
                         "title": "Remover as configurações anteriores da versão 4.x"
                     }
                 }

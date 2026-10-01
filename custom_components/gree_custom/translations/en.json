@@ -396,7 +396,8 @@
                 "step": {
                     "confirm": {
                         "title": "Remove the old Gree 4.x config entries",
-                        "description": "Your devices now run on this integration. The old config entries of Gree 4.x are kept, disabled, so you can go back to 4.x without setting it up again.\n\nSelect **Submit** to remove these old entries. After that, going back to 4.x means setting it up again."
+                        "description": "Your devices now run on this integration. The old config entries of Gree 4.x are kept, disabled, so you can go back to 4.x without setting it up again.\n\nSelect **Remove** to remove these old entries. After that, going back to 4.x means setting it up again.",
+                        "submit": "Remove"
                     }
                 }
             }

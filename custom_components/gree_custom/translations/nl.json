@@ -396,7 +396,8 @@
                 "step": {
                     "confirm": {
                         "title": "Verwijder de oude Gree 4.x config entries",
-                        "description": "Je apparaten draaien nu op deze integratie. De oude config entries van Gree 4.x zijn bewaard, uitgeschakeld, zodat je terug kunt naar 4.x zonder alles opnieuw in te stellen.\n\nKies **Verzenden** om deze oude entries te verwijderen. Daarna moet je 4.x opnieuw instellen als je terug wilt."
+                        "description": "Je apparaten draaien nu op deze integratie. De oude config entries van Gree 4.x zijn bewaard, uitgeschakeld, zodat je terug kunt naar 4.x zonder alles opnieuw in te stellen.\n\nKies **Verwijderen** om deze oude entries te verwijderen. Daarna moet je 4.x opnieuw instellen als je terug wilt.",
+                        "submit": "Verwijderen"
                     }
                 }
             }
