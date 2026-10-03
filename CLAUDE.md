@@ -65,3 +65,20 @@ Two config methods: UI config flow (recommended, with auto-discovery) and YAML i
 ### VRF Support
 
 VRF (Variable Refrigerant Flow) sub-units are addressed via MAC format `subMAC@mainMAC` and discovered through `get_subunits_list()`.
+
+### Version 5 (gree_custom) and going back
+
+Version 5 uses the domain `gree_custom` and moves the entity rows and device row of each entry of this version to its own entry, then disables the old entry. `async_setup` decides once whether `gree_custom` is installed and stores the answer in `hass.data[DOMAIN]["_successor_installed"]`.
+
+- Installed: `_start_successor()` starts `gree_custom`, because after a HACS update it has no config entry or YAML key yet. `async_setup_entry` refuses (`ConfigEntryError`) an entry that still holds a migration record, so a re-enabled old entry does not give duplicate entities and a second client on the same unit.
+- Not installed: `_async_go_back_from_successor()` runs inside `async_setup`, before any entry sets up its platforms. It reads the record version 5 left in the entry options, moves the entities back first (moving a device removes the entities of its old entry), creates the rows that version 5 removed again with their old entity ID, then moves the device, removes the record and enables the entry in a task. Entities of version 5 with no counterpart here are removed by Home Assistant when the device moves.
+
+The record contract, written by version 5 under the options key `gree_custom_migration`:
+
+```
+{"version": 1,
+ "entities": {"<entity_id>": "<old unique_id under platform gree>"},
+ "devices": {"<device registry id>": [["gree", "<identifier value>"], ...]}}
+```
+
+`entities` are the rows moved to platform `gree_custom`. `devices` are the device rows moved to the `gree_custom` entry, with their identifiers from before the move. Only version 1 is read; change the version when the shape changes.
