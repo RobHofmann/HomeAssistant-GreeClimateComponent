@@ -384,11 +384,23 @@
         },
         "legacy_yaml": {
             "title": "Werk je Gree-configuratie uit 4.x bij",
-            "description": "Sommige Gree-apparaten komen nog uit de configuratie van Gree 4.x: het blok `gree:` in `configuration.yaml`, of apparaten die je in de 4.x-UI hebt ingesteld terwijl een YAML-blok de lokale apparaten beheert. Deze versie zet ze bij elke start om, dus ze blijven werken. Deze legacy import verdwijnt in een latere versie.\n\nVervang het blok `gree:` door het blok hieronder. Heb je al een blok `gree_custom:`, zet de apparaten hieronder dan onder de `devices:` daarvan. Start Home Assistant daarna opnieuw. Deze melding verdwijnt als geen apparaat nog van de 4.x-configuratie afhangt.\n\n```yaml\n{yaml}\n```"
+            "description": "Sommige Gree-apparaten komen nog uit de configuratie van Gree 4.x: het blok `gree:` in `configuration.yaml`, of apparaten die je in de 4.x-UI hebt ingesteld terwijl een YAML-blok de lokale apparaten beheert. Deze versie zet ze bij elke start om, dus ze blijven werken. Deze legacy import verdwijnt in een latere versie.\n\nZet het blok `gree:` in commentaar, en bewaar het voor het geval je terug wilt naar 4.x. Plak daarna het blok hieronder. Heb je al een blok `gree_custom:`, zet de apparaten hieronder dan onder de `devices:` daarvan. Start Home Assistant daarna opnieuw. Deze melding verdwijnt als geen apparaat nog van de 4.x-configuratie afhangt.\n\n```yaml\n{yaml}\n```"
         },
         "legacy_folder": {
             "title": "Verwijder de oude Gree 4.x-bestanden",
-            "description": "De map `custom_components/gree` van Gree 4.x is nog geïnstalleerd. HACS verwijdert die niet als het deze versie installeert. De apparaten van Gree 4.x zijn naar deze integratie verhuisd, en de oude 4.x config entries zijn uitgeschakeld.\n\nVerwijder de map `custom_components/gree` en start Home Assistant opnieuw. Bij die start verwijdert deze integratie de oude config entries."
+            "description": "De map `custom_components/gree` van Gree 4.x is nog geïnstalleerd. HACS verwijdert die niet als het deze versie installeert. De apparaten van Gree 4.x zijn naar deze integratie verhuisd, en de oude 4.x config entries zijn uitgeschakeld.\n\nVerwijder de map `custom_components/gree` en start Home Assistant opnieuw. De oude config entries blijven uitgeschakeld, zodat je terug kunt naar 4.x. Met een aparte reparatie kun je ze verwijderen."
+        },
+        "legacy_entries": {
+            "title": "Verwijder de oude Gree 4.x config entries",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Verwijder de oude Gree 4.x config entries",
+                        "description": "Je apparaten draaien nu op deze integratie. De oude config entries van Gree 4.x zijn bewaard, uitgeschakeld, zodat je terug kunt naar 4.x zonder alles opnieuw in te stellen.\n\nKies **Verwijderen** om deze oude entries te verwijderen. Daarna moet je 4.x opnieuw instellen als je terug wilt.",
+                        "submit": "Verwijderen"
+                    }
+                }
+            }
         }
     },
     "services": {

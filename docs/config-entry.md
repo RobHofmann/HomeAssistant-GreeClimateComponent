@@ -106,16 +106,18 @@ Then the devices come in one of two ways:
 - When a YAML block manages the local devices (a `gree:` block, or a local item in `gree_custom:`), the devices are merged into the local YAML item and the YAML import handles them at every start. A device the user already wrote in `gree_custom:` wins. The repair issue `legacy_yaml` shows the `gree_custom:` block to paste, and a warning goes to the log at every start.
 - Otherwise the `migrate` flow step adds them to the local-only entry. That step only adds devices and never removes one, and it skips devices that are already in another entry.
 
-The repair issue `legacy_folder` is raised while `custom_components/gree` holds the 4.x component. Both issues are checked at every start and removed when they no longer apply.
+The repair issue `legacy_folder` is raised while `custom_components/gree` holds the 4.x component. The repair issue `legacy_entries` is described under phase 2. All three issues are checked at every start and removed when they no longer apply.
 
 ### Phase 2, in `async_setup_entry`
 
 Before the platforms are set up, `async_migrate_legacy_registry()` handles every 4.x entry whose device is in this entry:
 
-1. Unload the 4.x entry. A setup in progress is awaited first, because Home Assistant cannot unload it. The same unload also runs at the start of the entry setup, so the two clients do not talk to the unit at the same time.
+1. Unload the 4.x entry. A setup in progress is awaited first, because Home Assistant cannot unload it. The same unload also runs at the start of the entry setup, so the two clients do not talk to the unit at the same time. Then write the record of the rows that move into the options of the 4.x entry, see [The record for 4.x](#the-record-for-4x).
 2. Move the entity rows with `async_update_entity_platform()`. The climate entity `gree_<mac>` becomes `<mac>_hvac`, `outside_temperature` becomes `outdoor_temperature`, the switches and `room_humidity` keep their key. The number and the two selects have no entity here and stay behind. Moving the row keeps the entity ID, so history, automations and dashboards keep working.
 3. Move the device row with `async_update_device()`, so its area and user name stay. The entities have to move first: Home Assistant removes the entities of the old entry when their device moves.
-4. Disable the 4.x entry while the 4.x folder is still there, so 4.x does not load it or import it again. Remove the entry when the folder is gone. Removing it also removes the rows that did not move.
+4. Disable the 4.x entry, so 4.x does not load it or import it again. The entry is never removed here: it stays, so the user can go back to 4.x without setting it up again.
+
+At the end of phase 2, and also at the end of phase 1, the repair issue `legacy_entries` is checked. It is raised when there is a 4.x entry that is disabled, whose device is in an entry of this integration, while the 4.x folder is gone and no `gree:` YAML device needs that entry (the MAC is not in `macs_needing_old_entry`). The issue is fixable: `repairs.py` shows a confirm step, and on submit `async_remove_legacy_entries()` checks the same rule again, folder included, and removes those entries. Removing an entry also removes the rows that did not move. An entry removed this way cannot come back, so going back to 4.x then means setting it up again.
 
 After the platforms are set up, `async_remove_unprovided_entities()` removes the moved rows that got no entity, for a device that is bound. 4.x created every switch, also for features the unit does not have.
 
@@ -125,6 +127,44 @@ Limits:
 
 - For a VRF unit only the climate entity moves. 4.x used the controller MAC in the unique IDs of all other entities, so the sub-devices cannot be told apart.
 - Home Assistant writes the registries during startup with a delay of 180 seconds. If Home Assistant is killed before that, the next start moves the rows again, which gives the same result.
+
+### The record for 4.x
+
+Before the rows move, phase 2 writes a record into the options (not the data) of the 4.x entry, under the key `gree_custom_migration` (`LEGACY_RECORD_KEY`):
+
+```json
+{
+  "version": 1,
+  "entities": {"<entity_id>": "<old unique_id of that row under platform gree>"},
+  "devices": {"<device registry id>": [["gree", "<identifier value>"]]}
+}
+```
+
+- `entities` holds every row that this run moves with `async_update_entity_platform()`.
+- `devices` holds the 4.x device row that moves, with its identifiers as they were before the move. The list is sorted.
+- The record is merged with the one already there, so a row that was recorded before is never dropped. The 4.x entry is only updated when the record changed. Other option keys stay as they are.
+- 4.x ignores option keys it does not know, so the record does no harm to an older 4.x release.
+
+The record is a contract with 4.x 4.0.12 and later. Do not change its shape without a matching change in 4.x.
+
+### Going back to 4.x
+
+The 4.x release from 4.0.12 reads the record when `gree_custom` is not installed. For each recorded 4.x entry it:
+
+1. Moves the recorded entity rows back to platform `gree`, with their old unique IDs.
+2. Moves the device row back: its old identifiers and the 4.x entry. A device has one config entry, so the link to the `gree_custom` entry goes.
+3. Clears the record and enables the entry.
+
+Home Assistant only sets up `gree` when it has an enabled entry or a `gree:` YAML key. The 4.x entries are disabled, so the user starts it: enable one disabled 4.x entry, or un-comment the `gree:` block. The user steps are in [installation.md](installation.md#going-back-to-4x).
+
+What to expect:
+
+- Rows that this version removed, the switches a unit does not provide, are still in the record. 4.x creates their rows again with the old entity ID, so it does not give them a new one.
+- While this integration is still loaded, 4.x refuses to set up an entry that holds a record (`ConfigEntryError`). Enabling an entry before the restart therefore shows that error until the restart.
+- Home Assistant removes the entities that only exist in this version and are linked to a device that moves back, because their entry no longer owns the device.
+- Installing this version again moves the rows again, the same as a first migration, and writes a new record.
+- Entries removed through the `legacy_entries` repair cannot come back.
+- A migration done by an older alpha wrote no record, so its rows are not moved back.
 
 ## Changing the shape
 

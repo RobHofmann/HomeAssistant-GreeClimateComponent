@@ -32,6 +32,7 @@ No Home Assistant imports here.
 | `migration.py` | Moves a 4.x setup (domain `gree`) to this integration: config entries, the `gree:` YAML block, and the device and entity registry rows. See [config-entry.md](config-entry.md#migration-from-4x). |
 | `climate.py`, `switch.py`, `sensor.py`, `binary_sensor.py`, `number.py`, `select.py` | Entity platforms. |
 | `entity.py`, `platform_helpers.py` | Base entity, availability logic, shared helpers. |
+| `repairs.py` | Fix flow for the `legacy_entries` repair issue, which removes the disabled 4.x entries. |
 | `services.py`, `services.yaml` | Services `get_prop_values` and `get_prop_values_all`. |
 | `diagnostics.py` | Diagnostics download for the entry and for a device. Redacts keys and passwords. |
 | `helpers.py` | Discovery addresses, IP recovery, config entry lookups, and `reconcile_vrf_controllers()`. |
