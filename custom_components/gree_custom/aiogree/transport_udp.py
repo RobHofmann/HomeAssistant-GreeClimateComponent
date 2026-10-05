@@ -96,6 +96,7 @@ class GreeUdpTransport(GreeBaseTransport):
             self.connected_devices[mac_controller] -= 1
         else:
             self.connected_devices.pop(mac_controller, None)
+            self.set_bound_to_controller(mac_controller, None)
 
         if len(self.connected_devices) == 0:
             return await self.disconnect()

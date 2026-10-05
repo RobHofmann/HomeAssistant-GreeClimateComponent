@@ -161,6 +161,7 @@ class GreeMqttTransport(GreeBaseTransport):
             self.connected_devices[mac_controller] -= 1
         else:
             self.connected_devices.pop(mac_controller, None)
+            self.set_bound_to_controller(mac_controller, None)
             topics = [
                 f"response/{mac_controller}/#",
                 f"status/{mac_controller}/#",

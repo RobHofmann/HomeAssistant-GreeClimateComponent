@@ -5,12 +5,19 @@ from collections import Counter, defaultdict
 from collections.abc import Callable
 import json
 import logging
-from typing import Any
+from typing import Any, NamedTuple
 
-from .cipher import CipherBase
+from .cipher import CipherBase, EncryptionVersion
 from .helpers import gree_decrypt_pack, gree_encrypt_pack
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class BindingInfo(NamedTuple):
+    """Combination of key and encryption version from a binding procedure."""
+
+    encryption_key: str
+    encryption_version: EncryptionVersion
 
 
 class GreeBaseTransport(ABC):
@@ -22,6 +29,7 @@ class GreeBaseTransport(ABC):
         """Init transport."""
         self._listeners: dict[str, set[Callable[[str, dict], None]]] = defaultdict(set)
         self.connected_devices: Counter[str] = Counter()
+        self.bound_controllers: dict[str, BindingInfo] = {}
 
     @abstractmethod
     async def connect(self) -> None:
@@ -38,6 +46,23 @@ class GreeBaseTransport(ABC):
     @abstractmethod
     async def unsubscribe(self, mac_controller: str) -> None:
         """Unsubscribe the transport from a device."""
+
+    def is_bound_to_controller(self, mac_controller: str) -> BindingInfo | None:
+        """If the transport is already bound to a controller, return the binding info otherwise None."""
+        if mac_controller in self.bound_controllers:
+            return self.bound_controllers[mac_controller]
+
+        return None
+
+    def set_bound_to_controller(
+        self, mac_controller: str, binding_info: BindingInfo | None
+    ) -> None:
+        """Set the state of a coontroller to bound in this transport."""
+
+        if binding_info is None and mac_controller in self.bound_controllers:
+            self.bound_controllers.pop(mac_controller)
+        elif binding_info is not None and mac_controller not in self.bound_controllers:
+            self.bound_controllers.setdefault(mac_controller, binding_info)
 
     @abstractmethod
     async def request(

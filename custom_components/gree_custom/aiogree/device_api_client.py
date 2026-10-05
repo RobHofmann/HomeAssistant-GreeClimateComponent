@@ -85,27 +85,42 @@ class DeviceApiClient:
 
         await self._transport.subscribe(self.controller_mac)
 
-        try:
-            result = await gree_try_bind(
+        result: BindingInfo | None = self._transport.is_bound_to_controller(
+            self.controller_mac
+        )
+
+        if result:
+            _LOGGER.debug(
+                "[%s] Device is already bound in transport with version %s and key %s via %s",
                 self.controller_mac,
-                self._userid,
-                preferred_version,
-                preferred_key,
+                result.encryption_version,
+                redact_str(result.encryption_key),
                 self._transport,
             )
+        else:
+            try:
+                result = await gree_try_bind(
+                    self.controller_mac,
+                    self._userid,
+                    preferred_version,
+                    preferred_key,
+                    self._transport,
+                )
 
-        except Exception:
-            _LOGGER.exception("Error while binding")
-            await self._transport.unsubscribe(self.controller_mac)
-            raise
+            except Exception:
+                _LOGGER.exception("Error while binding")
+                await self._transport.unsubscribe(self.controller_mac)
+                raise
 
-        _LOGGER.info(
-            "[%s] Device is bound with version %s and key %s via %s",
-            self.controller_mac,
-            result.encryption_version,
-            redact_str(result.encryption_key),
-            self._transport,
-        )
+            else:
+                self._transport.set_bound_to_controller(self.controller_mac, result)
+                _LOGGER.info(
+                    "[%s] Device is bound with version %s and key %s via %s",
+                    self.controller_mac,
+                    result.encryption_version,
+                    redact_str(result.encryption_key),
+                    self._transport,
+                )
 
         self._binding = result
 
