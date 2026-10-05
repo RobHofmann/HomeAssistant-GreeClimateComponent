@@ -175,7 +175,7 @@ class GreeDevice:
 
                 # Fetch initial information after sucessful bind
                 await self.fetch_device_info()
-                await self.fetch_device_status()
+                await self.fetch_device_status(first_fetch=True)
                 self._remove_unsupported_props()
                 return
 
@@ -251,7 +251,7 @@ class GreeDevice:
                 self._state.info.get(InfoProp.HID, "")
             )
 
-    async def fetch_device_status(self) -> None:
+    async def fetch_device_status(self, first_fetch: bool = False) -> None:
         """Get the device status (async)."""
         _LOGGER.debug(
             "[%s:%s] Trying to get status",
@@ -262,7 +262,8 @@ class GreeDevice:
         try:
             result = await self._client.query_props(
                 [prop.value for prop in self._state.polled_properties],
-                len(self._state.polled_properties),
+                1 if first_fetch else len(self._state.polled_properties),
+                error_as_missing=first_fetch,
             )
 
             _LOGGER.debug(

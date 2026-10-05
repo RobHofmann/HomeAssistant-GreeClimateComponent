@@ -106,7 +106,7 @@ POLLED_PROPS: tuple[GreeProp, ...] = tuple(
 class InfoProp(StrEnum):
     """Enumeration of props that return device information."""
 
-    DEVICE_MAC = "mac"
+    DEVICE_MAC = "mac"  # for VRF this is the controller MAC
     DEVICE_NAME = "name"
     BC = "bc"
     MODEL_TYPE = "ModelType"
