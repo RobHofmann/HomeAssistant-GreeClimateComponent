@@ -21,7 +21,7 @@ PROBE_TIMEOUT = 5.0
 
 # Diagnostic sweeps ask one prop per request. Some props are never answered by
 # some firmwares (seen: ElcDatDte, ElcDatHor, ElcDatMth), and a few of those in a
-# row are normal. This many in a row means the device stopped talking.
+# row are normal. This many in a row means the device might have stopped talking.
 MAX_UNANSWERED_IN_A_ROW = 5
 
 # After a command, the sent values are shown for at most this many seconds

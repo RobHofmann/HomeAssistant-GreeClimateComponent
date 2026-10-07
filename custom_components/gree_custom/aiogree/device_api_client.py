@@ -22,7 +22,7 @@ from .const import (
     PROBE_TIMEOUT,
     STATUS_CANARY_PROP,
 )
-from .errors import GreeBindingError, GreeConnectionError, GreeError, GreeRuntimeError
+from .errors import GreeBindingError, GreeError, GreeRuntimeError
 from .helpers import chunked, gree_decrypt_pack, redact_str
 from .transport import GreeBaseTransport
 
@@ -337,14 +337,30 @@ class DeviceApiClient:
                 unanswered_in_a_row += 1
 
                 # This check is for when a device stops responding altogether.
-                # As such it should always raise, independently of error_as_missing
+                # use it as an indicator and confirm with STATUS_CANARY_PROP
                 if unanswered_in_a_row >= MAX_UNANSWERED_IN_A_ROW:
                     _LOGGER.warning(
-                        "[%s] %d requests in a row got no answer, stopping query",
+                        "[%s] %d requests in a row got no answer, assessing if device is responding",
                         self._mac,
                         unanswered_in_a_row,
                     )
-                    raise
+
+                    await gree_get_status(
+                        self.controller_mac,
+                        self._mac,
+                        self._userid,
+                        [STATUS_CANARY_PROP],
+                        self._cipher,
+                        self._transport,
+                        max_attempts,
+                        self._max_props,
+                    )
+
+                    unanswered_in_a_row = 0
+                    _LOGGER.debug(
+                        "[%s] Device is responsive, continuing prop query",
+                        self._mac,
+                    )
 
                 if error_as_missing:
                     missing.extend(chunk)
