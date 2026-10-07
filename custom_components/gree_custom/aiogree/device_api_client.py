@@ -333,25 +333,19 @@ class DeviceApiClient:
                 missing.extend(result.missing_props)
                 unanswered_in_a_row = 0
 
-            except GreeConnectionError:
-                if not error_as_missing:
-                    raise
-
-                missing.extend(chunk)
+            except GreeError:
                 unanswered_in_a_row += 1
 
+                # This check is for when a device stops responding altogether.
+                # As such it should always raise, independently of error_as_missing
                 if unanswered_in_a_row >= MAX_UNANSWERED_IN_A_ROW:
-                    rest = [p for c in chunks[index + 1 :] for p in c]
-                    missing.extend(rest)
                     _LOGGER.warning(
-                        "[%s] %d requests in a row got no answer, skipping %d props",
+                        "[%s] %d requests in a row got no answer, stopping query",
                         self._mac,
                         unanswered_in_a_row,
-                        len(rest),
                     )
-                    break
+                    raise
 
-            except GreeError:
                 if error_as_missing:
                     missing.extend(chunk)
                 else:
