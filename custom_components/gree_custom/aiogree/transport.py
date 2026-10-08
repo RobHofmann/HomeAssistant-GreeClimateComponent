@@ -57,20 +57,6 @@ class GreeBaseTransport(ABC):
     # Requests
     #
 
-    @abstractmethod
-    async def request(
-        self,
-        mac_controller: str,
-        json_str: str,
-        max_attempts: int | None = None,
-        timeout: float | None = None,
-    ) -> str:
-        """Send raw bytes and return the response.
-
-        max_attempts and timeout override the transport's own retry count and
-        reply timeout for this one request.
-        """
-
     def add_listener(
         self, target_mac: str, listener: Callable[[str, dict], None]
     ) -> None:
@@ -162,10 +148,29 @@ class GreeBaseTransport(ABC):
 
         return merged
 
+    @abstractmethod
+    async def request(
+        self,
+        mac_controller: str,
+        json_str: str,
+        max_attempts: int | None = None,
+        timeout: float | None = None,
+    ) -> str:
+        """Send raw bytes and return the response.
+
+        max_attempts and timeout override the transport's own retry count and
+        reply timeout for this one request.
+        """
+
     #
     # Binding
     #
-    async def add_device(self, mac_addr: str, mac_addr_controller: str) -> None:
+    async def add_device(
+        self,
+        mac_addr: str,
+        mac_addr_controller: str,
+        listener: Callable[[str, dict], None] | None = None,
+    ) -> None:
         """Add a device to the transport."""
         if not mac_addr or not bool(mac_addr.strip()):
             raise GreeBindingError("No device MAC provided")
@@ -178,13 +183,24 @@ class GreeBaseTransport(ABC):
 
         self._add_connected_device(mac_addr_controller, mac_addr)
 
-    async def remove_device(self, mac_addr: str, mac_addr_controller: str) -> None:
+        if listener:
+            self.add_listener(mac_addr, listener)
+
+    async def remove_device(
+        self,
+        mac_addr: str,
+        mac_addr_controller: str,
+        listener: Callable[[str, dict], None] | None = None,
+    ) -> None:
         """Remove a device from the transport."""
         if not mac_addr or not bool(mac_addr.strip()):
             raise GreeBindingError("No device MAC provided")
 
         if not mac_addr_controller or not bool(mac_addr_controller.strip()):
             raise GreeBindingError("No controller MAC provided")
+
+        if listener:
+            self.remove_listener(mac_addr, listener)
 
         self._remove_connected_device(mac_addr_controller, mac_addr)
 

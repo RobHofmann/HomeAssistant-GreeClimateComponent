@@ -17,12 +17,12 @@ from .api import (
 )
 from .cipher import CipherBase, EncryptionVersion, get_cipher
 from .const import (
-    MAX_UNANSWERED_IN_A_ROW,
     MIN_PACK_PROPS,
     PROBE_TIMEOUT,
     STATUS_CANARY_PROP,
+    STATUS_CANARY_PROP_MAX_REQUESTS,
 )
-from .errors import GreeBindingError, GreeError, GreeRuntimeError
+from .errors import GreeBindingError, GreeConnectionError, GreeError, GreeRuntimeError
 from .helpers import chunked, gree_decrypt_pack, redact_str
 from .transport import GreeBaseTransport
 
@@ -81,7 +81,9 @@ class DeviceApiClient:
             "[%s:%s] Starting binding procedure", self.controller_mac, self._transport
         )
 
-        await self._transport.add_device(self.controller_mac, self._mac)
+        await self._transport.add_device(
+            self.controller_mac, self._mac, self._handle_transport_message
+        )
 
         # Bind if the transport is not bound to the controller already
         if (
@@ -99,7 +101,9 @@ class DeviceApiClient:
 
             except Exception:
                 _LOGGER.exception("Error while binding")
-                await self._transport.remove_device(self.controller_mac, self._mac)
+                await self._transport.remove_device(
+                    self.controller_mac, self._mac, self._handle_transport_message
+                )
                 raise
 
             else:
@@ -111,11 +115,6 @@ class DeviceApiClient:
                     redact_str(result.encryption_key),
                     self._transport,
                 )
-
-        self._transport.add_listener(
-            self._mac,
-            self._handle_transport_message,
-        )
 
         self._available = True
 
@@ -228,12 +227,9 @@ class DeviceApiClient:
         if not self._transport:
             raise GreeBindingError("Cannot unbind when no transport is set.")
 
-        self._transport.remove_listener(
-            self._mac,
-            self._handle_transport_message,
+        await self._transport.remove_device(
+            self.controller_mac, self._mac, self._handle_transport_message
         )
-
-        await self._transport.remove_device(self.controller_mac, self._mac)
 
         self._listeners.clear()
 
@@ -241,7 +237,10 @@ class DeviceApiClient:
         self._max_props = None
 
     async def rebind(self, force_bind: bool = False) -> None:
-        """Try binding with the current transport and existing binding info."""
+        """Try binding with the current transport.
+
+        If force_bind is false, reuses previous binding info.
+        """
         await self.unbind()
         return await self.bind(
             self.controller_mac,
@@ -270,6 +269,31 @@ class DeviceApiClient:
     #
     # Query
     #
+    async def _is_device_responsive(self) -> bool:
+        if not self._transport:
+            return False
+
+        _LOGGER.warning(
+            "[%s] Assessing if device is responding",
+            self._mac,
+        )
+
+        try:
+            await gree_get_status(
+                self.controller_mac,
+                self._mac,
+                self._userid,
+                [STATUS_CANARY_PROP],
+                self.cipher,
+                self._transport,
+                STATUS_CANARY_PROP_MAX_REQUESTS,
+                self._max_props,
+                PROBE_TIMEOUT,
+            )
+        except GreeError:
+            return False
+        else:
+            return True
 
     async def query_props(
         self,
@@ -287,7 +311,7 @@ class DeviceApiClient:
         sweep does not spend timeout x retries on every prop the device ignores.
         """
         if not self.bound:
-            await self.rebind()
+            await self.rebind(force_bind=True)
 
         if not self.binding_info:
             raise GreeRuntimeError("No binding info.")
@@ -297,10 +321,9 @@ class DeviceApiClient:
 
         state: dict[str, str] = {}
         missing: list[str] = []
-        unanswered_in_a_row = 0
 
         chunks = list(chunked(props, request_batch))
-        for index, chunk in enumerate(chunks):
+        for _, chunk in enumerate(chunks):
             try:
                 result = await gree_get_status(
                     self.controller_mac,
@@ -315,43 +338,20 @@ class DeviceApiClient:
 
                 state.update(result.prop_values)
                 missing.extend(result.missing_props)
-                unanswered_in_a_row = 0
+                self._available = True
 
-            except GreeError:
-                unanswered_in_a_row += 1
-
-                # This check is for when a device stops responding altogether.
-                # use it as an indicator and confirm with STATUS_CANARY_PROP
-                if unanswered_in_a_row >= MAX_UNANSWERED_IN_A_ROW:
-                    _LOGGER.warning(
-                        "[%s] %d requests in a row got no answer, assessing if device is responding",
-                        self._mac,
-                        unanswered_in_a_row,
-                    )
-
-                    await gree_get_status(
-                        self.controller_mac,
-                        self._mac,
-                        self._userid,
-                        [STATUS_CANARY_PROP],
-                        self.cipher,
-                        self._transport,
-                        max_attempts,
-                        self._max_props,
-                    )
-
-                    unanswered_in_a_row = 0
-                    _LOGGER.debug(
-                        "[%s] Device is responsive, continuing prop query",
-                        self._mac,
-                    )
+            except GreeError as err:
+                if (
+                    isinstance(err, GreeConnectionError)
+                    and not await self._is_device_responsive()
+                ):
+                    self._available = False
+                    raise
 
                 if error_as_missing:
                     missing.extend(chunk)
                 else:
                     raise
-
-        self._available = True
 
         return StatusResult(prop_values=state, missing_props=missing)
 
@@ -387,16 +387,24 @@ class DeviceApiClient:
         if not self._transport:
             raise GreeRuntimeError("No transport set.")
 
-        await gree_set_status(
-            self.controller_mac,
-            self._mac,
-            self._userid,
-            values,
-            self.cipher,
-            self._transport,
-        )
+        try:
+            await gree_set_status(
+                self.controller_mac,
+                self._mac,
+                self._userid,
+                values,
+                self.cipher,
+                self._transport,
+            )
+            self._available = True
 
-        self._available = True
+        except GreeError as err:
+            if (
+                isinstance(err, GreeConnectionError)
+                and not await self._is_device_responsive()
+            ):
+                self._available = False
+            raise
 
     #
     # Transport Push Messages
