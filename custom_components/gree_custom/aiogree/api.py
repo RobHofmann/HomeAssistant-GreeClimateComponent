@@ -16,7 +16,7 @@ from .cloud_api import GreeCloudApi
 from .const import DEFAULT_DEVICE_PORT, DEFAULT_DEVICE_USERID, MAX_PACK_SIZE
 from .errors import GreeBindingError, GreeConnectionError, GreeError, GreeProtocolError
 from .helpers import gree_extract_macs, redact_str
-from .transport import GreeBaseTransport
+from .transport import BindingInfo, GreeBaseTransport
 from .transport_udp import GreeUdpTransport, async_udp_broadcast_request
 
 _LOGGER = logging.getLogger(__name__)
@@ -106,7 +106,7 @@ POLLED_PROPS: tuple[GreeProp, ...] = tuple(
 class InfoProp(StrEnum):
     """Enumeration of props that return device information."""
 
-    DEVICE_MAC = "mac"
+    DEVICE_MAC = "mac"  # for VRF this is the controller MAC
     DEVICE_NAME = "name"
     BC = "bc"
     MODEL_TYPE = "ModelType"
@@ -561,13 +561,6 @@ class StatusResult(NamedTuple):
     missing_props: list[str]
 
 
-class BindingInfo(NamedTuple):
-    """Combination of key and encryption version from a binding procedure."""
-
-    encryption_key: str
-    encryption_version: EncryptionVersion
-
-
 async def gree_get_response(
     mac_controller: str,
     json_data: dict,
@@ -970,7 +963,9 @@ async def gree_try_bind(
             )
 
             return BindingInfo(
-                encryption_key=ret_key, encryption_version=cipher.version
+                encryption_key=ret_key,
+                encryption_version=cipher.version,
+                cipher=get_cipher(cipher.version, ret_key),
             )
 
     raise GreeBindingError(

@@ -10,15 +10,15 @@ No Home Assistant imports here.
 |---|---|
 | `api.py` | Wire protocol. `GreeProp`, `InfoProp` and `OtherProps` enums, pack builders, status and command requests, discovery, `StatusResult`. |
 | `cipher.py` | `CipherV1` (AES-128 ECB) and `CipherV2` (AES-128 GCM). `EncryptionVersion` enum. |
-| `transport.py` | `GreeBaseTransport`. Shared request and listener logic. `request_json()` encrypts, sends, decrypts. |
+| `transport.py` | `GreeBaseTransport` and `BindingInfo`. Shared request and listener logic. `request_json()` encrypts, sends, decrypts. Owns the binding: one `BindingInfo` (key, version, cipher) per controller MAC, shared by every device of that controller, see [protocol.md](protocol.md#one-bind-per-controller). `add_device()` and `remove_device()` track which devices use it. |
 | `transport_udp.py` | Local UDP transport. Port 7000. One socket, one request at a time, retries with backoff. |
 | `transport_mqtt.py` | Gree Cloud MQTT transport, one broker per region. |
 | `cloud_api.py` | Gree Cloud REST login and device list, one host per region. |
 | `device.py` | `GreeDevice`. Binds, fetches info and status, pushes changes, exposes typed properties. |
-| `device_api_client.py` | `DeviceApiClient`. Holds the bound session: transport, cipher, controller MAC. Runs the property queries. |
+| `device_api_client.py` | `DeviceApiClient`. Holds the transport and the controller MAC of one device. Binds through the transport and reads the key and cipher from it, so it does not keep its own. Runs the property queries. |
 | `device_state.py` | `DeviceState`. Raw values, pending values, info values, which props are polled. |
 | `helpers.py` | Encrypt and decrypt packs, temperature math, `TempOffsetResolver`, `redact_str`, `chunked`. |
-| `const.py` | Protocol constants: `MAX_PACK_SIZE`, `MIN_PACK_PROPS`, `STATUS_CANARY_PROP`, `PROBE_TIMEOUT`, `MAX_UNANSWERED_IN_A_ROW`, temperature and humidity ranges. |
+| `const.py` | Protocol constants: `MAX_PACK_SIZE`, `MIN_PACK_PROPS`, `STATUS_CANARY_PROP`, `PROBE_TIMEOUT`, `STATUS_CANARY_PROP_MAX_REQUESTS`, temperature and humidity ranges. |
 | `errors.py` | Exceptions. `GreeConnectionError` means no answer. `GreeProtocolError` means a bad answer. `GreeBindingError` means the key exchange failed. |
 
 ## Home Assistant layer

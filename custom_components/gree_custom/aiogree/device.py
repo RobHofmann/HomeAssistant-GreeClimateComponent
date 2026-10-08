@@ -100,7 +100,7 @@ class GreeDevice:
             device_id=self.unique_id, capabilities=self._capabilities
         )
 
-        self._client = DeviceApiClient(
+        self._api = DeviceApiClient(
             mac=self._mac_addr,
             userid=user_id,
         )
@@ -114,7 +114,7 @@ class GreeDevice:
         mqtt_transport: GreeMqttTransport | None = None,
     ) -> None:
         """Bind the device to a new transport. It will try local transport first and then MQTT."""
-        await self._client.unbind()
+        await self._api.unbind()
 
         if not local_transport and not mqtt_transport:
             raise GreeBindingError(
@@ -144,9 +144,9 @@ class GreeDevice:
         )
 
         for transport, mac_controller, version in attempts:
-            await self._client.set_transport(transport)
+            await self._api.set_transport(transport)
             try:
-                await self._client.bind(
+                await self._api.bind(
                     controller_mac=mac_controller,
                     preferred_version=version,
                     preferred_key=self._preferred_encryption_key,
@@ -154,7 +154,7 @@ class GreeDevice:
 
             except GreeError as err:
                 error = err
-                await self._client.unbind()
+                await self._api.unbind()
                 _LOGGER.warning(
                     "[%s] Failed binding via %s",
                     self.unique_id,
@@ -163,7 +163,7 @@ class GreeDevice:
                 )
             except MqttError as err:
                 error = err
-                await self._client.unbind()
+                await self._api.unbind()
                 _LOGGER.warning(
                     "[%s] Failed binding via %s",
                     self.unique_id,
@@ -171,11 +171,11 @@ class GreeDevice:
                     exc_info=True,
                 )
             else:
-                self._client.add_status_listener(self._device_pushed_status)
+                self._api.add_status_listener(self._device_pushed_status)
 
                 # Fetch initial information after sucessful bind
                 await self.fetch_device_info()
-                await self.fetch_device_status()
+                await self.fetch_device_status(first_fetch=True)
                 self._remove_unsupported_props()
                 return
 
@@ -187,11 +187,11 @@ class GreeDevice:
 
     async def unbind_device(self) -> None:
         """Properly disconnect the device from transport."""
-        if not self._client.bound:
+        if not self._api.bound:
             return
 
         try:
-            await self._client.unbind()
+            await self._api.unbind()
         except GreeConnectionError:
             raise
 
@@ -211,7 +211,7 @@ class GreeDevice:
 
         try:
             props = [prop.value for prop in InfoProp]
-            result = await self._client.query_props(props, len(props))
+            result = await self._api.query_props(props, len(props))
 
         except GreeConnectionError, GreeProtocolError:
             _LOGGER.exception(
@@ -251,7 +251,7 @@ class GreeDevice:
                 self._state.info.get(InfoProp.HID, "")
             )
 
-    async def fetch_device_status(self) -> None:
+    async def fetch_device_status(self, first_fetch: bool = False) -> None:
         """Get the device status (async)."""
         _LOGGER.debug(
             "[%s:%s] Trying to get status",
@@ -260,9 +260,10 @@ class GreeDevice:
         )
 
         try:
-            result = await self._client.query_props(
+            result = await self._api.query_props(
                 [prop.value for prop in self._state.polled_properties],
                 len(self._state.polled_properties),
+                error_as_missing=first_fetch,
             )
 
             _LOGGER.debug(
@@ -315,7 +316,7 @@ class GreeDevice:
 
         try:
             sent = dict(self._state.pending)
-            await self._client.set_props({k.value: v for k, v in sent.items()})
+            await self._api.set_props({k.value: v for k, v in sent.items()})
 
             _LOGGER.debug("[%s:%s] Device status set", self.unique_id, self.transport)
             # A VRF gateway answers the read below from its cache, with the old
@@ -396,16 +397,16 @@ class GreeDevice:
         data: dict[str, Any] = {}
 
         info = {
-            "transport": str(self._client.transport),
+            "transport": str(self._api.transport),
             "mac": self.mac_address,
             "mac_controller": self.mac_address_controller,
             "name": self.name,
             "fw": self.firmware_version,
-            "is_bound": self._client.bound,
-            "is_available": self._client.available,
+            "is_bound": self._api.bound,
+            "is_available": self._api.available,
             "beeper": self.beeper,
-            "encryption": str(self._client.encryption_version),
-            "key": redact_str(self._client.encryption_key),
+            "encryption": str(self._api.encryption_version),
+            "key": redact_str(self._api.encryption_key),
         }
 
         data["info"] = info
@@ -425,7 +426,7 @@ class GreeDevice:
         max_attempts: int | None = None,
     ) -> StatusResult:
         """Query the value of the given props."""
-        return await self._client.query_props(
+        return await self._api.query_props(
             props, request_batch, error_as_missing, max_attempts
         )
 
@@ -436,7 +437,7 @@ class GreeDevice:
         max_attempts: int | None = None,
     ) -> StatusResult:
         """Query all possible props."""
-        return await self._client.query_all_props(
+        return await self._api.query_all_props(
             request_batch, error_as_missing, max_attempts
         )
 
@@ -445,7 +446,7 @@ class GreeDevice:
 
         Caution: Don't set random property status.
         """
-        return await self._client.set_props(values)
+        return await self._api.set_props(values)
 
     def supports_property(self, property: GreeProp) -> bool:
         """Return True if the device endpoint supports the property."""
@@ -484,17 +485,17 @@ class GreeDevice:
     @property
     def transport(self) -> GreeBaseTransport | None:
         """The Transport assigned to the device."""
-        return self._client.transport
+        return self._api.transport
 
     async def set_transport(self, transport: GreeBaseTransport) -> None:
         """Update the transport used by the device for communication."""
-        await self._client.set_transport(transport)
-        await self._client.rebind()
+        await self._api.set_transport(transport)
+        await self._api.rebind()
 
     @property
     def api_client(self) -> DeviceApiClient:
         """Clinet to interface with the device API."""
-        return self._client
+        return self._api
 
     @property
     def name(self) -> str:
@@ -504,12 +505,12 @@ class GreeDevice:
     @property
     def encryption_key(self) -> str | None:
         """Encryption key of the device."""
-        return self._client.encryption_key
+        return self._api.encryption_key
 
     @property
     def encryption_version(self) -> EncryptionVersion | None:
         """Return the encryption version of the device."""
-        return self._client.encryption_version
+        return self._api.encryption_version
 
     @property
     def unique_id(self) -> str:
@@ -524,7 +525,7 @@ class GreeDevice:
     @property
     def mac_address_controller(self) -> str:
         """Return the secondary MAC address of the device. For non VRF is the same as MAC otherwise is the MAC of the main controller (same as MAC for the main device)."""
-        return self._client.controller_mac
+        return self._api.controller_mac
 
     @property
     def firmware_version(self) -> str | None:
@@ -564,7 +565,7 @@ class GreeDevice:
     @property
     def available(self) -> bool:
         """Return True if the device is bound and last connection was successful."""
-        return self._client.bound and self._client.available
+        return self._api.bound and self._api.available
 
     def _log_unconfirmed_values(self, sent: Mapping[GreeProp, int]) -> None:
         """Log sent values that the read right after the command does not show.
@@ -598,7 +599,7 @@ class GreeDevice:
     @property
     def is_bound(self) -> bool:
         """Return True if the device is bound."""
-        return self._client.bound
+        return self._api.bound
 
     @property
     def has_hvac_error(self) -> bool:

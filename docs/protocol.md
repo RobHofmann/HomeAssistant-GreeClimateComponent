@@ -23,7 +23,8 @@ Facts about how Gree devices behave on the wire. Most of these are not visible f
 - To measure a unit, run `tools/probe_status_limit.py --host <ip>` from the repo root. It sends `Pow` repeated N times (growing count, tiny packets) and then 10 columns with padded names (growing bytes, fixed count), each as exactly one packet, and prints where each run first fails. See [development.md](development.md#tools).
 - A device may return fewer columns than asked. That is normal. The missing columns are reported in `StatusResult.missing_props`. Because of this, values and columns can only be matched inside one response, never across responses.
 - A device may return `r=200` with empty `cols` and `dat`. That means "no data", not "nothing is supported". `_remove_unsupported_props()` raises `GreeProtocolError` when the very first status comes back empty, so setup fails and retries instead of leaving a device with nothing to poll.
-- Some props are never answered at all, not even with an empty result. The request times out and the device is fine right after. Seen on one firmware: `ElcDatDte`, `ElcDatHor`, `ElcDatMth`. This is why the diagnostic services pass `max_attempts=1` (one timeout per ignored prop instead of timeout x retries), and why `query_props()` stops after `MAX_UNANSWERED_IN_A_ROW` (5) unanswered requests in a row.
+- Some props are never answered at all, not even with an empty result. The request times out and the device is fine right after. Seen on one firmware: `ElcDatDte`, `ElcDatHor`, `ElcDatMth`. This is why the diagnostic services pass `max_attempts=1` (one timeout per ignored prop instead of timeout x retries). It is also why `query_props()` with `error_as_missing` checks the device after a request that gets no answer (`GreeConnectionError`). It sends one canary request for `STATUS_CANARY_PROP` (`Pow`), with at most `STATUS_CANARY_PROP_MAX_REQUESTS` (2) attempts of `PROBE_TIMEOUT` (5 s) each. If the canary gets no answer, the device stopped talking and the error is raised. If the canary is answered, the props of the failed request are reported missing and the sweep goes on. Other errors, such as a bad answer, skip the canary and also report the props as missing.
+- A normal poll does not use `error_as_missing`, so it sends no canary. A request that gets no answer raises at once and marks the device unavailable. A canary there would only add up to 10 s and a warning to every poll of a unit that is switched off.
 - Request rate is not a problem. 600 back-to-back single-prop requests were answered without a drop.
 - The device does not type its values. `InfoProp` values can come back as `int` (seen: `ModelType` as `32768`) while others are `str`. `gree_process_status_pack()` casts every column and value to `str` for that reason.
 
@@ -42,6 +43,13 @@ Facts about how Gree devices behave on the wire. Most of these are not visible f
 ## VRF gateways
 
 A VRF gateway is one WiFi module (seen: GR-Gcloud, firmware V3.2.M) with several indoor units behind it. It answers the scan with `subCnt` above zero. Discovery binds it with the normal bind and then asks it for the list of its units.
+
+### One bind per controller
+
+A transport binds once per controller MAC, not once per device. It keeps the result, a `BindingInfo` with the key, the encryption version and the cipher, in `bound_controllers`. Every device of that controller on the same transport uses it, so the sub-units of one gateway share one key and the second sub-unit sends no bind request. `connections` holds, per controller MAC, the device MACs that use the transport. The push listeners are kept per device MAC.
+
+- `rebind(force_bind=True)` on any device of the controller binds again and replaces the `BindingInfo` for all of them. This is how a new key after a key rotation reaches every sub-unit.
+- When the last device of a controller leaves the transport, its `BindingInfo` is dropped. The next device of that controller binds again.
 
 ### The sub-device list request
 

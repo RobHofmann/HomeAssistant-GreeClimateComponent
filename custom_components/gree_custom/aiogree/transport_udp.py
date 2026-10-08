@@ -86,18 +86,12 @@ class GreeUdpTransport(GreeBaseTransport):
         self._reset_stream()
 
     @override
-    async def subscribe(self, mac_controller: str) -> None:
+    async def _subscribe(self, mac_controller: str) -> None:
         await self.connect()
-        self.connected_devices[mac_controller] += 1
 
     @override
-    async def unsubscribe(self, mac_controller: str) -> None:
-        if self.connected_devices[mac_controller] > 1:
-            self.connected_devices[mac_controller] -= 1
-        else:
-            self.connected_devices.pop(mac_controller, None)
-
-        if len(self.connected_devices) == 0:
+    async def _unsubscribe(self, mac_controller: str) -> None:
+        if len(self.connections) == 0:
             return await self.disconnect()
         return None
 

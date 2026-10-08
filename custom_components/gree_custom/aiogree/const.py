@@ -14,15 +14,14 @@ MIN_PACK_PROPS = 5
 # means the request had too many columns.
 STATUS_CANARY_PROP = "Pow"
 
+# After a status request gets no answer, the canary prop is asked up to this
+# many times, PROBE_TIMEOUT each, to tell an ignored prop from a silent device.
+STATUS_CANARY_PROP_MAX_REQUESTS = 2
+
 # The probe requests at bind time wait this long, once, instead of the
 # configured device timeout and retries, so a unit that goes silent on a too
 # large request does not stall the bind.
 PROBE_TIMEOUT = 5.0
-
-# Diagnostic sweeps ask one prop per request. Some props are never answered by
-# some firmwares (seen: ElcDatDte, ElcDatHor, ElcDatMth), and a few of those in a
-# row are normal. This many in a row means the device stopped talking.
-MAX_UNANSWERED_IN_A_ROW = 5
 
 # After a command, the sent values are shown for at most this many seconds
 # while the device still reports the old ones. A VRF gateway caches the state of

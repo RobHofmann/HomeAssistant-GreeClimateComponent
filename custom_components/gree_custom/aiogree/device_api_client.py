@@ -17,10 +17,10 @@ from .api import (
 )
 from .cipher import CipherBase, EncryptionVersion, get_cipher
 from .const import (
-    MAX_UNANSWERED_IN_A_ROW,
     MIN_PACK_PROPS,
     PROBE_TIMEOUT,
     STATUS_CANARY_PROP,
+    STATUS_CANARY_PROP_MAX_REQUESTS,
 )
 from .errors import GreeBindingError, GreeConnectionError, GreeError, GreeRuntimeError
 from .helpers import chunked, gree_decrypt_pack, redact_str
@@ -44,10 +44,6 @@ class DeviceApiClient:
 
         self._transport: GreeBaseTransport | None = None
 
-        self._cipher: CipherBase | None = None
-        self._binding: BindingInfo | None = None
-
-        self._bound = False
         self._available = False
 
         self._listeners: list[Callable[[dict[str, str]], None]] = []
@@ -66,10 +62,9 @@ class DeviceApiClient:
         controller_mac: str,
         preferred_version: EncryptionVersion | None = None,
         preferred_key: str | None = None,
+        force_bind: bool = False,
     ) -> None:
         """Bind to the current transport using the suggested version and key."""
-        if self._bound:
-            return
 
         if self._transport is None:
             raise GreeBindingError("No transport configured")
@@ -77,46 +72,54 @@ class DeviceApiClient:
         if not controller_mac or not bool(controller_mac.strip()):
             raise GreeBindingError("No controller MAC provided")
 
+        if self.bound:
+            return
+
         self.controller_mac = controller_mac
 
         _LOGGER.info(
             "[%s:%s] Starting binding procedure", self.controller_mac, self._transport
         )
 
-        await self._transport.subscribe(self.controller_mac)
-
-        try:
-            result = await gree_try_bind(
-                self.controller_mac,
-                self._userid,
-                preferred_version,
-                preferred_key,
-                self._transport,
-            )
-
-        except Exception:
-            _LOGGER.exception("Error while binding")
-            await self._transport.unsubscribe(self.controller_mac)
-            raise
-
-        _LOGGER.info(
-            "[%s] Device is bound with version %s and key %s via %s",
-            self.controller_mac,
-            result.encryption_version,
-            redact_str(result.encryption_key),
-            self._transport,
+        await self._transport.add_device(
+            mac_addr=self._mac,
+            mac_addr_controller=self.controller_mac,
+            listener=self._handle_transport_message,
         )
 
-        self._binding = result
+        # Bind if the transport is not bound to the controller already
+        if (
+            force_bind
+            or self._transport.get_controller_binding_info(self.controller_mac) is None
+        ):
+            try:
+                result = await gree_try_bind(
+                    self.controller_mac,
+                    self._userid,
+                    preferred_version,
+                    preferred_key,
+                    self._transport,
+                )
 
-        self._cipher = get_cipher(result.encryption_version, result.encryption_key)
+            except Exception:
+                _LOGGER.exception("Error while binding")
+                await self._transport.remove_device(
+                    mac_addr=self._mac,
+                    mac_addr_controller=self.controller_mac,
+                    listener=self._handle_transport_message,
+                )
+                raise
 
-        self._transport.add_listener(
-            self._mac,
-            self._handle_transport_message,
-        )
+            else:
+                self._transport.set_controller_binding_info(self.controller_mac, result)
+                _LOGGER.info(
+                    "[%s] Device is bound with version %s and key %s via %s",
+                    self.controller_mac,
+                    result.encryption_version,
+                    redact_str(result.encryption_key),
+                    self._transport,
+                )
 
-        self._bound = True
         self._available = True
 
         await self.probe_device_limits()
@@ -183,7 +186,7 @@ class DeviceApiClient:
         name is how some firmwares mark a request they had to cut short. No
         reply, an empty reply or any error is a failure.
         """
-        if not self._cipher or not self._transport:
+        if not self.binding_info or not self._transport:
             return False
 
         props = [STATUS_CANARY_PROP, *[f"X{i:02d}" for i in range(count - 1)]]
@@ -194,7 +197,7 @@ class DeviceApiClient:
                 self._mac,
                 self._userid,
                 props,
-                self._cipher,
+                self.cipher,
                 self._transport,
                 1,
                 None,
@@ -222,33 +225,34 @@ class DeviceApiClient:
 
     async def unbind(self) -> None:
         """Unbind from the current transport."""
-        if not self._bound:
+        if not self.bound:
             return
 
         if not self._transport:
             raise GreeBindingError("Cannot unbind when no transport is set.")
 
-        self._transport.remove_listener(
-            self._mac,
-            self._handle_transport_message,
-        )
-
-        await self._transport.unsubscribe(
-            self.controller_mac,
+        await self._transport.remove_device(
+            mac_addr=self._mac,
+            mac_addr_controller=self.controller_mac,
+            listener=self._handle_transport_message,
         )
 
         self._listeners.clear()
 
-        self._bound = False
         self._available = False
-        self._cipher = None
         self._max_props = None
 
-    async def rebind(self) -> None:
-        """Try binding with the current transport and existing binding info."""
+    async def rebind(self, force_bind: bool = False) -> None:
+        """Try binding with the current transport.
+
+        If force_bind is false, reuses previous binding info.
+        """
         await self.unbind()
         return await self.bind(
-            self.controller_mac, self.encryption_version, self.encryption_key
+            self.controller_mac,
+            self.encryption_version,
+            self.encryption_key,
+            force_bind,
         )
 
     #
@@ -271,6 +275,31 @@ class DeviceApiClient:
     #
     # Query
     #
+    async def _is_device_responsive(self) -> bool:
+        if not self._transport:
+            return False
+
+        _LOGGER.warning(
+            "[%s] Assessing if device is responding",
+            self._mac,
+        )
+
+        try:
+            await gree_get_status(
+                self.controller_mac,
+                self._mac,
+                self._userid,
+                [STATUS_CANARY_PROP],
+                self.cipher,
+                self._transport,
+                STATUS_CANARY_PROP_MAX_REQUESTS,
+                self._max_props,
+                PROBE_TIMEOUT,
+            )
+        except GreeError:
+            return False
+        else:
+            return True
 
     async def query_props(
         self,
@@ -281,34 +310,37 @@ class DeviceApiClient:
     ) -> StatusResult:
         """Query the status value of device properties.
 
-        With error_as_missing, a request that gets no answer marks its props as
-        missing and the sweep goes on. After MAX_UNANSWERED_IN_A_ROW of those in a
-        row the sweep stops and the rest is reported as missing too.
+        Without error_as_missing any error is raised at once, and a request that
+        gets no answer (GreeConnectionError) marks the device unavailable.
+        With error_as_missing, a request that gets no answer is followed by one
+        canary request for STATUS_CANARY_PROP. If the canary gets no answer
+        either, the device stopped talking and the error is raised. If it is
+        answered, the props of that request are reported as missing and the
+        sweep goes on. Any other GreeError also reports them as missing.
         max_attempts limits the transport retries per request, so a diagnostic
         sweep does not spend timeout x retries on every prop the device ignores.
         """
-        if not self._bound:
-            await self.rebind()
+        if not self.bound:
+            await self.rebind(force_bind=True)
 
-        if not self._cipher:
-            raise GreeRuntimeError("No cipher set.")
+        if not self.binding_info:
+            raise GreeRuntimeError("No binding info.")
 
         if not self._transport:
             raise GreeRuntimeError("No transport set.")
 
         state: dict[str, str] = {}
         missing: list[str] = []
-        unanswered_in_a_row = 0
 
         chunks = list(chunked(props, request_batch))
-        for index, chunk in enumerate(chunks):
+        for chunk in chunks:
             try:
                 result = await gree_get_status(
                     self.controller_mac,
                     self._mac,
                     self._userid,
                     chunk,
-                    self._cipher,
+                    self.cipher,
                     self._transport,
                     max_attempts,
                     self._max_props,
@@ -316,33 +348,24 @@ class DeviceApiClient:
 
                 state.update(result.prop_values)
                 missing.extend(result.missing_props)
-                unanswered_in_a_row = 0
+                self._available = True
 
-            except GreeConnectionError:
+            except GreeError as err:
+                # Without error_as_missing the error is raised either way, so a
+                # canary would only add a wait and a warning to every failed poll
                 if not error_as_missing:
+                    if isinstance(err, GreeConnectionError):
+                        self._available = False
+                    raise
+
+                if (
+                    isinstance(err, GreeConnectionError)
+                    and not await self._is_device_responsive()
+                ):
+                    self._available = False
                     raise
 
                 missing.extend(chunk)
-                unanswered_in_a_row += 1
-
-                if unanswered_in_a_row >= MAX_UNANSWERED_IN_A_ROW:
-                    rest = [p for c in chunks[index + 1 :] for p in c]
-                    missing.extend(rest)
-                    _LOGGER.warning(
-                        "[%s] %d requests in a row got no answer, skipping %d props",
-                        self._mac,
-                        unanswered_in_a_row,
-                        len(rest),
-                    )
-                    break
-
-            except GreeError:
-                if error_as_missing:
-                    missing.extend(chunk)
-                else:
-                    raise
-
-        self._available = True
 
         return StatusResult(prop_values=state, missing_props=missing)
 
@@ -369,25 +392,33 @@ class DeviceApiClient:
         values: Mapping[str, int],
     ) -> None:
         """Send the state of multiple properties to the device."""
-        if not self._bound:
+        if not self.bound:
             await self.rebind()
 
-        if not self._cipher:
-            raise GreeRuntimeError("No cipher set.")
+        if not self.binding_info:
+            raise GreeRuntimeError("No binding info.")
 
         if not self._transport:
             raise GreeRuntimeError("No transport set.")
 
-        await gree_set_status(
-            self.controller_mac,
-            self._mac,
-            self._userid,
-            values,
-            self._cipher,
-            self._transport,
-        )
+        try:
+            await gree_set_status(
+                self.controller_mac,
+                self._mac,
+                self._userid,
+                values,
+                self.cipher,
+                self._transport,
+            )
+            self._available = True
 
-        self._available = True
+        except GreeError as err:
+            if (
+                isinstance(err, GreeConnectionError)
+                and not await self._is_device_responsive()
+            ):
+                self._available = False
+            raise
 
     #
     # Transport Push Messages
@@ -418,7 +449,7 @@ class DeviceApiClient:
         payload: dict,
     ) -> None:
 
-        if self._cipher is None:
+        if self.binding_info is None:
             return
 
         if "status" not in topic:
@@ -426,7 +457,7 @@ class DeviceApiClient:
 
         response = gree_decrypt_pack(
             payload,
-            self._cipher,
+            self.cipher,
         )
 
         if pack := response.get("pack"):
@@ -453,19 +484,37 @@ class DeviceApiClient:
     @property
     def bound(self) -> bool:
         """Is the device bound to the transport."""
-        return self._bound
+        return (
+            self.binding_info is not None
+            and self._transport is not None
+            and self._mac
+            in self._transport.get_controller_connected_devices(self.controller_mac)
+        )
 
     @property
     def binding_info(self) -> BindingInfo | None:
         """Binding information for the last successful binding with a transport."""
-        return self._binding
+        if self._transport:
+            return self._transport.get_controller_binding_info(self.controller_mac)
+        return None
 
     @property
     def encryption_key(self) -> str | None:
         """The current device encryption key obtained after binding."""
-        return None if self._binding is None else self._binding.encryption_key
+        return None if self.binding_info is None else self.binding_info.encryption_key
 
     @property
     def encryption_version(self) -> EncryptionVersion | None:
         """The current device encryption version obtained after binding."""
-        return None if self._binding is None else self._binding.encryption_version
+        return (
+            None if self.binding_info is None else self.binding_info.encryption_version
+        )
+
+    @property
+    def cipher(self) -> CipherBase:
+        """The current device cipher."""
+        return (
+            get_cipher(EncryptionVersion.V1)
+            if self.binding_info is None
+            else self.binding_info.cipher
+        )
