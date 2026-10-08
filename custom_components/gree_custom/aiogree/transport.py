@@ -238,9 +238,9 @@ class GreeBaseTransport(ABC):
     def set_controller_binding_info(
         self, mac_controller: str, binding_info: BindingInfo | None
     ) -> None:
-        """Set the state of a coontroller to bound in this transport."""
+        """Set the state of a controller to bound in this transport."""
 
         if binding_info is None and mac_controller in self.bound_controllers:
             self.bound_controllers.pop(mac_controller, None)
         elif binding_info is not None:
-            self.bound_controllers.setdefault(mac_controller, binding_info)
+            self.bound_controllers[mac_controller] = binding_info

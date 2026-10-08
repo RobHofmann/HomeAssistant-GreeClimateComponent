@@ -82,7 +82,9 @@ class DeviceApiClient:
         )
 
         await self._transport.add_device(
-            self.controller_mac, self._mac, self._handle_transport_message
+            mac_addr=self._mac,
+            mac_addr_controller=self.controller_mac,
+            listener=self._handle_transport_message,
         )
 
         # Bind if the transport is not bound to the controller already
@@ -102,7 +104,9 @@ class DeviceApiClient:
             except Exception:
                 _LOGGER.exception("Error while binding")
                 await self._transport.remove_device(
-                    self.controller_mac, self._mac, self._handle_transport_message
+                    mac_addr=self._mac,
+                    mac_addr_controller=self.controller_mac,
+                    listener=self._handle_transport_message,
                 )
                 raise
 
@@ -182,7 +186,7 @@ class DeviceApiClient:
         name is how some firmwares mark a request they had to cut short. No
         reply, an empty reply or any error is a failure.
         """
-        if not self.cipher or not self._transport:
+        if not self.binding_info or not self._transport:
             return False
 
         props = [STATUS_CANARY_PROP, *[f"X{i:02d}" for i in range(count - 1)]]
@@ -228,7 +232,9 @@ class DeviceApiClient:
             raise GreeBindingError("Cannot unbind when no transport is set.")
 
         await self._transport.remove_device(
-            self.controller_mac, self._mac, self._handle_transport_message
+            mac_addr=self._mac,
+            mac_addr_controller=self.controller_mac,
+            listener=self._handle_transport_message,
         )
 
         self._listeners.clear()
@@ -304,9 +310,12 @@ class DeviceApiClient:
     ) -> StatusResult:
         """Query the status value of device properties.
 
-        With error_as_missing, a request that gets no answer marks its props as
-        missing and the sweep goes on. After MAX_UNANSWERED_IN_A_ROW of those in a
-        row the sweep stops and the rest is reported as missing too.
+        When a request gets no answer (GreeConnectionError), one canary request
+        for STATUS_CANARY_PROP checks if the device still answers. If it does
+        not, the error is raised. If it does, the props of that request are
+        reported as missing when error_as_missing is set, and the sweep goes
+        on. Without error_as_missing the error is raised. Any other GreeError
+        skips the canary and follows error_as_missing the same way.
         max_attempts limits the transport retries per request, so a diagnostic
         sweep does not spend timeout x retries on every prop the device ignores.
         """
@@ -323,7 +332,7 @@ class DeviceApiClient:
         missing: list[str] = []
 
         chunks = list(chunked(props, request_batch))
-        for _, chunk in enumerate(chunks):
+        for chunk in chunks:
             try:
                 result = await gree_get_status(
                     self.controller_mac,
@@ -382,7 +391,7 @@ class DeviceApiClient:
             await self.rebind()
 
         if not self.binding_info:
-            raise GreeRuntimeError("No bidning info.")
+            raise GreeRuntimeError("No binding info.")
 
         if not self._transport:
             raise GreeRuntimeError("No transport set.")
@@ -435,7 +444,7 @@ class DeviceApiClient:
         payload: dict,
     ) -> None:
 
-        if self.cipher is None:
+        if self.binding_info is None:
             return
 
         if "status" not in topic:

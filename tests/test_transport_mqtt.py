@@ -24,6 +24,8 @@ from .conftest import RecordingHandler
 from .fakes.mqtt import FakeMqttClient
 
 MAC = "9424b8fd5ba3"
+# Two VRF sub-units behind the controller MAC above.
+SUB_MACS = (f"{MAC}00", f"{MAC}01")
 
 
 @pytest.fixture
@@ -81,11 +83,16 @@ async def test_connecting_twice_reuses_the_connection(
     assert len(FakeMqttClient.instances) == 1
 
 
-async def test_subscribe_follows_the_three_topics(
+async def add(transport: GreeMqttTransport, mac: str = MAC) -> None:
+    """Add one device of the controller MAC to the transport."""
+    await transport.add_device(mac_addr=mac, mac_addr_controller=MAC)
+
+
+async def test_adding_a_device_follows_the_three_topics(
     transport: GreeMqttTransport,
 ) -> None:
     """Responses, pushed status and the connect message each have a topic."""
-    await transport.subscribe(MAC)
+    await add(transport)
 
     assert broker().subscriptions == [
         f"response/{MAC}/#",
@@ -97,24 +104,26 @@ async def test_subscribe_follows_the_three_topics(
 async def test_a_second_device_does_not_subscribe_twice(
     transport: GreeMqttTransport,
 ) -> None:
-    """Two entities on one device share the subscription."""
-    await transport.subscribe(MAC)
-    await transport.subscribe(MAC)
+    """Two devices on one controller share the subscription."""
+    await add(transport, SUB_MACS[0])
+    await add(transport, SUB_MACS[1])
 
     assert len(broker().subscriptions) == 3
+    assert transport.connections == {MAC: list(SUB_MACS)}
 
 
 async def test_the_last_device_closes_the_connection(
     transport: GreeMqttTransport,
 ) -> None:
     """The connection stays open while anything is still using it."""
-    await transport.subscribe(MAC)
-    await transport.subscribe(MAC)
+    await add(transport, SUB_MACS[0])
+    await add(transport, SUB_MACS[1])
 
-    await transport.unsubscribe(MAC)
+    await transport.remove_device(mac_addr=SUB_MACS[0], mac_addr_controller=MAC)
+    assert not broker().unsubscriptions
     assert not broker().exited
 
-    await transport.unsubscribe(MAC)
+    await transport.remove_device(mac_addr=SUB_MACS[1], mac_addr_controller=MAC)
     assert broker().unsubscriptions == [
         f"response/{MAC}/#",
         f"status/{MAC}/#",
@@ -127,7 +136,7 @@ async def test_a_request_is_published_and_waits_for_its_response(
     transport: GreeMqttTransport,
 ) -> None:
     """MQTT has no retries. One request, one response."""
-    await transport.subscribe(MAC)
+    await add(transport)
 
     task = asyncio.ensure_future(transport.request(MAC, '{"t":"status"}'))
     await settle()
@@ -143,7 +152,7 @@ async def test_a_request_without_an_answer_times_out(
     transport: GreeMqttTransport,
 ) -> None:
     """The caller must not wait forever on a broker that says nothing."""
-    await transport.subscribe(MAC)
+    await add(transport)
 
     with pytest.raises(TimeoutError):
         await transport.request(MAC, '{"t":"status"}', timeout=0.1)
@@ -157,21 +166,24 @@ async def test_a_request_before_connecting_is_refused(
         await transport.request(MAC, '{"t":"status"}')
 
 
-async def test_unsubscribe_before_connecting_is_refused(
+async def test_removing_a_device_before_connecting_is_refused(
     transport: GreeMqttTransport,
 ) -> None:
     """Nothing was ever followed."""
     with pytest.raises(GreeRuntimeError, match="not connected"):
-        await transport.unsubscribe(MAC)
+        await transport.remove_device(mac_addr=MAC, mac_addr_controller=MAC)
 
 
 async def test_a_pushed_status_reaches_the_listeners(
     transport: GreeMqttTransport,
 ) -> None:
     """The device sends state without being asked. That is the point of MQTT."""
-    await transport.subscribe(MAC)
     seen: list[tuple[str, dict]] = []
-    transport.add_listener(MAC, lambda topic, payload: seen.append((topic, payload)))
+    await transport.add_device(
+        mac_addr=MAC,
+        mac_addr_controller=MAC,
+        listener=lambda topic, payload: seen.append((topic, payload)),
+    )
 
     broker().deliver(f"status/{MAC}/1", json.dumps({"t": "pack", "pack": "abc"}))
     await settle()
@@ -183,7 +195,7 @@ async def test_a_status_for_another_device_is_ignored(
     transport: GreeMqttTransport,
 ) -> None:
     """One connection carries every device, so the MAC has to match."""
-    await transport.subscribe(MAC)
+    await add(transport)
     seen: list[tuple[str, dict]] = []
     transport.add_listener(MAC, lambda topic, payload: seen.append((topic, payload)))
 
@@ -197,7 +209,7 @@ async def test_a_listener_that_raises_is_logged(
     transport: GreeMqttTransport, gree_logs: RecordingHandler
 ) -> None:
     """One broken entity must not stop the receive loop."""
-    await transport.subscribe(MAC)
+    await add(transport)
 
     def broken(topic: str, payload: dict) -> None:
         raise RuntimeError("entity is gone")
@@ -211,7 +223,7 @@ async def test_a_listener_that_raises_is_logged(
 
 async def test_a_listener_can_be_removed(transport: GreeMqttTransport) -> None:
     """An entity that goes away stops hearing about the device."""
-    await transport.subscribe(MAC)
+    await add(transport)
     seen: list[str] = []
 
     def listener(topic: str, payload: dict) -> None:
