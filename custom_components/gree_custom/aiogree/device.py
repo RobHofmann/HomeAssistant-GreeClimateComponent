@@ -262,7 +262,7 @@ class GreeDevice:
         try:
             result = await self._api.query_props(
                 [prop.value for prop in self._state.polled_properties],
-                1 if first_fetch else len(self._state.polled_properties),
+                len(self._state.polled_properties),
                 error_as_missing=first_fetch,
             )
 
