@@ -233,17 +233,25 @@ async def test_a_query_reports_what_the_device_left_out(
 async def test_a_query_raises_when_the_device_goes_quiet(
     device: FakeGreeDevice,
 ) -> None:
-    """A normal poll must fail loudly, so the entity goes unavailable."""
+    """A normal poll must fail loudly, so the entity goes unavailable.
+
+    It sends no canary: the error is raised either way, so a canary would
+    only add a wait and a warning to every poll of a unit that is off.
+    """
     client, transport = await connect(device)
 
     try:
         await client.bind(device.mac)
         device.answer_status = False
+        device.reset_record()
 
         with pytest.raises(GreeConnectionError):
-            await client.query_props([GreeProp.POWER.value])
+            await client.query_props([GreeProp.TARGET_TEMPERATURE.value])
     finally:
         await transport.disconnect()
+
+    assert canary_requests(device) == 0
+    assert not client.available
 
 
 async def test_a_sweep_goes_on_when_the_device_answers_the_canary(

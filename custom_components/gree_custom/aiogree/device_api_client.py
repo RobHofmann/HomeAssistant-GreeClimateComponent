@@ -310,12 +310,13 @@ class DeviceApiClient:
     ) -> StatusResult:
         """Query the status value of device properties.
 
-        When a request gets no answer (GreeConnectionError), one canary request
-        for STATUS_CANARY_PROP checks if the device still answers. If it does
-        not, the error is raised. If it does, the props of that request are
-        reported as missing when error_as_missing is set, and the sweep goes
-        on. Without error_as_missing the error is raised. Any other GreeError
-        skips the canary and follows error_as_missing the same way.
+        Without error_as_missing any error is raised at once, and a request that
+        gets no answer (GreeConnectionError) marks the device unavailable.
+        With error_as_missing, a request that gets no answer is followed by one
+        canary request for STATUS_CANARY_PROP. If the canary gets no answer
+        either, the device stopped talking and the error is raised. If it is
+        answered, the props of that request are reported as missing and the
+        sweep goes on. Any other GreeError also reports them as missing.
         max_attempts limits the transport retries per request, so a diagnostic
         sweep does not spend timeout x retries on every prop the device ignores.
         """
@@ -350,6 +351,13 @@ class DeviceApiClient:
                 self._available = True
 
             except GreeError as err:
+                # Without error_as_missing the error is raised either way, so a
+                # canary would only add a wait and a warning to every failed poll
+                if not error_as_missing:
+                    if isinstance(err, GreeConnectionError):
+                        self._available = False
+                    raise
+
                 if (
                     isinstance(err, GreeConnectionError)
                     and not await self._is_device_responsive()
@@ -357,10 +365,7 @@ class DeviceApiClient:
                     self._available = False
                     raise
 
-                if error_as_missing:
-                    missing.extend(chunk)
-                else:
-                    raise
+                missing.extend(chunk)
 
         return StatusResult(prop_values=state, missing_props=missing)
 
