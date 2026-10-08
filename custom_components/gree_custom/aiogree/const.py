@@ -14,6 +14,8 @@ MIN_PACK_PROPS = 5
 # means the request had too many columns.
 STATUS_CANARY_PROP = "Pow"
 
+# After a status request gets no answer, the canary prop is asked up to this
+# many times, PROBE_TIMEOUT each, to tell an ignored prop from a silent device.
 STATUS_CANARY_PROP_MAX_REQUESTS = 2
 
 # The probe requests at bind time wait this long, once, instead of the

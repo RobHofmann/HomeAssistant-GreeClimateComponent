@@ -34,6 +34,7 @@ class FakePushTransport(GreeBaseTransport):
         self.device = device
         self.connected = False
         self.subscriptions: list[str] = []
+        self.unsubscriptions: list[str] = []
 
     @override
     def __str__(self) -> str:
@@ -51,17 +52,16 @@ class FakePushTransport(GreeBaseTransport):
         self.connected = False
 
     @override
-    async def subscribe(self, mac_controller: str) -> None:
-        """Start following one device."""
+    async def _subscribe(self, mac_controller: str) -> None:
+        """Start following one controller."""
         await self.connect()
         self.subscriptions.append(mac_controller)
-        self.connected_devices[mac_controller] += 1
 
     @override
-    async def unsubscribe(self, mac_controller: str) -> None:
-        """Stop following one device."""
-        self.connected_devices.pop(mac_controller, None)
-        if not self.connected_devices:
+    async def _unsubscribe(self, mac_controller: str) -> None:
+        """Stop following one controller, and disconnect when none is left."""
+        self.unsubscriptions.append(mac_controller)
+        if not self.connections:
             await self.disconnect()
 
     @override
@@ -86,3 +86,7 @@ class FakePushTransport(GreeBaseTransport):
         """Fire a message at the listeners, the way MQTT does."""
         for listener in list(self._listeners.get(mac, ())):
             listener(topic, payload)
+
+    def listener_macs(self) -> set[str]:
+        """Return the MACs that have at least one listener."""
+        return set(self._listeners)

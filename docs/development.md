@@ -44,10 +44,10 @@ report.
 | `test_discovery_merge.py` | Cloud discovery and merging it with the local list |
 | `test_cloud_api.py` | Login, homes, devices, duplicates, firmware info |
 | `test_device_state.py` | Reads, pending values, held values and their TTL, what counts as supported, pruning |
-| `test_device_api_client.py` | Bind, the column probe, diagnostic sweeps, listeners |
+| `test_device_api_client.py` | Bind, the column probe, diagnostic sweeps and the canary, listeners, one bind shared by the sub-units of a controller |
 | `test_device.py` | The poll cycle and the rules between features |
 
-227 tests, about 94 percent of `aiogree/`. Check the number of the day with:
+254 tests, about 94 percent of `aiogree/`. Check the number of the day with:
 
 ```bash
 pytest --cov=aiogree --cov-report=term-missing
@@ -91,7 +91,7 @@ none of that.
 
 A new failure mode is a new keyword on `FakeGreeDevice`, not a new class. The
 ones that exist are `answer_scan`, `answer_bind`, `scan_delay`, `reply_delay`,
-`max_columns`, `unsupported_props`, `ignore_first`, `drop_after`, `raw_reply`,
+`max_columns`, `unsupported_props`, `ignored_props`, `ignore_first`, `drop_after`, `raw_reply`,
 `reply_key`, `answer_status`, `scan_info`, `stale_reads_after_cmd` and
 `apply_commands`. There is also `rotate_key()`, for a device that hands out a
 new session key, and `catch_up()`, which ends the stale reads at once.

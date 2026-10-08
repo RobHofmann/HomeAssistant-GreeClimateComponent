@@ -55,6 +55,7 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
         reply_delay: float = 0.0,
         max_columns: int | None = None,
         unsupported_props: set[str] | None = None,
+        ignored_props: set[str] | None = None,
         ignore_first: int = 0,
         drop_after: int | None = None,
         raw_reply: bytes | None = None,
@@ -79,6 +80,9 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
             max_columns: Status requests above this many columns get an empty
                 result, as a real firmware at its limit does.
             unsupported_props: Columns the device leaves out of its reply.
+            ignored_props: A status request that asks for any of these columns
+                gets no reply at all. Some firmwares do this (seen: ElcDatDte),
+                and the device answers the next request as normal.
             ignore_first: Say nothing to this many requests first, then answer
                 normally. That is a device that needs a retry.
             drop_after: Stop answering after this many requests.
@@ -107,6 +111,7 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
         self.reply_delay = reply_delay
         self.max_columns = max_columns
         self.unsupported_props = unsupported_props or set()
+        self.ignored_props = ignored_props or set()
         self.ignore_first = ignore_first
         self.drop_after = drop_after
         self.raw_reply = raw_reply
@@ -308,6 +313,8 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
 
         if kind == "status":
             if not self.answer_status:
+                return None
+            if self.ignored_props & set(pack.get("cols", [])):
                 return None
             return self._wrap(self.build_status(pack), self.session_cipher())
 

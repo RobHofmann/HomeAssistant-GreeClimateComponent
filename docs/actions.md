@@ -29,7 +29,7 @@ data:
 
 ### `gree_custom.get_prop_values_all`
 
-Reads every property the integration knows, one request per property. That is about 300 requests, so it takes a few minutes. A property the device never answers costs one timeout. The action stops early when five requests in a row get no answer, which means the device stopped talking.
+Reads every property the integration knows, one request per property. That is about 300 requests, so it takes a few minutes. A property the device never answers costs one timeout. After each request that gets no answer, the integration checks once that the device still answers. If it does not, the device stopped talking and the action stops with an error.
 
 ```yaml
 action: gree_custom.get_prop_values_all
