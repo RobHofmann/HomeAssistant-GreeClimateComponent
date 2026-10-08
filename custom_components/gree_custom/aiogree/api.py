@@ -963,7 +963,9 @@ async def gree_try_bind(
             )
 
             return BindingInfo(
-                encryption_key=ret_key, encryption_version=cipher.version
+                encryption_key=ret_key,
+                encryption_version=cipher.version,
+                cipher=get_cipher(cipher.version, ret_key),
             )
 
     raise GreeBindingError(

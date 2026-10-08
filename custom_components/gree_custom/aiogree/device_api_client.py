@@ -44,10 +44,6 @@ class DeviceApiClient:
 
         self._transport: GreeBaseTransport | None = None
 
-        self._cipher: CipherBase | None = None
-        self._binding: BindingInfo | None = None
-
-        self._bound = False
         self._available = False
 
         self._listeners: list[Callable[[dict[str, str]], None]] = []
@@ -66,10 +62,9 @@ class DeviceApiClient:
         controller_mac: str,
         preferred_version: EncryptionVersion | None = None,
         preferred_key: str | None = None,
+        force_bind: bool = False,
     ) -> None:
         """Bind to the current transport using the suggested version and key."""
-        if self._bound:
-            return
 
         if self._transport is None:
             raise GreeBindingError("No transport configured")
@@ -77,27 +72,22 @@ class DeviceApiClient:
         if not controller_mac or not bool(controller_mac.strip()):
             raise GreeBindingError("No controller MAC provided")
 
+        if self.bound:
+            return
+
         self.controller_mac = controller_mac
 
         _LOGGER.info(
             "[%s:%s] Starting binding procedure", self.controller_mac, self._transport
         )
 
-        await self._transport.subscribe(self.controller_mac)
+        await self._transport.add_device(self.controller_mac, self._mac)
 
-        result: BindingInfo | None = self._transport.is_bound_to_controller(
-            self.controller_mac
-        )
-
-        if result:
-            _LOGGER.debug(
-                "[%s] Device is already bound in transport with version %s and key %s via %s",
-                self.controller_mac,
-                result.encryption_version,
-                redact_str(result.encryption_key),
-                self._transport,
-            )
-        else:
+        # Bind if the transport is not bound to the controller already
+        if (
+            force_bind
+            or self._transport.get_controller_binding_info(self.controller_mac) is None
+        ):
             try:
                 result = await gree_try_bind(
                     self.controller_mac,
@@ -109,11 +99,11 @@ class DeviceApiClient:
 
             except Exception:
                 _LOGGER.exception("Error while binding")
-                await self._transport.unsubscribe(self.controller_mac)
+                await self._transport.remove_device(self.controller_mac, self._mac)
                 raise
 
             else:
-                self._transport.set_bound_to_controller(self.controller_mac, result)
+                self._transport.set_controller_binding_info(self.controller_mac, result)
                 _LOGGER.info(
                     "[%s] Device is bound with version %s and key %s via %s",
                     self.controller_mac,
@@ -122,16 +112,11 @@ class DeviceApiClient:
                     self._transport,
                 )
 
-        self._binding = result
-
-        self._cipher = get_cipher(result.encryption_version, result.encryption_key)
-
         self._transport.add_listener(
             self._mac,
             self._handle_transport_message,
         )
 
-        self._bound = True
         self._available = True
 
         await self.probe_device_limits()
@@ -198,7 +183,7 @@ class DeviceApiClient:
         name is how some firmwares mark a request they had to cut short. No
         reply, an empty reply or any error is a failure.
         """
-        if not self._cipher or not self._transport:
+        if not self.cipher or not self._transport:
             return False
 
         props = [STATUS_CANARY_PROP, *[f"X{i:02d}" for i in range(count - 1)]]
@@ -209,7 +194,7 @@ class DeviceApiClient:
                 self._mac,
                 self._userid,
                 props,
-                self._cipher,
+                self.cipher,
                 self._transport,
                 1,
                 None,
@@ -237,7 +222,7 @@ class DeviceApiClient:
 
     async def unbind(self) -> None:
         """Unbind from the current transport."""
-        if not self._bound:
+        if not self.bound:
             return
 
         if not self._transport:
@@ -248,22 +233,21 @@ class DeviceApiClient:
             self._handle_transport_message,
         )
 
-        await self._transport.unsubscribe(
-            self.controller_mac,
-        )
+        await self._transport.remove_device(self.controller_mac, self._mac)
 
         self._listeners.clear()
 
-        self._bound = False
         self._available = False
-        self._cipher = None
         self._max_props = None
 
-    async def rebind(self) -> None:
+    async def rebind(self, force_bind: bool = False) -> None:
         """Try binding with the current transport and existing binding info."""
         await self.unbind()
         return await self.bind(
-            self.controller_mac, self.encryption_version, self.encryption_key
+            self.controller_mac,
+            self.encryption_version,
+            self.encryption_key,
+            force_bind,
         )
 
     #
@@ -302,11 +286,11 @@ class DeviceApiClient:
         max_attempts limits the transport retries per request, so a diagnostic
         sweep does not spend timeout x retries on every prop the device ignores.
         """
-        if not self._bound:
+        if not self.bound:
             await self.rebind()
 
-        if not self._cipher:
-            raise GreeRuntimeError("No cipher set.")
+        if not self.binding_info:
+            raise GreeRuntimeError("No binding info.")
 
         if not self._transport:
             raise GreeRuntimeError("No transport set.")
@@ -323,7 +307,7 @@ class DeviceApiClient:
                     self._mac,
                     self._userid,
                     chunk,
-                    self._cipher,
+                    self.cipher,
                     self._transport,
                     max_attempts,
                     self._max_props,
@@ -350,7 +334,7 @@ class DeviceApiClient:
                         self._mac,
                         self._userid,
                         [STATUS_CANARY_PROP],
-                        self._cipher,
+                        self.cipher,
                         self._transport,
                         max_attempts,
                         self._max_props,
@@ -394,11 +378,11 @@ class DeviceApiClient:
         values: Mapping[str, int],
     ) -> None:
         """Send the state of multiple properties to the device."""
-        if not self._bound:
+        if not self.bound:
             await self.rebind()
 
-        if not self._cipher:
-            raise GreeRuntimeError("No cipher set.")
+        if not self.binding_info:
+            raise GreeRuntimeError("No bidning info.")
 
         if not self._transport:
             raise GreeRuntimeError("No transport set.")
@@ -408,7 +392,7 @@ class DeviceApiClient:
             self._mac,
             self._userid,
             values,
-            self._cipher,
+            self.cipher,
             self._transport,
         )
 
@@ -443,7 +427,7 @@ class DeviceApiClient:
         payload: dict,
     ) -> None:
 
-        if self._cipher is None:
+        if self.cipher is None:
             return
 
         if "status" not in topic:
@@ -451,7 +435,7 @@ class DeviceApiClient:
 
         response = gree_decrypt_pack(
             payload,
-            self._cipher,
+            self.cipher,
         )
 
         if pack := response.get("pack"):
@@ -478,19 +462,37 @@ class DeviceApiClient:
     @property
     def bound(self) -> bool:
         """Is the device bound to the transport."""
-        return self._bound
+        return (
+            self.binding_info is not None
+            and self._transport is not None
+            and self._mac
+            in self._transport.get_controller_connected_devices(self.controller_mac)
+        )
 
     @property
     def binding_info(self) -> BindingInfo | None:
         """Binding information for the last successful binding with a transport."""
-        return self._binding
+        if self._transport:
+            return self._transport.get_controller_binding_info(self.controller_mac)
+        return None
 
     @property
     def encryption_key(self) -> str | None:
         """The current device encryption key obtained after binding."""
-        return None if self._binding is None else self._binding.encryption_key
+        return None if self.binding_info is None else self.binding_info.encryption_key
 
     @property
     def encryption_version(self) -> EncryptionVersion | None:
         """The current device encryption version obtained after binding."""
-        return None if self._binding is None else self._binding.encryption_version
+        return (
+            None if self.binding_info is None else self.binding_info.encryption_version
+        )
+
+    @property
+    def cipher(self) -> CipherBase:
+        """The current device cipher."""
+        return (
+            get_cipher(EncryptionVersion.V1)
+            if self.binding_info is None
+            else self.binding_info.cipher
+        )

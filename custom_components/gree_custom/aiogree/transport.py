@@ -1,13 +1,14 @@
 """Handles network connections."""
 
 from abc import ABC, abstractmethod
-from collections import Counter, defaultdict
+from collections import defaultdict
 from collections.abc import Callable
 import json
 import logging
 from typing import Any, NamedTuple
 
 from .cipher import CipherBase, EncryptionVersion
+from .errors import GreeBindingError
 from .helpers import gree_decrypt_pack, gree_encrypt_pack
 
 _LOGGER = logging.getLogger(__name__)
@@ -18,6 +19,7 @@ class BindingInfo(NamedTuple):
 
     encryption_key: str
     encryption_version: EncryptionVersion
+    cipher: CipherBase
 
 
 class GreeBaseTransport(ABC):
@@ -28,8 +30,12 @@ class GreeBaseTransport(ABC):
     def __init__(self) -> None:
         """Init transport."""
         self._listeners: dict[str, set[Callable[[str, dict], None]]] = defaultdict(set)
-        self.connected_devices: Counter[str] = Counter()
+        self.connections: dict[str, list[str]] = {}
         self.bound_controllers: dict[str, BindingInfo] = {}
+
+    #
+    # Connection
+    #
 
     @abstractmethod
     async def connect(self) -> None:
@@ -40,29 +46,16 @@ class GreeBaseTransport(ABC):
         """Terminate connection to endpoint."""
 
     @abstractmethod
-    async def subscribe(self, mac_controller: str) -> None:
+    async def _subscribe(self, mac_controller: str) -> None:
         """Subscribe the transport to a device."""
 
     @abstractmethod
-    async def unsubscribe(self, mac_controller: str) -> None:
+    async def _unsubscribe(self, mac_controller: str) -> None:
         """Unsubscribe the transport from a device."""
 
-    def is_bound_to_controller(self, mac_controller: str) -> BindingInfo | None:
-        """If the transport is already bound to a controller, return the binding info otherwise None."""
-        if mac_controller in self.bound_controllers:
-            return self.bound_controllers[mac_controller]
-
-        return None
-
-    def set_bound_to_controller(
-        self, mac_controller: str, binding_info: BindingInfo | None
-    ) -> None:
-        """Set the state of a coontroller to bound in this transport."""
-
-        if binding_info is None and mac_controller in self.bound_controllers:
-            self.bound_controllers.pop(mac_controller)
-        elif binding_info is not None and mac_controller not in self.bound_controllers:
-            self.bound_controllers.setdefault(mac_controller, binding_info)
+    #
+    # Requests
+    #
 
     @abstractmethod
     async def request(
@@ -168,3 +161,70 @@ class GreeBaseTransport(ABC):
             merged.pop("pack", None)
 
         return merged
+
+    #
+    # Binding
+    #
+    async def add_device(self, mac_addr: str, mac_addr_controller: str) -> None:
+        """Add a device to the transport."""
+        if not mac_addr or not bool(mac_addr.strip()):
+            raise GreeBindingError("No device MAC provided")
+
+        if not mac_addr_controller or not bool(mac_addr_controller.strip()):
+            raise GreeBindingError("No controller MAC provided")
+
+        if mac_addr_controller not in self.bound_controllers:
+            await self._subscribe(mac_addr_controller)
+
+        self._add_connected_device(mac_addr_controller, mac_addr)
+
+    async def remove_device(self, mac_addr: str, mac_addr_controller: str) -> None:
+        """Remove a device from the transport."""
+        if not mac_addr or not bool(mac_addr.strip()):
+            raise GreeBindingError("No device MAC provided")
+
+        if not mac_addr_controller or not bool(mac_addr_controller.strip()):
+            raise GreeBindingError("No controller MAC provided")
+
+        self._remove_connected_device(mac_addr_controller, mac_addr)
+
+        if mac_addr_controller not in self.bound_controllers:
+            await self._unsubscribe(mac_addr_controller)
+
+    def _add_connected_device(self, mac_addr_controller: str, mac_addr: str) -> None:
+        if mac_addr_controller not in self.connections:
+            self.connections[mac_addr_controller] = []
+
+        if mac_addr not in self.connections[mac_addr_controller]:
+            self.connections[mac_addr_controller].append(mac_addr)
+
+    def _remove_connected_device(self, mac_addr_controller: str, mac_addr: str) -> None:
+        if mac_addr_controller not in self.connections:
+            return
+
+        if mac_addr in (conn := self.connections.get(mac_addr_controller, [])):
+            conn.remove(mac_addr)
+
+        if len(conn) == 0:
+            self.connections.pop(mac_addr_controller, None)
+            self.bound_controllers.pop(mac_addr_controller, None)
+
+    def get_controller_connected_devices(self, mac_addr_controller: str) -> list[str]:
+        """Has the controller any connected devices on this transport."""
+        return self.connections.get(mac_addr_controller, [])
+
+    def get_controller_binding_info(
+        self, mac_addr_controller: str
+    ) -> BindingInfo | None:
+        """Retrieve the Binding Info associated to a controller."""
+        return self.bound_controllers.get(mac_addr_controller, None)
+
+    def set_controller_binding_info(
+        self, mac_controller: str, binding_info: BindingInfo | None
+    ) -> None:
+        """Set the state of a coontroller to bound in this transport."""
+
+        if binding_info is None and mac_controller in self.bound_controllers:
+            self.bound_controllers.pop(mac_controller, None)
+        elif binding_info is not None:
+            self.bound_controllers.setdefault(mac_controller, binding_info)

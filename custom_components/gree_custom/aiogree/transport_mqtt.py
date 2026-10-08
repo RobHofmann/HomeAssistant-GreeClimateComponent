@@ -133,13 +133,13 @@ class GreeMqttTransport(GreeBaseTransport):
         _LOGGER.debug("Disconnected from MQTT broker")
 
     @override
-    async def subscribe(self, mac_controller: str) -> None:
+    async def _subscribe(self, mac_controller: str) -> None:
         await self.connect()
 
         if not self._connected or not self._client:
             raise GreeRuntimeError("MQTT transport not connected")
 
-        if mac_controller not in self.connected_devices:
+        if mac_controller not in self.connections:
             topics = [
                 f"response/{mac_controller}/#",
                 f"status/{mac_controller}/#",
@@ -150,18 +150,12 @@ class GreeMqttTransport(GreeBaseTransport):
                 await self._client.subscribe(topic, qos=1)
                 _LOGGER.debug("Subscribed to topic: %s", topic)
 
-        self.connected_devices[mac_controller] += 1
-
     @override
-    async def unsubscribe(self, mac_controller: str) -> None:
+    async def _unsubscribe(self, mac_controller: str) -> None:
         if not self._connected or not self._client:
             raise GreeRuntimeError("MQTT transport not connected")
 
-        if self.connected_devices[mac_controller] > 1:
-            self.connected_devices[mac_controller] -= 1
-        else:
-            self.connected_devices.pop(mac_controller, None)
-            self.set_bound_to_controller(mac_controller, None)
+        if len(self.get_controller_connected_devices(mac_controller)) == 0:
             topics = [
                 f"response/{mac_controller}/#",
                 f"status/{mac_controller}/#",
@@ -172,7 +166,7 @@ class GreeMqttTransport(GreeBaseTransport):
                 await self._client.unsubscribe(topic)
                 _LOGGER.debug("Unsubscribed from topic: %s", topic)
 
-        if len(self.connected_devices) == 0:
+        if len(self.connections) == 0:
             return await self.disconnect()
 
         return None
