@@ -1,6 +1,7 @@
 """Config flow to configure the Gree integration."""
 
 from collections.abc import Mapping
+import copy
 from ipaddress import IPv4Address, IPv4Network, ip_address, ip_network
 import logging
 from typing import TYPE_CHECKING, Any, override
@@ -358,11 +359,13 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
 
                 discover.remove(d)
 
-                # update data
-                new_data = dict(entry_match.data)
-                new_data[CONF_DEVICES][discovery_info.macaddress][
-                    CONF_DEVICE_CONNECTION
-                ][CONF_DEVICE_CONNECTION_LOCAL][CONF_HOST] = discovery_info.ip
+                # update data. Behind a gateway the DHCP MAC is the gateway,
+                # and the configured devices are its sub-units, so use the MAC
+                # of the discovered device. Copy deep, so the entry sees a change.
+                new_data = copy.deepcopy(dict(entry_match.data))
+                new_data[CONF_DEVICES][d.mac][CONF_DEVICE_CONNECTION][
+                    CONF_DEVICE_CONNECTION_LOCAL
+                ][CONF_HOST] = discovery_info.ip
                 # TODO: Check if this only returns True if the IP Changed
                 if (
                     self.hass.config_entries.async_update_entry(
