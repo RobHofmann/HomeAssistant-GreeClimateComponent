@@ -10,15 +10,26 @@ from homeassistant.components.number import (
     NumberEntityDescription,
     NumberMode,
 )
-from homeassistant.const import PERCENTAGE
+from homeassistant.const import PERCENTAGE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .aiogree.api import HumidityControlMode, OperationMode
-from .aiogree.const import MAX_HUM_COOL_P, MAX_HUM_DRY_P, MIN_HUM_COOL_P, MIN_HUM_DRY_P
+from .aiogree.api import HumidityControlMode, OperationMode, ZoneRole
+from .aiogree.const import (
+    MAX_HUM_COOL_P,
+    MAX_HUM_DRY_P,
+    MAX_TEMP_C,
+    MIN_HUM_COOL_P,
+    MIN_HUM_DRY_P,
+    MIN_TEMP_C,
+)
 from .aiogree.device import GreeDevice
-from .const import GATTR_FEAT_HUMIDITY, GATTR_FEAT_HUMIDITY_TARGET
+from .const import (
+    GATTR_FEAT_HUMIDITY,
+    GATTR_FEAT_HUMIDITY_TARGET,
+    GATTR_ZONE_TARGET_TEMPERATURE,
+)
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
 from .platform_helpers import supported_descriptions
@@ -31,7 +42,7 @@ class GreeNumberDescription(
 ):
     """Description of a Gree number."""
 
-    value_func: Callable[[GreeDevice], int]
+    value_func: Callable[[GreeDevice], int | None]
     set_func: Callable[[GreeDevice, int], None]
     min_func: Callable[[GreeDevice], int] | None = None
     max_func: Callable[[GreeDevice], int] | None = None
@@ -66,7 +77,22 @@ NUMBER_TYPES: list[GreeNumberDescription] = [
             else MAX_HUM_DRY_P
         ),
         updates_device=True,
-    )
+    ),
+    GreeNumberDescription(
+        key=GATTR_ZONE_TARGET_TEMPERATURE,
+        translation_key=GATTR_ZONE_TARGET_TEMPERATURE,
+        auto_device_support=True,
+        device_filter=lambda device: device.zone_role is ZoneRole.ZONE,
+        device_class=NumberDeviceClass.TEMPERATURE,
+        mode=NumberMode.BOX,
+        native_step=1,
+        native_min_value=MIN_TEMP_C,
+        native_max_value=MAX_TEMP_C,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        value_func=lambda device: device.zone_target_temperature,
+        set_func=lambda device, value: device.set_zone_target_temperature(value),
+        updates_device=True,
+    ),
 ]
 
 
@@ -149,7 +175,7 @@ class GreeNumber(GreeEntity, NumberEntity):  # pyright: ignore[reportIncompatibl
 
     @property
     @override
-    def native_value(self) -> float:
+    def native_value(self) -> float | None:
         """Return the state of the sensor."""
         return self.entity_description.value_func(self.device)
 

@@ -39,6 +39,18 @@ Turbo and Quiet are not fan speeds on the unit but separate features. The integr
 
 The unit has its own temperature scale, Celsius or Fahrenheit, which you change with the **Temperature Units** select. The climate entity follows the unit, and Home Assistant converts to your display units. Fahrenheit values come from the unit's own lookup table, not from a formula.
 
+## Zone controller
+
+A zone controller (for example the Gree LE60-13/GH) has one ducted unit and up to eight zones behind one WiFi module. Discovery finds the ducted unit as **AC unit** and the zones as **Zone 1**, **Zone 2** and so on. Add all of them.
+
+- The **AC unit** gets the climate entity. Its HVAC mode and fan mode work as above. Turbo is a fan speed of this unit, in Cool and Heat only. It has no target temperature and no room temperature: the zones have their own target temperature, and the controller does not report the room temperatures of the zones. Turning the AC unit off turns the whole system off. The zones keep their own setting and get it back when the system is turned on again.
+- Each **zone** gets no climate entity, because a zone has no mode of its own. It gets:
+
+| Entity | What it does |
+|---|---|
+| Switch with the name of the zone | Opens and closes the zone. It is the **Zone Switch** feature, so you can leave it out. Do that for a zone that must always stay open: turning such a zone off is refused by the controller or turns the whole system off. |
+| Target Temperature | The target temperature of the zone, 16 to 30 degrees C. |
+
 ## Sensors
 
 Created when the unit has the sensor. Nothing to enable.

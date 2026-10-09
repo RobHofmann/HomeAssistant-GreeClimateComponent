@@ -20,6 +20,7 @@ Tested on the following hardware:
 - Gree KFR-35GW/(35549)FNhAc-B1: ECB encryption, basic functions work; Wi‑Fi setup may require Bluetooth/Gree+ app pairing.
 - Gree MC31-00/F Central Air Conditioner Remote Control Module
 - Gree GWH18AGD-K6DNA1D/I (encryption version 1)
+- Gree LE60-13/GH zone controller with ME31-00/C13 WiFi module (firmware 362001062617 V1.27, encryption version 1): AC unit and zones, see [Zone controller](docs/entities.md#zone-controller)
 
 ## Kolin
 - Kolin KAG-100WCINV (encryption version 2)

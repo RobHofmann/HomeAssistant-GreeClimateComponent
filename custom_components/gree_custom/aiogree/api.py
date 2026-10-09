@@ -94,12 +94,20 @@ class GreeProp(StrEnum):
     # If set to 1 the unit will beep on every command (available on newer firmwares)
     BEEPER_NEW = "BuzzerCtrl"
 
+    # ZONE CONTROLLER
+    # target temperature of one zone, in whole degrees Celsius minus 16
+    ZONE_TARGET_TEMPERATURE = "StTem"
+
 
 PROP_KEY_TO_ENUM = {prop.value: prop for prop in GreeProp}
 
-# Props every device is polled for by default; the beeper is only written, never read
+# Props every device is polled for by default. The beeper is only written,
+# never read. The zone target temperature is only polled on zones, see
+# `GreeDevice.zone_role`.
 POLLED_PROPS: tuple[GreeProp, ...] = tuple(
-    p for p in GreeProp if p not in (GreeProp.BEEPER, GreeProp.BEEPER_NEW)
+    p
+    for p in GreeProp
+    if p not in (GreeProp.BEEPER, GreeProp.BEEPER_NEW, GreeProp.ZONE_TARGET_TEMPERATURE)
 )
 
 
@@ -469,6 +477,43 @@ class HumidityControlMode(IntEnum):
     target_dry = 0
     continuous_dry = 1  # This is only available in dry operation mode
     smart_dry = 2  # This is only available in cool operation mode
+
+
+@unique
+class ZoneRole(StrEnum):
+    """What a sub-unit of a zone controller is.
+
+    A zone controller (seen: LE60-13/GH with a ME31-00/C13 WiFi module) is a
+    gateway like a VRF gateway. Sub-unit `00` is the ducted unit and `01` to
+    `08` are the zones. See docs/protocol.md.
+    """
+
+    NONE = ""
+    AC_UNIT = "ac_unit"
+    ZONE = "zone"
+
+
+# A zone controller and its sub-units report a name that starts with this.
+ZONE_CONTROLLER_NAME_PREFIX = "GR-ZCntrlr"
+# The model ids of the sub-units in the sub-device list.
+ZONE_CONTROLLER_MID_AC_UNIT = "5000"
+ZONE_CONTROLLER_MID_ZONE = "5001"
+
+# The ducted unit behind a zone controller numbers the modes in its own way.
+ZONE_CONTROLLER_MODES: dict[int, OperationMode] = {
+    1: OperationMode.cool,
+    2: OperationMode.heat,
+    3: OperationMode.dry,
+    4: OperationMode.fan,
+    5: OperationMode.auto,
+}
+ZONE_CONTROLLER_MODES_TO_RAW: dict[OperationMode, int] = {
+    mode: raw for raw, mode in ZONE_CONTROLLER_MODES.items()
+}
+# It has no turbo column. Turbo is one more fan speed.
+ZONE_CONTROLLER_FAN_TURBO = 6
+# A zone stores its target temperature as degrees Celsius minus this.
+ZONE_TEMPERATURE_OFFSET = 16
 
 
 class GreeCommand(StrEnum):
@@ -1281,6 +1326,25 @@ def _parse_sub_devices_list(
     return sub_devs
 
 
+def _zone_controller_sub_unit_name(sub_mac: str, sub_dev: dict[str, Any]) -> str | None:
+    """Name a sub-unit of a zone controller.
+
+    A zone controller calls every sub-unit "zone", so the name says nothing.
+    The model id tells the ducted unit from a zone, and the last two
+    characters of the MAC are the zone number.
+
+    Returns:
+        The name, or None if the unit is not part of a zone controller
+
+    """
+    mid = sub_dev.get("mid")
+    if mid == ZONE_CONTROLLER_MID_AC_UNIT:
+        return "AC unit"
+    if mid == ZONE_CONTROLLER_MID_ZONE:
+        return f"Zone {int(sub_mac[-2:], 16)}"
+    return None
+
+
 async def _get_sub_devices_list(
     mac_addr_controller: str,
     uid: int,
@@ -1383,11 +1447,13 @@ async def _get_sub_devices_list(
     discovered_subdevices: list[GreeDiscoveredDevice] = []
     for sub_mac, sub_dev in merged.items():
         new_dev: GreeDiscoveredDevice
+        zone_name = _zone_controller_sub_unit_name(sub_mac, sub_dev)
         if parent_device:
             # TODO: get real-data from VRF discovery to check the result list fields
             new_dev = replace(
                 parent_device,
-                name=sub_dev.get(
+                name=zone_name
+                or sub_dev.get(
                     "name",
                     f"{sub_mac[-5:]} VRF at {parent_device.name}",
                 ),
@@ -1397,7 +1463,8 @@ async def _get_sub_devices_list(
             )
         else:
             new_dev = GreeDiscoveredDevice(
-                name=sub_dev.get(
+                name=zone_name
+                or sub_dev.get(
                     "name",
                     f"{sub_mac[-5:]} VRF at {mac_addr_controller[-5:]}",
                 ),
