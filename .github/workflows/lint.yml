@@ -26,8 +26,9 @@ jobs:
           python-version: "3.14"
 
       - name: Install Ruff
-        # Same floor as requirements_dev.txt.
-        run: pip install "ruff>=0.16.3"
+        # Pinned, same as requirements_dev.txt. A new Ruff release can add or
+        # change rules, so bump it on purpose in its own PR.
+        run: pip install "ruff==0.17.0"
 
       - name: Ruff check
         run: ruff check .

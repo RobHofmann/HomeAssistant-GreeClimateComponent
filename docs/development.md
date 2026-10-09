@@ -184,6 +184,8 @@ Never log an encryption key, cloud password or token in clear text.
 
 `lint.yml` runs `ruff check` and `ruff format --check` on every push and PR.
 
+Ruff is pinned to one exact version, in `lint.yml` and in `requirements_dev.txt`. Keep the two the same. New Ruff releases change rules: 0.16 and 0.17 want opposite forms of the same import, so no code passes both. Bump the pin in its own PR and run `ruff check --fix .` with the new version in that PR.
+
 `validate.yaml` runs three jobs on every push and PR:
 
 - **Hassfest** and **HACS** validation. Neither imports or compiles the Python.
