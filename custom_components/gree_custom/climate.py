@@ -34,7 +34,7 @@ from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util.unit_conversion import TemperatureConverter
 
-from .aiogree.api import FanSpeed, HorizontalSwingMode, VerticalSwingMode
+from .aiogree.api import FanSpeed, GreeProp, HorizontalSwingMode, VerticalSwingMode
 from .aiogree.const import MAX_TEMP_C, MAX_TEMP_F, MIN_TEMP_C, MIN_TEMP_F
 from .aiogree.errors import GreeTurboUnavailable
 from .const import (
@@ -125,7 +125,7 @@ async def async_setup_entry(
             _LOGGER.info(
                 "Climate Entity will not be created because no Climate options and features are available for the device"
             )
-            return
+            continue
 
         _LOGGER.debug(
             "Adding Climate Entity for device '%s'",
@@ -196,9 +196,10 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         if any(mode != HVACMode.OFF for mode in hvac_modes):
             self._attr_supported_features |= ClimateEntityFeature.TURN_ON
 
+        # Only offer a target temperature when the unit has one.
         if any(
             mode in hvac_modes for mode in (HVACMode.HEAT, HVACMode.COOL, HVACMode.AUTO)
-        ):
+        ) and self.device.supports_property(GreeProp.TARGET_TEMPERATURE):
             self._attr_supported_features |= ClimateEntityFeature.TARGET_TEMPERATURE
 
         if fan_modes:
@@ -207,13 +208,17 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         else:
             self._attr_fan_modes = None
 
-        if swing_modes:
+        # The options form leaves the swing lists out for a unit without swing,
+        # and the defaults would then add swing anyway.
+        if swing_modes and self.device.supports_property(GreeProp.SWING_VERTICAL):
             self._attr_supported_features |= ClimateEntityFeature.SWING_MODE
             self._attr_swing_modes = swing_modes
         else:
             self._attr_swing_modes = None
 
-        if swing_horizontal_modes:
+        if swing_horizontal_modes and self.device.supports_property(
+            GreeProp.SWING_HORIZONTAL
+        ):
             self._attr_supported_features |= ClimateEntityFeature.SWING_HORIZONTAL_MODE
             self._attr_swing_horizontal_modes = swing_horizontal_modes
         else:

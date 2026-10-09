@@ -17,11 +17,11 @@ The main entity. Its name is the device name.
 | Part | What it does |
 |---|---|
 | HVAC mode | Auto, Cool, Dry, Fan only, Heat, Off. You choose the list at setup. Off turns the unit off, every other mode turns it on. |
-| Target temperature | 16 to 30 degrees C, or 61 to 86 degrees F. Available when Heat, Cool or Auto is in the mode list. The step is the **Temperature Step** option. In Auto mode the unit uses its own factory setting, so a temperature sent with Auto is ignored and logged as a warning. |
+| Target temperature | 16 to 30 degrees C, or 61 to 86 degrees F. Available when Heat, Cool or Auto is in the mode list and the unit has a target temperature. The step is the **Temperature Step** option. In Auto mode the unit uses its own factory setting, so a temperature sent with Auto is ignored and logged as a warning. |
 | Current temperature | The unit's room sensor, converted to the unit's temperature scale. Replaced by the **External Temperature Sensor** when one is set. That changes only what Home Assistant shows; the unit keeps regulating on its own sensor. |
 | Current humidity | The unit's humidity sensor, when it has one. Replaced by the **External Humidity Sensor** when one is set. Display only, like the temperature. |
 | Fan mode | Auto, Low, Medium-Low, Medium, Medium-High, High, plus Turbo and Quiet when the unit has them. See below. |
-| Swing mode | Vertical positions and swing ranges. |
+| Swing mode | Vertical positions and swing ranges, when the unit has vertical swing. |
 | Horizontal swing mode | Horizontal positions and swing ranges, when the unit has them. |
 
 Extra attribute: `current_outside_temperature`, the outdoor sensor value in the unit's temperature scale, when the unit has an outdoor sensor. Read it with `{{ state_attr('climate.your_ac', 'current_outside_temperature') }}`.
