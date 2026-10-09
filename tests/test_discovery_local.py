@@ -14,6 +14,7 @@ seconds. Keep windows short unless the test is about the window.
 # pytest pattern, not shadowing.
 
 from collections.abc import AsyncIterator, Callable
+from typing import Any, override
 
 from aiogree.transport_udp import GreeUdpTransport
 import pytest
@@ -56,6 +57,31 @@ async def test_one_device_answers_a_targeted_scan(
     assert len(found) == 1
     assert found[0].mac == DEFAULT_MAC
     assert found[0].host == device.host
+
+
+class FakeDeviceWithoutCid(FakeGreeDevice):
+    """A unit whose scan reply has no cid (seen: a Gree LE60-13/GH zone controller)."""
+
+    @override
+    def build_scan_info(self) -> dict[str, Any]:
+        """Answer the scan without the cid field."""
+        info = super().build_scan_info()
+        del info["cid"]
+        return info
+
+
+async def test_a_scan_reply_without_cid_is_accepted(
+    loopback_ip: str, discover_one: DiscoverOne
+) -> None:
+    """The cid is not needed for anything, so a reply without it must not fail."""
+    fake = FakeDeviceWithoutCid(name="Zone controller")
+    await fake.start(loopback_ip, DISCOVERY_PORT)
+    try:
+        found = await discover_one(fake.host, timeout=1)
+    finally:
+        fake.close()
+
+    assert [(d.mac, d.name) for d in found] == [(DEFAULT_MAC, "Zone controller")]
 
 
 async def test_a_scan_closes_the_transport_it_opened(
