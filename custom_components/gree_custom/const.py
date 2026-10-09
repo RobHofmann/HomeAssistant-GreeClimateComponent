@@ -1,8 +1,6 @@
 """Constants for the Gree integration."""
 
-from homeassistant.components.climate import (
-    HVACMode,  # pyright: ignore[reportPrivateImportUsage]
-)
+from homeassistant.components.climate import HVACMode  # pyright: ignore[reportPrivateImportUsage]
 from homeassistant.const import UnitOfTemperature
 
 from .aiogree.api import (
