@@ -366,7 +366,6 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                 new_data[CONF_DEVICES][d.mac][CONF_DEVICE_CONNECTION][
                     CONF_DEVICE_CONNECTION_LOCAL
                 ][CONF_HOST] = discovery_info.ip
-                # TODO: Check if this only returns True if the IP Changed
                 if (
                     self.hass.config_entries.async_update_entry(
                         entry_match, data=new_data
