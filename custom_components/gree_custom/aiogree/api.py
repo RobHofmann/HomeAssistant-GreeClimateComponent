@@ -499,10 +499,12 @@ class DeviceScanInfoResponse(BaseModel):
     # Scan Responses format:
     # {"t":"dev","bc":"","catalog":"gree","series":"gree","model":"gree","lock":0,"vender":"1","mid":"60","name":"GR-Gcloud_60_0a_5ba3_EC","ver":"V3.2.M","mac":"9424b8fd5ba3","subCnt":6}
     # {'t': 'dev', 'cid': 'c03937b12280', 'bc': '00000000000000000000000000000000', 'brand': 'gree', 'catalog': 'gree', 'mac': 'c03937b12280', 'mid': '10001', 'model': 'gree', 'name': '', 'lock': 0, 'series': 'gree', 'vender': '1', 'ver': 'V3.4.M', 'ModelType': '32776', 'hid': '362001065279+U-WB05RT13V1.45.bin'}
+    # A zone controller sends no cid:
+    # {"t":"dev","bc":"gree","catalog":"gree","mid":"50","lock":0,"model":"gree","name":"GR-ZCntrlr_5000_02_ffee_EC","series":"gree","vender":"2","ver":"V1.2.1","brand":"gree","mac":"9424b8c0ffee","subCnt":5}
     model_config = ConfigDict(extra="ignore")
 
     t: str
-    cid: str
+    cid: str | None = None
     mac: str
     bc: str | None = None
     brand: str | None = None

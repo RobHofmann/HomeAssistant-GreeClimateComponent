@@ -37,6 +37,7 @@ Facts about how Gree devices behave on the wire. Most of these are not visible f
 ## Discovery and network
 
 - Local discovery is a plain text `{"t": "scan"}` UDP broadcast. The device answers with a `dev` pack encrypted with the generic key.
+- Most devices put a `cid` in that `dev` pack. Some do not (seen: a Gree LE60-13/GH zone controller), so `DeviceScanInfoResponse` must not require it. Nothing reads it.
 - `extra_scan_networks` and `extra_scan_hosts` exist for devices on another subnet, where a broadcast does not reach. Those are probed with unicast.
 - A device that does not answer the scan cannot be bound. Setup retries the scan with the normal transport retries.
 
