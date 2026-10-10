@@ -39,6 +39,10 @@ class TempOffsetResolver:
         self._has_offset: bool | None = None  # undecided until True/False
 
     def __call__(self, raw: float) -> float:
+        try:
+            raw = float(raw)
+        except (TypeError, ValueError):
+            return raw
         if self._min_raw is None or raw < self._min_raw:
             self._min_raw = raw
         if self._max_raw is None or raw > self._max_raw:
