@@ -76,7 +76,8 @@ class GreeNumberEntity(GreeEntity, NumberEntity, RestoreEntity):
                     value = float(last_state.state)
                     # Validate the value is within the entity's range
                     if self.entity_description.native_min_value <= value <= self.entity_description.native_max_value:
-                        setattr(self._device, f"_{self.entity_description.property_key}", value)
+                        if self.entity_description.set_fn:
+                            self.entity_description.set_fn(self._device, value)
                         self._attr_native_value = value
                         self._restored = True
                 except (ValueError, TypeError):

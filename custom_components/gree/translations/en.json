@@ -213,6 +213,10 @@
       }
     },
     "switch": {
+      "half_degree_control": {
+        "name": "Half-degree via Add0.5",
+        "description": "Turn on to use Add0.5 for Celsius half-degree control, or off to use TemRec. Defaults to off. Switching does not change the AC setpoint. The selection is restored after restart. Set Temperature Step to 0.5 separately."
+      },
       "xfan": {
         "name": "X-Fan",
         "description": "Enables or disables the X-Fan mode for extra drying when turning off."

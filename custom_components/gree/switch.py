@@ -110,7 +110,26 @@ async def _set_beeper(device, value: bool) -> None:
     setattr(device, "_beeper_enabled", value)
 
 
+async def _set_half_degree_control(device, value: bool) -> None:
+    """Select the temperature encoding without changing the AC setpoint."""
+    device._use_add_half_degree = value
+    if device._acOptions.get("SetTem") is not None:
+        device.UpdateHATargetTemperature()
+        if device.entity_id is not None:
+            device.async_write_ha_state()
+
+
 SWITCHES: tuple[GreeSwitchEntityDescription, ...] = (
+    GreeSwitchEntityDescription(
+        property_key="half_degree_control",
+        icon="mdi:thermometer-plus",
+        value_fn=lambda device: device._use_add_half_degree,
+        set_fn=_set_half_degree_control,
+        available_fn=lambda device: device._unit_of_measurement == "°C"
+        and device._has_half_degree_option is True,
+        restore_state=True,
+        entity_category=EntityCategory.CONFIG,
+    ),
     GreeSwitchEntityDescription(
         property_key="xfan",
         icon="mdi:fan",
@@ -224,7 +243,7 @@ class GreeSwitchEntity(GreeEntity, SwitchEntity, RestoreEntity):
         description: GreeSwitchEntityDescription,
     ) -> None:
         super().__init__(hass, entry, description)
-        self._attr_is_on = bool(self.native_value)
+        self._attr_is_on = bool(description.value_fn(self._device))
         self._restored = False
 
     async def async_added_to_hass(self):
@@ -232,7 +251,7 @@ class GreeSwitchEntity(GreeEntity, SwitchEntity, RestoreEntity):
         # Restore state if applicable
         if self.entity_description.restore_state:
             last_state = await self.async_get_last_state()
-            if last_state is not None:
+            if last_state is not None and last_state.state in ("on", "off"):
                 value = last_state.state == "on"
                 await self.entity_description.set_fn(self._device, value)
                 self._attr_is_on = value
