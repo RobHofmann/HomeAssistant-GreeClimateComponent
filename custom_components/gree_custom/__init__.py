@@ -418,7 +418,8 @@ def cleanup_device_connection_issues(
     registry = ir.async_get(hass)
     prefix = f"{ISSUE_DEVICE_CONNECTION_FAILED}_{config_entry_id}_"
 
-    for domain, issue_id in registry.issues:
+    # Loop over a copy, the delete below changes the dict
+    for domain, issue_id in list(registry.issues):
         if domain != DOMAIN or not issue_id.startswith(prefix):
             continue
 
