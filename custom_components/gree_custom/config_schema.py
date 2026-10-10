@@ -702,7 +702,13 @@ def setup_device_options_schema(  # noqa: C901
             {
                 probatio.Optional(
                     CONF_FEATURES,
-                    default=defaults.get(CONF_FEATURES, valid_features),
+                    # Defaults copied from another device may hold features
+                    # this one does not have.
+                    default=[
+                        feature
+                        for feature in defaults.get(CONF_FEATURES, valid_features)
+                        if feature in valid_features
+                    ],
                 ): SelectSelector(
                     config=SelectSelectorConfig(
                         options=valid_features,

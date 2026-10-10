@@ -40,6 +40,7 @@ from homeassistant.helpers.storage import Store
 
 from . import create_yaml_import_issue, delete_yaml_import_issue
 from .aiogree.api import (
+    DeviceType,
     GreeDiscoveredDevice,
     gree_discover_device_local,
     gree_discover_devices_cloud,
@@ -99,6 +100,7 @@ from .const import (
     DOMAIN,
     ENCRYPTION_VERSION_AUTO,
     MAX_UNICAST_SCAN_HOSTS,
+    ZONE_ONLY_FEATURES,
 )
 from .coordinator import GreeConfigEntry
 from .helpers import (
@@ -111,6 +113,36 @@ from .helpers import (
 from .migration import async_setup_from_flow
 
 _LOGGER = logging.getLogger(__name__)
+
+# The options that carry over from a device set up before, as defaults
+_COPIED_OPTIONS = (
+    CONF_HVAC_MODES,
+    CONF_FAN_MODES,
+    CONF_SWING_MODES,
+    CONF_SWING_HORIZONTAL_MODES,
+    CONF_FEATURES,
+)
+
+
+def _copied_options(
+    device: GreeDevice, options: Mapping[str, Any] | None
+) -> dict[str, Any] | None:
+    """Take the options of another device as defaults for this one.
+
+    Only the mode and feature lists carry over, not the name. The Zone Switch
+    is chosen per zone, because only an always open zone goes without it, so
+    it never carries over: a zone starts with it, any other device without it.
+    """
+    if not options:
+        return None
+
+    copied = {key: options[key] for key in _COPIED_OPTIONS if key in options}
+    if CONF_FEATURES in copied:
+        features = [f for f in copied[CONF_FEATURES] if f not in ZONE_ONLY_FEATURES]
+        if device.device_type is DeviceType.ZONE:
+            features.extend(ZONE_ONLY_FEATURES)
+        copied[CONF_FEATURES] = features
+    return copied
 
 
 def _matches_cloud_account(
@@ -928,17 +960,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                     .get(CONF_DEVICE_OPTIONS, None)
                 )
             elif model_options := self._options_by_model.get(device.device_model_id):
-                default = {
-                    key: model_options[key]
-                    for key in (
-                        CONF_HVAC_MODES,
-                        CONF_FAN_MODES,
-                        CONF_SWING_MODES,
-                        CONF_SWING_HORIZONTAL_MODES,
-                        CONF_FEATURES,
-                    )
-                    if key in model_options
-                }
+                default = _copied_options(device, model_options)
 
         # During reconfigure inject previous device options
         if not default and self.source == SOURCE_RECONFIGURE:
@@ -949,13 +971,16 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                 .get(CONF_DEVICE_OPTIONS, {})
             )
 
+        # Otherwise start from the device of the same controller set up before
+        if not default:
+            default = _copied_options(
+                device, self._options_by_controller.get(device.mac_address_controller)
+            )
+
         data_schema = setup_device_options_schema(
             hass=self.hass,
             device=device,
-            default_values=(
-                default
-                or self._options_by_controller.get(device.mac_address_controller)
-            ),
+            default_values=default,
         )
 
         return self.async_show_form(
