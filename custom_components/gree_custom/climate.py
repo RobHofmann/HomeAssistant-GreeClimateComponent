@@ -717,8 +717,13 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             )
 
         try:
-            self.device.set_feature_quiet(fan_mode == GATTR_FEAT_QUIET_MODE)
-            self.device.set_feature_turbo(fan_mode == GATTR_FEAT_TURBO)
+            # Only touch the special modes the unit has. Setting one it does not
+            # have logs an error on every fan change (seen: Quiet on the ducted
+            # unit of a zone controller).
+            if self.device.supports_property(GreeProp.FEAT_QUIET_MODE):
+                self.device.set_feature_quiet(fan_mode == GATTR_FEAT_QUIET_MODE)
+            if self.device.supports_property(GreeProp.FEAT_TURBO_MODE):
+                self.device.set_feature_turbo(fan_mode == GATTR_FEAT_TURBO)
 
             if fan_mode not in (GATTR_FEAT_QUIET_MODE, GATTR_FEAT_TURBO):
                 self.device.set_fan_speed(FanSpeed[fan_mode])
