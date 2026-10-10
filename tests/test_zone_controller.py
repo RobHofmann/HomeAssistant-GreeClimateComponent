@@ -12,7 +12,7 @@ on/off state and a target temperature. See docs/protocol.md.
 
 from collections.abc import AsyncIterator
 
-from aiogree.api import FanSpeed, GreeProp, OperationMode, ZoneRole
+from aiogree.api import DeviceType, FanSpeed, GreeProp, OperationMode
 from aiogree.device import GreeDevice
 from aiogree.errors import GreeTurboUnavailable
 from aiogree.transport_udp import GreeUdpTransport
@@ -103,8 +103,16 @@ async def test_discovery_names_the_ducted_unit_and_the_zones(
 
 async def test_the_ducted_unit_is_recognised(ac_unit: GreeDevice) -> None:
     """The name in the info columns and the 00 suffix make it the ducted unit."""
-    assert ac_unit.zone_role is ZoneRole.AC_UNIT
+    assert ac_unit.device_type is DeviceType.ZONE_CONTROLLER
     assert not ac_unit.supports_property(GreeProp.ZONE_TARGET_TEMPERATURE)
+
+
+async def test_the_device_type_is_in_the_diagnostics(
+    ac_unit: GreeDevice, zone: GreeDevice
+) -> None:
+    """The type helps when a user sends diagnostics."""
+    assert ac_unit.gather_diagnostics()["info"]["device_type"] == "zone_controller"
+    assert zone.gather_diagnostics()["info"]["device_type"] == "zone"
 
 
 @pytest.mark.parametrize(
@@ -194,7 +202,7 @@ async def test_a_zone_is_recognised_and_polls_its_target_temperature(
     controller: FakeZoneController, zone: GreeDevice
 ) -> None:
     """A zone asks for StTem and reads it as degrees Celsius minus 16."""
-    assert zone.zone_role is ZoneRole.ZONE
+    assert zone.device_type is DeviceType.ZONE
     assert zone.supports_property(GreeProp.ZONE_TARGET_TEMPERATURE)
     assert zone.zone_target_temperature == 18
 
@@ -236,7 +244,7 @@ async def test_a_zone_is_opened_and_closed_with_its_power(
 
 
 async def test_a_normal_unit_never_asks_for_the_zone_column() -> None:
-    """Only zones poll StTem. A normal unit sends the same columns as before."""
+    """Only zones poll StTem. A standalone unit sends the same columns as before."""
     unit = FakeGreeDevice()
     await unit.start()
     transport = GreeUdpTransport(unit.host, unit.port, max_retries=1, timeout=0.3)
@@ -252,7 +260,7 @@ async def test_a_normal_unit_never_asks_for_the_zone_column() -> None:
 
     asked = {col for pack in unit.packs for col in pack.get("cols", [])}
     assert GreeProp.ZONE_TARGET_TEMPERATURE.value not in asked
-    assert device.zone_role is ZoneRole.NONE
+    assert device.device_type is DeviceType.AC_UNIT
 
 
 async def test_a_vrf_indoor_unit_keeps_the_normal_mode_numbers() -> None:
@@ -266,5 +274,5 @@ async def test_a_vrf_indoor_unit_keeps_the_normal_mode_numbers() -> None:
     finally:
         gateway.close()
 
-    assert device.zone_role is ZoneRole.NONE
+    assert device.device_type is DeviceType.VRF_UNIT
     assert device.operation_mode is OperationMode.heat

@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from ipaddress import IPv4Address, IPv4Network, ip_address, ip_network
 import logging
-from typing import Any
+from typing import Any, NamedTuple
 
 from homeassistant.components import network
 from homeassistant.config_entries import ConfigEntry
@@ -13,7 +13,11 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import UNDEFINED, UndefinedType
 
-from .aiogree.api import GreeDiscoveredDevice, gree_discover_devices
+from .aiogree.api import (
+    ZONE_CONTROLLER_TYPES,
+    GreeDiscoveredDevice,
+    gree_discover_devices,
+)
 from .aiogree.device import GreeDevice
 from .aiogree.transport_udp import GreeUdpTransport
 from .const import (
@@ -35,7 +39,10 @@ from .const import (
     DOMAIN,
     MAX_UNICAST_SCAN_HOSTS,
     VRF_CONTROLLER_ID_PREFIX,
+    VRF_CONTROLLER_MODEL,
     VRF_CONTROLLER_TRANSLATION_KEY,
+    ZONE_CONTROLLER_MODEL,
+    ZONE_CONTROLLER_TRANSLATION_KEY,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -377,6 +384,46 @@ def get_vrf_controller_mac(device_entry: dr.DeviceEntry) -> str | None:
     )
 
 
+class _ControllerInfo(NamedTuple):
+    """What a controller device shows, taken from one of its sub-units."""
+
+    sw_version: str | UndefinedType | None
+    hw_version: str | UndefinedType | None
+    model: str | UndefinedType
+    translation_key: str | UndefinedType
+
+
+def _controller_info(entry: ConfigEntry, sub_macs: set[str]) -> _ControllerInfo:
+    """Take the firmware and the kind of controller from a bound sub-unit.
+
+    The firmware belongs to the WiFi module of the gateway. A zone controller
+    is a gateway too, with zones instead of indoor units, and only a bound
+    sub-unit knows its type. Without a bound sub-unit everything is UNDEFINED,
+    so the registry keeps what it has.
+    """
+    for sub_mac in sorted(sub_macs):
+        coordinator = entry.runtime_data.get(sub_mac)
+        if coordinator is None or not coordinator.device.is_bound:
+            continue
+
+        device = coordinator.device
+        if device.device_type in ZONE_CONTROLLER_TYPES:
+            return _ControllerInfo(
+                device.firmware_version,
+                device.firmware_code,
+                ZONE_CONTROLLER_MODEL,
+                ZONE_CONTROLLER_TRANSLATION_KEY,
+            )
+        return _ControllerInfo(
+            device.firmware_version,
+            device.firmware_code,
+            VRF_CONTROLLER_MODEL,
+            VRF_CONTROLLER_TRANSLATION_KEY,
+        )
+
+    return _ControllerInfo(UNDEFINED, UNDEFINED, UNDEFINED, UNDEFINED)
+
+
 def reconcile_vrf_controllers(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -398,34 +445,34 @@ def reconcile_vrf_controllers(
     entry_devices = dr.async_entries_for_config_entry(device_registry, entry.entry_id)
 
     # Remove the controllers that have no sub-unit anymore
+    existing_controllers: set[str] = set()
     for device_entry in entry_devices:
         controller_mac = get_vrf_controller_mac(device_entry)
-        if controller_mac is not None and controller_mac not in sub_units:
+        if controller_mac is None:
+            continue
+        if controller_mac not in sub_units:
             _LOGGER.debug("Removing VRF controller device %s", controller_mac)
             device_registry.async_remove_device(device_entry.id)
+        else:
+            existing_controllers.add(controller_mac)
 
     controller_ids: dict[str, str] = {}
     for controller_mac, sub_macs in sub_units.items():
-        # The firmware belongs to the WiFi module of the gateway, so take it
-        # from a bound sub-unit. Without one, keep what the registry has.
-        sw_version: str | UndefinedType | None = UNDEFINED
-        hw_version: str | UndefinedType | None = UNDEFINED
-        for sub_mac in sorted(sub_macs):
-            coordinator = entry.runtime_data.get(sub_mac)
-            if coordinator is not None and coordinator.device.is_bound:
-                sw_version = coordinator.device.firmware_version
-                hw_version = coordinator.device.firmware_code
-                break
+        info = _controller_info(entry, sub_macs)
+        model, translation_key = info.model, info.translation_key
+        if model is UNDEFINED and controller_mac not in existing_controllers:
+            model = VRF_CONTROLLER_MODEL
+            translation_key = VRF_CONTROLLER_TRANSLATION_KEY
 
         controller = device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{VRF_CONTROLLER_ID_PREFIX}{controller_mac}")},
             connections={(dr.CONNECTION_NETWORK_MAC, controller_mac)},
             manufacturer="Gree",
-            model="VRF gateway",
-            sw_version=sw_version,
-            hw_version=hw_version,
-            translation_key=VRF_CONTROLLER_TRANSLATION_KEY,
+            model=model,
+            sw_version=info.sw_version,
+            hw_version=info.hw_version,
+            translation_key=translation_key,
             translation_placeholders={"mac": controller_mac[-5:]},
         )
         controller_ids[controller_mac] = controller.id

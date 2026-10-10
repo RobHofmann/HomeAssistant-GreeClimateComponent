@@ -15,7 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .aiogree.api import HumidityControlMode, OperationMode, ZoneRole
+from .aiogree.api import DeviceType, HumidityControlMode, OperationMode
 from .aiogree.const import (
     MAX_HUM_COOL_P,
     MAX_HUM_DRY_P,
@@ -82,7 +82,7 @@ NUMBER_TYPES: list[GreeNumberDescription] = [
         key=GATTR_ZONE_TARGET_TEMPERATURE,
         translation_key=GATTR_ZONE_TARGET_TEMPERATURE,
         auto_device_support=True,
-        device_filter=lambda device: device.zone_role is ZoneRole.ZONE,
+        device_filter=lambda device: device.device_type is DeviceType.ZONE,
         device_class=NumberDeviceClass.TEMPERATURE,
         mode=NumberMode.BOX,
         native_step=1,

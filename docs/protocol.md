@@ -90,7 +90,7 @@ A zone controller (seen: LE60-13/GH with a ME31-00/C13 WiFi module, firmware `36
 
 - The scan reply has no `cid`, see [Discovery and network](#discovery-and-network).
 - It answers only the `subDev` form of the sub-device list. Every unit in the list is called `zone`. The ducted unit has model id `5000` and MAC suffix `00`. The zones have model id `5001` and suffixes `01` to `08`. Discovery names them `AC unit` and `Zone 1`, `Zone 2` and so on.
-- A sub-unit answers the info request with the name of the controller, which starts with `GR-ZCntrlr`. `GreeDevice._detect_zone_role()` uses that and the MAC suffix to set `zone_role` after the info fetch. A zone also gets `StTem` added to its poll.
+- A sub-unit answers the info request with the name of the controller, which starts with `GR-ZCntrlr`. After the info fetch, `GreeDevice._detect_device_type()` sets `device_type` for every device: `ac_unit` for a unit that is not a sub-unit, `zone_controller` for sub-unit `00` of a zone controller, `zone` for its other sub-units, and `vrf_unit` for any other sub-unit. Only the two zone controller types (`ZONE_CONTROLLER_TYPES`) change behaviour. A zone also gets `StTem` added to its poll.
 - The ducted unit answers `Pow`, `Mod`, `WdSpd` and `AllErr`, nothing more. `Pow` of the ducted unit is the power of the whole system. The zones keep their own `Pow` while it is off, and get it back when it is turned on.
 - `Mod` uses its own numbers: 1 Cool, 2 Heat, 3 Dry, 4 Fan, 5 Auto (`ZONE_CONTROLLER_MODES`). Read with the normal numbers, Fan shows as Heat and Auto raises. `operation_mode` and `set_operation_mode()` convert for every unit with a zone role.
 - There is no `Tur` column. Turbo is `WdSpd` 6, only in Cool and Heat. Dry forces `WdSpd` 1.

@@ -103,7 +103,7 @@ PROP_KEY_TO_ENUM = {prop.value: prop for prop in GreeProp}
 
 # Props every device is polled for by default. The beeper is only written,
 # never read. The zone target temperature is only polled on zones, see
-# `GreeDevice.zone_role`.
+# `GreeDevice.device_type`.
 POLLED_PROPS: tuple[GreeProp, ...] = tuple(
     p
     for p in GreeProp
@@ -480,17 +480,27 @@ class HumidityControlMode(IntEnum):
 
 
 @unique
-class ZoneRole(StrEnum):
-    """What a sub-unit of a zone controller is.
+class DeviceType(StrEnum):
+    """What kind of device a unit is. Known after the first bind.
 
     A zone controller (seen: LE60-13/GH with a ME31-00/C13 WiFi module) is a
-    gateway like a VRF gateway. Sub-unit `00` is the ducted unit and `01` to
-    `08` are the zones. See docs/protocol.md.
+    gateway like a VRF gateway. Its sub-unit `00` is the ducted unit, which has
+    the mode and the fan. Sub-units `01` to `08` are the zones. See
+    docs/protocol.md.
     """
 
-    NONE = ""
+    # A standalone unit
     AC_UNIT = "ac_unit"
+    # An indoor unit behind a VRF gateway
+    VRF_UNIT = "vrf_unit"
+    # Sub-unit 00 of a zone controller: the ducted unit
+    ZONE_CONTROLLER = "zone_controller"
+    # Sub-unit 01 to 08 of a zone controller
     ZONE = "zone"
+
+
+# The sub-units of a zone controller. They number the modes in their own way.
+ZONE_CONTROLLER_TYPES = frozenset({DeviceType.ZONE_CONTROLLER, DeviceType.ZONE})
 
 
 # A zone controller and its sub-units report a name that starts with this.

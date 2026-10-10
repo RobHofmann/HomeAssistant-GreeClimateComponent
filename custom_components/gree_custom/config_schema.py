@@ -46,7 +46,7 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
-from .aiogree.api import GreeDiscoveredDevice, GreeProp, ZoneRole
+from .aiogree.api import DeviceType, GreeDiscoveredDevice, GreeProp
 from .aiogree.cipher import EncryptionVersion
 from .aiogree.cloud_api import GreeRegion
 from .aiogree.device import GreeDevice
@@ -612,7 +612,7 @@ def setup_device_options_schema(  # noqa: C901
     )
 
     # A zone has no climate entity, so the climate options mean nothing there.
-    is_zone = device.zone_role is ZoneRole.ZONE
+    is_zone = device.device_type is DeviceType.ZONE
 
     if device.supports_property(GreeProp.OP_MODE) and not is_zone:
         schema.update(

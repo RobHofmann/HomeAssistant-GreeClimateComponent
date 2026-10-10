@@ -15,7 +15,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .aiogree.api import HumidityControlMode, OperationMode, SleepMode, ZoneRole
+from .aiogree.api import DeviceType, HumidityControlMode, OperationMode, SleepMode
 from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeContinuousDryUnavailable
 from .const import (
@@ -176,7 +176,7 @@ SWITCH_TYPES: list[GreeSwitchDescription] = [
         key=GATTR_ZONE,
         translation_key=GATTR_ZONE,
         name=None,
-        device_filter=lambda device: device.zone_role is ZoneRole.ZONE,
+        device_filter=lambda device: device.device_type is DeviceType.ZONE,
         value_func=lambda device, _: device.power_mode,
         set_func=lambda device, _, value: device.set_power_mode(value),
     ),

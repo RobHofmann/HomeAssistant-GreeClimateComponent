@@ -215,6 +215,9 @@
     "device": {
         "vrf_controller": {
             "name": "VRF gateway {mac}"
+        },
+        "zone_controller": {
+            "name": "Zone controller {mac}"
         }
     },
     "entity": {

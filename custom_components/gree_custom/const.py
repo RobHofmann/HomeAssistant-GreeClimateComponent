@@ -17,6 +17,10 @@ DOMAIN = "gree_custom"
 # Device identifier prefix of the VRF controller (gateway) device
 VRF_CONTROLLER_ID_PREFIX = "controller_"
 VRF_CONTROLLER_TRANSLATION_KEY = "vrf_controller"
+VRF_CONTROLLER_MODEL = "VRF gateway"
+# A zone controller gets the same kind of controller device
+ZONE_CONTROLLER_TRANSLATION_KEY = "zone_controller"
+ZONE_CONTROLLER_MODEL = "Zone controller"
 
 CURRENT_CONF_VERSION = 3
 
