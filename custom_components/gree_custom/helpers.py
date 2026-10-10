@@ -424,6 +424,29 @@ def _controller_info(entry: ConfigEntry, sub_macs: set[str]) -> _ControllerInfo:
     return _ControllerInfo(UNDEFINED, UNDEFINED, UNDEFINED, UNDEFINED)
 
 
+def _controller_label(
+    info: _ControllerInfo, controller_mac: str, exists: bool
+) -> dict[str, Any]:
+    """Return the model and name arguments for a controller device.
+
+    A bound sub-unit tells the kind of controller. Without one, an existing
+    device keeps the model and name the registry has, so nothing is returned,
+    and a new device gets the VRF label. translation_key does not take
+    UNDEFINED, so it is left out rather than passed as UNDEFINED.
+    """
+    model, translation_key = info.model, info.translation_key
+    if isinstance(translation_key, UndefinedType):
+        if exists:
+            return {}
+        model, translation_key = VRF_CONTROLLER_MODEL, VRF_CONTROLLER_TRANSLATION_KEY
+
+    return {
+        "model": model,
+        "translation_key": translation_key,
+        "translation_placeholders": {"mac": controller_mac[-5:]},
+    }
+
+
 def reconcile_vrf_controllers(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -459,21 +482,16 @@ def reconcile_vrf_controllers(
     controller_ids: dict[str, str] = {}
     for controller_mac, sub_macs in sub_units.items():
         info = _controller_info(entry, sub_macs)
-        model, translation_key = info.model, info.translation_key
-        if model is UNDEFINED and controller_mac not in existing_controllers:
-            model = VRF_CONTROLLER_MODEL
-            translation_key = VRF_CONTROLLER_TRANSLATION_KEY
-
         controller = device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{VRF_CONTROLLER_ID_PREFIX}{controller_mac}")},
             connections={(dr.CONNECTION_NETWORK_MAC, controller_mac)},
             manufacturer="Gree",
-            model=model,
             sw_version=info.sw_version,
             hw_version=info.hw_version,
-            translation_key=translation_key,
-            translation_placeholders={"mac": controller_mac[-5:]},
+            **_controller_label(
+                info, controller_mac, controller_mac in existing_controllers
+            ),
         )
         controller_ids[controller_mac] = controller.id
 
