@@ -200,6 +200,10 @@
       "external_temperature_sensor": {
         "name": "External Temperature Sensor",
         "description": "Select a temperature sensor entity to use instead of the built-in AC sensor. Choose 'None' to use the built-in sensor."
+      },
+      "external_humidity_sensor": {
+        "name": "External Humidity Sensor",
+        "description": "Select a humidity sensor entity to use instead of the built-in AC sensor. Choose 'None' to use the built-in sensor."
       }
     },
     "sensor": {
