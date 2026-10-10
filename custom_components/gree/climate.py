@@ -196,6 +196,7 @@ class GreeClimate(ClimateEntity):
         self._listeners: list = []
 
         self._has_temp_sensor = None
+        self._has_auxiliary_heat = None
         self._has_anti_direct_blow = None
         self._has_light_sensor = None
         self._has_outside_temp_sensor = None
@@ -256,6 +257,7 @@ class GreeClimate(ClimateEntity):
             "TemRec": None,
             "SvSt": None,
             "SlpMod": None,
+            "AssHt": None,
         }
         self._optionsToFetch = ["Pow", "Mod", "SetTem", "WdSpd", "Air", "Blo", "Health", "SwhSlp", "Lig", "SwingLfRig", "SwUpDn", "Quiet", "Tur", "StHt", "TemUn", "HeatCoolType", "TemRec", "SvSt", "SlpMod"]
 
@@ -324,7 +326,7 @@ class GreeClimate(ClimateEntity):
         )
 
     async def SendStateToAc(self):
-        opt_list = ["Pow", "Mod", "SetTem", "WdSpd", "Air", "Blo", "Health", "SwhSlp", "Lig", "SwingLfRig", "SwUpDn", "Quiet", "Tur", "StHt", "TemUn", "HeatCoolType", "TemRec", "SvSt", "SlpMod", "AntiDirectBlow", "LigSen"]
+        opt_list = ["Pow", "Mod", "SetTem", "WdSpd", "Air", "Blo", "Health", "SwhSlp", "Lig", "SwingLfRig", "SwUpDn", "Quiet", "Tur", "StHt", "TemUn", "HeatCoolType", "TemRec", "SvSt", "SlpMod", "AntiDirectBlow", "LigSen", "AssHt"]
 
         if self.uses_add_half_degree:
             opt_list.append("Add0.5")
@@ -571,6 +573,22 @@ class GreeClimate(ClimateEntity):
                 else:
                     self._has_temp_sensor = False
                     _LOGGER.debug("Device has no built-in temperature sensor")
+
+        # Probe auxiliary heat before adding it to regular state polls.
+        if self._has_auxiliary_heat is None:
+            _LOGGER.debug("Attempt to check whether device has auxiliary heat")
+            try:
+                auxiliary_heat = await self.GreeGetValues(["AssHt"])
+            except Exception:
+                _LOGGER.debug("Could not determine whether device has auxiliary heat. Retrying at next update()")
+            else:
+                self._has_auxiliary_heat = auxiliary_heat is not None
+                if self._has_auxiliary_heat:
+                    self._acOptions["AssHt"] = auxiliary_heat
+                    self._optionsToFetch.append("AssHt")
+                    _LOGGER.debug("Device has auxiliary heat")
+                else:
+                    _LOGGER.debug("Device has no auxiliary heat")
 
         # Check if device has anti direct blow feature
         if self._has_anti_direct_blow is None:

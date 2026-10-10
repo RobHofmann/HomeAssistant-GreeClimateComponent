@@ -197,6 +197,15 @@
       }
     },
     "select": {
+      "auxiliary_heat": {
+        "name": "Auxiliary heat",
+        "description": "Select the auxiliary electric heating mode. Only available in heating or auto mode on supported devices.",
+        "state": {
+          "off": "Off",
+          "always_on": "Always on",
+          "auto": "Auto"
+        }
+      },
       "external_temperature_sensor": {
         "name": "External Temperature Sensor",
         "description": "Select a temperature sensor entity to use instead of the built-in AC sensor. Choose 'None' to use the built-in sensor."
