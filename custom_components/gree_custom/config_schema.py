@@ -46,7 +46,7 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
-from .aiogree.api import GreeDiscoveredDevice, GreeProp
+from .aiogree.api import DeviceType, GreeDiscoveredDevice, GreeProp
 from .aiogree.cipher import EncryptionVersion
 from .aiogree.cloud_api import GreeRegion
 from .aiogree.device import GreeDevice
@@ -98,6 +98,7 @@ from .const import (
     GATTR_FEAT_QUIET_MODE,
     GATTR_FEAT_TURBO,
     MIN_SCAN_INTERVAL,
+    ZONE_ONLY_FEATURES,
 )
 from .helpers import get_entity_ids_from_unique_ids
 
@@ -610,7 +611,10 @@ def setup_device_options_schema(  # noqa: C901
         }
     )
 
-    if device.supports_property(GreeProp.OP_MODE):
+    # A zone has no climate entity, so the climate options mean nothing there.
+    is_zone = device.device_type is DeviceType.ZONE
+
+    if device.supports_property(GreeProp.OP_MODE) and not is_zone:
         schema.update(
             {
                 probatio.Optional(
@@ -633,7 +637,7 @@ def setup_device_options_schema(  # noqa: C901
     }
     valid_fan_modes: list[str] = []
     for prop, modes in fan_mapping.items():
-        if device.supports_property(prop):
+        if device.supports_property(prop) and not is_zone:
             valid_fan_modes.extend(modes)
 
     if valid_fan_modes:
@@ -688,6 +692,8 @@ def setup_device_options_schema(  # noqa: C901
 
     valid_features = []
     for feat, props in ATTR_FEATURES_TO_PROP_MAP.items():
+        if feat in ZONE_ONLY_FEATURES and not is_zone:
+            continue
         if all(device.supports_property(p) for p in props):
             valid_features.append(feat)
 
@@ -696,7 +702,13 @@ def setup_device_options_schema(  # noqa: C901
             {
                 probatio.Optional(
                     CONF_FEATURES,
-                    default=defaults.get(CONF_FEATURES, valid_features),
+                    # Defaults copied from another device may hold features
+                    # this one does not have.
+                    default=[
+                        feature
+                        for feature in defaults.get(CONF_FEATURES, valid_features)
+                        if feature in valid_features
+                    ],
                 ): SelectSelector(
                     config=SelectSelectorConfig(
                         options=valid_features,

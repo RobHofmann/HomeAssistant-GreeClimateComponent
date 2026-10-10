@@ -34,7 +34,13 @@ from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util.unit_conversion import TemperatureConverter
 
-from .aiogree.api import FanSpeed, GreeProp, HorizontalSwingMode, VerticalSwingMode
+from .aiogree.api import (
+    DeviceType,
+    FanSpeed,
+    GreeProp,
+    HorizontalSwingMode,
+    VerticalSwingMode,
+)
 from .aiogree.const import MAX_TEMP_C, MAX_TEMP_F, MIN_TEMP_C, MIN_TEMP_F
 from .aiogree.errors import GreeTurboUnavailable
 from .const import (
@@ -84,6 +90,11 @@ async def async_setup_entry(
     entities: list[GreeClimate] = []
 
     for coordinator in entry.runtime_data.values():
+        # A zone has no mode of its own. Its switch and target temperature
+        # come from the switch and number platforms.
+        if coordinator.device.device_type is DeviceType.ZONE:
+            continue
+
         options: dict[str, Any] = coordinator.device_config.get(CONF_DEVICE_OPTIONS, {})
 
         hvac_modes: list[HVACMode] = [
@@ -706,8 +717,13 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             )
 
         try:
-            self.device.set_feature_quiet(fan_mode == GATTR_FEAT_QUIET_MODE)
-            self.device.set_feature_turbo(fan_mode == GATTR_FEAT_TURBO)
+            # Only touch the special modes the unit has. Setting one it does not
+            # have logs an error on every fan change (seen: Quiet on the ducted
+            # unit of a zone controller).
+            if self.device.supports_property(GreeProp.FEAT_QUIET_MODE):
+                self.device.set_feature_quiet(fan_mode == GATTR_FEAT_QUIET_MODE)
+            if self.device.supports_property(GreeProp.FEAT_TURBO_MODE):
+                self.device.set_feature_turbo(fan_mode == GATTR_FEAT_TURBO)
 
             if fan_mode not in (GATTR_FEAT_QUIET_MODE, GATTR_FEAT_TURBO):
                 self.device.set_fan_speed(FanSpeed[fan_mode])

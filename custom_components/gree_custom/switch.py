@@ -15,7 +15,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .aiogree.api import HumidityControlMode, OperationMode, SleepMode
+from .aiogree.api import DeviceType, HumidityControlMode, OperationMode, SleepMode
 from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeContinuousDryUnavailable
 from .const import (
@@ -32,6 +32,7 @@ from .const import (
     GATTR_FEAT_SLEEP_MODE,
     GATTR_FEAT_SMART_HEAT_8C,
     GATTR_FEAT_XFAN,
+    GATTR_ZONE,
 )
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
@@ -168,6 +169,16 @@ SWITCH_TYPES: list[GreeSwitchDescription] = [
         set_func=lambda device, _, value: device.set_beeper(value),
         entity_category=EntityCategory.CONFIG,
         updates_device=False,  # Local entity
+    ),
+    GreeSwitchDescription(
+        # Opening and closing is what a zone does, so the switch has the name
+        # of the zone.
+        key=GATTR_ZONE,
+        translation_key=GATTR_ZONE,
+        name=None,
+        device_filter=lambda device: device.device_type is DeviceType.ZONE,
+        value_func=lambda device, _: device.power_mode,
+        set_func=lambda device, _, value: device.set_power_mode(value),
     ),
 ]
 

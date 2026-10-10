@@ -84,6 +84,20 @@ A gateway keeps a cached copy of the state of every indoor unit. For a few secon
 - If a standalone unit or the MQTT transport turns out to cache as well, the UI shows the old value for a moment after a command, as it did before the hold existed. For every device, `push_device_status()` logs at debug level when the read right after a command does not report the sent value, with the transport and whether it is a sub-unit. That line is how to find out, before the hold is extended.
 - While a hold is open after a command, the coordinator polls again every 2 s (`FOLLOW_UP_REFRESH_DELAY`), so the UI shows the confirmed value soon instead of at the next scan interval. The polls stop when the device confirms, or with the first poll after the hold ends. That poll shows what the device really reports, so a rejected command is visible within about 8 s. A standalone unit is never held, so it gets no extra poll.
 
+## Zone controllers
+
+A zone controller (seen: LE60-13/GH with a ME31-00/C13 WiFi module, firmware `362001062617+U-W05SAV1.27.bin`) drives the dampers of a ducted unit. It answers the scan like a VRF gateway, with `subCnt` above zero, so discovery handles it the same way. Its sub-units are not indoor units, though.
+
+- The scan reply has no `cid`, see [Discovery and network](#discovery-and-network).
+- It answers only the `subDev` form of the sub-device list. Every unit in the list is called `zone`. The ducted unit has model id `5000` and MAC suffix `00`. The zones have model id `5001` and suffixes `01` to `08`. Discovery names them `AC unit` and `Zone 1`, `Zone 2` and so on.
+- A sub-unit answers the info request with the name of the controller, which starts with `GR-ZCntrlr`. After the info fetch, `GreeDevice._detect_device_type()` sets `device_type` for every device: `ac_unit` for a unit that is not a sub-unit, `zone_controller` for sub-unit `00` of a zone controller, `zone` for its other sub-units, and `vrf_unit` for any other sub-unit. Only the two zone controller types (`ZONE_CONTROLLER_TYPES`) change behaviour. A zone also gets `StTem` added to its poll.
+- The ducted unit answers `Pow`, `Mod`, `WdSpd` and `AllErr`, nothing more. `Pow` of the ducted unit is the power of the whole system. The zones keep their own `Pow` while it is off, and get it back when it is turned on.
+- `Mod` uses its own numbers: 1 Cool, 2 Heat, 3 Dry, 4 Fan, 5 Auto (`ZONE_CONTROLLER_MODES`). Read with the normal numbers, Fan shows as Heat and Auto raises. `operation_mode` and `set_operation_mode()` convert for every unit with a zone role.
+- There is no `Tur` column. Turbo is `WdSpd` 6, only in Cool and Heat. Dry forces `WdSpd` 1.
+- A zone answers `Pow` (the damper), `StTem` (its target temperature) and a copy of `Mod` and `WdSpd` of the ducted unit. `StTem` is the temperature in degrees Celsius minus 16 (`ZONE_TEMPERATURE_OFFSET`), so 0 to 14 for 16 to 30 degrees. The controller itself also answers `StTem1` to `StTem8`.
+- The full list of columns is a table in the WiFi module firmware. There is no column for the room temperature of a zone, in any released firmware, so it cannot be shown.
+- The status column limit measured by `probe_device_limits()` is 29. Requests far above the limit (about 40 columns and more) made the module reboot.
+
 ## MAC addresses
 
 MACs are written in lower case with no separators. Talking to a device needs two MACs: the device MAC (the unit to control) and the controller MAC (the unit that manages it).

@@ -234,6 +234,16 @@ class DeviceState:
             GreeProp.BEEPER_NEW,
         )
 
+    def add_polled(self, prop: GreeProp) -> None:
+        """Start polling a prop that is not in the default poll.
+
+        This is for props that only some kinds of device have, such as the
+        target temperature of a zone. Call it before the first status request.
+        After that the list of polled props only shrinks.
+        """
+        if prop not in self._props_to_poll:
+            self._props_to_poll = (*self._props_to_poll, prop)
+
     def remove(self, prop: GreeProp) -> None:
         """Remove a property from being polled."""
         self._props_to_poll = tuple(p for p in self._props_to_poll if p != prop)
