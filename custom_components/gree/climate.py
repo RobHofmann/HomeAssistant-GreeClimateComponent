@@ -170,7 +170,8 @@ class GreeClimate(ClimateEntity):
         self._target_temperature = None
         # Some Celsius firmwares use Add0.5 rather than the Fahrenheit TemRec bit.
         self._has_half_degree_option = None
-        self._use_add_half_degree = True
+        # Keep the existing TemRec behavior unless the user opts in.
+        self._use_add_half_degree = False
         # Initialize target temperature step with default value (will be overridden by number entity when available)
         self._target_temperature_step = DEFAULT_TARGET_TEMP_STEP
         # Device uses a combination of Celsius + a set bit for Fahrenheit, so the integration needs to be aware of the units.
@@ -330,6 +331,9 @@ class GreeClimate(ClimateEntity):
 
         # Collect values from _acOptions
         p_values = [self._acOptions.get(k) for k in opt_list]
+        if self.uses_add_half_degree:
+            # Only Add0.5 carries the Celsius half degree in outgoing commands.
+            p_values[opt_list.index("TemRec")] = 0
 
         # Filter out empty ones
         filtered_opt = []
@@ -550,7 +554,7 @@ class GreeClimate(ClimateEntity):
                 if self._has_half_degree_option:
                     self._acOptions["Add0.5"] = half_bit
                     self._optionsToFetch.append("Add0.5")
-                    _LOGGER.info("%s: Supports Add0.5 for Celsius half-degree setpoints", self._name)
+                    _LOGGER.info("%s: Reports Add0.5; Celsius half-degree control can be enabled manually", self._name)
 
         if self._has_temp_sensor is None:
             _LOGGER.debug("Attempt to check whether device has an built-in temperature sensor")
