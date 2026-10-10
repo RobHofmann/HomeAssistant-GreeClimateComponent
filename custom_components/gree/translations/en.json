@@ -199,7 +199,7 @@
     "select": {
       "auxiliary_heat": {
         "name": "Auxiliary heat",
-        "description": "Select the auxiliary electric heating mode. Only available in heating mode on supported devices.",
+        "description": "Select the auxiliary electric heating mode. Only available in heating or auto mode on supported devices.",
         "state": {
           "off": "Off",
           "always_on": "Always on",

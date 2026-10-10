@@ -74,7 +74,7 @@ SELECTS: tuple[GreeSelectEntityDescription, ...] = (
         value_fn=_get_auxiliary_heat,
         set_fn=_set_auxiliary_heat,
         available_fn=lambda device: bool(device.available)
-        and device._hvac_mode == HVACMode.HEAT
+        and device._hvac_mode in (HVACMode.HEAT, HVACMode.AUTO)
         and _get_auxiliary_heat(device) is not None,
     ),
     GreeSelectEntityDescription(

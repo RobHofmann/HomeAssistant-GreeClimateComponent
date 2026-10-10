@@ -171,7 +171,7 @@
     "select": {
       "auxiliary_heat": {
         "name": "电辅热",
-        "description": "选择电辅热模式，仅在支持此功能的空调处于制热模式时可用。",
+        "description": "选择电辅热模式，仅在支持此功能的空调处于制热或自动模式时可用。",
         "state": {
           "off": "关闭",
           "always_on": "常开",
