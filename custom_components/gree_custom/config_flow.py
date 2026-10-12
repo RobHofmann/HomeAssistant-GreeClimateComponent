@@ -111,6 +111,7 @@ from .helpers import (
     create_mqtt_transport,
     get_config_entries,
     get_configured_macs_in_entries,
+    get_device_by_identifier,
     get_discovery_addresses,
     get_entry_matching_mac,
 )
@@ -308,7 +309,9 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
             device_registry = dr.async_get(self.hass)
             for mac in entry.data.get(CONF_DEVICES, {}):
                 if mac not in devices:
-                    dev = device_registry.async_get_device(identifiers={(DOMAIN, mac)})
+                    dev = get_device_by_identifier(
+                        device_registry, (DOMAIN, mac), entry.entry_id
+                    )
                     if dev:
                         device_registry.async_remove_device(dev.id)
 
@@ -1057,9 +1060,13 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
         ip = local.get(CONF_HOST, "")
         port = local.get(CONF_PORT, "")
 
-        local_transport = self._local_transports.get(
-            mac_local_controller, GreeUdpTransport(ip_addr=ip, port=port)
-        )
+        # Only a device with a local host and controller can bind locally,
+        # the same rule as the entry setup
+        local_transport: GreeUdpTransport | None = None
+        if ip and mac_local_controller:
+            local_transport = self._local_transports.get(
+                mac_local_controller
+            ) or GreeUdpTransport(ip_addr=ip, port=port)
 
         # Reconfigure without a cloud login uses the stored token
         if (
@@ -1087,7 +1094,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
             mqtt_transport=self._mqtt_transport,
         )
 
-        if mac_local_controller:
+        if local_transport:
             self._local_transports[mac_local_controller] = local_transport
 
         return device
@@ -1339,8 +1346,8 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                         moved_any = True
 
                         # remove from registry, it will be added by the new entry
-                        dev = device_registry.async_get_device(
-                            identifiers={(DOMAIN, mac)}
+                        dev = get_device_by_identifier(
+                            device_registry, (DOMAIN, mac), local_entry.entry_id
                         )
                         if dev:
                             device_registry.async_remove_device(dev.id)
@@ -1410,7 +1417,9 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
             )
             for m in previous_configured:
                 if self.source == SOURCE_RECONFIGURE and m not in device_configs:
-                    dev = device_registry.async_get_device(identifiers={(DOMAIN, m)})
+                    dev = get_device_by_identifier(
+                        device_registry, (DOMAIN, m), update_entry.entry_id
+                    )
                     if dev:
                         device_registry.async_remove_device(dev.id)
 

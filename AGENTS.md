@@ -36,8 +36,8 @@ Code:
 
 - Match the style of the code around you. Do not reformat lines you did not need to touch.
 - The version in `manifest.json` belongs to the maintainers. Do not change it in a normal PR unless asked.
-- `tests/` holds a pytest suite for the protocol layer. Run it with `pytest`. A change to `aiogree/` is expected to come with a test. See [docs/development.md](docs/development.md#testing).
-- The suite does not cover the Home Assistant entities, the config flow, the cloud or MQTT. For those, test against a real device or a fake one, and say in the PR which one you did.
+- `tests/` holds a pytest suite for the protocol layer, and `tests/config_flow/` tests the config flow inside a real Home Assistant, with a fake cloud and a fake MQTT broker. Run both with `pytest`. A change to `aiogree/` or to the config flow is expected to come with a test. See [docs/development.md](docs/development.md#testing).
+- The suite does not cover what the entities show, the services or the 4.x migration. For those, test against a real device or a fake one, and say in the PR which one you did.
 
 Writing, for everything you produce in this repo:
 

@@ -408,6 +408,28 @@ def get_vrf_sub_units(device_configs: Mapping[str, Any]) -> dict[str, set[str]]:
     return sub_units
 
 
+def get_device_by_identifier(
+    device_registry: dr.DeviceRegistry,
+    identifier: tuple[str, str],
+    config_entry_id: str,
+) -> dr.DeviceEntry | None:
+    """Return the device with the identifier that the config entry owns.
+
+    HA 2026.8 added `async_get_device_by_identifier`, and `async_get_device`
+    stops working in 2027.8. Older versions only have `async_get_device`, so
+    use it there and check the owner.
+    """
+    if hasattr(device_registry, "async_get_device_by_identifier"):
+        return device_registry.async_get_device_by_identifier(
+            identifier, config_entry_id
+        )
+
+    device = device_registry.async_get_device(identifiers={identifier})
+    if device is None or config_entry_id not in device.config_entries:
+        return None
+    return device
+
+
 def get_vrf_controller_mac(device_entry: dr.DeviceEntry) -> str | None:
     """Return the controller mac if the device is a VRF controller device."""
     return next(

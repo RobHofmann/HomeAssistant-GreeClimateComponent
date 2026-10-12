@@ -91,6 +91,7 @@ from .const import (
     DEFAULT_TARGET_TEMP_STEP,
     DOMAIN,
 )
+from .helpers import get_device_by_identifier
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -891,7 +892,7 @@ async def async_migrate_legacy_registry(
         # moving a device removes the entities that still belong to the old
         # entry.
         legacy_device, target_device_id = _find_devices(
-            dev_reg, legacy_entry, mac, mac_controller
+            dev_reg, entry, legacy_entry, mac, mac_controller
         )
         rows = _rows_to_move(hass, ent_reg, legacy_entry, mac, mac_controller)
         _async_record_move(hass, legacy_entry, rows, legacy_device)
@@ -914,12 +915,13 @@ async def async_migrate_legacy_registry(
 
 def _find_devices(
     dev_reg: dr.DeviceRegistry,
+    entry: ConfigEntry,
     legacy_entry: ConfigEntry,
     mac: str,
     mac_controller: str,
 ) -> tuple[dr.DeviceEntry | None, str | None]:
     """Find the 4.x device row to move, and the device ID the entities link to."""
-    if target := dev_reg.async_get_device(identifiers={(DOMAIN, mac)}):
+    if target := get_device_by_identifier(dev_reg, (DOMAIN, mac), entry.entry_id):
         return None, target.id
 
     # A VRF controller held the sub-devices under one row in 4.x. Leave it, and
@@ -927,11 +929,10 @@ def _find_devices(
     if mac != mac_controller:
         return None, None
 
-    legacy_device = dev_reg.async_get_device(identifiers={(LEGACY_DOMAIN, mac)})
-    if (
-        legacy_device is None
-        or legacy_entry.entry_id not in legacy_device.config_entries
-    ):
+    legacy_device = get_device_by_identifier(
+        dev_reg, (LEGACY_DOMAIN, mac), legacy_entry.entry_id
+    )
+    if legacy_device is None:
         return None, None
 
     return legacy_device, legacy_device.id
