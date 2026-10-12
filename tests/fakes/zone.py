@@ -11,6 +11,9 @@ firmware `362001062617+U-W05SAV1.27.bin` (see docs/protocol.md):
   and `WdSpd` of a zone follow the ducted unit.
 - `Mod` is 1 Cool, 2 Heat, 3 Dry, 4 Fan, 5 Auto. Turbo is `WdSpd` 6.
 - `StTem` is the zone target temperature in degrees Celsius minus 16.
+- `TemUnit` is the unit of temperature (0 Celsius, 1 Fahrenheit) of every unit.
+  Written to the ducted unit, all units follow. `StFahFlg` of a zone is its
+  Fahrenheit bit, like `TemRec`.
 - Every sub-unit answers the info columns with the name of the controller.
 - A status request with too many columns gets an empty result.
 """
@@ -59,11 +62,25 @@ class FakeZoneController(FakeVrfGateway):
         self.ac_unit = f"{mac}{model.ac_unit_suffix}"
         self.zone_macs = [f"{mac}{index:02d}" for index in range(1, zones + 1)]
         self.units: dict[str, dict[str, Any]] = {
-            mac: {"Pow": 0, "Mod": 4, "WdSpd": 5},
-            self.ac_unit: {"Pow": 1, "Mod": 4, "WdSpd": 5, "AllErr": 0},
+            mac: {"Pow": 0, "Mod": 4, "WdSpd": 5, "TemUnit": 0},
+            self.ac_unit: {
+                "Pow": 1,
+                "Mod": 4,
+                "WdSpd": 5,
+                "AllErr": 0,
+                "TemUnit": 0,
+                "StFahFlg": 0,
+            },
         }
         for zone in self.zone_macs:
-            self.units[zone] = {"Pow": 1, "Mod": 4, "WdSpd": 5, "StTem": 2}
+            self.units[zone] = {
+                "Pow": 1,
+                "Mod": 4,
+                "WdSpd": 5,
+                "StTem": 2,
+                "StFahFlg": 0,
+                "TemUnit": 0,
+            }
         self.info: dict[str, Any] = {
             "name": name,
             "mid": "3017",
@@ -131,7 +148,7 @@ class FakeZoneController(FakeVrfGateway):
         for option, value in zip(options, values, strict=False):
             if option in unit:
                 unit[option] = value
-                if target == self.ac_unit and option in ("Mod", "WdSpd"):
+                if target == self.ac_unit and option in ("Mod", "WdSpd", "TemUnit"):
                     for other in (self.mac, *self.zone_macs):
                         self.units[other][option] = value
 

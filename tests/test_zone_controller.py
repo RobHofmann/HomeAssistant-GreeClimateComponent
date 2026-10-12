@@ -14,10 +14,12 @@ from collections.abc import AsyncIterator
 
 from aiogree import api
 from aiogree.api import (
+    ZONE_CONTROLLER_PROPS,
     DeviceType,
     FanSpeed,
     GreeProp,
     OperationMode,
+    TemperatureUnits,
     ZoneControllerModel,
 )
 from aiogree.device import GreeDevice
@@ -324,6 +326,80 @@ async def test_a_zone_target_temperature_is_sent_minus_16(
     assert controller.units[controller.zone_macs[0]]["StTem"] == 14
 
 
+#
+# Fahrenheit. The values are the ones the wall panel showed.
+#
+
+
+def set_unit(controller: FakeZoneController, unit: TemperatureUnits) -> None:
+    """Change the unit on the wall panel. Every unit of the controller follows."""
+    for values in controller.units.values():
+        values["TemUnit"] = unit.value
+
+
+async def test_a_zone_in_fahrenheit_reads_its_bit_like_tem_rec(
+    controller: FakeZoneController, zone: GreeDevice
+) -> None:
+    """StTem plus 16 and StFahFlg give the same Fahrenheit table as SetTem and TemRec."""
+    set_unit(controller, TemperatureUnits.F)
+    values = controller.units[controller.zone_macs[0]]
+    seen = []
+    for st_tem, bit in ((2, 0), (3, 0), (3, 1), (5, 1)):
+        values.update({"StTem": st_tem, "StFahFlg": bit})
+        await zone.fetch_device_status()
+        seen.append(zone.target_temperature)
+
+    assert zone.target_temperature_unit is TemperatureUnits.F
+    assert seen == [64, 66, 67, 70]
+
+
+async def test_a_zone_in_fahrenheit_is_sent_with_its_bit(
+    controller: FakeZoneController, zone: GreeDevice
+) -> None:
+    """70 goes out as StTem 5 with StFahFlg 1, 66 as 3 with 0."""
+    set_unit(controller, TemperatureUnits.F)
+    await zone.fetch_device_status()
+    values = controller.units[controller.zone_macs[0]]
+
+    zone.set_target_temperature(70)
+    await zone.push_device_status()
+    assert (values["StTem"], values["StFahFlg"]) == (5, 1)
+
+    zone.set_target_temperature(66)
+    await zone.push_device_status()
+    assert (values["StTem"], values["StFahFlg"]) == (3, 0)
+
+
+async def test_a_celsius_target_clears_the_bit(
+    controller: FakeZoneController, zone: GreeDevice
+) -> None:
+    """The controller keeps an old bit when only StTem comes, so it is always sent."""
+    values = controller.units[controller.zone_macs[0]]
+    values["StFahFlg"] = 1
+    await zone.fetch_device_status()
+
+    zone.set_target_temperature(22)
+    await zone.push_device_status()
+
+    assert (values["StTem"], values["StFahFlg"]) == (6, 0)
+
+
+async def test_the_unit_is_set_on_the_ducted_unit_and_the_zones_follow(
+    controller: FakeZoneController, ac_unit: GreeDevice, zone: GreeDevice
+) -> None:
+    """TemUnit, not TemUn, written to the ducted unit. The zones read it at the next poll."""
+    assert ac_unit.supports_property(GreeProp.ZONE_TEMPERATURE_UNIT)
+    assert not ac_unit.supports_property(GreeProp.TARGET_TEMPERATURE_UNIT)
+
+    ac_unit.set_target_temperature_unit(TemperatureUnits.F)
+    await ac_unit.push_device_status()
+    await zone.fetch_device_status()
+
+    assert {values["TemUnit"] for values in controller.units.values()} == {1}
+    assert zone.target_temperature_unit is TemperatureUnits.F
+    assert zone.target_temperature == 64
+
+
 async def test_a_zone_is_opened_and_closed_with_its_power(
     controller: FakeZoneController, zone: GreeDevice
 ) -> None:
@@ -341,7 +417,7 @@ async def test_a_zone_is_opened_and_closed_with_its_power(
 
 
 async def test_a_normal_unit_never_asks_for_the_zone_column() -> None:
-    """Only zones poll StTem. A standalone unit sends the same columns as before."""
+    """Only a zone controller polls its own columns. A standalone unit sends the same columns as before."""
     unit = FakeGreeDevice()
     await unit.start()
     transport = GreeUdpTransport(unit.host, unit.port, max_retries=1, timeout=0.3)
@@ -356,7 +432,7 @@ async def test_a_normal_unit_never_asks_for_the_zone_column() -> None:
         unit.close()
 
     asked = {col for pack in unit.packs for col in pack.get("cols", [])}
-    assert GreeProp.ZONE_TARGET_TEMPERATURE.value not in asked
+    assert not asked & {prop.value for prop in ZONE_CONTROLLER_PROPS}
     assert device.device_type is DeviceType.AC_UNIT
 
 

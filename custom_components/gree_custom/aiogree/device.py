@@ -11,6 +11,7 @@ from .api import (
     ZONE_CONTROLLER_FAN_TURBO,
     ZONE_CONTROLLER_MODES,
     ZONE_CONTROLLER_MODES_TO_RAW,
+    ZONE_CONTROLLER_PROPS,
     ZONE_CONTROLLER_TYPES,
     ZONE_TEMPERATURE_OFFSET,
     DeviceType,
@@ -204,7 +205,9 @@ class GreeDevice:
         zone controller answers the info request with the name of the zone
         controller, and the MAC suffix of the model tells the ducted unit
         from the zones (see ZONE_CONTROLLER_MODELS). Every other sub-unit is
-        a VRF indoor unit. A zone also gets its target temperature polled.
+        a VRF indoor unit. The sub-units of a zone controller also get its own
+        columns polled: the unit of temperature, and on a zone the target
+        temperature.
         """
         model = find_zone_controller_model(
             self._state.info.get(InfoProp.DEVICE_NAME, "")
@@ -215,9 +218,11 @@ class GreeDevice:
             self._device_type = DeviceType.VRF_UNIT
         elif self._mac_addr.endswith(model.ac_unit_suffix):
             self._device_type = DeviceType.ZONE_CONTROLLER
+            self._state.add_polled(GreeProp.ZONE_TEMPERATURE_UNIT)
         else:
             self._device_type = DeviceType.ZONE
-            self._state.add_polled(GreeProp.ZONE_TARGET_TEMPERATURE)
+            for prop in ZONE_CONTROLLER_PROPS:
+                self._state.add_polled(prop)
 
         _LOGGER.debug("[%s] Device type: %s", self.unique_id, self._device_type)
 
@@ -833,25 +838,39 @@ class GreeDevice:
     def target_temperature_unit(self) -> TemperatureUnits:
         """Return the units of the target temperature."""
         return TemperatureUnits(
-            self._state.get(GreeProp.TARGET_TEMPERATURE_UNIT)
-            or TemperatureUnits.C.value
+            self._state.get(self._temperature_unit_prop) or TemperatureUnits.C.value
         )
 
     def set_target_temperature_unit(self, units: TemperatureUnits) -> None:
         """Set the units of the target temperature."""
-        self._state.set(GreeProp.TARGET_TEMPERATURE_UNIT, units)
+        self._state.set(self._temperature_unit_prop, units)
+
+    @property
+    def _temperature_unit_prop(self) -> GreeProp:
+        """Return the column with the unit. A zone controller has its own."""
+        if self._device_type in ZONE_CONTROLLER_TYPES:
+            return GreeProp.ZONE_TEMPERATURE_UNIT
+        return GreeProp.TARGET_TEMPERATURE_UNIT
 
     @property
     def target_temperature(self) -> float | None:
         """Return the target temperature in target_temperature_unit.
 
-        A zone has its own column in whole degrees Celsius, see
-        GreeProp.ZONE_TARGET_TEMPERATURE. It is None until the zone is read.
+        A zone has its own columns, see GreeProp.ZONE_TARGET_TEMPERATURE: whole
+        degrees in Celsius, and in Fahrenheit the same table as SetTem and
+        TemRec. It is None until the zone is read.
         """
 
         if self._device_type is DeviceType.ZONE:
             raw = self._state.get(GreeProp.ZONE_TARGET_TEMPERATURE)
-            return None if raw is None else raw + ZONE_TEMPERATURE_OFFSET
+            if raw is None:
+                return None
+            zone_c = raw + ZONE_TEMPERATURE_OFFSET
+            if self.target_temperature_unit == TemperatureUnits.F:
+                return gree_get_target_temperature_f(
+                    zone_c, self._state.get(GreeProp.ZONE_TARGET_TEMPERATURE_BIT) or 0
+                )
+            return zone_c
 
         raw_c = self._state.get(GreeProp.TARGET_TEMPERATURE, 0)
         tem_rec = self._state.get(GreeProp.TARGET_TEMPERATURE_BIT, 0)
@@ -866,13 +885,21 @@ class GreeDevice:
     def set_target_temperature(self, value: float) -> None:
         """Set the target temperature in target_temperature_unit.
 
-        A zone takes whole degrees Celsius from 16 to 30.
+        A zone takes 16 to 30 degrees Celsius or 61 to 86 Fahrenheit. Its bit
+        is always sent along, because the controller keeps the old one when
+        only the temperature is sent.
         """
 
         if self._device_type is DeviceType.ZONE:
-            degrees = max(MIN_TEMP_C, min(MAX_TEMP_C, round(value)))
-            self._state.set(
-                GreeProp.ZONE_TARGET_TEMPERATURE, degrees - ZONE_TEMPERATURE_OFFSET
+            if self.target_temperature_unit == TemperatureUnits.F:
+                raw_c, bit = gree_get_target_temp_props_from_f(round(value))
+            else:
+                raw_c, bit = max(MIN_TEMP_C, min(MAX_TEMP_C, round(value))), 0
+            self._state.update(
+                {
+                    GreeProp.ZONE_TARGET_TEMPERATURE: raw_c - ZONE_TEMPERATURE_OFFSET,
+                    GreeProp.ZONE_TARGET_TEMPERATURE_BIT: bit,
+                }
             )
             return
 

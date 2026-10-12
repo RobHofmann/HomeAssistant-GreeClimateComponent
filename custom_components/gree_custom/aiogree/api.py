@@ -97,17 +97,28 @@ class GreeProp(StrEnum):
     # ZONE CONTROLLER
     # target temperature of one zone, in whole degrees Celsius minus 16
     ZONE_TARGET_TEMPERATURE = "StTem"
+    # used to distinguish between Fahrenheit values of a zone, like TemRec
+    ZONE_TARGET_TEMPERATURE_BIT = "StFahFlg"
+    # the unit of temperature of a zone controller and all its sub-units
+    ZONE_TEMPERATURE_UNIT = "TemUnit"
 
 
 PROP_KEY_TO_ENUM = {prop.value: prop for prop in GreeProp}
 
-# Props every device is polled for by default. The beeper is only written,
-# never read. The zone target temperature is only polled on zones, see
+# Props only the sub-units of a zone controller are polled for, see
 # `GreeDevice.device_type`.
+ZONE_CONTROLLER_PROPS: tuple[GreeProp, ...] = (
+    GreeProp.ZONE_TARGET_TEMPERATURE,
+    GreeProp.ZONE_TARGET_TEMPERATURE_BIT,
+    GreeProp.ZONE_TEMPERATURE_UNIT,
+)
+
+# Props every device is polled for by default. The beeper is only written,
+# never read.
 POLLED_PROPS: tuple[GreeProp, ...] = tuple(
     p
     for p in GreeProp
-    if p not in (GreeProp.BEEPER, GreeProp.BEEPER_NEW, GreeProp.ZONE_TARGET_TEMPERATURE)
+    if p not in (GreeProp.BEEPER, GreeProp.BEEPER_NEW, *ZONE_CONTROLLER_PROPS)
 )
 
 

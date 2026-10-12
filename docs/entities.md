@@ -43,13 +43,13 @@ The unit has its own temperature scale, Celsius or Fahrenheit, which you change 
 
 A zone controller (for example the Gree LE60-13/GH) has one ducted unit and up to eight zones behind one WiFi module. Discovery finds the ducted unit as **AC unit** and the zones as **Zone 1**, **Zone 2** and so on. Add all of them.
 
-- The **AC unit** gets the climate entity. Its HVAC mode and fan mode work as above. Turbo is a fan speed of this unit, in Cool and Heat only. It has no target temperature and no room temperature: the zones have their own target temperature, and the controller does not report the room temperatures of the zones. Turning the AC unit off turns the whole system off. The zones keep their own setting and get it back when the system is turned on again.
+- The **AC unit** gets the climate entity. Its HVAC mode and fan mode work as above. Turbo is a fan speed of this unit, in Cool and Heat only. It has no target temperature and no room temperature: the zones have their own target temperature, and the controller does not report the room temperatures of the zones. Turning the AC unit off turns the whole system off. The zones keep their own setting and get it back when the system is turned on again. Its **Temperature Units** select switches the whole controller, the wall panel included, between °C and °F. The zones follow at their next update.
 - Each **zone** gets no climate entity, because a zone has no mode of its own. It gets:
 
 | Entity | What it does |
 |---|---|
 | Switch with the name of the zone | Opens and closes the zone. It is the **Zone Switch** feature, so you can leave it out. Do that for a zone that must always stay open: turning such a zone off is refused by the controller or turns the whole system off. |
-| Target Temperature | The target temperature of the zone, 16 to 30 degrees C. |
+| Target Temperature | The target temperature of the zone, in the unit of the controller: 16 to 30 °C, or 61 to 86 °F. Home Assistant shows it in your own unit. |
 
 ## Sensors
 
