@@ -42,7 +42,7 @@ class GreeNumberDescription(
 ):
     """Description of a Gree number."""
 
-    value_func: Callable[[GreeDevice], int | None]
+    value_func: Callable[[GreeDevice], float | None]
     set_func: Callable[[GreeDevice, int], None]
     min_func: Callable[[GreeDevice], int] | None = None
     max_func: Callable[[GreeDevice], int] | None = None
@@ -89,8 +89,8 @@ NUMBER_TYPES: list[GreeNumberDescription] = [
         native_min_value=MIN_TEMP_C,
         native_max_value=MAX_TEMP_C,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        value_func=lambda device: device.zone_target_temperature,
-        set_func=lambda device, value: device.set_zone_target_temperature(value),
+        value_func=lambda device: device.target_temperature,
+        set_func=lambda device, value: device.set_target_temperature(value),
         updates_device=True,
     ),
 ]

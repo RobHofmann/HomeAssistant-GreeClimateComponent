@@ -292,24 +292,33 @@ async def test_a_zone_is_recognised_and_polls_its_target_temperature(
     """A zone asks for StTem and reads it as degrees Celsius minus 16."""
     assert zone.device_type is DeviceType.ZONE
     assert zone.supports_property(GreeProp.ZONE_TARGET_TEMPERATURE)
-    assert zone.zone_target_temperature == 18
+    assert zone.target_temperature == 18
 
     controller.units[controller.zone_macs[0]]["StTem"] = 5
     await zone.fetch_device_status()
 
-    assert zone.zone_target_temperature == 21
+    assert zone.target_temperature == 21
 
 
 async def test_a_zone_target_temperature_is_sent_minus_16(
     controller: FakeZoneController, zone: GreeDevice
 ) -> None:
-    """19 degrees goes out as 3, and values outside 16 to 30 are clamped."""
-    zone.set_zone_target_temperature(19)
+    """19 degrees goes out as 3, without SetTem, and values outside 16 to 30 are clamped."""
+    controller.reset_record()
+    zone.set_target_temperature(19)
     await zone.push_device_status()
 
     assert controller.units[controller.zone_macs[0]]["StTem"] == 3
+    sent = {
+        column
+        for pack in controller.packs
+        if pack.get("t") == "cmd"
+        for column in pack["opt"]
+    }
+    assert "StTem" in sent
+    assert not sent & {"SetTem", "TemRec"}
 
-    zone.set_zone_target_temperature(35)
+    zone.set_target_temperature(35)
     await zone.push_device_status()
 
     assert controller.units[controller.zone_macs[0]]["StTem"] == 14

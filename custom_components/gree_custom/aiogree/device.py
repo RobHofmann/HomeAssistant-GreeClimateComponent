@@ -641,19 +641,6 @@ class GreeDevice:
         return self._device_type
 
     @property
-    def zone_target_temperature(self) -> int | None:
-        """Return the target temperature of a zone in degrees Celsius."""
-        raw = self._state.get(GreeProp.ZONE_TARGET_TEMPERATURE)
-        return None if raw is None else raw + ZONE_TEMPERATURE_OFFSET
-
-    def set_zone_target_temperature(self, value: int) -> None:
-        """Set the target temperature of a zone in degrees Celsius."""
-        value = max(MIN_TEMP_C, min(MAX_TEMP_C, int(value)))
-        self._state.set(
-            GreeProp.ZONE_TARGET_TEMPERATURE, value - ZONE_TEMPERATURE_OFFSET
-        )
-
-    @property
     def has_held_values(self) -> bool:
         """Return True if sent values still wait for the device to confirm them."""
         return bool(self._state.held)
@@ -855,8 +842,16 @@ class GreeDevice:
         self._state.set(GreeProp.TARGET_TEMPERATURE_UNIT, units)
 
     @property
-    def target_temperature(self) -> float:
-        """Return the target temperature in target_temperature_unit."""
+    def target_temperature(self) -> float | None:
+        """Return the target temperature in target_temperature_unit.
+
+        A zone has its own column in whole degrees Celsius, see
+        GreeProp.ZONE_TARGET_TEMPERATURE. It is None until the zone is read.
+        """
+
+        if self._device_type is DeviceType.ZONE:
+            raw = self._state.get(GreeProp.ZONE_TARGET_TEMPERATURE)
+            return None if raw is None else raw + ZONE_TEMPERATURE_OFFSET
 
         raw_c = self._state.get(GreeProp.TARGET_TEMPERATURE, 0)
         tem_rec = self._state.get(GreeProp.TARGET_TEMPERATURE_BIT, 0)
@@ -869,7 +864,17 @@ class GreeDevice:
         return 0.0
 
     def set_target_temperature(self, value: float) -> None:
-        """Set the target temperature in target_temperature_unit."""
+        """Set the target temperature in target_temperature_unit.
+
+        A zone takes whole degrees Celsius from 16 to 30.
+        """
+
+        if self._device_type is DeviceType.ZONE:
+            degrees = max(MIN_TEMP_C, min(MAX_TEMP_C, round(value)))
+            self._state.set(
+                GreeProp.ZONE_TARGET_TEMPERATURE, degrees - ZONE_TEMPERATURE_OFFSET
+            )
+            return
 
         if self.target_temperature_unit == TemperatureUnits.F:
             if not value.is_integer():
