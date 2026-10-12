@@ -19,7 +19,8 @@
             "unique_id_mismatch": "De entry die wordt geconfigureerd komt niet overeen met de bedoelde configuratie.",
             "no_devices_to_add": "Geen nieuwe apparaten ontdekt. Pas de ontdekkingsopties aan en probeer het opnieuw.",
             "import_failed": "De YAML-configuratie kon niet worden geïmporteerd. Zie het herstelprobleem en de log voor de reden.",
-            "legacy_migration_started": "Je Gree 4.x-apparaten worden naar deze integratie verhuisd. Ze verschijnen over een paar seconden, met dezelfde entity-ID's."
+            "legacy_migration_started": "Je Gree 4.x-apparaten worden naar deze integratie verhuisd. Ze verschijnen over een paar seconden, met dezelfde entity-ID's.",
+            "yaml_managed": "Deze entry wordt beheerd in configuration.yaml. Pas de YAML aan en herstart Home Assistant. Wijzigingen die je hier maakt, worden bij de volgende start overschreven."
         },
         "step": {
             "user": {
@@ -59,7 +60,7 @@
             },
             "connection_options": {
                 "title": "Verbindingsopties {device_idx} van {device_cnt}",
-                "description": "Stel de verbindingsopties in voor het apparaat:\n\n{device_name}",
+                "description": "Stel de verbindingsopties in voor het apparaat:\n\n{device_name}\n\nApparaten achter dezelfde controller (VRF of zonecontroller) delen het IP-adres, de poort en de encryptieversie. Als je deze wijzigt tijdens het opnieuw configureren, krijgen de andere apparaten van die controller dezelfde waarden.",
                 "data": {
                     "disable_available_check": "Beschikbaarheidscontrole uitschakelen",
                     "encryption_key": "Encryptiesleutel",
@@ -123,9 +124,33 @@
             },
             "reconfigure": {
                 "title": "Apparaten opnieuw configureren",
-                "description": "Je configureert een entry met een cloudaccount opnieuw. Wil je zoeken naar lokale apparaten die overeenkomen met je cloudapparaten?",
+                "description": "Deze entry heeft {device_cnt} apparaat/apparaten. Kies wat je wilt doen. Je wijzigingen worden opgeslagen als je Opslaan en herladen kiest.",
+                "menu_options": {
+                    "edit_device": "Een apparaat bewerken",
+                    "rediscover": "Opnieuw naar apparaten zoeken",
+                    "remove_devices": "Apparaten verwijderen",
+                    "finish": "Opslaan en herladen"
+                }
+            },
+            "rediscover": {
+                "title": "Opnieuw naar apparaten zoeken",
+                "description": "Hiervoor logt de integratie in op je Gree-account om de apparaten te vinden. Door die login wordt de Gree-app uitgelogd.\n\nJe configureert een entry met een cloudaccount opnieuw. Wil je zoeken naar lokale apparaten die overeenkomen met je cloudapparaten?",
                 "data": {
                     "include_local": "Lokale apparaten meenemen"
+                }
+            },
+            "edit_device": {
+                "title": "Een apparaat bewerken",
+                "description": "Kies het apparaat dat je wilt bewerken. Als je niets aan de verbinding verandert, gebruikt de integratie de lopende verbinding en logt ze niet in op het Gree-account.",
+                "data": {
+                    "devices": "Apparaat"
+                }
+            },
+            "remove_devices": {
+                "title": "Apparaten verwijderen",
+                "description": "Kies de apparaten die je uit deze entry wilt verwijderen.",
+                "data": {
+                    "devices": "Apparaten"
                 }
             }
         }

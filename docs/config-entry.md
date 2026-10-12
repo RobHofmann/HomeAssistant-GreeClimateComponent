@@ -63,12 +63,25 @@ An entry can also come from `configuration.yaml`. The parts:
 - `async_step_import` in `config_flow.py` resolves the target entry. Without a `cloud` block that is the local-only entry (`unique_id` `local_only`). With a `cloud` block it first looks for an entry that already stores the same email, region and password. If it finds one, it reuses that `unique_id` and the stored `uid` and `token`, so there is no cloud login on every restart. Only when there is no such entry does it log in and use the returned user id as `unique_id`. A login matters: Gree allows one session per account, so every login logs the Gree app out. It happens on the first import and after a change of email, region or password. A changed email still lands on the same entry, because the user id from the login is the `unique_id`.
 - The step then creates the entry, or updates the existing one with `async_update_reload_and_abort`. Unchanged YAML changes nothing and causes no reload. Changed YAML updates the entry and reloads it once, after startup. A device that is already in another entry is skipped, with an error in the log and a repair issue (`yaml_import_failed`).
 - Devices that are in the entry but not in the YAML are removed, together with their device registry rows.
+- The step adds the `unique_id` to the set in `hass.data[DATA_YAML_UNIQUE_IDS]`, also when it aborts after the `unique_id` is known. Reconfigure refuses an entry in that set with `yaml_managed`. `entry.source` cannot tell this, because an import that updates a UI entry keeps the source `user`. The set lives in memory only, so after the YAML block is removed and Home Assistant restarts, the entry can be reconfigured again.
 
 The YAML wins at every start, so values that change after the import are not preserved:
 
 - `connection.local.host` updated by discovery goes back to the `host` in the YAML at the next start. Keep the YAML current, or give the unit a fixed IP.
 - The import does not bind the device, so it stores the `encryption_key` and `encryption_version` as written. With a blank key and version `"0"`, entry setup fetches the key and detects the version on every start. That is the normal path.
 - Changes made in the UI to a YAML managed entry are replaced by the YAML values at the next start.
+
+## Reconfigure
+
+`async_step_reconfigure` in `config_flow.py` shows a menu, and every reconfigure step returns to it. The flow copies the entry devices deep into `_pending_devices` (MAC to `connection` and `options`). The menu steps change that copy, and only `finish` writes it with `_async_finish`, which reloads the entry once.
+
+- `edit_device` runs the normal `connection_options` and `device_options` steps for one device. When the submitted settings that decide the bind (`_bind_settings()`: key, uid, controller MACs, host, port, encryption version, `prefer_cloud`) equal the stored ones, and the entry is loaded with that device bound, the flow uses the running `GreeDevice` from `entry.runtime_data` and does not bind. Otherwise it binds. A cloud bind uses a `GreeMqttTransport` built from the stored `token`, `uid` and `region` with `create_mqtt_transport()` in `helpers.py`, the same helper entry setup uses. There is no cloud login.
+- `rediscover` runs `cloud_add` (with a login, because the cloud device list needs one), `local_add` and `device_picker`, as before. New devices go through the device steps. Picked devices that are already configured only get `local.host`, `local.mac_controller_local` and `cloud.mac_controller_cloud` from discovery, without a form. The local values are only updated when the device already has a local host, so a cloud-only device stays cloud-only. Unpicked configured devices are removed from the copy.
+- `remove_devices` removes the picked devices from the copy.
+- When an edit changes `host`, `port` or `encryption_version` of a device with a `mac_controller_local`, the other devices with the same controller MAC get the same values.
+- `_async_finish` removes the device registry rows of removed devices and moves local-only devices found in the cloud to the account entry, as before.
+
+Reauth does not use the menu. It runs `cloud_add` and updates only the `cloud` block.
 
 ## Migration from 4.x
 

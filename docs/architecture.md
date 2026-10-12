@@ -27,7 +27,7 @@ No Home Assistant imports here.
 |---|---|
 | `__init__.py` | Entry setup. Builds transports and devices, binds them, starts one `GreeCoordinator` per device. Creates and links the VRF controller devices, see [VRF controller device](#vrf-controller-device). |
 | `coordinator.py` | `GreeCoordinator`. Polls on `scan_interval` and listens for status pushed by the device. Polls again every 2 s after a command while the device has not confirmed it, until the hold ends. |
-| `config_flow.py` | Setup, reconfigure, reauth and YAML import flows. Local discovery, cloud login, device picker, per device options. `async_step_import` turns one validated YAML item into a config entry. |
+| `config_flow.py` | Setup, reconfigure, reauth and YAML import flows. Local discovery, cloud login, device picker, per device options. Reconfigure is a menu over the same steps, see [config-entry.md](config-entry.md#reconfigure). `async_step_import` turns one validated YAML item into a config entry. |
 | `config_schema.py` | `CONFIG_SCHEMA` for the `gree_custom:` block in `configuration.yaml`. Validates the YAML, normalizes the MAC addresses and fills the defaults. It also holds the form schemas that the config flow shows. |
 | `migration.py` | Moves a 4.x setup (domain `gree`) to this integration: config entries, the `gree:` YAML block, and the device and entity registry rows. See [config-entry.md](config-entry.md#migration-from-4x). |
 | `climate.py`, `switch.py`, `sensor.py`, `binary_sensor.py`, `number.py`, `select.py` | Entity platforms. |

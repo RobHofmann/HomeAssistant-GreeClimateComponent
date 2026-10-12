@@ -7,14 +7,16 @@ from typing import Any
 
 from homeassistant.components import network
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_PORT
+from homeassistant.const import CONF_HOST, CONF_PORT, CONF_REGION, CONF_TOKEN
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import UNDEFINED, UndefinedType
 
 from .aiogree.api import GreeDiscoveredDevice, gree_discover_devices
+from .aiogree.cloud_api import GreeRegion
 from .aiogree.device import GreeDevice
+from .aiogree.transport_mqtt import GreeMqttTransport
 from .aiogree.transport_udp import GreeUdpTransport
 from .const import (
     CONF_DEVICE_CONNECTION,
@@ -218,6 +220,26 @@ async def try_find_new_ip(
         _LOGGER.exception("Config entry data does not contain the required keys")
 
     return True
+
+
+def create_mqtt_transport(
+    cloud_conf: Mapping[str, Any],
+) -> GreeMqttTransport | None:
+    """Build the MQTT transport from a stored cloud block, without a login.
+
+    Returns None when the block misses the user id, the token or the region.
+    The transport connects on its first request.
+    """
+    user_id: int = cloud_conf.get(CONF_UID, 0)
+    token: str = cloud_conf.get(CONF_TOKEN, "")
+    region: str = cloud_conf.get(CONF_REGION, "")
+
+    if not user_id or not token or not region:
+        return None
+
+    return GreeMqttTransport(
+        user_id=str(user_id), token=token, region=GreeRegion(region)
+    )
 
 
 def create_discovered_from_config(mac: str, conf: dict) -> GreeDiscoveredDevice:

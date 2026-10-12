@@ -13,10 +13,8 @@ from homeassistant.const import (
     CONF_HOST,
     CONF_NAME,
     CONF_PORT,
-    CONF_REGION,
     CONF_SCAN_INTERVAL,
     CONF_TIMEOUT,
-    CONF_TOKEN,
     Platform,
 )
 from homeassistant.core import HomeAssistant
@@ -29,7 +27,6 @@ from homeassistant.helpers import device_registry as dr, issue_registry as ir
 from homeassistant.helpers.typing import ConfigType
 
 from .aiogree.cipher import EncryptionVersion
-from .aiogree.cloud_api import GreeRegion
 from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeConnectionError
 from .aiogree.transport_mqtt import GreeMqttTransport
@@ -67,7 +64,12 @@ from .const import (
     ENCRYPTION_VERSION_AUTO,
 )
 from .coordinator import GreeConfigEntry, GreeCoordinator
-from .helpers import get_vrf_controller_mac, reconcile_vrf_controllers, try_find_new_ip
+from .helpers import (
+    create_mqtt_transport,
+    get_vrf_controller_mac,
+    reconcile_vrf_controllers,
+    try_find_new_ip,
+)
 from .migration import (
     async_migrate_legacy_registry,
     async_prepare_legacy_migration,
@@ -194,16 +196,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
         if mac_controller_cloud and cloud_conf and not mqtt_transport:
             _LOGGER.debug("Creating MQTT transport for %s", cloud_conf[CONF_EMAIL])
 
-            userid: int = cloud_conf.get(CONF_UID, 0)
-            token: str = cloud_conf.get(CONF_TOKEN, "")
-            region: str = cloud_conf.get(CONF_REGION, "")
-
-            if not userid or not token or not region:
+            mqtt_transport = create_mqtt_transport(cloud_conf)
+            if mqtt_transport is None:
                 raise ConfigEntryAuthFailed("no_account_info")
-
-            mqtt_transport = GreeMqttTransport(
-                user_id=str(userid), token=token, region=GreeRegion(region)
-            )
 
         device = GreeDevice(
             name=name,

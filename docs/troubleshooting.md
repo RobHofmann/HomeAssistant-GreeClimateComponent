@@ -63,13 +63,13 @@ The integration raises repair issues under **Settings** > **System** > **Repairs
 
 **The unit ignores Turbo or Quiet.** The unit does that while Power Save or Smart Heat 8°C is on. Turn those off first.
 
-**A feature I expect is missing.** The device did not answer the property behind it at setup, or the feature is not enabled. Reconfigure the entry and check **Device Features and Modes**. Use the `get_prop_values` action to see what the device answers. See [actions.md](actions.md). If the device answers the property but the integration has no entity for it, open an issue. We may need to add it.
+**A feature I expect is missing.** The device did not answer the property behind it at setup, or the feature is not enabled. Reconfigure the entry, choose **Edit a device**, and check **Device Features and Modes**. Use the `get_prop_values` action to see what the device answers. See [actions.md](actions.md). If the device answers the property but the integration has no entity for it, open an issue. We may need to add it.
 
 **The unit shows only default values, or every entity has the same value after every restart.** Some firmwares refuse a status request with too many columns. The integration measures the limit right after it binds and stays below it, so this should not happen. If it does, run `tools/probe_status_limit.py --host <ip>` from a checkout of the repo. Attach the output to an issue. See [development.md](development.md#tools).
 
 **Changes made in the UI are undone after a restart.** The entry is managed by the `gree_custom:` block in `configuration.yaml`. The YAML wins at every start. Change the YAML instead, or remove the block to manage the entry in the UI. See [YAML configuration](configuration.md#yaml-configuration).
 
-**The Gree app logs me out.** Gree allows one session per account, and every login by the integration ends the app session. The integration logs in only when it has no session token yet. That is at the first setup of an account, at a YAML import with new account details, and at reauthentication. Loading or reloading the entry uses the stored token. See [Gree account](configuration.md#gree-account).
+**The Gree app logs me out.** Gree allows one session per account, and every login by the integration ends the app session. The integration logs in only when it has no session token yet. That is at the first setup of an account, at a YAML import with new account details, at reauthentication, and at **Look for devices again** in reconfigure. **Edit a device** in reconfigure does not log in. Loading or reloading the entry uses the stored token. See [Gree account](configuration.md#gree-account).
 
 **A setting jumps back after a few seconds.** After a change, the integration shows the new value for up to 8 seconds while the device still reports the old one. A VRF controller does this for a few seconds after every change. If the device still reports the old value after 8 seconds, it did not take the change, and the old value is shown again. Check that the setting is allowed in the current mode.
 
