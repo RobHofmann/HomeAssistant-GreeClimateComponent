@@ -17,7 +17,7 @@ firmware `362001062617+U-W05SAV1.27.bin` (see docs/protocol.md):
 
 from typing import Any, override
 
-from aiogree.api import SubListForm
+from aiogree.api import SubListForm, ZoneControllerModel, find_zone_controller_model
 
 from .vrf import FakeVrfGateway
 
@@ -34,6 +34,7 @@ class FakeZoneController(FakeVrfGateway):
         name: str = ZONE_CONTROLLER_NAME,
         *,
         zones: int = 4,
+        model: ZoneControllerModel | None = None,
         **kwargs: Any,
     ) -> None:
         """Set up the controller.
@@ -42,6 +43,8 @@ class FakeZoneController(FakeVrfGateway):
             mac: MAC of the controller.
             name: Name in the scan reply and in the info columns.
             zones: How many zones the controller has.
+            model: The MAC suffix of the ducted unit and the model ids to use.
+                By default the entry of ZONE_CONTROLLER_MODELS for `name`.
             kwargs: Anything FakeVrfGateway accepts.
 
         """
@@ -49,7 +52,11 @@ class FakeZoneController(FakeVrfGateway):
         kwargs.setdefault("max_columns", 25)
         super().__init__(mac=mac, name=name, sub_count=zones + 1, **kwargs)
 
-        self.ac_unit = f"{mac}00"
+        model = model or find_zone_controller_model(name)
+        if model is None:
+            raise ValueError(f"No zone controller model for the name {name}")
+        self.model = model
+        self.ac_unit = f"{mac}{model.ac_unit_suffix}"
         self.zone_macs = [f"{mac}{index:02d}" for index in range(1, zones + 1)]
         self.units: dict[str, dict[str, Any]] = {
             mac: {"Pow": 0, "Mod": 4, "WdSpd": 5},
@@ -87,9 +94,10 @@ class FakeZoneController(FakeVrfGateway):
     @override
     def sub_devices(self, form: SubListForm) -> list[dict[str, str]]:
         """Return the ducted unit and the zones, each called "zone"."""
-        units = [{"mac": self.ac_unit, "mid": "5000", "name": "zone"}]
+        units = [{"mac": self.ac_unit, "mid": self.model.mid_ac_unit, "name": "zone"}]
         units += [
-            {"mac": zone, "mid": "5001", "name": "zone"} for zone in self.zone_macs
+            {"mac": zone, "mid": self.model.mid_zone, "name": "zone"}
+            for zone in self.zone_macs
         ]
         return units
 

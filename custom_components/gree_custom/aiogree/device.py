@@ -11,7 +11,6 @@ from .api import (
     ZONE_CONTROLLER_FAN_TURBO,
     ZONE_CONTROLLER_MODES,
     ZONE_CONTROLLER_MODES_TO_RAW,
-    ZONE_CONTROLLER_NAME_PREFIX,
     ZONE_CONTROLLER_TYPES,
     ZONE_TEMPERATURE_OFFSET,
     DeviceType,
@@ -27,6 +26,7 @@ from .api import (
     TemperatureUnits,
     VerticalSwingMode,
     extract_fw_version,
+    find_zone_controller_model,
 )
 from .cloud_api import FirmwareInfoResponse, GreeRegion, gree_get_latest_firmware_info
 from .const import (
@@ -202,16 +202,18 @@ class GreeDevice:
 
         A unit that is not a sub-unit is a standalone unit. A sub-unit of a
         zone controller answers the info request with the name of the zone
-        controller: sub-unit `00` is the ducted unit, the others are zones.
-        Every other sub-unit is a VRF indoor unit. A zone also gets its
-        target temperature polled.
+        controller, and the MAC suffix of the model tells the ducted unit
+        from the zones (see ZONE_CONTROLLER_MODELS). Every other sub-unit is
+        a VRF indoor unit. A zone also gets its target temperature polled.
         """
-        name = self._state.info.get(InfoProp.DEVICE_NAME, "")
+        model = find_zone_controller_model(
+            self._state.info.get(InfoProp.DEVICE_NAME, "")
+        )
         if not self.is_sub_unit:
             self._device_type = DeviceType.AC_UNIT
-        elif not name.startswith(ZONE_CONTROLLER_NAME_PREFIX):
+        elif model is None:
             self._device_type = DeviceType.VRF_UNIT
-        elif self._mac_addr.endswith("00"):
+        elif self._mac_addr.endswith(model.ac_unit_suffix):
             self._device_type = DeviceType.ZONE_CONTROLLER
         else:
             self._device_type = DeviceType.ZONE

@@ -503,11 +503,70 @@ class DeviceType(StrEnum):
 ZONE_CONTROLLER_TYPES = frozenset({DeviceType.ZONE_CONTROLLER, DeviceType.ZONE})
 
 
-# A zone controller and its sub-units report a name that starts with this.
-ZONE_CONTROLLER_NAME_PREFIX = "GR-ZCntrlr"
-# The model ids of the sub-units in the sub-device list.
-ZONE_CONTROLLER_MID_AC_UNIT = "5000"
-ZONE_CONTROLLER_MID_ZONE = "5001"
+class ZoneControllerModel(NamedTuple):
+    """What tells the sub-units of one zone controller model apart."""
+
+    # Every sub-unit answers the info request with the name of the
+    # controller. The entry with the longest prefix of that name is used.
+    name_prefix: str
+    # The last two characters of the MAC of the ducted unit. The other
+    # sub-units are the zones.
+    ac_unit_suffix: str
+    # The model ids (mid) in the sub-device list, only used by discovery to
+    # name the sub-units
+    mid_ac_unit: str
+    mid_zone: str
+
+
+# The known zone controller models. The WiFi module sets these values itself,
+# not the units, so they are the same for every controller with that module.
+#
+# A sub-unit gets the entry with the longest name_prefix that its name starts
+# with. So the order here does not matter, and a more specific entry always
+# wins over a general one. A model that shows other values only needs an
+# entry with a longer prefix, for example "GR-ZCntrlr_3000_".
+ZONE_CONTROLLER_MODELS: tuple[ZoneControllerModel, ...] = (
+    # General entry: any controller with the zone controller firmware of the
+    # ME31-00/C13 WiFi module. The module builds the name as
+    # "GR-ZCntrlr_<hex number>_<2 digits>_<end of MAC>", with "_EC" added
+    # since v1.27. The values below are fixed in that firmware (v1.21, v1.27
+    # and v1.28 checked). Used when no longer prefix matches.
+    ZoneControllerModel(
+        name_prefix="GR-ZCntrlr",
+        ac_unit_suffix="00",
+        mid_ac_unit="5000",
+        mid_zone="5001",
+    ),
+    # LE60-13/GH (also sold as Braemar LE60), seen as
+    # "GR-ZCntrlr_5000_02_5a5f_EC". Both entries match that name, and this
+    # prefix is the longer one, so this entry is used. It has the same values
+    # as the general entry: it is here as an example of a more specific entry.
+    # A hypothetical "GR-ZCntrlr_3000_01_5a5f_EC" would not match it and gets
+    # the general entry.
+    ZoneControllerModel(
+        name_prefix="GR-ZCntrlr_5000_",
+        ac_unit_suffix="00",
+        mid_ac_unit="5000",
+        mid_zone="5001",
+    ),
+)
+
+
+def find_zone_controller_model(name: str) -> ZoneControllerModel | None:
+    """Return the zone controller model whose sub-units report this name.
+
+    When several entries match, the one with the longest name_prefix wins.
+    """
+    return max(
+        (
+            model
+            for model in ZONE_CONTROLLER_MODELS
+            if name.startswith(model.name_prefix)
+        ),
+        key=lambda model: len(model.name_prefix),
+        default=None,
+    )
+
 
 # The ducted unit behind a zone controller numbers the modes in its own way.
 ZONE_CONTROLLER_MODES: dict[int, OperationMode] = {
@@ -1340,18 +1399,20 @@ def _zone_controller_sub_unit_name(sub_mac: str, sub_dev: dict[str, Any]) -> str
     """Name a sub-unit of a zone controller.
 
     A zone controller calls every sub-unit "zone", so the name says nothing.
-    The model id tells the ducted unit from a zone, and the last two
-    characters of the MAC are the zone number.
+    The model id tells the ducted unit from a zone, see
+    ZONE_CONTROLLER_MODELS, and the last two characters of the MAC are the
+    zone number.
 
     Returns:
         The name, or None if the unit is not part of a zone controller
 
     """
     mid = sub_dev.get("mid")
-    if mid == ZONE_CONTROLLER_MID_AC_UNIT:
-        return "AC unit"
-    if mid == ZONE_CONTROLLER_MID_ZONE:
-        return f"Zone {int(sub_mac[-2:], 16)}"
+    for model in ZONE_CONTROLLER_MODELS:
+        if mid == model.mid_ac_unit:
+            return "AC unit"
+        if mid == model.mid_zone:
+            return f"Zone {int(sub_mac[-2:], 16)}"
     return None
 
 

@@ -12,7 +12,14 @@ on/off state and a target temperature. See docs/protocol.md.
 
 from collections.abc import AsyncIterator
 
-from aiogree.api import DeviceType, FanSpeed, GreeProp, OperationMode
+from aiogree import api
+from aiogree.api import (
+    DeviceType,
+    FanSpeed,
+    GreeProp,
+    OperationMode,
+    ZoneControllerModel,
+)
 from aiogree.device import GreeDevice
 from aiogree.errors import GreeTurboUnavailable
 from aiogree.transport_udp import GreeUdpTransport
@@ -94,6 +101,87 @@ async def test_discovery_names_the_ducted_unit_and_the_zones(
     # The two subList forms get no answer, which the transport warns about.
     # Only the warnings about the sub-device list itself would be a problem.
     assert not any("sub-devices" in line for line in gree_logs.warnings())
+
+
+def test_the_seen_name_gets_its_own_entry_and_others_the_general_one() -> None:
+    """The name of the real controller matches the longer GR-ZCntrlr_5000_ prefix."""
+    seen = api.find_zone_controller_model("GR-ZCntrlr_5000_02_5a5f_EC")
+    unseen = api.find_zone_controller_model("GR-ZCntrlr_3000_01_5a5f_EC")
+
+    assert seen is not None
+    assert seen.name_prefix == "GR-ZCntrlr_5000_"
+    assert unseen is not None
+    assert unseen.name_prefix == "GR-ZCntrlr"
+    assert api.find_zone_controller_model("GR-VRF_5a5f") is None
+
+
+@pytest.mark.parametrize(
+    "reverse", [False, True], ids=["general first", "general last"]
+)
+def test_the_longest_matching_name_prefix_wins(
+    monkeypatch: pytest.MonkeyPatch, reverse: bool
+) -> None:
+    """A more specific entry wins over a general one, whatever the order of the table."""
+    general = ZoneControllerModel(
+        name_prefix="GR-ZCntrlr",
+        ac_unit_suffix="00",
+        mid_ac_unit="5000",
+        mid_zone="5001",
+    )
+    specific = ZoneControllerModel(
+        name_prefix="GR-ZCntrlr_3000_",
+        ac_unit_suffix="10",
+        mid_ac_unit="3000",
+        mid_zone="3001",
+    )
+    table = (specific, general) if reverse else (general, specific)
+    monkeypatch.setattr(api, "ZONE_CONTROLLER_MODELS", table)
+
+    assert api.find_zone_controller_model("GR-ZCntrlr_3000_01_ffee_EC") == specific
+    assert api.find_zone_controller_model("GR-ZCntrlr_5000_02_ffee_EC") == general
+
+
+async def test_another_model_only_needs_an_entry_in_the_table(
+    loopback_ip: str, discover_one: DiscoverOne, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A model with other values works once it is in ZONE_CONTROLLER_MODELS."""
+    other = ZoneControllerModel(
+        name_prefix="GR-OtherZone",
+        ac_unit_suffix="10",
+        mid_ac_unit="6000",
+        mid_zone="6001",
+    )
+    controller = FakeZoneController(
+        name="GR-OtherZone_6000_01_ffee", zones=2, model=other
+    )
+    await controller.start(loopback_ip, DISCOVERY_PORT)
+    transports: list[GreeUdpTransport] = []
+    try:
+        # Not in the table yet, so it is taken for a VRF gateway
+        unknown, transport = await bind_unit(controller, "01")
+        transports.append(transport)
+        assert unknown.device_type is DeviceType.VRF_UNIT
+
+        monkeypatch.setattr(
+            api, "ZONE_CONTROLLER_MODELS", (*api.ZONE_CONTROLLER_MODELS, other)
+        )
+        found = await discover_one(controller.host, timeout=1)
+        ac_unit, transport = await bind_unit(controller, "10")
+        transports.append(transport)
+        zone, transport = await bind_unit(controller, "01")
+        transports.append(transport)
+    finally:
+        for transport in transports:
+            await transport.disconnect()
+        controller.close()
+
+    assert [(d.name, d.mac) for d in found] == [
+        ("AC unit", f"{ZONE_CONTROLLER_MAC}10"),
+        ("Zone 1", f"{ZONE_CONTROLLER_MAC}01"),
+        ("Zone 2", f"{ZONE_CONTROLLER_MAC}02"),
+    ]
+    assert ac_unit.device_type is DeviceType.ZONE_CONTROLLER
+    assert zone.device_type is DeviceType.ZONE
 
 
 #
