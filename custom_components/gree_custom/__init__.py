@@ -1,6 +1,7 @@
 """Gree climate integration init."""
 
 # Standard library imports
+from collections.abc import Mapping
 import json
 import logging
 from typing import Any
@@ -66,8 +67,10 @@ from .const import (
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .helpers import (
     async_disconnect_transports,
+    async_refresh_cloud_token,
     create_mqtt_transport,
     get_vrf_controller_mac,
+    is_mqtt_auth_refusal,
     reconcile_vrf_controllers,
     try_find_new_ip,
 )
@@ -134,6 +137,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
         return True
 
     cloud_conf = conf.get(CONF_CLOUD) or {}
+    # The stored token is refreshed at most once per setup
+    token_refreshed = False
     device_configs: dict[str, Any] = conf[CONF_DEVICES]
     coordinators: dict[str, GreeCoordinator] = {}
     mqtt_transport: GreeMqttTransport | None = None
@@ -208,16 +213,39 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
             user_id=uid,
         )
 
+        local_transport = (
+            None if prefer_cloud else local_transports.get(mac_controller_local)
+        )
+
         try:
-            await device.bind_with_transport(
-                preferred_local_version=preferred_local_version,
-                local_controller_mac=mac_controller_local,
-                local_transport=None
-                if prefer_cloud
-                else local_transports.get(mac_controller_local),
-                mqtt_controller_mac=mac_controller_cloud,
-                mqtt_transport=mqtt_transport,
-            )
+            try:
+                await device.bind_with_transport(
+                    preferred_local_version=preferred_local_version,
+                    local_controller_mac=mac_controller_local,
+                    local_transport=local_transport,
+                    mqtt_controller_mac=mac_controller_cloud,
+                    mqtt_transport=mqtt_transport,
+                )
+            except MqttConnectError as err:
+                if token_refreshed or not is_mqtt_auth_refusal(err):
+                    raise
+
+                # The stored token is no longer valid, log in again once
+                token_refreshed = True
+                cloud_conf = await _async_refresh_entry_token(hass, entry, cloud_conf)
+                await async_disconnect_transports([mqtt_transport])
+                mqtt_transport = create_mqtt_transport(cloud_conf)
+
+                # The local transport failed already, so only MQTT is retried
+                await device.bind_with_transport(
+                    preferred_local_version=preferred_local_version,
+                    local_controller_mac=mac_controller_local,
+                    local_transport=None,
+                    mqtt_controller_mac=mac_controller_cloud,
+                    mqtt_transport=mqtt_transport,
+                )
+        except ConfigEntryAuthFailed:
+            raise
         except MqttConnectError as err:
             # The broker's reason, so a user log shows why the login failed
             _LOGGER.warning(
@@ -273,6 +301,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
     # The sub-unit devices exist now, link them to their controller
     reconcile_vrf_controllers(hass, entry, device_configs)
     return True
+
+
+async def _async_refresh_entry_token(
+    hass: HomeAssistant, entry: GreeConfigEntry, cloud_conf: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Log in with the stored account and store the new token in the entry.
+
+    The token is stored right after the login, because the login made the
+    old token invalid. Raises ConfigEntryAuthFailed when the login fails.
+    """
+    try:
+        new_cloud_conf = await async_refresh_cloud_token(cloud_conf, entry.title)
+    except Exception as err:
+        _LOGGER.warning(
+            "Gree Cloud login with the stored account failed for entry '%s': %s",
+            entry.title,
+            err,
+        )
+        raise ConfigEntryAuthFailed("bad_credentials") from err
+
+    # This integration has no update listener, so this does not reload
+    hass.config_entries.async_update_entry(
+        entry, data={**entry.data, CONF_CLOUD: new_cloud_conf}
+    )
+    return new_cloud_conf
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool:

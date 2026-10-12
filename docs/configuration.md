@@ -22,9 +22,13 @@ Shown when you picked the cloud method.
 | Email, Password | Your Gree account. |
 | Region | The region of your account. The integration uses it to pick the right Gree server. |
 
-The login returns a session token. The integration stores the token in the config entry and uses it every time the entry loads. A restart or a reload does not log in again. Only when the stored token stops working does the entry ask for [reauthentication](#reauthentication), which logs in once more and stores the new token.
+The login returns a session token. The integration stores the token in the config entry and uses it every time the entry loads. A restart or a reload does not log in again.
 
-This matters because Gree allows one session per account. Every login ends the other sessions, so the Gree app on your phone logs out at that moment. A YAML entry works the same way: a matching entry keeps its token, and a changed email, region or password triggers a new login. In [reconfigure](#reconfigure), only **Look for devices again** logs in.
+When the Gree server refuses the stored token, the integration logs in once with the stored email, password and region. It stores the new token and goes on. This happens when the entry loads, and when **Edit a device** binds a cloud device. The log then has a warning that starts with `Gree Cloud refused the stored token`. Only when that login fails too, or the server also refuses the new token, does the entry ask for [reauthentication](#reauthentication).
+
+This matters because a cloud login by the integration logs the Gree app on your phone out. Connecting with the stored token does not log the app out. Why Gree sometimes stops accepting a stored token is not known: it can happen soon after a login, and the cloud may also limit how often you can log in. Every time the integration has to log in again, the app logs out. To avoid this, use a separate Gree account for Home Assistant, if your devices can be shared with a second account. See [The Gree app logs me out](troubleshooting.md#common-situations).
+
+A YAML entry works the same way: a matching entry keeps its token, also a token that the integration refreshed, and a changed email, region or password triggers a new login. In [reconfigure](#reconfigure), only **Look for devices again** logs in, unless the server refuses the stored token.
 
 ### Local discovery
 
@@ -108,7 +112,7 @@ Open the entry under **Settings** > **Devices & Services**, click the three dots
 | Remove devices | Pick the devices to remove from the entry. |
 | Save and reload | Writes the changes and reloads the entry. |
 
-**Edit a device** does not log in to the Gree account, so the Gree app stays logged in. When you keep the connection settings that decide how the device binds (key, user ID, IP address, port, encryption version, controller MACs and Prefer Cloud Connection), the integration uses the running connection of the device and does not bind again. When you change one of them, the integration binds again. For a cloud device it uses the stored session for that.
+**Edit a device** does not log in to the Gree account, so the Gree app stays logged in. The one exception is a stored token that the server refuses: then it logs in once, see [Gree account](#gree-account). When you keep the connection settings that decide how the device binds (key, user ID, IP address, port, encryption version, controller MACs and Prefer Cloud Connection), the integration uses the running connection of the device and does not bind again. When you change one of them, the integration binds again. For a cloud device it uses the stored session for that.
 
 **Look for devices again** on an account entry first asks whether to also look for local devices. Then it asks for the account details and logs in, because the cloud device list needs a fresh login. That login logs the Gree app out. On the **Local-only Devices** entry it starts at local discovery and does not log in.
 
@@ -137,7 +141,7 @@ Both need the device to be on a network that Home Assistant can reach with a bro
 
 ## Reauthentication
 
-A cloud account entry asks for a new login when the stored session stops working. Click **Reconfigure** on the repair, or open the entry and choose **Reauthenticate**, and enter the account details again.
+A cloud account entry asks for a new login when the stored session stops working and a login with the stored account details fails too, for example after a password change. Click **Reconfigure** on the repair, or open the entry and choose **Reauthenticate**, and enter the account details again.
 
 ## YAML configuration
 

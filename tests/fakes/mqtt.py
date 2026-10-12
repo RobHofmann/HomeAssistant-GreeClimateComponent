@@ -12,7 +12,8 @@ same surface as `aiomqtt.Client` for the parts the transport uses.
 `FakeMqttBroker` goes one step further, for the config flow tests. It hands
 every request to a `FakeGreeDevice` and sends the reply back on the response
 topic, so a bind over the cloud runs the real protocol end to end. It can also
-refuse the connection, as the Gree broker does with a stale token.
+refuse the connection, as the Gree broker does with a stale token, and it can
+accept only some tokens, as the Gree broker does after a new login.
 """
 
 import asyncio
@@ -21,12 +22,23 @@ from types import TracebackType
 from typing import TYPE_CHECKING, Any, Self, override
 
 from aiomqtt.exceptions import MqttConnectError
+from paho.mqtt.packettypes import PacketTypes
+from paho.mqtt.reasoncodes import ReasonCode
 
 if TYPE_CHECKING:
     from .device import FakeGreeDevice
 
 # The MQTT 3.1.1 return code for a refused user name or password.
 CONNACK_NOT_AUTHORIZED = 5
+
+
+def connack_reason(name: str) -> ReasonCode:
+    """Return a CONNACK reason the way paho 2 reports it, also for MQTT 3.1.1.
+
+    paho turns the 3.1.1 return code 4 into "Bad user name or password"
+    (code 134), so that is what aiomqtt puts in `MqttConnectError.rc`.
+    """
+    return ReasonCode(PacketTypes.CONNACK, name)
 
 
 class FakeMqttMessage:
@@ -119,7 +131,12 @@ class FakeMqttBroker:
     def __init__(self) -> None:
         """Start with no devices and a broker that accepts every login."""
         self.devices: dict[str, FakeGreeDevice] = {}
+        # Refuse every connection with this reason
         self.refuse_connect = False
+        self.refuse_reason: int | ReasonCode = CONNACK_NOT_AUTHORIZED
+        # When set, only these tokens may connect. The others get "Bad user
+        # name or password", as a token that a newer login replaced.
+        self.accepted_tokens: set[str] | None = None
         self.clients: list[BrokerClient] = []
 
     def add(self, device: FakeGreeDevice, mac_controller: str | None = None) -> None:
@@ -149,7 +166,10 @@ class BrokerClient(FakeMqttClient):
     async def __aenter__(self) -> Self:
         """Open the connection, unless the broker refuses the login."""
         if self.broker.refuse_connect:
-            raise MqttConnectError(CONNACK_NOT_AUTHORIZED)
+            raise MqttConnectError(self.broker.refuse_reason)
+        accepted = self.broker.accepted_tokens
+        if accepted is not None and self.options.get("password") not in accepted:
+            raise MqttConnectError(connack_reason("Bad user name or password"))
         return await super().__aenter__()
 
     @override

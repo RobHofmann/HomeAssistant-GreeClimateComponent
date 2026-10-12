@@ -7,6 +7,7 @@ import logging
 from typing import TYPE_CHECKING, Any, override
 
 from aiomqtt import MqttError
+from aiomqtt.exceptions import MqttConnectError
 
 if TYPE_CHECKING:
     import probatio
@@ -107,6 +108,7 @@ from .const import (
 from .coordinator import GreeConfigEntry
 from .helpers import (
     async_disconnect_transports,
+    async_refresh_cloud_token,
     create_discovered_from_config,
     create_mqtt_transport,
     get_config_entries,
@@ -114,6 +116,7 @@ from .helpers import (
     get_device_by_identifier,
     get_discovery_addresses,
     get_entry_matching_mac,
+    is_mqtt_auth_refusal,
 )
 from .migration import async_setup_from_flow
 
@@ -215,6 +218,8 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
         self._current_setup_device_index = 0
 
         self._mqtt_transport: GreeMqttTransport | None = None
+        # True after a login in this flow. A fresh token is never refreshed.
+        self._cloud_token_fresh = False
         self._local_transports: dict[str, GreeUdpTransport] = {}
         self._devices: dict[str, GreeDevice] = {}
 
@@ -727,6 +732,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
             )
             try:
                 credentials = await self._cloud_api.login()
+                self._cloud_token_fresh = True
 
                 # Close the connection of an earlier attempt or edit first
                 await async_disconnect_transports([self._mqtt_transport])
@@ -1078,26 +1084,71 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._config_data.get(CONF_CLOUD) or {}
             )
 
-        await device.bind_with_transport(
-            preferred_local_version=(
-                None
-                if encryption_version_value == ENCRYPTION_VERSION_AUTO
-                else EncryptionVersion(int(encryption_version_value))
-            ),
-            local_controller_mac=mac_local_controller,
-            local_transport=(
-                local_transport
-                if not cloud.get(CONF_PREFER_CLOUD, DEFAULT_PREFER_CLOUD)
-                else None
-            ),
-            mqtt_controller_mac=mac_mqtt_controller,
-            mqtt_transport=self._mqtt_transport,
+        preferred_local_version = (
+            None
+            if encryption_version_value == ENCRYPTION_VERSION_AUTO
+            else EncryptionVersion(int(encryption_version_value))
         )
+
+        try:
+            await device.bind_with_transport(
+                preferred_local_version=preferred_local_version,
+                local_controller_mac=mac_local_controller,
+                local_transport=(
+                    local_transport
+                    if not cloud.get(CONF_PREFER_CLOUD, DEFAULT_PREFER_CLOUD)
+                    else None
+                ),
+                mqtt_controller_mac=mac_mqtt_controller,
+                mqtt_transport=self._mqtt_transport,
+            )
+        except MqttConnectError as err:
+            if (
+                self.source != SOURCE_RECONFIGURE
+                or self._cloud_token_fresh
+                or not is_mqtt_auth_refusal(err)
+            ):
+                raise
+
+            # The stored token is no longer valid, log in again once
+            try:
+                await self._async_refresh_stored_token()
+            except Exception as refresh_err:
+                _LOGGER.warning(
+                    "Gree Cloud login with the stored account failed: %s",
+                    refresh_err,
+                )
+                raise err from refresh_err
+
+            # The local transport failed already, so only MQTT is retried
+            await device.bind_with_transport(
+                preferred_local_version=preferred_local_version,
+                local_controller_mac=mac_local_controller,
+                local_transport=None,
+                mqtt_controller_mac=mac_mqtt_controller,
+                mqtt_transport=self._mqtt_transport,
+            )
 
         if local_transport:
             self._local_transports[mac_local_controller] = local_transport
 
         return device
+
+    async def _async_refresh_stored_token(self) -> None:
+        """Log in with the stored account and use the new token from now on.
+
+        The new token goes in the flow data, so finish writes it to the entry.
+        The flow MQTT transport is rebuilt with it.
+        """
+        self._cloud_token_fresh = True
+        cloud_conf = await async_refresh_cloud_token(
+            self._config_data.get(CONF_CLOUD) or {},
+            self._get_reconfigure_entry().title,
+        )
+        self._config_data[CONF_CLOUD] = cloud_conf
+
+        await async_disconnect_transports([self._mqtt_transport])
+        self._mqtt_transport = create_mqtt_transport(cloud_conf)
 
     async def async_step_connection_options(  # noqa: C901
         self, user_input: dict | None = None

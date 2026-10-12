@@ -41,7 +41,7 @@ The integration raises repair issues under **Settings** > **System** > **Repairs
 | Update your Gree configuration from 4.x | Devices still come from the 4.x `gree:` block, or from 4.x UI entries while YAML manages the local devices. They work. | Comment out the `gree:` block, paste the block from the issue into `configuration.yaml` and restart. See [Legacy gree: block](configuration.md#legacy-gree-block). |
 | Remove the old Gree 4.x files | The folder `custom_components/gree` from 4.x is still installed. The old 4.x entries are disabled. | Delete the folder and restart. The old entries stay disabled, so you can go back to 4.x. |
 | Remove the old Gree 4.x config entries | Your devices run on this integration, and the 4.x folder is gone. The old 4.x entries are only kept, disabled, so you can go back to 4.x without setting it up again. | Select **Submit** in the issue to remove them. After that, going back to 4.x means setting it up again. See [Going back to 4.x](installation.md#going-back-to-4x). |
-| Reauthentication required | The device refused the key exchange, or the cloud session is no longer valid. | For a cloud account, log in again. The log line `Gree Cloud refused the MQTT connection` shows the reason the broker gave. For a local device, check the key. See [encryption-key.md](encryption-key.md). |
+| Reauthentication required | The device refused the key exchange, or the cloud session is no longer valid and a login with the stored account details failed too. | For a cloud account, log in again. Check the password first, if you changed it. The log line `Gree Cloud refused the MQTT connection` shows the reason the broker gave. For a local device, check the key. See [encryption-key.md](encryption-key.md). |
 
 ## Messages in the setup flow
 
@@ -69,7 +69,11 @@ The integration raises repair issues under **Settings** > **System** > **Repairs
 
 **Changes made in the UI are undone after a restart.** The entry is managed by the `gree_custom:` block in `configuration.yaml`. The YAML wins at every start. Change the YAML instead, or remove the block to manage the entry in the UI. See [YAML configuration](configuration.md#yaml-configuration).
 
-**The Gree app logs me out.** Gree allows one session per account, and every login by the integration ends the app session. The integration logs in only when it has no session token yet. That is at the first setup of an account, at a YAML import with new account details, at reauthentication, and at **Look for devices again** in reconfigure. **Edit a device** in reconfigure does not log in. Loading or reloading the entry uses the stored token. See [Gree account](configuration.md#gree-account).
+**The Gree app logs me out.** Gree allows one session per account, and every login by the integration ends the app session. The integration logs in only when it has no valid session token. That is at the first setup of an account, at a YAML import with new account details, at reauthentication, and at **Look for devices again** in reconfigure. **Edit a device** in reconfigure does not log in. Loading or reloading the entry uses the stored token.
+
+Sometimes the Gree server stops accepting the stored token. Why is not known: it can happen soon after a login, and the cloud may also limit how often an account can log in. When the server refuses the stored token, the integration logs in again once with the stored account details and stores the new token. That happens when the entry loads, or when **Edit a device** binds a cloud device. That login logs the app out. The log then shows a warning that starts with `Gree Cloud refused the stored token`.
+
+If this happens often, use a separate Gree account for Home Assistant, if your devices can be shared with a second account. Then a login by the integration does not log out your app. See [Gree account](configuration.md#gree-account).
 
 **A setting jumps back after a few seconds.** After a change, the integration shows the new value for up to 8 seconds while the device still reports the old one. A VRF controller does this for a few seconds after every change. If the device still reports the old value after 8 seconds, it did not take the change, and the old value is shown again. Check that the setting is allowed in the current mode.
 

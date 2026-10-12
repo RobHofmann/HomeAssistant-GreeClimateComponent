@@ -5,17 +5,27 @@ from ipaddress import IPv4Address, IPv4Network, ip_address, ip_network
 import logging
 from typing import Any
 
+from aiomqtt.exceptions import MqttConnectError
+
 from homeassistant.components import network
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_PORT, CONF_REGION, CONF_TOKEN
+from homeassistant.const import (
+    CONF_EMAIL,
+    CONF_HOST,
+    CONF_PASSWORD,
+    CONF_PORT,
+    CONF_REGION,
+    CONF_TOKEN,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import UNDEFINED, UndefinedType
 
 from .aiogree.api import GreeDiscoveredDevice, gree_discover_devices
-from .aiogree.cloud_api import GreeRegion
+from .aiogree.cloud_api import GreeCloudApi, GreeRegion
 from .aiogree.device import GreeDevice
+from .aiogree.errors import GreeCloudLoginError
 from .aiogree.transport import GreeBaseTransport
 from .aiogree.transport_mqtt import GreeMqttTransport
 from .aiogree.transport_udp import GreeUdpTransport
@@ -42,6 +52,11 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# The broker refuses a token with "bad user name or password" or "not
+# authorized". paho 2 turns the MQTT 3.1.1 return codes 4 and 5 into the
+# MQTT 5 reason codes 134 and 135. An older aiomqtt passes the 3.1.1 code.
+MQTT_AUTH_REFUSED_CODES = frozenset({4, 5, 134, 135})
 
 
 async def _get_hass_broadcast_addr(hass: HomeAssistant) -> list[str]:
@@ -241,6 +256,53 @@ def create_mqtt_transport(
     return GreeMqttTransport(
         user_id=str(user_id), token=token, region=GreeRegion(region)
     )
+
+
+def is_mqtt_auth_refusal(err: BaseException) -> bool:
+    """Tell if the broker refused the connection because of the token."""
+    if not isinstance(err, MqttConnectError):
+        return False
+
+    # A paho ReasonCode has its number in value, an older aiomqtt gives an int
+    code = getattr(err.rc, "value", err.rc)
+    return code in MQTT_AUTH_REFUSED_CODES
+
+
+async def async_refresh_cloud_token(
+    cloud_conf: Mapping[str, Any], name: str
+) -> dict[str, Any]:
+    """Log in again with the stored account and return the block with the new token.
+
+    Used when the broker refuses the stored token. The login ends the other
+    sessions of the account, so the Gree app logs out. Raises the error of
+    the login, or GreeCloudLoginError when the login returns another account.
+    """
+    cloud_api = GreeCloudApi(
+        region=GreeRegion(cloud_conf[CONF_REGION]),
+        username=cloud_conf[CONF_EMAIL],
+        password=cloud_conf[CONF_PASSWORD],
+    )
+    try:
+        credentials = await cloud_api.login()
+    finally:
+        await cloud_api.close()
+
+    stored_uid = cloud_conf.get(CONF_UID)
+    if stored_uid and str(stored_uid) != str(credentials.user_id):
+        raise GreeCloudLoginError("The login returned another Gree account")
+
+    _LOGGER.warning(
+        "Gree Cloud refused the stored token of '%s'. The integration logged in "
+        "again and stored a new token. This logs out the Gree app if it uses "
+        "the same account",
+        name,
+    )
+
+    return {
+        **cloud_conf,
+        CONF_TOKEN: credentials.token,
+        CONF_UID: credentials.user_id,
+    }
 
 
 async def async_disconnect_transports(

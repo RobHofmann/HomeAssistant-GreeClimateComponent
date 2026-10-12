@@ -9,7 +9,8 @@ faked:
   of the region changes, so the login and the device list run the real client.
 - MQTT: `FakeMqttBroker`. It replaces `aiomqtt.Client`, and it hands every
   request to a `FakeGreeDevice`, so a bind over the cloud runs the real
-  protocol. The broker can refuse a login.
+  protocol. The broker can refuse a login, or accept only the newest token
+  (`GreeEnv.revoke_token`).
 - Local devices: `FakeGreeDevice` and `FakeVrfGateway` on real UDP sockets, on
   port 7000 of their own address in 127.0.0.0/8. Discovery reaches them through
   the extra hosts field of the flow, which is the real unicast scan.
@@ -57,7 +58,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType, section
 from homeassistant.helpers import device_registry as dr
 from tests.conftest import RecordingHandler
-from tests.fakes.cloud import FakeGreeCloud, cloud_device
+from tests.fakes.cloud import USER_ID, FakeGreeCloud, cloud_device
 from tests.fakes.device import FakeGreeDevice
 from tests.fakes.mqtt import BrokerClient, FakeMqttBroker
 
@@ -118,6 +119,15 @@ class GreeEnv:
         host = self.reserve_ips(1)[0]
         await device.start(host, port)
         return host
+
+    def revoke_token(self, new_token: str) -> None:
+        """Make the stored token invalid, as a login in the Gree app does.
+
+        The broker accepts only `new_token` from now on, and the next cloud
+        login hands it out.
+        """
+        self.cloud.login_response = {"uid": USER_ID, "token": new_token}
+        self.broker.accepted_tokens = {new_token}
 
     def open_mqtt(self) -> list[BrokerClient]:
         """Return the MQTT clients that are connected."""
@@ -315,15 +325,20 @@ async def choose(
     )
 
 
-def picker_options(result: ConfigFlowResult) -> list[str]:
-    """Return the MACs a device picker lists."""
+def picker_labels(result: ConfigFlowResult) -> dict[str, str]:
+    """Return the label of every MAC a device picker lists, in list order."""
     assert result["type"] is FlowResultType.FORM, result
     selector = next(
         value
         for key, value in result["data_schema"].schema.items()
         if str(key.schema) == CONF_DEVICES
     )
-    return [option["value"] for option in selector.config["options"]]
+    return {option["value"]: option["label"] for option in selector.config["options"]}
+
+
+def picker_options(result: ConfigFlowResult) -> list[str]:
+    """Return the MACs a device picker lists."""
+    return list(picker_labels(result))
 
 
 def form_mac(result: ConfigFlowResult, macs: list[str]) -> str:

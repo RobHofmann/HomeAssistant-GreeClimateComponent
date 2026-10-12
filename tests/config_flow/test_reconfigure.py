@@ -29,11 +29,17 @@ from custom_components.gree_custom.const import (
     CONFENTRY_ID_LOCAL_ONLY,
     DOMAIN,
 )
-from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntry, ConfigEntryState
-from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PORT
+from homeassistant.config_entries import (
+    SOURCE_REAUTH,
+    SOURCE_USER,
+    ConfigEntry,
+    ConfigEntryState,
+)
+from homeassistant.const import CONF_DISCOVERY, CONF_HOST, CONF_NAME, CONF_PORT
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from tests.config_flow.conftest import (
+    CLOUD_LOGIN,
     DEPRECATED_LOOKUP,
     MAC_A,
     MAC_B,
@@ -43,13 +49,18 @@ from tests.config_flow.conftest import (
     binds,
     choose,
     form_input,
+    form_mac,
+    picker_labels,
     picker_options,
     registry_device,
     start_reconfigure,
     submit,
+    submit_device_forms,
 )
-from tests.fakes.cloud import TOKEN
+from tests.fakes.cloud import TOKEN, USER_ID
 from tests.fakes.vrf import GATEWAY_MAC, FakeVrfGateway, sub_device_macs
+
+NEW_TOKEN = "cloud-token-after-app-login"
 
 FULL_MENU = ["edit_device", "rediscover", "remove_devices", "finish"]
 
@@ -103,9 +114,16 @@ async def test_rediscover_finds_a_cloud_only_unit_on_the_lan(
 ) -> None:
     """B shows up on the LAN. Only units that add something are listed.
 
-    A already has both connections, so the picker leaves it out. B is listed
-    because it gains a host, and C because it is not in the entry. After the
-    forms, B has a local connection and nothing was removed.
+    Regression for two reports by the maintainer:
+
+    - A6: rediscover with local included and an extra host that matches a
+      configured cloud-only device. The device stayed on MQTT. Now the picker
+      lists it, its form has the found host filled in, the entry runs it on
+      UDP after finish, and "Edit a device" labels it (Local).
+    - The picker showed a configured cloud and local device that had nothing
+      new. A already has both connections, so the picker leaves it out.
+
+    C is listed because it is not in the entry. Nothing was removed.
     """
     host_a = connection(cloud_entry, MAC_A)[CONF_DEVICE_CONNECTION_LOCAL][CONF_HOST]
     host_b = await gree.start_udp(gree.devices[MAC_B])
@@ -153,6 +171,61 @@ async def test_rediscover_finds_a_cloud_only_unit_on_the_lan(
     assert registry_device(hass, cloud_entry, MAC_A) is not None
     assert registry_device(hass, cloud_entry, MAC_B) is not None
     assert isinstance(coordinator_transport(cloud_entry, MAC_B), GreeUdpTransport)
+
+    # The edit list now shows B as a local device
+    result = await start_reconfigure(hass, cloud_entry)
+    result = await choose(hass, result, "edit_device")
+    labels = picker_labels(result)
+    assert labels[MAC_B].endswith("(Local)"), labels
+    hass.config_entries.flow.async_abort(result["flow_id"])
+    await hass.async_block_till_done()
+
+    assert gree.logins == 1
+    gree.assert_only_entry_connections()
+
+
+async def test_rediscover_runs_the_forms_of_every_picked_unit(
+    hass: HomeAssistant, gree: GreeEnv, cloud_entry: ConfigEntry
+) -> None:
+    """Two picked units both go through the connection and device forms.
+
+    Regression for the report "only the new device went through the forms
+    although two were picked". B is configured cloud-only and now found on
+    the LAN, C is new. Each form shows the units in the order they were
+    picked, and both end up in the entry.
+    """
+    host_a = connection(cloud_entry, MAC_A)[CONF_DEVICE_CONNECTION_LOCAL][CONF_HOST]
+    host_b = await gree.start_udp(gree.devices[MAC_B])
+
+    result = await start_reconfigure(hass, cloud_entry)
+    result = await choose(hass, result, "rediscover")
+    result = await submit(hass, result, include_local=True)
+    result = await submit(hass, result)
+    result = await submit(hass, result, **{CONF_EXTRA_SCAN_HOSTS: [host_a, host_b]})
+    assert result["step_id"] == "device_picker"
+
+    result = await submit(hass, result, **{CONF_DEVICES: [MAC_B, MAC_C]})
+
+    steps: list[tuple[str, str]] = []
+    while result["type"] is FlowResultType.FORM:
+        steps.append((result["step_id"], form_mac(result, [MAC_B, MAC_C])))
+        result = await submit(hass, result)
+
+    assert steps == [
+        ("connection_options", MAC_B),
+        ("connection_options", MAC_C),
+        ("device_options", MAC_B),
+        ("device_options", MAC_C),
+    ]
+    assert result["type"] is FlowResultType.MENU
+
+    result = await choose(hass, result, "finish")
+    await hass.async_block_till_done()
+
+    assert cloud_entry.state is ConfigEntryState.LOADED
+    assert set(cloud_entry.data[CONF_DEVICES]) == {MAC_A, MAC_B, MAC_C}
+    assert isinstance(coordinator_transport(cloud_entry, MAC_B), GreeUdpTransport)
+    assert isinstance(coordinator_transport(cloud_entry, MAC_C), GreeMqttTransport)
 
     assert gree.logins == 1
     gree.assert_only_entry_connections()
@@ -265,6 +338,77 @@ async def test_edit_with_a_new_bind_setting_binds_with_the_stored_token(
 
     assert gree.logins == 0
     assert gree.setup_calls == 1
+    gree.assert_only_entry_connections()
+
+
+async def test_edit_with_prefer_cloud_refreshes_a_revoked_token(
+    hass: HomeAssistant, gree: GreeEnv, cloud_entry: ConfigEntry
+) -> None:
+    """Prefer cloud for A after the Gree app made the stored token invalid.
+
+    Regression for the maintainer's report A3: "Edit a device, tick Prefer
+    cloud connection" failed with cannot_connect_mqtt, `[code:134] Bad user
+    name or password`. The broker refuses the stored token. The flow logs in once with the
+    stored account, binds A with the new token, and finish writes that token.
+    """
+    clients_before = len(gree.broker.clients)
+    gree.revoke_token(NEW_TOKEN)
+
+    result = await start_reconfigure(hass, cloud_entry)
+    result = await choose(hass, result, "edit_device")
+    result = await submit(hass, result, **{CONF_DEVICES: MAC_A})
+    result = await submit(
+        hass, result, **{CONF_DEVICE_CONNECTION_CLOUD: {CONF_PREFER_CLOUD: True}}
+    )
+    assert result["step_id"] == "device_options"
+    assert gree.logins == 1
+    assert binds(gree.devices[MAC_A]) == 1
+
+    # The client with the stored token was refused, the second one connected
+    refused, flow_client = gree.broker.clients[clients_before:]
+    assert refused.options["password"] == TOKEN
+    assert not refused.entered
+    assert flow_client.options["password"] == NEW_TOKEN
+    assert flow_client.entered
+
+    result = await submit(hass, result)
+    result = await choose(hass, result, "finish")
+    await hass.async_block_till_done()
+
+    assert flow_client.exited
+    assert cloud_entry.state is ConfigEntryState.LOADED
+    assert cloud_entry.data[CONF_CLOUD]["token"] == NEW_TOKEN
+    assert isinstance(coordinator_transport(cloud_entry, MAC_A), GreeMqttTransport)
+    assert not reauth_flows(hass)
+
+    assert gree.logins == 1
+    assert gree.setup_calls == 1
+    assert {c.options["password"] for c in gree.open_mqtt()} == {NEW_TOKEN}
+    gree.assert_only_entry_connections()
+
+
+async def test_edit_shows_cannot_connect_mqtt_when_the_new_login_fails(
+    hass: HomeAssistant, gree: GreeEnv, cloud_entry: ConfigEntry
+) -> None:
+    """A revoked token and a failed login: one login, the form shows the error."""
+    gree.revoke_token(NEW_TOKEN)
+    gree.cloud.login_response = {"r": 400, "msg": "Wrong password"}
+
+    result = await start_reconfigure(hass, cloud_entry)
+    result = await choose(hass, result, "edit_device")
+    result = await submit(hass, result, **{CONF_DEVICES: MAC_A})
+    result = await submit(
+        hass, result, **{CONF_DEVICE_CONNECTION_CLOUD: {CONF_PREFER_CLOUD: True}}
+    )
+    assert result["step_id"] == "connection_options"
+    assert result["errors"] == {"base": "cannot_connect_mqtt"}
+    assert gree.logins == 1
+
+    hass.config_entries.flow.async_abort(result["flow_id"])
+    await hass.async_block_till_done()
+
+    assert cloud_entry.data[CONF_CLOUD]["token"] == TOKEN
+    assert gree.logins == 1
     gree.assert_only_entry_connections()
 
 
@@ -396,6 +540,65 @@ async def test_vrf_host_change_moves_every_sub_unit(
     assert binds(old_gateway) == 0
     assert gree.setup_calls == 1
     gree.assert_only_entry_connections()
+
+
+async def test_flows_with_two_logins_and_an_edit_leave_no_client_open(
+    hass: HomeAssistant, gree: GreeEnv
+) -> None:
+    """No flow leaves an MQTT client behind, and a reload keeps one client.
+
+    Regression for the report "HA stop closed 8 MQTT loops". The user flow
+    logs in twice: a wrong password first, then the right one. Then a
+    reconfigure edit binds A over MQTT in the flow. After each flow only the
+    entry client is open, and after a reload there is still only one.
+    """
+    host_a = await gree.start_udp(gree.devices[MAC_A])
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_DISCOVERY: ["cloud", "local"]}
+    )
+    gree.cloud.login_response = {"r": 400, "msg": "Wrong password"}
+    result = await submit(hass, result, **CLOUD_LOGIN)
+    assert result["step_id"] == "cloud_add"
+    assert result["errors"] == {"base": "cloud_bad_login"}
+
+    gree.cloud.login_response = {"uid": USER_ID, "token": TOKEN}
+    result = await submit(hass, result, **CLOUD_LOGIN)
+    assert result["step_id"] == "local_add"
+    result = await submit(hass, result, **{CONF_EXTRA_SCAN_HOSTS: [host_a]})
+    result = await submit(hass, result, **{CONF_DEVICES: [MAC_A, MAC_B]})
+    result = await submit_device_forms(hass, result, [MAC_A, MAC_B])
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    entry: ConfigEntry = result["result"]
+
+    assert gree.logins == 2
+    assert len(gree.open_mqtt()) == 1
+    gree.assert_only_entry_connections()
+
+    result = await start_reconfigure(hass, entry)
+    result = await choose(hass, result, "edit_device")
+    result = await submit(hass, result, **{CONF_DEVICES: MAC_A})
+    result = await submit(
+        hass, result, **{CONF_DEVICE_CONNECTION_CLOUD: {CONF_PREFER_CLOUD: True}}
+    )
+    result = await submit(hass, result)
+    result = await choose(hass, result, "finish")
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert len(gree.open_mqtt()) == 1
+    gree.assert_only_entry_connections()
+
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert len(gree.open_mqtt()) == 1
+    gree.assert_only_entry_connections()
+    assert gree.logins == 2
 
 
 async def test_closing_reconfigure_after_a_login_closes_its_connection(

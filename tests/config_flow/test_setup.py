@@ -10,6 +10,7 @@ See `conftest.py` for what is real and what is faked.
 import copy
 import logging
 
+from aiomqtt.exceptions import MqttConnectError, MqttError
 import pytest
 
 from custom_components.gree_custom.config_schema import CONFIG_SCHEMA
@@ -25,6 +26,7 @@ from custom_components.gree_custom.const import (
     CONFENTRY_ID_LOCAL_ONLY,
     DOMAIN,
 )
+from custom_components.gree_custom.helpers import is_mqtt_auth_refusal
 from homeassistant.config_entries import (
     SOURCE_IMPORT,
     SOURCE_REAUTH,
@@ -52,6 +54,7 @@ from tests.config_flow.conftest import (
 from tests.conftest import RecordingHandler
 from tests.fakes.cloud import TOKEN, USER_ID
 from tests.fakes.device import FakeGreeDevice
+from tests.fakes.mqtt import connack_reason
 
 # A unit that only the YAML knows.
 MAC_D = "c03937d40004"
@@ -250,23 +253,31 @@ def reauth_flows(hass: HomeAssistant) -> list:
     ]
 
 
+# What the fake cloud answers to a wrong password.
+BAD_LOGIN = {"r": 400, "msg": "Wrong password"}
+
+
 async def test_reauth_after_the_broker_refuses_the_token(
     hass: HomeAssistant, gree: GreeEnv, cloud_entry: ConfigEntry
 ) -> None:
-    """A refused MQTT login starts reauth. Reauth logs in once and reloads.
+    """A refused token and a failed login with the stored account start reauth.
 
-    Only the cloud block of the entry changes. The devices stay as they are.
+    Setup tries one login with the stored account. When that fails too, it
+    starts reauth. Reauth logs in once and reloads. Only the cloud block of
+    the entry changes. The devices stay as they are.
     """
     devices_before = copy.deepcopy(dict(cloud_entry.data[CONF_DEVICES]))
 
     gree.broker.refuse_connect = True
+    gree.cloud.login_response = BAD_LOGIN
     await hass.config_entries.async_reload(cloud_entry.entry_id)
     await hass.async_block_till_done()
 
     assert cloud_entry.state is ConfigEntryState.SETUP_ERROR
     flows = reauth_flows(hass)
     assert len(flows) == 1
-    assert gree.logins == 0
+    assert gree.logins == 1
+    assert cloud_entry.data[CONF_CLOUD]["token"] == TOKEN
     # A was bound over UDP before B failed. The failed setup closed it again.
     assert not gree.open_udp()
     assert not gree.open_mqtt()
@@ -287,7 +298,109 @@ async def test_reauth_after_the_broker_refuses_the_token(
     assert dict(cloud_entry.data[CONF_DEVICES]) == devices_before
     assert not reauth_flows(hass)
 
-    assert gree.logins == 1
+    assert gree.logins == 2
     # The entry connects with the new token
     assert [c.options["password"] for c in gree.open_mqtt()] == [NEW_TOKEN]
     gree.assert_only_entry_connections()
+
+
+async def test_setup_refreshes_a_revoked_token_once(
+    hass: HomeAssistant,
+    gree: GreeEnv,
+    cloud_entry: ConfigEntry,
+    component_logs: RecordingHandler,
+) -> None:
+    """The Gree app logged in after Home Assistant, so the stored token is dead.
+
+    Regression for the maintainer's report: "Save and reload" right after he
+    created a cloud entry raised reauth with bad_credentials, because the
+    broker refused the stored token. Setup now logs in once with the stored account, binds B with the new token
+    and stores it. Storing the token does not reload the entry again.
+    """
+    gree.revoke_token(NEW_TOKEN)
+    await hass.config_entries.async_reload(cloud_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert cloud_entry.state is ConfigEntryState.LOADED
+    assert cloud_entry.data[CONF_CLOUD]["token"] == NEW_TOKEN
+    assert cloud_entry.data[CONF_CLOUD]["uid"] == USER_ID
+    assert not reauth_flows(hass)
+
+    assert gree.logins == 1
+    assert gree.setup_calls == 1
+    assert binds(gree.devices[MAC_B]) == 1
+    assert any("refused the stored token" in line for line in component_logs.warnings())
+
+    assert [c.options["password"] for c in gree.open_mqtt()] == [NEW_TOKEN]
+    gree.assert_only_entry_connections()
+
+
+async def test_setup_starts_reauth_when_the_new_login_fails(
+    hass: HomeAssistant, gree: GreeEnv, cloud_entry: ConfigEntry
+) -> None:
+    """A revoked token and a changed password: one login, then reauth."""
+    gree.revoke_token(NEW_TOKEN)
+    gree.cloud.login_response = BAD_LOGIN
+    await hass.config_entries.async_reload(cloud_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert cloud_entry.state is ConfigEntryState.SETUP_ERROR
+    assert len(reauth_flows(hass)) == 1
+    assert cloud_entry.data[CONF_CLOUD]["token"] == TOKEN
+
+    assert gree.logins == 1
+    assert not gree.open_udp()
+    assert not gree.open_mqtt()
+
+
+async def test_setup_starts_reauth_when_the_new_token_is_refused_too(
+    hass: HomeAssistant, gree: GreeEnv, cloud_entry: ConfigEntry
+) -> None:
+    """The login works, but the broker refuses the new token too: no loop.
+
+    The login made the old token invalid, so the new one stays stored.
+    """
+    gree.broker.refuse_connect = True
+    gree.cloud.login_response = {"uid": USER_ID, "token": NEW_TOKEN}
+    await hass.config_entries.async_reload(cloud_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert cloud_entry.state is ConfigEntryState.SETUP_ERROR
+    assert len(reauth_flows(hass)) == 1
+    assert cloud_entry.data[CONF_CLOUD]["token"] == NEW_TOKEN
+
+    assert gree.logins == 1
+    assert not gree.open_udp()
+    assert not gree.open_mqtt()
+
+
+async def test_a_connect_error_that_is_not_about_the_token_does_not_log_in(
+    hass: HomeAssistant, gree: GreeEnv, cloud_entry: ConfigEntry
+) -> None:
+    """A broker that is unavailable is no reason for a new login."""
+    gree.broker.refuse_connect = True
+    gree.broker.refuse_reason = connack_reason("Server unavailable")
+    await hass.config_entries.async_reload(cloud_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert cloud_entry.state is ConfigEntryState.SETUP_ERROR
+    assert cloud_entry.data[CONF_CLOUD]["token"] == TOKEN
+    assert gree.logins == 0
+    assert not gree.open_mqtt()
+
+
+@pytest.mark.parametrize(
+    ("rc", "refused"),
+    [
+        (4, True),
+        (5, True),
+        (connack_reason("Bad user name or password"), True),
+        (connack_reason("Not authorized"), True),
+        (3, False),
+        (connack_reason("Server unavailable"), False),
+    ],
+)
+def test_which_connect_errors_are_about_the_token(rc: object, refused: bool) -> None:
+    """The MQTT 3.1.1 codes 4 and 5 and the MQTT 5 codes 134 and 135."""
+    assert is_mqtt_auth_refusal(MqttConnectError(rc)) is refused
+    assert not is_mqtt_auth_refusal(MqttError("lost connection"))
