@@ -65,6 +65,7 @@ from .const import (
 )
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .helpers import (
+    async_disconnect_transports,
     create_mqtt_transport,
     get_vrf_controller_mac,
     reconcile_vrf_controllers,
@@ -218,6 +219,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
                 mqtt_transport=mqtt_transport,
             )
         except MqttConnectError as err:
+            # The broker's reason, so a user log shows why the login failed
+            _LOGGER.warning(
+                "Gree Cloud refused the MQTT connection for entry '%s': %s",
+                entry.title,
+                err,
+            )
             raise ConfigEntryAuthFailed("bad_credentials") from err
         except GreeConnectionError:
             if not await try_find_new_ip(hass, device, entry):
@@ -269,8 +276,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool:
-    """Unload a config entry."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    """Unload a config entry and close its connections.
+
+    Every reload sets up new transports, so the old ones must close here.
+    The coordinators unbind their devices first. Home Assistant calls their
+    shutdown again after this, which then does nothing.
+    """
+    if not await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        return False
+
+    # An entry without devices sets no runtime data
+    coordinators: dict[str, GreeCoordinator] = getattr(entry, "runtime_data", {})
+    transports = [c.device.transport for c in coordinators.values()]
+
+    for coordinator in coordinators.values():
+        try:
+            await coordinator.async_shutdown()
+        except Exception:
+            _LOGGER.exception(
+                "Error unbinding device %s", coordinator.device.mac_address
+            )
+
+    await async_disconnect_transports(transports)
+    return True
 
 
 async def async_remove_config_entry_device(

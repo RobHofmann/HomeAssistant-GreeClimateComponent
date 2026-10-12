@@ -58,6 +58,7 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         self._feature_auto_xfan: bool = False
         self._feature_auto_light: bool = False
         self._unsub_follow_up_refresh: CALLBACK_TYPE | None = None
+        self._is_shut_down: bool = False
 
     async def _setup(self) -> None:
         """Bind to the device before the first coordinator refresh.
@@ -76,13 +77,23 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
 
     @override
     async def async_shutdown(self) -> None:
-        """Clean up the coordinator and Gree device resources."""
+        """Clean up the coordinator and Gree device resources.
+
+        Entry unload calls this before it closes the transports, and Home
+        Assistant calls it again from the entry's unload callbacks. Only the
+        first call does the work.
+        """
+        if self._is_shut_down:
+            return
+        self._is_shut_down = True
+
         self._cancel_follow_up_refresh()
         self.device.api_client.remove_status_listener(self._device_pushed_status)
 
-        await self.device.unbind_device()
-
-        await super().async_shutdown()
+        try:
+            await self.device.unbind_device()
+        finally:
+            await super().async_shutdown()
 
     async def _update_data(self) -> None:
         """Update the device with he latest state.

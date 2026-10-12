@@ -45,8 +45,7 @@ The values you enter are remembered and offered again in the next setup flow.
 
 The list holds every device that was found and is not configured yet. Pick the ones to add.
 
-> [!WARNING]
-> When you look for devices again during [reconfigure](#reconfigure), the devices you do not pick are removed from the entry.
+When you look for devices again during [reconfigure](#reconfigure), the list only holds new devices and devices with a new connection. All of them are selected. A device you do not select stays as it is.
 
 With a cloud account, the list holds the devices of the account. It shows whether each one was also found on the local network.
 
@@ -105,13 +104,17 @@ Open the entry under **Settings** > **Devices & Services**, click the three dots
 | Menu item | What it does |
 |---|---|
 | Edit a device | Pick one device. Its [connection options](#connection-options) and [device features](#device-features) open with the current values filled in. No discovery runs. |
-| Look for devices again | Runs discovery again, as in the first setup. New devices you pick go through the device pages. Devices that are already set up keep their settings: only their IP address and controller MACs are updated from discovery. Devices you do not pick are removed. |
+| Look for devices again | Runs discovery again, as in the first setup. The list only shows what is new: devices that are not set up yet, and devices that discovery found on a new connection. An example is a cloud device that now also answers on the local network. The devices you pick go through the device pages, with the found IP address and controller MACs filled in. The other devices keep their settings, and only their IP address and controller MACs are updated. Nothing is removed. When nothing is new, a page tells you so and you go back to the menu. |
 | Remove devices | Pick the devices to remove from the entry. |
 | Save and reload | Writes the changes and reloads the entry. |
 
 **Edit a device** does not log in to the Gree account, so the Gree app stays logged in. When you keep the connection settings that decide how the device binds (key, user ID, IP address, port, encryption version, controller MACs and Prefer Cloud Connection), the integration uses the running connection of the device and does not bind again. When you change one of them, the integration binds again. For a cloud device it uses the stored session for that.
 
 **Look for devices again** on an account entry first asks whether to also look for local devices. Then it asks for the account details and logs in, because the cloud device list needs a fresh login. That login logs the Gree app out. On the **Local-only Devices** entry it starts at local discovery and does not log in.
+
+To give a cloud device a local connection, add its IP address under **Extra Hosts** and choose **Look for devices again** with local devices included. The device shows up in the list, and its connection page has the found IP address filled in.
+
+The flow closes the connections it opened when it ends, also when you close it. A reload closes the old connections of the entry before it opens new ones.
 
 The account itself cannot be removed from an account entry. To make a device local-only, remove it from the account entry and add it again with the local method.
 

@@ -1,6 +1,6 @@
 """Helpers for the Gree integration."""
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from ipaddress import IPv4Address, IPv4Network, ip_address, ip_network
 import logging
 from typing import Any
@@ -16,6 +16,7 @@ from homeassistant.helpers.typing import UNDEFINED, UndefinedType
 from .aiogree.api import GreeDiscoveredDevice, gree_discover_devices
 from .aiogree.cloud_api import GreeRegion
 from .aiogree.device import GreeDevice
+from .aiogree.transport import GreeBaseTransport
 from .aiogree.transport_mqtt import GreeMqttTransport
 from .aiogree.transport_udp import GreeUdpTransport
 from .const import (
@@ -240,6 +241,26 @@ def create_mqtt_transport(
     return GreeMqttTransport(
         user_id=str(user_id), token=token, region=GreeRegion(region)
     )
+
+
+async def async_disconnect_transports(
+    transports: Iterable[GreeBaseTransport | None],
+) -> None:
+    """Disconnect every distinct transport once.
+
+    An error is logged and does not stop the other transports from closing.
+    """
+    closed: list[GreeBaseTransport] = []
+
+    for transport in transports:
+        if transport is None or transport in closed:
+            continue
+
+        closed.append(transport)
+        try:
+            await transport.disconnect()
+        except Exception:
+            _LOGGER.exception("Error disconnecting %s", transport)
 
 
 def create_discovered_from_config(mac: str, conf: dict) -> GreeDiscoveredDevice:

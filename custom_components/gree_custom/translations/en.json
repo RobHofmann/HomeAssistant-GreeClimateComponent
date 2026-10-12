@@ -53,7 +53,7 @@
             },
             "device_picker": {
                 "title": "Discovered Devices",
-                "description": "Found {devices_found} Gree device(s). Select the devices you want to configure.\n\nCaution: If you are reconfiguring devices, unselected devices will be removed.",
+                "description": "Found {devices_found} Gree device(s). Select the devices you want to configure.\n\nWhen you look for devices again, this list only shows new devices and devices with a new local or cloud connection. Devices you do not select stay as they are. To remove a device, use Remove devices in the menu.",
                 "data": {
                     "devices": "Devices"
                 }
@@ -145,6 +145,10 @@
                 "data": {
                     "devices": "Device"
                 }
+            },
+            "no_new_devices": {
+                "title": "No New Devices",
+                "description": "No new devices or new connections were found. The IP addresses of the devices that were found are updated.\n\nSubmit to go back to the menu. Your changes are saved when you choose Save and reload."
             },
             "remove_devices": {
                 "title": "Remove Devices",

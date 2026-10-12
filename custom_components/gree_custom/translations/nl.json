@@ -53,7 +53,7 @@
             },
             "device_picker": {
                 "title": "Ontdekte apparaten",
-                "description": "{devices_found} Gree-apparaat/apparaten gevonden. Selecteer de apparaten die je wilt configureren.\n\nLet op: als je apparaten opnieuw configureert, worden niet-geselecteerde apparaten verwijderd.",
+                "description": "{devices_found} Gree-apparaat/apparaten gevonden. Selecteer de apparaten die je wilt configureren.\n\nAls je opnieuw naar apparaten zoekt, toont deze lijst alleen nieuwe apparaten en apparaten met een nieuwe lokale of cloudverbinding. Apparaten die je niet selecteert, blijven zoals ze zijn. Een apparaat verwijder je met Apparaten verwijderen in het menu.",
                 "data": {
                     "devices": "Apparaten"
                 }
@@ -145,6 +145,10 @@
                 "data": {
                     "devices": "Apparaat"
                 }
+            },
+            "no_new_devices": {
+                "title": "Geen nieuwe apparaten",
+                "description": "Er zijn geen nieuwe apparaten of nieuwe verbindingen gevonden. De IP-adressen van de gevonden apparaten zijn bijgewerkt.\n\nVerzend om terug te gaan naar het menu. Je wijzigingen worden opgeslagen als je Opslaan en herladen kiest."
             },
             "remove_devices": {
                 "title": "Apparaten verwijderen",

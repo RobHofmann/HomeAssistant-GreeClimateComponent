@@ -76,12 +76,21 @@ The YAML wins at every start, so values that change after the import are not pre
 `async_step_reconfigure` in `config_flow.py` shows a menu, and every reconfigure step returns to it. The flow copies the entry devices deep into `_pending_devices` (MAC to `connection` and `options`). The menu steps change that copy, and only `finish` writes it with `_async_finish`, which reloads the entry once.
 
 - `edit_device` runs the normal `connection_options` and `device_options` steps for one device. When the submitted settings that decide the bind (`_bind_settings()`: key, uid, controller MACs, host, port, encryption version, `prefer_cloud`) equal the stored ones, and the entry is loaded with that device bound, the flow uses the running `GreeDevice` from `entry.runtime_data` and does not bind. Otherwise it binds. A cloud bind uses a `GreeMqttTransport` built from the stored `token`, `uid` and `region` with `create_mqtt_transport()` in `helpers.py`, the same helper entry setup uses. There is no cloud login.
-- `rediscover` runs `cloud_add` (with a login, because the cloud device list needs one), `local_add` and `device_picker`, as before. New devices go through the device steps. Picked devices that are already configured only get `local.host`, `local.mac_controller_local` and `cloud.mac_controller_cloud` from discovery, without a form. The local values are only updated when the device already has a local host, so a cloud-only device stays cloud-only. Unpicked configured devices are removed from the copy.
+- `rediscover` runs `cloud_add` (with a login, because the cloud device list needs one), `local_add` and `device_picker`, as before. In reconfigure, `device_picker` first calls `_keep_new_rediscovered_devices()`. That keeps a device when it is not in `_pending_devices`, or when `_adds_connection()` is true: discovery found a host for a device without `local.host`, or a cloud controller for a device without `cloud.mac_controller_cloud`. The kept devices are all preselected. Every picked device goes through `connection_options` and `device_options`. For a configured device the forms start from the pending config, and `_apply_discovery_info()` fills in the found host and controller MACs. The other configured devices that discovery found get the found `local.host`, `local.mac_controller_local` and `cloud.mac_controller_cloud` from `_apply_discovery_info()` without a form, like the DHCP step. Rediscover never removes a device. When nothing is kept, the flow shows `no_new_devices`, a form without fields that returns to the menu, because an abort would drop the pending changes. Picking no device also returns to the menu.
 - `remove_devices` removes the picked devices from the copy.
 - When an edit changes `host`, `port` or `encryption_version` of a device with a `mac_controller_local`, the other devices with the same controller MAC get the same values.
 - `_async_finish` removes the device registry rows of removed devices and moves local-only devices found in the cloud to the account entry, as before.
 
 Reauth does not use the menu. It runs `cloud_add` and updates only the `cloud` block.
+
+## Connection lifetime
+
+Entry setup creates its own `GreeMqttTransport` and one `GreeUdpTransport` per local controller. A transport is never shared between entries, or between an entry and a config flow.
+
+- `async_unload_entry` unloads the platforms, then shuts down every coordinator, which unbinds its device. Then it disconnects every distinct transport of the coordinators with `async_disconnect_transports()` in `helpers.py`. The last unbind on a transport normally disconnects it already. The explicit disconnect also covers an unbind that fails, for example after the broker dropped the connection.
+- Home Assistant runs the coordinator shutdown again from the unload callbacks of the entry. `GreeCoordinator.async_shutdown()` only does its work on the first call.
+- The config flow keeps its own transports in `_mqtt_transport` and `_local_transports`. `cloud_add` closes the earlier MQTT transport before it opens a new one. `_async_finish` closes all flow transports before it writes the entry. `async_remove()` closes them when the flow aborts or the user closes it. Home Assistant calls `async_remove()` for every flow that ends, see `_async_remove_flow_progress` in `data_entry_flow.py`.
+- When the broker refuses the connection at entry setup (`MqttConnectError`), setup logs the reason at warning level and raises `ConfigEntryAuthFailed`, which starts reauth.
 
 ## Migration from 4.x
 

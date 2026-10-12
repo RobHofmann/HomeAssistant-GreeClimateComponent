@@ -36,6 +36,7 @@ from homeassistant.const import (
     CONF_REGION,
     CONF_TOKEN,
 )
+from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from homeassistant.helpers.storage import Store
@@ -105,6 +106,7 @@ from .const import (
 )
 from .coordinator import GreeConfigEntry
 from .helpers import (
+    async_disconnect_transports,
     create_discovered_from_config,
     create_mqtt_transport,
     get_config_entries,
@@ -153,6 +155,37 @@ def _bind_settings(connection: Mapping[str, Any]) -> tuple:
         cloud.get(CONF_PREFER_CLOUD),
         cloud.get(CONF_MAC_CONTROLLER_CLOUD),
     )
+
+
+def _adds_connection(d: GreeDiscoveredDevice, dev_conf: Mapping[str, Any]) -> bool:
+    """Tell if discovery found a connection that a configured device lacks.
+
+    That is a local host for a device without one, or a cloud controller for
+    a device without one.
+    """
+    connection = dev_conf.get(CONF_DEVICE_CONNECTION, {})
+    local = connection.get(CONF_DEVICE_CONNECTION_LOCAL) or {}
+    cloud = connection.get(CONF_DEVICE_CONNECTION_CLOUD) or {}
+
+    return bool(
+        (d.host and not local.get(CONF_HOST))
+        or (d.mac_controller_mqtt and not cloud.get(CONF_MAC_CONTROLLER_CLOUD))
+    )
+
+
+def _apply_discovery_info(d: GreeDiscoveredDevice, connection: dict[str, Any]) -> None:
+    """Put the host and controller MACs that discovery found in a connection."""
+    if d.host:
+        local = dict(connection.get(CONF_DEVICE_CONNECTION_LOCAL) or {})
+        local[CONF_HOST] = d.host
+        if d.mac_controller_local:
+            local[CONF_MAC_CONTROLLER_LOCAL] = d.mac_controller_local
+        connection[CONF_DEVICE_CONNECTION_LOCAL] = local
+
+    if d.mac_controller_mqtt:
+        cloud = dict(connection.get(CONF_DEVICE_CONNECTION_CLOUD) or {})
+        cloud[CONF_MAC_CONTROLLER_CLOUD] = d.mac_controller_mqtt
+        connection[CONF_DEVICE_CONNECTION_CLOUD] = cloud
 
 
 class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -601,32 +634,6 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
             ),
         )
 
-    def _update_discovery_info(self, d: GreeDiscoveredDevice) -> None:
-        """Update the host and controller MACs of a configured device.
-
-        Like the DHCP step, this needs no form and no bind.
-        """
-        if self._pending_devices is None or d.mac not in self._pending_devices:
-            return
-
-        connection: dict[str, Any] = self._pending_devices[d.mac].setdefault(
-            CONF_DEVICE_CONNECTION, {}
-        )
-
-        # Only refresh a local connection the user set up, so a cloud-only
-        # device does not move to local without a form
-        local = dict(connection.get(CONF_DEVICE_CONNECTION_LOCAL) or {})
-        if d.host and local.get(CONF_HOST):
-            local[CONF_HOST] = d.host
-            if d.mac_controller_local:
-                local[CONF_MAC_CONTROLLER_LOCAL] = d.mac_controller_local
-            connection[CONF_DEVICE_CONNECTION_LOCAL] = local
-
-        if d.mac_controller_mqtt:
-            cloud = dict(connection.get(CONF_DEVICE_CONNECTION_CLOUD) or {})
-            cloud[CONF_MAC_CONTROLLER_CLOUD] = d.mac_controller_mqtt
-            connection[CONF_DEVICE_CONNECTION_CLOUD] = cloud
-
     def _store_pending_devices(self, device_configs: dict[str, Any]) -> None:
         """Put the configs from the device forms in the pending devices.
 
@@ -717,6 +724,9 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
             )
             try:
                 credentials = await self._cloud_api.login()
+
+                # Close the connection of an earlier attempt or edit first
+                await async_disconnect_transports([self._mqtt_transport])
 
                 # Also create the transport here so possible errors are shown
                 self._mqtt_transport = GreeMqttTransport(
@@ -919,7 +929,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_device_picker(
         self, user_input: dict | None = None
     ) -> ConfigFlowResult:
-        """Let users pick devices to add, edit or remove."""
+        """Let users pick the devices to set up."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -929,68 +939,70 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._selected_devices = [
                     self._discovered_devices[key] for key in selected
                 ]
-
-                if self.source == SOURCE_RECONFIGURE:
-                    return await self._apply_rediscovered_selection(selected)
-
+                self._current_setup_device_index = 0
                 return await self.async_step_connection_options()
+
+            # Reconfigure: picking nothing adds nothing
+            if self.source == SOURCE_RECONFIGURE:
+                return await self.async_step_reconfigure()
 
             errors[CONF_DEVICES] = "no_devices_selected"
 
-        selected = list(self._discovered_devices.keys())
-
-        # Pre-fill for reconfigure
+        # Reconfigure only lists what adds something to the entry
         if self.source == SOURCE_RECONFIGURE:
-            configured_devices: dict[str, Any] = self._pending_devices or {}
-
-            # Don't select things by default that were not there before
-            selected = [m for m in selected if m in configured_devices]
-
-            # Add back missing devices that weren't discovered but were in config
-            for mac, dev_conf in configured_devices.items():
-                if mac not in self._discovered_devices:
-                    self._discovered_devices[mac] = create_discovered_from_config(
-                        mac, dev_conf
-                    )
-                    selected.append(mac)
+            self._keep_new_rediscovered_devices()
+            if not self._discovered_devices:
+                return await self.async_step_no_new_devices()
 
         if not self._discovered_devices:
             return self.async_abort(reason="no_devices_to_add")
 
         return self.async_show_form(
             step_id="device_picker",
-            data_schema=setup_picker_schema(selected, self._discovered_devices),
+            data_schema=setup_picker_schema(
+                list(self._discovered_devices), self._discovered_devices
+            ),
             description_placeholders={
                 "devices_found": str(len(self._discovered_devices))
             },
             errors=errors,
         )
 
-    async def _apply_rediscovered_selection(
-        self, selected: list[str]
-    ) -> ConfigFlowResult:
-        """Apply the device picker during reconfigure.
+    def _keep_new_rediscovered_devices(self) -> None:
+        """Keep only the rediscovered devices that add something to the entry.
 
-        Unpicked configured devices are removed. Picked configured devices
-        get their discovery info updated without a form. Only new devices go
-        through the device forms. Then the flow goes back to the menu.
+        A device is new when it is not in the pending devices, or when
+        discovery found a connection it lacks (see `_adds_connection`). The
+        other configured devices only get their host and controller MACs
+        refreshed, like the DHCP step, without a form and without a bind.
+        Rediscover never removes a device.
         """
         pending: dict[str, Any] = self._pending_devices or {}
+        new_devices: dict[str, GreeDiscoveredDevice] = {}
 
-        for mac in [m for m in pending if m not in selected]:
-            pending.pop(mac)
+        for mac, d in self._discovered_devices.items():
+            dev_conf = pending.get(mac)
+            if dev_conf is None or _adds_connection(d, dev_conf):
+                new_devices[mac] = d
+            else:
+                _apply_discovery_info(
+                    d, dev_conf.setdefault(CONF_DEVICE_CONNECTION, {})
+                )
 
-        for d in self._selected_devices:
-            self._update_discovery_info(d)
+        self._discovered_devices = new_devices
 
-        self._selected_devices = [
-            d for d in self._selected_devices if d.mac not in pending
-        ]
-        if not self._selected_devices:
+    async def async_step_no_new_devices(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Tell that rediscover found nothing new, then go back to the menu.
+
+        An abort would drop the pending changes, and a menu cannot show an
+        error, so this is a form without fields.
+        """
+        if user_input is not None:
             return await self.async_step_reconfigure()
 
-        self._current_setup_device_index = 0
-        return await self.async_step_connection_options()
+        return self.async_show_form(step_id="no_new_devices")
 
     def _get_running_device(
         self, mac: str, user_input: Mapping[str, Any]
@@ -1157,13 +1169,17 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                 .get(CONF_DEVICE_CONNECTION, None)
             )
 
-        # During reconfigure inject previous connection options
+        # During reconfigure inject previous connection options, plus what
+        # rediscover found, so the user only confirms a new connection
         if not default and self.source == SOURCE_RECONFIGURE:
-            default = (
+            pending_connection = (
                 (self._pending_devices or {})
                 .get(d.mac, {})
                 .get(CONF_DEVICE_CONNECTION, None)
             )
+            if pending_connection:
+                default = copy.deepcopy(pending_connection)
+                _apply_discovery_info(d, default)
 
         defaults = (
             default
@@ -1281,6 +1297,9 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def _async_finish(self) -> ConfigFlowResult:  # noqa: C901
         """Create or update the entry."""
+
+        # Close the flow connections before the entry opens its own
+        await self._async_close_transports()
 
         if self.source == SOURCE_REAUTH:
             cloud_conf: dict[str, str] = self._config_data.get(CONF_CLOUD, {})
@@ -1416,3 +1435,27 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
             title=title,
             data=data,
         )
+
+    async def _async_close_transports(self) -> None:
+        """Disconnect the transports this flow opened.
+
+        The devices bound in the flow are throwaway, so they are not unbound
+        first. A running device from `_get_running_device()` uses the entry
+        transports, which are never in these fields.
+        """
+        transports = [self._mqtt_transport, *self._local_transports.values()]
+        self._mqtt_transport = None
+        self._local_transports = {}
+
+        await async_disconnect_transports(transports)
+
+    @callback
+    @override
+    def async_remove(self) -> None:
+        """Close the flow transports when the flow ends or is closed.
+
+        Home Assistant calls this when a step creates an entry or aborts,
+        and when the user closes the flow.
+        """
+        if self._mqtt_transport or self._local_transports:
+            self.hass.async_create_task(self._async_close_transports())

@@ -53,7 +53,7 @@
             },
             "device_picker": {
                 "title": "Dispositivos encontrados",
-                "description": "Foram encontrado(s) {devices_found} dispositivo(s) Gree.\nSelecione os dispositivos que deseja configurar.\n\nAtenção: Se estiver a reconfigurar dispositivos, os dispositivos não selecionados serão removidos.",
+                "description": "Foram encontrado(s) {devices_found} dispositivo(s) Gree.\nSelecione os dispositivos que deseja configurar.\n\nAo procurar dispositivos novamente, esta lista só mostra dispositivos novos e dispositivos com uma nova ligação local ou na nuvem. Os dispositivos que não selecionar ficam como estão. Para remover um dispositivo, use Remover dispositivos no menu.",
                 "data": {
                     "devices": "Dispositivos"
                 }
@@ -145,6 +145,10 @@
                 "data": {
                     "devices": "Dispositivo"
                 }
+            },
+            "no_new_devices": {
+                "title": "Sem Dispositivos Novos",
+                "description": "Não foram encontrados dispositivos novos nem ligações novas. Os endereços IP dos dispositivos encontrados foram atualizados.\n\nSubmeta para voltar ao menu. As alterações são guardadas quando escolher Guardar e recarregar."
             },
             "remove_devices": {
                 "title": "Remover Dispositivos",
