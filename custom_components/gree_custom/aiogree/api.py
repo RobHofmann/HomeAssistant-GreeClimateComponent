@@ -514,69 +514,12 @@ class DeviceType(StrEnum):
 ZONE_CONTROLLER_TYPES = frozenset({DeviceType.ZONE_CONTROLLER, DeviceType.ZONE})
 
 
-class ZoneControllerModel(NamedTuple):
-    """What tells the sub-units of one zone controller model apart."""
-
-    # Every sub-unit answers the info request with the name of the
-    # controller. The entry with the longest prefix of that name is used.
-    name_prefix: str
-    # The last two characters of the MAC of the ducted unit. The other
-    # sub-units are the zones.
-    ac_unit_suffix: str
-    # The model ids (mid) in the sub-device list, only used by discovery to
-    # name the sub-units
-    mid_ac_unit: str
-    mid_zone: str
-
-
-# The known zone controller models. The WiFi module sets these values itself,
-# not the units, so they are the same for every controller with that module.
-#
-# A sub-unit gets the entry with the longest name_prefix that its name starts
-# with. So the order here does not matter, and a more specific entry always
-# wins over a general one. A model that shows other values only needs an
-# entry with a longer prefix, for example "GR-ZCntrlr_3000_".
-ZONE_CONTROLLER_MODELS: tuple[ZoneControllerModel, ...] = (
-    # General entry: any controller with the zone controller firmware of the
-    # ME31-00/C13 WiFi module. The module builds the name as
-    # "GR-ZCntrlr_<hex number>_<2 digits>_<end of MAC>", with "_EC" added
-    # since v1.27. The values below are fixed in that firmware (v1.21, v1.27
-    # and v1.28 checked). Used when no longer prefix matches.
-    ZoneControllerModel(
-        name_prefix="GR-ZCntrlr",
-        ac_unit_suffix="00",
-        mid_ac_unit="5000",
-        mid_zone="5001",
-    ),
-    # LE60-13/GH (also sold as Braemar LE60), seen as
-    # "GR-ZCntrlr_5000_02_5a5f_EC". Both entries match that name, and this
-    # prefix is the longer one, so this entry is used. It has the same values
-    # as the general entry: it is here as an example of a more specific entry.
-    # A hypothetical "GR-ZCntrlr_3000_01_5a5f_EC" would not match it and gets
-    # the general entry.
-    ZoneControllerModel(
-        name_prefix="GR-ZCntrlr_5000_",
-        ac_unit_suffix="00",
-        mid_ac_unit="5000",
-        mid_zone="5001",
-    ),
-)
-
-
-def find_zone_controller_model(name: str) -> ZoneControllerModel | None:
-    """Return the zone controller model whose sub-units report this name.
-
-    When several entries match, the one with the longest name_prefix wins.
-    """
-    return max(
-        (
-            model
-            for model in ZONE_CONTROLLER_MODELS
-            if name.startswith(model.name_prefix)
-        ),
-        key=lambda model: len(model.name_prefix),
-        default=None,
-    )
+# A sub-unit of a zone controller answers the info request with the name of
+# the controller, which starts with this. The MAC suffix tells the ducted unit
+# from the zones. The WiFi module sets both, not the units: they are fixed in
+# its firmware (v1.21, v1.27 and v1.28 checked).
+ZONE_CONTROLLER_NAME_PREFIX = "GR-ZCntrlr"
+ZONE_CONTROLLER_AC_UNIT_SUFFIX = "00"
 
 
 # The ducted unit behind a zone controller numbers the modes in its own way.
@@ -1406,25 +1349,23 @@ def _parse_sub_devices_list(
     return sub_devs
 
 
-def _zone_controller_sub_unit_name(sub_mac: str, sub_dev: dict[str, Any]) -> str | None:
+def _zone_controller_sub_unit_name(sub_mac: str, controller_name: str) -> str | None:
     """Name a sub-unit of a zone controller.
 
-    A zone controller calls every sub-unit "zone", so the name says nothing.
-    The model id tells the ducted unit from a zone, see
-    ZONE_CONTROLLER_MODELS, and the last two characters of the MAC are the
-    zone number.
+    A zone controller calls every sub-unit "zone", so that name says nothing.
+    The name of the controller tells that it is a zone controller, and the
+    last two characters of the MAC tell the ducted unit from the zones and
+    give the zone number.
 
     Returns:
         The name, or None if the unit is not part of a zone controller
 
     """
-    mid = sub_dev.get("mid")
-    for model in ZONE_CONTROLLER_MODELS:
-        if mid == model.mid_ac_unit:
-            return "AC unit"
-        if mid == model.mid_zone:
-            return f"Zone {int(sub_mac[-2:], 16)}"
-    return None
+    if not controller_name.startswith(ZONE_CONTROLLER_NAME_PREFIX):
+        return None
+    if sub_mac.endswith(ZONE_CONTROLLER_AC_UNIT_SUFFIX):
+        return "AC unit"
+    return f"Zone {int(sub_mac[-2:], 16)}"
 
 
 async def _get_sub_devices_list(
@@ -1529,7 +1470,9 @@ async def _get_sub_devices_list(
     discovered_subdevices: list[GreeDiscoveredDevice] = []
     for sub_mac, sub_dev in merged.items():
         new_dev: GreeDiscoveredDevice
-        zone_name = _zone_controller_sub_unit_name(sub_mac, sub_dev)
+        zone_name = _zone_controller_sub_unit_name(
+            sub_mac, parent_device.name if parent_device else ""
+        )
         if parent_device:
             # TODO: get real-data from VRF discovery to check the result list fields
             new_dev = replace(
