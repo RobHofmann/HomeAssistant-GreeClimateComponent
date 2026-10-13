@@ -11,7 +11,8 @@
             "cloud_bad_login": "Login failed. Ensure the details are correct and try again.",
             "cloud_unknown": "Error during login. Please check the logs and contact the developers",
             "no_devices_selected": "Please select at least one device to continue",
-            "no_methods_selected": "Please select at least one discovery method"
+            "no_methods_selected": "Please select at least one discovery method",
+            "cannot_connect_mqtt": "Cannot connect to the Gree cloud (MQTT). Check the account details. If the error stays, check the logs for the reason the server gave."
         },
         "abort": {
             "reconfigure_successful": "Devices reconfigured with success.",
@@ -20,7 +21,9 @@
             "no_devices_to_add": "No new devices discovered. Adjust your discovery options and try again.",
             "import_failed": "The YAML configuration could not be imported. See the repair issue and the log for the reason.",
             "legacy_migration_started": "Your Gree 4.x devices are being moved to this integration. They show up in a few seconds, with the same entity IDs.",
-            "yaml_managed": "This entry is managed in configuration.yaml. Change the YAML and restart Home Assistant. Changes made here would be replaced at the next start."
+            "yaml_managed": "This entry is managed in configuration.yaml. Change the YAML and restart Home Assistant. Changes made here would be replaced at the next start.",
+            "reauth_successful": "The Gree account is logged in again.",
+            "already_in_progress": "A setup for this Gree account is already in progress."
         },
         "step": {
             "user": {
@@ -400,6 +403,15 @@
         },
         "remove_vrf_controller": {
             "message": "This is a VRF controller. Delete its sub-units first, and the controller is deleted automatically."
+        },
+        "bad_credentials": {
+            "message": "The Gree cloud refused the stored login, and a new login with the stored account details failed. Log in again."
+        },
+        "no_account_info": {
+            "message": "The Gree account details of this entry are missing. Log in again."
+        },
+        "device_bind_failed": {
+            "message": "Cannot bind to the Gree device {mac}. Check the connection and the encryption key."
         }
     },
     "issues": {

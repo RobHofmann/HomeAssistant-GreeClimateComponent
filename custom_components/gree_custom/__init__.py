@@ -204,7 +204,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
 
             mqtt_transport = create_mqtt_transport(cloud_conf)
             if mqtt_transport is None:
-                raise ConfigEntryAuthFailed("no_account_info")
+                raise ConfigEntryAuthFailed(
+                    translation_domain=DOMAIN, translation_key="no_account_info"
+                )
 
         device = GreeDevice(
             name=name,
@@ -253,7 +255,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
                 entry.title,
                 err,
             )
-            raise ConfigEntryAuthFailed("bad_credentials") from err
+            raise ConfigEntryAuthFailed(
+                translation_domain=DOMAIN, translation_key="bad_credentials"
+            ) from err
         except GreeConnectionError:
             if not await try_find_new_ip(hass, device, entry):
                 _LOGGER.exception("Error setting up device %s", mac)
@@ -319,7 +323,9 @@ async def _async_refresh_entry_token(
             entry.title,
             err,
         )
-        raise ConfigEntryAuthFailed("bad_credentials") from err
+        raise ConfigEntryAuthFailed(
+            translation_domain=DOMAIN, translation_key="bad_credentials"
+        ) from err
 
     # This integration has no update listener, so this does not reload
     hass.config_entries.async_update_entry(

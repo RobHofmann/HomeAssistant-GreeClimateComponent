@@ -13,6 +13,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .aiogree.api import OperationMode
 from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeBindingError, GreeConnectionError
+from .const import DOMAIN
 from .helpers import try_find_new_ip
 
 _LOGGER = logging.getLogger(__name__)
@@ -119,7 +120,11 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
 
         except GreeBindingError as err:
             _LOGGER.exception("Failed to initiate Gree device")
-            raise ConfigEntryAuthFailed("Failed to initiate Gree device") from err
+            raise ConfigEntryAuthFailed(
+                translation_domain=DOMAIN,
+                translation_key="device_bind_failed",
+                translation_placeholders={"mac": self.device.mac_address},
+            ) from err
 
         except Exception as err:
             _LOGGER.exception("Error getting state from device")
