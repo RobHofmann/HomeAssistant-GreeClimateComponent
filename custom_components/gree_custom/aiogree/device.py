@@ -34,10 +34,8 @@ from .const import (
     DEFAULT_DEVICE_USERID,
     MAX_HUM_COOL_P,
     MAX_HUM_DRY_P,
-    MAX_TEMP_C,
     MIN_HUM_COOL_P,
     MIN_HUM_DRY_P,
-    MIN_TEMP_C,
 )
 from .device_api_client import DeviceApiClient
 from .device_state import DeviceState
@@ -858,9 +856,9 @@ class GreeDevice:
     def target_temperature(self) -> float | None:
         """Return the target temperature in target_temperature_unit.
 
-        A zone has its own columns, see GreeProp.ZONE_TARGET_TEMPERATURE: whole
-        degrees in Celsius, and in Fahrenheit the same table as SetTem and
-        TemRec. It is None until the zone is read.
+        A zone has its own columns, see GreeProp.ZONE_TARGET_TEMPERATURE. They
+        work like SetTem and TemRec, with the bit as the half degree in Celsius
+        and the same table in Fahrenheit. It is None until the zone is read.
         """
 
         if self._device_type is DeviceType.ZONE:
@@ -868,11 +866,10 @@ class GreeDevice:
             if raw is None:
                 return None
             zone_c = raw + ZONE_TEMPERATURE_OFFSET
+            bit = self._state.get(GreeProp.ZONE_TARGET_TEMPERATURE_BIT) or 0
             if self.target_temperature_unit == TemperatureUnits.F:
-                return gree_get_target_temperature_f(
-                    zone_c, self._state.get(GreeProp.ZONE_TARGET_TEMPERATURE_BIT) or 0
-                )
-            return zone_c
+                return gree_get_target_temperature_f(zone_c, bit)
+            return gree_get_target_temperature_c(zone_c, bit)
 
         raw_c = self._state.get(GreeProp.TARGET_TEMPERATURE, 0)
         tem_rec = self._state.get(GreeProp.TARGET_TEMPERATURE_BIT, 0)
@@ -887,16 +884,17 @@ class GreeDevice:
     def set_target_temperature(self, value: float) -> None:
         """Set the target temperature in target_temperature_unit.
 
-        A zone takes 16 to 30 degrees Celsius or 61 to 86 Fahrenheit. When
-        the zone has the bit, it is always sent along, because the controller
-        keeps the old one when only StTem is sent.
+        Celsius goes to the nearest half degree, Fahrenheit to whole degrees.
+        A zone uses its own columns the same way. When the zone has the bit,
+        it is always sent along, because the controller keeps the old one when
+        only StTem is sent.
         """
 
         if self._device_type is DeviceType.ZONE:
             if self.target_temperature_unit == TemperatureUnits.F:
                 raw_c, bit = gree_get_target_temp_props_from_f(round(value))
             else:
-                raw_c, bit = max(MIN_TEMP_C, min(MAX_TEMP_C, round(value))), 0
+                raw_c, bit = gree_get_target_temp_props_from_c(value)
             props = {GreeProp.ZONE_TARGET_TEMPERATURE: raw_c - ZONE_TEMPERATURE_OFFSET}
             if self._state.supports(GreeProp.ZONE_TARGET_TEMPERATURE_BIT):
                 props[GreeProp.ZONE_TARGET_TEMPERATURE_BIT] = bit

@@ -49,7 +49,7 @@ A zone controller (for example the Gree LE60-13/GH) has one ducted unit and up t
 | Entity | What it does |
 |---|---|
 | Switch with the name of the zone | Opens and closes the zone. It is the **Zone Switch** feature, so you can leave it out. Do that for a zone that must always stay open: turning such a zone off is refused by the controller or turns the whole system off. |
-| Target Temperature | The target temperature of the zone, in the unit of the controller: 16 to 30 °C, or 61 to 86 °F. Home Assistant shows it in your own unit. |
+| Target Temperature | The target temperature of the zone, in the unit of the controller: 16 to 30 °C in half degrees, or 61 to 86 °F in whole degrees. Home Assistant shows it in your own unit. The wall panel shows only whole degrees in °C, so it shows 18 for 18.5. |
 
 ## Sensors
 

@@ -272,6 +272,23 @@ async def test_a_zone_target_temperature_is_sent_minus_16(
     assert controller.units[controller.zone_macs[0]]["StTem"] == 14
 
 
+async def test_a_zone_takes_half_degrees_in_celsius(
+    controller: FakeZoneController, zone: GreeDevice
+) -> None:
+    """The bit is the half degree, like TemRec. Seen on the real controller: 2 and 1 stay 18.5."""
+    values = controller.units[controller.zone_macs[0]]
+
+    zone.set_target_temperature(18.5)
+    await zone.push_device_status()
+    assert (values["StTem"], values["StFahFlg"]) == (2, 1)
+    await zone.fetch_device_status()
+    assert zone.target_temperature == 18.5
+
+    zone.set_target_temperature(21.2)
+    await zone.push_device_status()
+    assert (values["StTem"], values["StFahFlg"]) == (5, 0)
+
+
 #
 # Fahrenheit. The values are the ones the wall panel showed.
 #
@@ -302,7 +319,7 @@ async def test_a_zone_in_fahrenheit_reads_its_bit_like_tem_rec(
 async def test_a_zone_in_fahrenheit_is_sent_with_its_bit(
     controller: FakeZoneController, zone: GreeDevice
 ) -> None:
-    """70 goes out as StTem 5 with StFahFlg 1, 66 as 3 with 0."""
+    """70 goes out as StTem 5 with StFahFlg 1, 66 as 3 with 0. Fahrenheit is whole degrees."""
     set_unit(controller, TemperatureUnits.F)
     await zone.fetch_device_status()
     values = controller.units[controller.zone_macs[0]]
@@ -314,6 +331,11 @@ async def test_a_zone_in_fahrenheit_is_sent_with_its_bit(
     zone.set_target_temperature(66)
     await zone.push_device_status()
     assert (values["StTem"], values["StFahFlg"]) == (3, 0)
+
+    # Home Assistant converts 21 C to 69.8 F
+    zone.set_target_temperature(69.8)
+    await zone.push_device_status()
+    assert (values["StTem"], values["StFahFlg"]) == (5, 1)
 
 
 async def test_a_celsius_target_clears_the_bit(

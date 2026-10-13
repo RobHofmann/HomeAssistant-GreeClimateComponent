@@ -14,7 +14,8 @@ firmware `362001062617+U-W05SAV1.27.bin` (see docs/protocol.md):
 - `StTem` is the zone target temperature in degrees Celsius minus 16.
 - `TemUnit` is the unit of temperature (0 Celsius, 1 Fahrenheit) of every unit.
   Written to the ducted unit, all units follow. `StFahFlg` of a zone is its
-  Fahrenheit bit, like `TemRec`.
+  bit, like `TemRec`: the half degree in Celsius, the same table in
+  Fahrenheit.
 - Every sub-unit answers the info columns with the name of the controller.
 - A status request with too many columns gets an empty result.
 """

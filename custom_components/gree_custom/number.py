@@ -17,6 +17,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .aiogree.api import (
     DeviceType,
+    GreeProp,
     HumidityControlMode,
     OperationMode,
     TemperatureUnits,
@@ -51,11 +52,13 @@ class GreeNumberDescription(
     """Description of a Gree number."""
 
     value_func: Callable[[GreeDevice], float | None]
-    set_func: Callable[[GreeDevice, int], None]
+    set_func: Callable[[GreeDevice, float], None]
     min_func: Callable[[GreeDevice], int] | None = None
     max_func: Callable[[GreeDevice], int] | None = None
-    # The unit, when the device decides it, such as Celsius or Fahrenheit
+    # The unit and the step, when the device decides them, such as Celsius
+    # in half degrees or whole Fahrenheit
     unit_func: Callable[[GreeDevice], str] | None = None
+    step_func: Callable[[GreeDevice], float] | None = None
     updates_device: bool = True
 
 
@@ -70,7 +73,7 @@ NUMBER_TYPES: list[GreeNumberDescription] = [
         native_unit_of_measurement=PERCENTAGE,
         value_func=lambda device: device.feature_humidity_control_target,
         set_func=lambda device, value: device.set_feature_humidity_control_target(
-            value
+            int(value)
         ),
         additional_available_func=lambda device: (
             device.operation_mode in (OperationMode.cool, OperationMode.dry)
@@ -95,7 +98,6 @@ NUMBER_TYPES: list[GreeNumberDescription] = [
         device_filter=lambda device: device.device_type is DeviceType.ZONE,
         device_class=NumberDeviceClass.TEMPERATURE,
         mode=NumberMode.BOX,
-        native_step=1,
         min_func=lambda device: (
             MIN_TEMP_F
             if device.target_temperature_unit is TemperatureUnits.F
@@ -107,6 +109,12 @@ NUMBER_TYPES: list[GreeNumberDescription] = [
             else MAX_TEMP_C
         ),
         unit_func=lambda device: UNITS_GREE_TO_HA[device.target_temperature_unit],
+        step_func=lambda device: (
+            0.5
+            if device.target_temperature_unit is TemperatureUnits.C
+            and device.supports_property(GreeProp.ZONE_TARGET_TEMPERATURE_BIT)
+            else 1
+        ),
         value_func=lambda device: device.target_temperature,
         set_func=lambda device, value: device.set_target_temperature(value),
         updates_device=True,
@@ -193,6 +201,15 @@ class GreeNumber(GreeEntity, NumberEntity):  # pyright: ignore[reportIncompatibl
 
     @property
     @override
+    def native_step(self) -> float | None:
+        """Return the step, from the device when it decides it."""
+        if self.entity_description.step_func is not None:
+            return self.entity_description.step_func(self.device)
+
+        return super().native_step
+
+    @property
+    @override
     def native_unit_of_measurement(self) -> str | None:
         """Return the unit, from the device when it decides it."""
         if self.entity_description.unit_func is not None:
@@ -213,9 +230,7 @@ class GreeNumber(GreeEntity, NumberEntity):  # pyright: ignore[reportIncompatibl
             raise HomeAssistantError("Entity unavailable")
 
         try:
-            # Round, not cut: a temperature converted by Home Assistant can
-            # be 69.8 for 70 degrees Fahrenheit
-            self.entity_description.set_func(self.device, round(value))
+            self.entity_description.set_func(self.device, value)
 
             if self.entity_description.updates_device:
                 await self.coordinator.push_device_status()
