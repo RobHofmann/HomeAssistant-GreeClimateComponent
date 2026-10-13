@@ -13,7 +13,6 @@ on/off state and a target temperature. See docs/protocol.md.
 from collections.abc import AsyncIterator
 
 from aiogree.api import (
-    ZONE_CONTROLLER_PROPS,
     DeviceType,
     FanSpeed,
     GreeProp,
@@ -135,9 +134,13 @@ async def test_discovery_names_come_from_the_controller_name_and_the_suffix(
 
 
 async def test_the_ducted_unit_is_recognised(ac_unit: GreeDevice) -> None:
-    """The name in the info columns and the 00 suffix make it the ducted unit."""
+    """The name in the info columns and the 00 suffix make it the ducted unit.
+
+    It answers StTem too, always with 0, so the columns alone cannot tell it
+    from a zone.
+    """
     assert ac_unit.device_type is DeviceType.ZONE_CONTROLLER
-    assert not ac_unit.supports_property(GreeProp.ZONE_TARGET_TEMPERATURE)
+    assert ac_unit.supports_property(GreeProp.ZONE_TARGET_TEMPERATURE)
 
 
 async def test_the_device_type_is_in_the_diagnostics(
@@ -359,9 +362,12 @@ async def test_a_zone_is_opened_and_closed_with_its_power(
 #
 
 
-async def test_a_normal_unit_never_asks_for_the_zone_column() -> None:
-    """Only a zone controller polls its own columns. A standalone unit sends the same columns as before."""
-    unit = FakeGreeDevice()
+ZONE_COLUMNS = {"StTem", "StFahFlg", "TemUnit"}
+
+
+async def test_a_normal_unit_asks_for_the_zone_columns_only_once() -> None:
+    """The first poll drops what a unit does not answer. After it, the same columns as before."""
+    unit = FakeGreeDevice(unsupported_props=ZONE_COLUMNS)
     await unit.start()
     transport = GreeUdpTransport(unit.host, unit.port, max_retries=1, timeout=0.3)
     try:
@@ -369,14 +375,42 @@ async def test_a_normal_unit_never_asks_for_the_zone_column() -> None:
         await device.bind_with_transport(
             local_controller_mac=unit.mac, local_transport=transport
         )
+        first = {col for pack in unit.packs for col in pack.get("cols", [])}
+        unit.reset_record()
         await device.fetch_device_status()
     finally:
         await transport.disconnect()
         unit.close()
 
-    asked = {col for pack in unit.packs for col in pack.get("cols", [])}
-    assert not asked & {prop.value for prop in ZONE_CONTROLLER_PROPS}
+    later = {col for pack in unit.packs for col in pack.get("cols", [])}
+    assert first >= ZONE_COLUMNS
+    assert not later & ZONE_COLUMNS
     assert device.device_type is DeviceType.AC_UNIT
+
+
+@pytest.mark.parametrize(
+    ("unsupported", "unit"),
+    [(set(), TemperatureUnits.C), ({"TemUn"}, TemperatureUnits.F)],
+    ids=["TemUn wins", "only TemUnit"],
+)
+async def test_the_unit_column_is_the_one_the_device_answers(
+    unsupported: set[str], unit: TemperatureUnits
+) -> None:
+    """TemUn when the device answers it, as every unit did before. TemUnit only without it."""
+    fake = FakeGreeDevice(unsupported_props=unsupported)
+    fake.values.update({"TemUn": 0, "TemUnit": 1})
+    await fake.start()
+    transport = GreeUdpTransport(fake.host, fake.port, max_retries=1, timeout=0.3)
+    try:
+        device = GreeDevice(name="Zolderkamer", mac_addr=fake.mac)
+        await device.bind_with_transport(
+            local_controller_mac=fake.mac, local_transport=transport
+        )
+    finally:
+        await transport.disconnect()
+        fake.close()
+
+    assert device.target_temperature_unit is unit
 
 
 async def test_a_vrf_indoor_unit_keeps_the_normal_mode_numbers() -> None:

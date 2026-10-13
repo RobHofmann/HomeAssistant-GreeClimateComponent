@@ -67,8 +67,8 @@ SELECT_TYPES: list[GreeSelectDescription] = [
         auto_device_support=True,
         key=GATTR_TEMP_UNITS,
         translation_key=GATTR_TEMP_UNITS,
-        # A zone controller has one unit for all its sub-units, set on the
-        # ducted unit
+        # Every sub-unit of a zone controller answers TemUnit, but they share
+        # one unit, set on the ducted unit. So the zones get no select.
         device_filter=lambda device: device.device_type is not DeviceType.ZONE,
         entity_category=EntityCategory.CONFIG,
         options=[f"º{member.name}" for member in TemperatureUnits],

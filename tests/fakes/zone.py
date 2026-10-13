@@ -7,8 +7,9 @@ firmware `362001062617+U-W05SAV1.27.bin` (see docs/protocol.md):
   calls every unit "zone". The ducted unit has model id 5000 and MAC suffix
   `00`. The zones have model id 5001 and suffixes `01` to `08`.
 - Each sub-unit answers only its own columns. The ducted unit has `Pow`, `Mod`,
-  `WdSpd` and `AllErr`. A zone has `Pow`, `Mod`, `WdSpd` and `StTem`. `Mod`
-  and `WdSpd` of a zone follow the ducted unit.
+  `WdSpd` and `AllErr`, and also `StTem`, always 0. A zone has `Pow`, `Mod`,
+  `WdSpd` and `StTem`. `Mod` and `WdSpd` of a zone follow the ducted unit.
+  No unit answers `SetTem`, `TemRec` or `TemUn`.
 - `Mod` is 1 Cool, 2 Heat, 3 Dry, 4 Fan, 5 Auto. Turbo is `WdSpd` 6.
 - `StTem` is the zone target temperature in degrees Celsius minus 16.
 - `TemUnit` is the unit of temperature (0 Celsius, 1 Fahrenheit) of every unit.
@@ -61,6 +62,7 @@ class FakeZoneController(FakeVrfGateway):
                 "Mod": 4,
                 "WdSpd": 5,
                 "AllErr": 0,
+                "StTem": 0,
                 "TemUnit": 0,
                 "StFahFlg": 0,
             },

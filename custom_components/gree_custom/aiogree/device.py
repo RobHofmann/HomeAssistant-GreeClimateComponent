@@ -13,7 +13,6 @@ from .api import (
     ZONE_CONTROLLER_MODES,
     ZONE_CONTROLLER_MODES_TO_RAW,
     ZONE_CONTROLLER_NAME_PREFIX,
-    ZONE_CONTROLLER_PROPS,
     ZONE_CONTROLLER_TYPES,
     ZONE_TEMPERATURE_OFFSET,
     DeviceType,
@@ -205,9 +204,12 @@ class GreeDevice:
         A unit that is not a sub-unit is a standalone unit. A sub-unit of a
         zone controller answers the info request with the name of the zone
         controller, and its MAC suffix tells the ducted unit from the zones.
-        Every other sub-unit is a VRF indoor unit. The sub-units of a zone
-        controller also get its own columns polled: the unit of temperature,
-        and on a zone the target temperature.
+        Every other sub-unit is a VRF indoor unit.
+
+        The columns a device uses come from what it answers. The type is only
+        used where the columns cannot tell: the mode numbers and turbo of a
+        zone controller, and which entities a sub-unit gets. The ducted unit
+        also answers StTem, for example, always with 0.
         """
         name = self._state.info.get(InfoProp.DEVICE_NAME, "")
         if not self.is_sub_unit:
@@ -216,11 +218,8 @@ class GreeDevice:
             self._device_type = DeviceType.VRF_UNIT
         elif self._mac_addr.endswith(ZONE_CONTROLLER_AC_UNIT_SUFFIX):
             self._device_type = DeviceType.ZONE_CONTROLLER
-            self._state.add_polled(GreeProp.ZONE_TEMPERATURE_UNIT)
         else:
             self._device_type = DeviceType.ZONE
-            for prop in ZONE_CONTROLLER_PROPS:
-                self._state.add_polled(prop)
 
         _LOGGER.debug("[%s] Device type: %s", self.unique_id, self._device_type)
 
@@ -845,8 +844,13 @@ class GreeDevice:
 
     @property
     def _temperature_unit_prop(self) -> GreeProp:
-        """Return the column with the unit. A zone controller has its own."""
-        if self._device_type in ZONE_CONTROLLER_TYPES:
+        """Return the column with the unit: TemUn, or TemUnit when only that one is answered.
+
+        The sub-units of a zone controller answer TemUnit and not TemUn.
+        """
+        if not self._state.supports(
+            GreeProp.TARGET_TEMPERATURE_UNIT
+        ) and self._state.supports(GreeProp.ZONE_TEMPERATURE_UNIT):
             return GreeProp.ZONE_TEMPERATURE_UNIT
         return GreeProp.TARGET_TEMPERATURE_UNIT
 
@@ -883,9 +887,9 @@ class GreeDevice:
     def set_target_temperature(self, value: float) -> None:
         """Set the target temperature in target_temperature_unit.
 
-        A zone takes 16 to 30 degrees Celsius or 61 to 86 Fahrenheit. Its bit
-        is always sent along, because the controller keeps the old one when
-        only the temperature is sent.
+        A zone takes 16 to 30 degrees Celsius or 61 to 86 Fahrenheit. When
+        the zone has the bit, it is always sent along, because the controller
+        keeps the old one when only StTem is sent.
         """
 
         if self._device_type is DeviceType.ZONE:
@@ -893,12 +897,10 @@ class GreeDevice:
                 raw_c, bit = gree_get_target_temp_props_from_f(round(value))
             else:
                 raw_c, bit = max(MIN_TEMP_C, min(MAX_TEMP_C, round(value))), 0
-            self._state.update(
-                {
-                    GreeProp.ZONE_TARGET_TEMPERATURE: raw_c - ZONE_TEMPERATURE_OFFSET,
-                    GreeProp.ZONE_TARGET_TEMPERATURE_BIT: bit,
-                }
-            )
+            props = {GreeProp.ZONE_TARGET_TEMPERATURE: raw_c - ZONE_TEMPERATURE_OFFSET}
+            if self._state.supports(GreeProp.ZONE_TARGET_TEMPERATURE_BIT):
+                props[GreeProp.ZONE_TARGET_TEMPERATURE_BIT] = bit
+            self._state.update(props)
             return
 
         if self.target_temperature_unit == TemperatureUnits.F:

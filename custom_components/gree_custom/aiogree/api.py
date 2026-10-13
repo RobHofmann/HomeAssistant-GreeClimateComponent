@@ -105,20 +105,11 @@ class GreeProp(StrEnum):
 
 PROP_KEY_TO_ENUM = {prop.value: prop for prop in GreeProp}
 
-# Props only the sub-units of a zone controller are polled for, see
-# `GreeDevice.device_type`.
-ZONE_CONTROLLER_PROPS: tuple[GreeProp, ...] = (
-    GreeProp.ZONE_TARGET_TEMPERATURE,
-    GreeProp.ZONE_TARGET_TEMPERATURE_BIT,
-    GreeProp.ZONE_TEMPERATURE_UNIT,
-)
-
 # Props every device is polled for by default. The beeper is only written,
-# never read.
+# never read. The first poll drops every prop a device does not answer, so a
+# unit without the zone controller columns asks for them only once.
 POLLED_PROPS: tuple[GreeProp, ...] = tuple(
-    p
-    for p in GreeProp
-    if p not in (GreeProp.BEEPER, GreeProp.BEEPER_NEW, *ZONE_CONTROLLER_PROPS)
+    p for p in GreeProp if p not in (GreeProp.BEEPER, GreeProp.BEEPER_NEW)
 )
 
 
