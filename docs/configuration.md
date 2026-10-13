@@ -22,9 +22,13 @@ Shown when you picked the cloud method.
 | Email, Password | Your Gree account. |
 | Region | The region of your account. The integration uses it to pick the right Gree server. |
 
-The login returns a session token. The integration stores the token in the config entry and uses it every time the entry loads. A restart or a reload does not log in again. Only when the stored token stops working does the entry ask for [reauthentication](#reauthentication), which logs in once more and stores the new token.
+The login returns a session token. The integration stores the token in the config entry and uses it every time the entry loads. A restart or a reload does not log in again.
 
-This matters because Gree allows one session per account. Every login ends the other sessions, so the Gree app on your phone logs out at that moment. A YAML entry works the same way: a matching entry keeps its token, and a changed email, region or password triggers a new login.
+When the Gree server refuses the stored token, the integration logs in once with the stored email, password and region. It stores the new token and goes on. This happens when the entry loads, and when **Edit a device** binds a cloud device. The log then has a warning that starts with `Gree Cloud refused the stored token`. Only when that login fails too, or the server also refuses the new token, does the entry ask for [reauthentication](#reauthentication).
+
+This matters because a cloud login by the integration logs the Gree app on your phone out. Connecting with the stored token does not log the app out. Why Gree sometimes stops accepting a stored token is not known: it can happen soon after a login, and the cloud may also limit how often you can log in. Every time the integration has to log in again, the app logs out. To avoid this, use a separate Gree account for Home Assistant, if your devices can be shared with a second account. See [The Gree app logs me out](troubleshooting.md#common-situations).
+
+A YAML entry works the same way: a matching entry keeps its token, also a token that the integration refreshed, and a changed email, region or password triggers a new login. In [reconfigure](#reconfigure), only **Look for devices again** logs in, unless the server refuses the stored token.
 
 ### Local discovery
 
@@ -45,8 +49,7 @@ The values you enter are remembered and offered again in the next setup flow.
 
 The list holds every device that was found and is not configured yet. Pick the ones to add.
 
-> [!WARNING]
-> When you are reconfiguring, the devices you do not pick are removed from the entry.
+When you look for devices again during [reconfigure](#reconfigure), the list only holds new devices and devices with a new connection. All of them are selected. A device you do not select stays as it is.
 
 With a cloud account, the list holds the devices of the account. It shows whether each one was also found on the local network.
 
@@ -100,13 +103,28 @@ The external sensors only change what the climate entity shows. The unit keeps u
 
 ## Reconfigure
 
-Open the entry under **Settings** > **Devices & Services**, click the three dots and choose **Reconfigure**. The flow runs again with your current values filled in. Saving reloads the entry, so the change works right away without a restart.
+Open the entry under **Settings** > **Devices & Services**, click the three dots and choose **Reconfigure**. A menu opens. You can use its items as often as you like, in any order. Nothing is saved until you choose **Save and reload**. That writes all changes at once and reloads the entry one time, so the changes work right away without a restart. If you close the flow before that, nothing changes.
 
-- On the **Local-only Devices** entry the flow starts at local discovery.
-- On an account entry the flow first asks whether to also look for local devices. The account itself cannot be removed from the entry. To make a device local-only, remove it from the account entry and add it again with the local method.
+| Menu item | What it does |
+|---|---|
+| Edit a device | Pick one device. Its [connection options](#connection-options) and [device features](#device-features) open with the current values filled in. No discovery runs. |
+| Look for devices again | Runs discovery again, as in the first setup. The list only shows what is new: devices that are not set up yet, and devices that discovery found on a new connection. An example is a cloud device that now also answers on the local network. The devices you pick go through the device pages, with the found IP address and controller MACs filled in. The other devices keep their settings, and only their IP address and controller MACs are updated. Nothing is removed. When nothing is new, a page tells you so and you go back to the menu. |
+| Remove devices | Pick the devices to remove from the entry. |
+| Save and reload | Writes the changes and reloads the entry. |
 
-> [!WARNING]
-> Devices you do not pick in the device list are removed from the entry.
+**Edit a device** does not log in to the Gree account, so the Gree app stays logged in. The one exception is a stored token that the server refuses: then it logs in once, see [Gree account](#gree-account). When you keep the connection settings that decide how the device binds (key, user ID, IP address, port, encryption version, controller MACs and Prefer Cloud Connection), the integration uses the running connection of the device and does not bind again. When you change one of them, the integration binds again. For a cloud device it uses the stored session for that.
+
+**Look for devices again** on an account entry first asks whether to also look for local devices. Then it asks for the account details and logs in, because the cloud device list needs a fresh login. That login logs the Gree app out. On the **Local-only Devices** entry it starts at local discovery and does not log in.
+
+To give a cloud device a local connection, add its IP address under **Extra Hosts** and choose **Look for devices again** with local devices included. The device shows up in the list, and its connection page has the found IP address filled in.
+
+The flow closes the connections it opened when it ends, also when you close it. A reload closes the old connections of the entry before it opens new ones.
+
+The account itself cannot be removed from an account entry. To make a device local-only, remove it from the account entry and add it again with the local method.
+
+VRF units and zone controllers: you edit every indoor unit on its own. The IP address, port and encryption version belong to the controller, so all units behind one controller share them. When you change one of these for one unit, the other units of that controller get the same value.
+
+An entry that is set up in `configuration.yaml` cannot be reconfigured. The flow stops with a message, because the YAML would put its own values back at the next start. Change the YAML instead. After you remove the YAML block and restart, the entry can be reconfigured again.
 
 ## Removing a device
 
@@ -123,7 +141,7 @@ Both need the device to be on a network that Home Assistant can reach with a bro
 
 ## Reauthentication
 
-A cloud account entry asks for a new login when the stored session stops working. Click **Reconfigure** on the repair, or open the entry and choose **Reauthenticate**, and enter the account details again.
+A cloud account entry asks for a new login when the stored session stops working and a login with the stored account details fails too, for example after a password change. Click **Reconfigure** on the repair, or open the entry and choose **Reauthenticate**, and enter the account details again.
 
 ## YAML configuration
 
@@ -147,7 +165,7 @@ How the YAML is applied:
 - Home Assistant reads the YAML at every start. It creates the config entry when it is missing and updates it when the YAML changed. An unchanged YAML causes no reload.
 - Every item in the list is one config entry. An item with a `cloud` block is the entry for that Gree account. The one item without a `cloud` block is the entry for all local-only devices.
 - A device you remove from the YAML is removed from the entry, together with its device registry rows.
-- Do not change a YAML managed entry in the UI. The next restart puts the YAML values back. That includes the IP address. An IP found by discovery is replaced by the `host` in the YAML at the next start. Keep the YAML current, or give the unit a fixed IP.
+- Do not change a YAML managed entry in the UI. **Reconfigure** refuses it. The next restart puts the YAML values back. That includes the IP address. An IP found by discovery is replaced by the `host` in the YAML at the next start. Keep the YAML current, or give the unit a fixed IP.
 - A device that is already in another entry is skipped, with an error in the log and a repair issue.
 - A `cloud` block logs in to the Gree account only on the first import, and again when you change the email, region or password. An unchanged `cloud` block reuses the stored session. Every login logs the Gree app out.
 

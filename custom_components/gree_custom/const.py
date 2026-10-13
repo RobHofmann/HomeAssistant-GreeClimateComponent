@@ -21,6 +21,9 @@ VRF_CONTROLLER_TRANSLATION_KEY = "vrf_controller"
 CURRENT_CONF_VERSION = 3
 
 CONFENTRY_ID_LOCAL_ONLY = "local_only"
+
+# hass.data key: unique_ids of the entries that the YAML import handled since the start
+DATA_YAML_UNIQUE_IDS = f"{DOMAIN}_yaml_unique_ids"
 CONF_EXTRA_SCAN_NETWORKS = "extra_scan_networks"
 CONF_EXTRA_SCAN_HOSTS = "extra_scan_hosts"
 CONF_DISCOVERY_PREFS_KEY = DOMAIN + "_discovery_prefs"

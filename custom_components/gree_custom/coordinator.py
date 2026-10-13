@@ -13,6 +13,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .aiogree.api import OperationMode
 from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeBindingError, GreeConnectionError
+from .const import DOMAIN
 from .helpers import try_find_new_ip
 
 _LOGGER = logging.getLogger(__name__)
@@ -58,6 +59,7 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         self._feature_auto_xfan: bool = False
         self._feature_auto_light: bool = False
         self._unsub_follow_up_refresh: CALLBACK_TYPE | None = None
+        self._is_shut_down: bool = False
 
     async def _setup(self) -> None:
         """Bind to the device before the first coordinator refresh.
@@ -76,13 +78,23 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
 
     @override
     async def async_shutdown(self) -> None:
-        """Clean up the coordinator and Gree device resources."""
+        """Clean up the coordinator and Gree device resources.
+
+        Entry unload calls this before it closes the transports, and Home
+        Assistant calls it again from the entry's unload callbacks. Only the
+        first call does the work.
+        """
+        if self._is_shut_down:
+            return
+        self._is_shut_down = True
+
         self._cancel_follow_up_refresh()
         self.device.api_client.remove_status_listener(self._device_pushed_status)
 
-        await self.device.unbind_device()
-
-        await super().async_shutdown()
+        try:
+            await self.device.unbind_device()
+        finally:
+            await super().async_shutdown()
 
     async def _update_data(self) -> None:
         """Update the device with he latest state.
@@ -108,7 +120,11 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
 
         except GreeBindingError as err:
             _LOGGER.exception("Failed to initiate Gree device")
-            raise ConfigEntryAuthFailed("Failed to initiate Gree device") from err
+            raise ConfigEntryAuthFailed(
+                translation_domain=DOMAIN,
+                translation_key="device_bind_failed",
+                translation_placeholders={"mac": self.device.mac_address},
+            ) from err
 
         except Exception as err:
             _LOGGER.exception("Error getting state from device")

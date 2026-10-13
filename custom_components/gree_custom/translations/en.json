@@ -11,7 +11,8 @@
             "cloud_bad_login": "Login failed. Ensure the details are correct and try again.",
             "cloud_unknown": "Error during login. Please check the logs and contact the developers",
             "no_devices_selected": "Please select at least one device to continue",
-            "no_methods_selected": "Please select at least one discovery method"
+            "no_methods_selected": "Please select at least one discovery method",
+            "cannot_connect_mqtt": "Cannot connect to the Gree cloud (MQTT). Check the account details. If the error stays, check the logs for the reason the server gave."
         },
         "abort": {
             "reconfigure_successful": "Devices reconfigured with success.",
@@ -19,7 +20,10 @@
             "unique_id_mismatch": "The entry being configured does not match the configuration intent.",
             "no_devices_to_add": "No new devices discovered. Adjust your discovery options and try again.",
             "import_failed": "The YAML configuration could not be imported. See the repair issue and the log for the reason.",
-            "legacy_migration_started": "Your Gree 4.x devices are being moved to this integration. They show up in a few seconds, with the same entity IDs."
+            "legacy_migration_started": "Your Gree 4.x devices are being moved to this integration. They show up in a few seconds, with the same entity IDs.",
+            "yaml_managed": "This entry is managed in configuration.yaml. Change the YAML and restart Home Assistant. Changes made here would be replaced at the next start.",
+            "reauth_successful": "The Gree account is logged in again.",
+            "already_in_progress": "A setup for this Gree account is already in progress."
         },
         "step": {
             "user": {
@@ -52,14 +56,14 @@
             },
             "device_picker": {
                 "title": "Discovered Devices",
-                "description": "Found {devices_found} Gree device(s). Select the devices you want to configure.\n\nCaution: If you are reconfiguring devices, unselected devices will be removed.",
+                "description": "Found {devices_found} Gree device(s). Select the devices you want to configure.\n\nWhen you look for devices again, this list only shows new devices and devices with a new local or cloud connection. Devices you do not select stay as they are. To remove a device, use Remove devices in the menu.",
                 "data": {
                     "devices": "Devices"
                 }
             },
             "connection_options": {
                 "title": "Connection Options {device_idx} of {device_cnt}",
-                "description": "Configure the connection options that will use for the device:\n\n{device_name}",
+                "description": "Configure the connection options that will use for the device:\n\n{device_name}\n\nDevices behind the same controller (VRF or zone controller) share the IP address, port and encryption version. When you change these during reconfigure, the other devices of that controller get the same values.",
                 "data": {
                     "disable_available_check": "Disable Available Check",
                     "encryption_key": "Encryption Key",
@@ -123,9 +127,37 @@
             },
             "reconfigure": {
                 "title": "Reconfigure Devices",
-                "description": "You are reconfiguring a entry with a cloud account. Do you want to look for local devices that match your cloud devices?",
+                "description": "This entry has {device_cnt} device(s). Pick what to do. Your changes are saved when you choose Save and reload.",
+                "menu_options": {
+                    "edit_device": "Edit a device",
+                    "rediscover": "Look for devices again",
+                    "remove_devices": "Remove devices",
+                    "finish": "Save and reload"
+                }
+            },
+            "rediscover": {
+                "title": "Look for Devices Again",
+                "description": "This logs in to your Gree account to find its devices. The login logs the Gree app out.\n\nYou are reconfiguring a entry with a cloud account. Do you want to look for local devices that match your cloud devices?",
                 "data": {
                     "include_local": "Include local devices"
+                }
+            },
+            "edit_device": {
+                "title": "Edit a Device",
+                "description": "Pick the device to edit. If you do not change how it connects, the integration uses the running connection and does not log in to the Gree account.",
+                "data": {
+                    "devices": "Device"
+                }
+            },
+            "no_new_devices": {
+                "title": "No New Devices",
+                "description": "No new devices or new connections were found. The IP addresses of the devices that were found are updated.\n\nSubmit to go back to the menu. Your changes are saved when you choose Save and reload."
+            },
+            "remove_devices": {
+                "title": "Remove Devices",
+                "description": "Pick the devices to remove from this entry.",
+                "data": {
+                    "devices": "Devices"
                 }
             }
         }
@@ -371,6 +403,15 @@
         },
         "remove_vrf_controller": {
             "message": "This is a VRF controller. Delete its sub-units first, and the controller is deleted automatically."
+        },
+        "bad_credentials": {
+            "message": "The Gree cloud refused the stored login, and a new login with the stored account details failed. Log in again."
+        },
+        "no_account_info": {
+            "message": "The Gree account details of this entry are missing. Log in again."
+        },
+        "device_bind_failed": {
+            "message": "Cannot bind to the Gree device {mac}. Check the connection and the encryption key."
         }
     },
     "issues": {

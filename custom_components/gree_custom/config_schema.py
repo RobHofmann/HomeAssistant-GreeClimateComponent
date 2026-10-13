@@ -461,21 +461,25 @@ def setup_local_schema(default_values: dict | None = None) -> probatio.Schema:
 
 
 def setup_picker_schema(
-    default: list[str], options: dict[str, GreeDiscoveredDevice]
+    default: list[str] | str,
+    options: dict[str, GreeDiscoveredDevice],
+    multiple: bool = True,
 ) -> probatio.Schema:
-    """Build the form that lets the user pick which devices to set up."""
+    """Build the form that lets the user pick devices.
+
+    With `multiple` set to False it shows a radio list to pick one device.
+    """
+    config = SelectSelectorConfig(
+        options=[
+            SelectOptionDict(value=m, label=d.friendly_name) for m, d in options.items()
+        ],
+        multiple=multiple,
+    )
+    if not multiple:
+        config["mode"] = SelectSelectorMode.LIST
+
     return probatio.Schema(
-        {
-            probatio.Required(CONF_DEVICES, default=default): SelectSelector(
-                SelectSelectorConfig(
-                    options=[
-                        SelectOptionDict(value=m, label=d.friendly_name)
-                        for m, d in options.items()
-                    ],
-                    multiple=True,
-                )
-            )
-        }
+        {probatio.Required(CONF_DEVICES, default=default): SelectSelector(config)}
     )
 
 
