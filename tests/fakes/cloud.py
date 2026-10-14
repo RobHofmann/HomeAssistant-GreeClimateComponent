@@ -82,6 +82,38 @@ def cloud_device(mac: str, key: str, name: str = "Zolderkamer") -> dict[str, Any
     }
 
 
+def zone_controller_cloud_devices(gateway: str, key: str) -> list[dict[str, Any]]:
+    """Return a zone controller as a Gree Cloud account lists it.
+
+    Seen on a real LE60-13/GH: the gateway with an empty pmac, and next to it
+    the AC unit (00) and the zones, each with the gateway as pmac. They all
+    share the key of the WiFi module. The order is the one the cloud gave.
+    """
+
+    def unit(mac: str, pmac: str, name: str, mid: str, sort: int) -> dict[str, Any]:
+        return {
+            **cloud_device(mac, key, name=name),
+            "pmac": pmac,
+            "mid": mid,
+            "catalog": "",
+            "subdivCode": "",
+            "vender": "2",
+            "ver": "V1.2.1",
+            "prodModel": "",
+            "hid": "",
+            "homeSort": sort,
+        }
+
+    return [
+        unit(f"{gateway}00", gateway, "Zone Controller", "5000", 0),
+        unit(f"{gateway}02", gateway, "Zone2", "5001", 1),
+        unit(f"{gateway}03", gateway, "Zone3", "5001", 2),
+        unit(f"{gateway}04", gateway, "Zone4", "5001", 3),
+        unit(gateway, "", "Zone Controller", "50", 4),
+        unit(f"{gateway}01", gateway, "Zone1", "5001", 5),
+    ]
+
+
 class FakeGreeCloud:
     """A Gree Cloud server on a free port."""
 

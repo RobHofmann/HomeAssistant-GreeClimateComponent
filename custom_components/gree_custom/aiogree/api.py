@@ -2,7 +2,7 @@
 
 import asyncio
 from collections.abc import Mapping
-from dataclasses import dataclass, fields, replace
+from dataclasses import dataclass, field, fields, replace
 from enum import IntEnum, StrEnum, unique
 import json
 import logging
@@ -38,12 +38,15 @@ class GreeProp(StrEnum):
     # the swing mode of the vertical air blades
     SWING_VERTICAL = "SwUpDn"
 
-    # target temperature
-    TARGET_TEMPERATURE = "SetTem"
-    # used to distinguish between Fahrenheit values
-    TARGET_TEMPERATURE_BIT = "TemRec"
+    # target temperature, ordered by preference
+    TARGET_TEMPERATURE_1 = "SetTem"
+    TARGET_TEMPERATURE_2 = "StTem"  # zone of a zone controller, Celsius minus 16
+    # used to distinguish between Fahrenheit values, and the half degree in Celsius
+    TARGET_TEMPERATURE_BIT_1 = "TemRec"
+    TARGET_TEMPERATURE_BIT_2 = "StFahFlg"
     # defines the unit of temperature for the target temperature
-    TARGET_TEMPERATURE_UNIT = "TemUn"
+    TARGET_TEMPERATURE_UNIT_1 = "TemUn"
+    TARGET_TEMPERATURE_UNIT_2 = "TemUnit"  # zone controller and all its sub-units
 
     # Quiet mode which slows down the fan to its most quiet speed. Not available in Dry and Fan mode.
     FEAT_QUIET_MODE = "Quiet"
@@ -97,7 +100,9 @@ class GreeProp(StrEnum):
 
 PROP_KEY_TO_ENUM = {prop.value: prop for prop in GreeProp}
 
-# Props every device is polled for by default; the beeper is only written, never read
+# Props every device is polled for by default. The beeper is only written,
+# never read. The first poll drops every prop a device does not answer, so a
+# unit without the zone controller columns asks for them only once.
 POLLED_PROPS: tuple[GreeProp, ...] = tuple(
     p for p in GreeProp if p not in (GreeProp.BEEPER, GreeProp.BEEPER_NEW)
 )
@@ -471,6 +476,56 @@ class HumidityControlMode(IntEnum):
     smart_dry = 2  # This is only available in cool operation mode
 
 
+@unique
+class DeviceType(StrEnum):
+    """What kind of device a unit is. Known after the first bind.
+
+    A zone controller (seen: LE60-13/GH with a ME31-00/C13 WiFi module) is a
+    gateway like a VRF gateway. Its sub-unit `00` is the ducted unit, which has
+    the mode and the fan. Sub-units `01` to `08` are the zones. See
+    docs/protocol.md.
+    """
+
+    # A standalone unit
+    AC_UNIT = "ac_unit"
+    # An indoor unit behind a VRF gateway
+    VRF_UNIT = "vrf_unit"
+    # Sub-unit 00 of a zone controller: the ducted unit
+    ZONE_CONTROLLER = "zone_controller"
+    # Sub-unit 01 to 08 of a zone controller
+    ZONE = "zone"
+
+
+# The sub-units of a zone controller. They number the modes in their own way.
+ZONE_CONTROLLER_TYPES = frozenset({DeviceType.ZONE_CONTROLLER, DeviceType.ZONE})
+
+
+# A sub-unit of a zone controller answers the info request with the name of
+# the controller, which starts with this. The MAC suffix tells the ducted unit
+# from the zones. The WiFi module sets both, not the units: they are fixed in
+# its firmware (v1.21, v1.27 and v1.28 checked).
+ZONE_CONTROLLER_NAME_PREFIX = "GR-ZCntrlr"
+ZONE_CONTROLLER_AC_UNIT_SUFFIX = "00"
+
+
+# The ducted unit behind a zone controller numbers the modes in its own way.
+ZONE_CONTROLLER_MODES: dict[int, OperationMode] = {
+    1: OperationMode.cool,
+    2: OperationMode.heat,
+    3: OperationMode.dry,
+    4: OperationMode.fan,
+    5: OperationMode.auto,
+}
+ZONE_CONTROLLER_MODES_TO_RAW: dict[OperationMode, int] = {
+    mode: raw for raw, mode in ZONE_CONTROLLER_MODES.items()
+}
+# It has no turbo column. Turbo is one more fan speed.
+ZONE_CONTROLLER_FAN_TURBO = 6
+# Added to the raw value of a target temperature column to get degrees
+# Celsius. StTem, the target temperature of a zone, is degrees Celsius minus 16.
+TARGET_TEMPERATURE_OFFSETS: dict[GreeProp, int] = {GreeProp.TARGET_TEMPERATURE_2: 16}
+
+
 class GreeCommand(StrEnum):
     """Enumeration of Gree commands."""
 
@@ -530,12 +585,13 @@ class GreeDiscoveredDevice:
     mac_controller_local: str = ""
     mac_controller_mqtt: str = ""
     user_id: int = DEFAULT_DEVICE_USERID
-    key: str | None = None
+    # Not in the repr, which discovery logs
+    key: str | None = field(default=None, repr=False)
     # Local
     host: str | None = None
     port: int | None = None
-    # Cloud
-    username: str | None = None
+    # Cloud. The email of the account, not in the repr either
+    username: str | None = field(default=None, repr=False)
     # Properties
     name: str = ""
     catalog: str = ""
@@ -781,9 +837,12 @@ def _order_set_props(props: dict[str, int]) -> dict[str, int]:
 
     # Temperature-related properties
     for prop in (
-        GreeProp.TARGET_TEMPERATURE_UNIT.value,
-        GreeProp.TARGET_TEMPERATURE_BIT.value,
-        GreeProp.TARGET_TEMPERATURE.value,
+        GreeProp.TARGET_TEMPERATURE_UNIT_1.value,
+        GreeProp.TARGET_TEMPERATURE_UNIT_2.value,
+        GreeProp.TARGET_TEMPERATURE_BIT_1.value,
+        GreeProp.TARGET_TEMPERATURE_BIT_2.value,
+        GreeProp.TARGET_TEMPERATURE_1.value,
+        GreeProp.TARGET_TEMPERATURE_2.value,
     ):
         if prop in remaining:
             ordered[prop] = remaining.pop(prop)
@@ -1281,6 +1340,25 @@ def _parse_sub_devices_list(
     return sub_devs
 
 
+def _zone_controller_sub_unit_name(sub_mac: str, controller_name: str) -> str | None:
+    """Name a sub-unit of a zone controller.
+
+    A zone controller calls every sub-unit "zone", so that name says nothing.
+    The name of the controller tells that it is a zone controller, and the
+    last two characters of the MAC tell the ducted unit from the zones and
+    give the zone number.
+
+    Returns:
+        The name, or None if the unit is not part of a zone controller
+
+    """
+    if not controller_name.startswith(ZONE_CONTROLLER_NAME_PREFIX):
+        return None
+    if sub_mac.endswith(ZONE_CONTROLLER_AC_UNIT_SUFFIX):
+        return "AC unit"
+    return f"Zone {int(sub_mac[-2:], 16)}"
+
+
 async def _get_sub_devices_list(
     mac_addr_controller: str,
     uid: int,
@@ -1383,11 +1461,15 @@ async def _get_sub_devices_list(
     discovered_subdevices: list[GreeDiscoveredDevice] = []
     for sub_mac, sub_dev in merged.items():
         new_dev: GreeDiscoveredDevice
+        zone_name = _zone_controller_sub_unit_name(
+            sub_mac, parent_device.name if parent_device else ""
+        )
         if parent_device:
             # TODO: get real-data from VRF discovery to check the result list fields
             new_dev = replace(
                 parent_device,
-                name=sub_dev.get(
+                name=zone_name
+                or sub_dev.get(
                     "name",
                     f"{sub_mac[-5:]} VRF at {parent_device.name}",
                 ),
@@ -1397,7 +1479,8 @@ async def _get_sub_devices_list(
             )
         else:
             new_dev = GreeDiscoveredDevice(
-                name=sub_dev.get(
+                name=zone_name
+                or sub_dev.get(
                     "name",
                     f"{sub_mac[-5:]} VRF at {mac_addr_controller[-5:]}",
                 ),
@@ -1703,8 +1786,8 @@ def gree_merge_discovered_devices(
 
         # Override with non-empty local values
         # So that local info overrides cloud, especially for MAC
-        for field in fields(GreeDiscoveredDevice):
-            value = getattr(local, field.name)
+        for device_field in fields(GreeDiscoveredDevice):
+            value = getattr(local, device_field.name)
 
             if value is None:
                 continue
@@ -1712,7 +1795,7 @@ def gree_merge_discovered_devices(
             if isinstance(value, str) and value == "":
                 continue
 
-            setattr(merged_device, field.name, value)
+            setattr(merged_device, device_field.name, value)
 
         # Prefer cloud name and uid
         merged_device.name = cloud.name

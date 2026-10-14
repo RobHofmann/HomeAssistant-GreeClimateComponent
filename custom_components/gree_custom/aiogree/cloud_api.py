@@ -14,7 +14,7 @@ import hashlib
 import json
 import logging
 from types import TracebackType
-from typing import Self
+from typing import Any, Self
 
 import aiohttp
 from cryptography.hazmat.backends import default_backend
@@ -26,6 +26,26 @@ from .errors import GreeCloudError, GreeCloudLoginError
 from .helpers import redact_str
 
 _LOGGER = logging.getLogger(__name__)
+
+# The parts of a login response that may be logged. The rest, such as the
+# session token, the email and the user name, is redacted, because users post
+# their debug logs.
+LOGIN_LOG_KEYS = frozenset({"r", "msg", "uid", "alive"})
+
+
+def _loggable_login_response(data: Any) -> Any:
+    """Return the login response with everything but LOGIN_LOG_KEYS redacted."""
+    if not isinstance(data, dict):
+        return "[redacted]"
+    loggable: dict[str, Any] = {}
+    for key, value in data.items():
+        if isinstance(value, dict):
+            loggable[key] = _loggable_login_response(value)
+        elif key in LOGIN_LOG_KEYS:
+            loggable[key] = value
+        else:
+            loggable[key] = "[redacted]"
+    return loggable
 
 
 @dataclass
@@ -318,11 +338,10 @@ class GreeCloudApi:
 
         encrypted_response = await self._send_request("/App/UserLoginV2", body)
         decrypted = self._decrypt(base64.b64decode(encrypted_response))
-
-        _LOGGER.debug("Login response (decrypted): %s", decrypted)
-
         data = json.loads(decrypted)
-        _LOGGER.debug("Login response (parsed): %s", data)
+
+        loggable = _loggable_login_response(data)
+        _LOGGER.debug("Login response: %s", loggable)
 
         # Check for error response
         if "r" in data and data["r"] != 200:
@@ -338,10 +357,10 @@ class GreeCloudApi:
             user_id = data["data"].get("uid")
             token = data["data"].get("token")
         else:
-            raise GreeCloudError(f"Unexpected login response format: {data}")
+            raise GreeCloudError(f"Unexpected login response format: {loggable}")
 
         if not user_id or not token:
-            raise GreeCloudLoginError(f"Missing uid or token in response: {data}")
+            raise GreeCloudLoginError(f"Missing uid or token in response: {loggable}")
 
         self.user_id = user_id
         self.token = token
@@ -491,9 +510,15 @@ class GreeCloudApi:
     ) -> list[CloudDeviceInfoResponse]:
         """Filter out duplicate devices with same key.
 
-        When devices share the same encryption key but have different MACs
-        (one normal, one ending with '00'), keep only the one with '00'.
-        The device without '00' suffix doesn't respond to commands.
+        A gateway can be listed next to its sub-units, which have the MAC of
+        the gateway as pmac. The gateway is left out and every sub-unit is
+        kept. Seen on a zone controller: the gateway, the AC unit (MAC ending
+        in 00) and the zones (01 to 08), all with one key.
+
+        Of the other devices, when devices share the same encryption key but
+        have different MACs (one normal, one ending with '00'), keep only the
+        one with '00'. The device without '00' suffix doesn't respond to
+        commands.
 
         Args:
             devices: List of devices to filter
@@ -502,9 +527,33 @@ class GreeCloudApi:
             Filtered list without duplicates
 
         """
+        # A device can have its own MAC as pmac, which does not make it a
+        # gateway. Only a listed device that another device points to is one.
+        listed = {device.mac for device in devices}
+        gateways = {
+            device.pmac
+            for device in devices
+            if device.pmac and device.pmac != device.mac and device.pmac in listed
+        }
+        if gateways:
+            _LOGGER.debug(
+                "Filtering out gateway(s) listed with their sub-units: %s",
+                sorted(gateways),
+            )
+        sub_units = [
+            device
+            for device in devices
+            if device.pmac in gateways and device.mac not in gateways
+        ]
+        others = [
+            device
+            for device in devices
+            if device.mac not in gateways and device.pmac not in gateways
+        ]
+
         # Group devices by encryption key
         key_groups: dict[str, list[CloudDeviceInfoResponse]] = {}
-        for device in devices:
+        for device in others:
             if device.key not in key_groups:
                 key_groups[device.key] = []
             key_groups[device.key].append(device)
@@ -536,7 +585,8 @@ class GreeCloudApi:
                     # No device with '00' found, keep all (shouldn't happen but be safe)
                     filtered.extend(group)
 
-        return filtered
+        kept = {id(device) for device in [*sub_units, *filtered]}
+        return [device for device in devices if id(device) in kept]
 
 
 async def gree_get_latest_firmware_info(

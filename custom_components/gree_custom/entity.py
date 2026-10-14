@@ -84,3 +84,5 @@ class GreeEntityDescription(EntityDescription, frozen_or_thawed=True):
     additional_available_func: Callable[[GreeDevice], bool] = lambda _: True
     # True if the support can be evaluated with the device API only, false if support must be explicit in device config
     auto_device_support: bool = False
+    # Use this to create the entity only on some kinds of device, when the props alone cannot tell
+    device_filter: Callable[[GreeDevice], bool] = lambda _: True

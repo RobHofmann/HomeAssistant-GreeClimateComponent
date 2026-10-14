@@ -1,7 +1,7 @@
 """Constants for the Gree integration."""
 
 from homeassistant.components.climate import HVACMode  # pyright: ignore[reportPrivateImportUsage]
-from homeassistant.const import UnitOfTemperature
+from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_TOKEN, UnitOfTemperature
 
 from .aiogree.api import (
     FanSpeed,
@@ -17,6 +17,10 @@ DOMAIN = "gree_custom"
 # Device identifier prefix of the VRF controller (gateway) device
 VRF_CONTROLLER_ID_PREFIX = "controller_"
 VRF_CONTROLLER_TRANSLATION_KEY = "vrf_controller"
+VRF_CONTROLLER_MODEL = "VRF gateway"
+# A zone controller gets the same kind of controller device
+ZONE_CONTROLLER_TRANSLATION_KEY = "zone_controller"
+ZONE_CONTROLLER_MODEL = "Zone controller"
 
 CURRENT_CONF_VERSION = 3
 
@@ -38,6 +42,9 @@ CONF_ALL_DEVICE_CONNECTIONS = "device_connections"
 CONF_ALL_DEVICE_OPTIONS = "device_options"
 CONF_UID = "uid"
 CONF_ENCRYPTION_KEY = "encryption_key"
+# Left out of debug logs and diagnostics, because users post both: the device
+# key and the cloud login.
+TO_REDACT = [CONF_ENCRYPTION_KEY, CONF_PASSWORD, CONF_TOKEN, CONF_EMAIL]
 CONF_ENCRYPTION_VERSION = "encryption_version"
 CONF_DISABLE_AVAILABLE_CHECK = "disable_available_check"
 CONF_MAX_ONLINE_ATTEMPTS = "max_online_attempts"
@@ -100,6 +107,12 @@ GATTR_FEAT_HUMIDITY = "humidity_control"
 # Humidity Control Target. Sets humidity target for humidity control
 GATTR_FEAT_HUMIDITY_TARGET = "humidity_control_target"
 
+# Zone controller. Opens and closes one zone. It is a feature, so it can be left
+# out for a zone that must always stay open.
+GATTR_ZONE = "zone"
+# Zone controller. The target temperature of one zone.
+GATTR_ZONE_TARGET_TEMPERATURE = "zone_target_temperature"
+
 GATTR_TEMP_UNITS = "temperature_units"
 GATTR_INDOOR_TEMPERATURE = "indoor_temperature"
 GATTR_OUTDOOR_TEMPERATURE = "outdoor_temperature"
@@ -130,7 +143,12 @@ ATTR_FEATURES_TO_PROP_MAP: dict[str, list[GreeProp]] = {
     GATTR_ANTI_DIRECT_BLOW: [GreeProp.FEAT_ANTI_DIRECT_BLOW],
     GATTR_FEAT_ENERGY_SAVING: [GreeProp.FEAT_ENERGY_SAVING],
     GATTR_FEAT_HUMIDITY: [GreeProp.FEATURE_HUMIDITY_CONTROL],
+    GATTR_ZONE: [GreeProp.POWER],
 }
+
+# Features that only a zone has. Every unit has a Pow column, so the props
+# alone cannot tell.
+ZONE_ONLY_FEATURES: list[str] = [GATTR_ZONE]
 
 ATTR_SENSORS_TO_PROP_MAP: dict[str, list[GreeProp]] = {
     GATTR_INDOOR_TEMPERATURE: [
@@ -147,7 +165,14 @@ ATTR_SENSORS_TO_PROP_MAP: dict[str, list[GreeProp]] = {
 }
 
 CONF_TO_PROP_FEATURE_MAP: dict[str, list[GreeProp]] = {
-    GATTR_TEMP_UNITS: [GreeProp.TARGET_TEMPERATURE_UNIT],
+    GATTR_TEMP_UNITS: [
+        GreeProp.TARGET_TEMPERATURE_UNIT_1,
+        GreeProp.TARGET_TEMPERATURE_UNIT_2,
+    ],
+    GATTR_ZONE_TARGET_TEMPERATURE: [
+        GreeProp.TARGET_TEMPERATURE_1,
+        GreeProp.TARGET_TEMPERATURE_2,
+    ],
     # SENSORS
     **ATTR_SENSORS_TO_PROP_MAP,
     # FEATURES
@@ -228,6 +253,7 @@ DEFAULT_SUPPORTED_FEATURES = [
     GATTR_FEAT_ENERGY_SAVING,
     GATTR_FEAT_SENSOR_LIGHT,
     GATTR_FAULTS,
+    GATTR_ZONE,
 ]
 
 UNITS_GREE_TO_HA = {
