@@ -875,7 +875,8 @@ class GreeDevice:
     def has_target_temperature_bit(self) -> bool:
         """Return True if the device answers a bit for the target temperature.
 
-        Only then can it hold half degrees in Celsius.
+        Only then can it hold half degrees in Celsius, and every whole degree
+        in Fahrenheit. Without it, Fahrenheit goes in steps of about 2.
         """
         return self._target_temp_bit_prop is not None
 

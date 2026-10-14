@@ -43,6 +43,8 @@ The unit has its own temperature scale, Celsius or Fahrenheit, which you change 
 
 A zone controller (for example the Gree LE60-13/GH) has one ducted unit and up to eight zones behind one WiFi module. Discovery finds the ducted unit as **AC unit** and the zones as **Zone 1**, **Zone 2** and so on. Add all of them.
 
+A zone controller is local only, so add it with local discovery. Its WiFi module (ME31-00/C13) uses an older Gree cloud protocol, not MQTT, so a cloud-only setup cannot control it, and cloud discovery lists only the AC unit.
+
 - The **AC unit** gets the climate entity. Its HVAC mode and fan mode work as above. Turbo is a fan speed of this unit, in Cool and Heat only. It has no target temperature and no room temperature: the zones have their own target temperature, and the controller does not report the room temperatures of the zones. Turning the AC unit off turns the whole system off. The zones keep their own setting and get it back when the system is turned on again. Its **Temperature Units** select switches the whole controller, the wall panel included, between °C and °F. The zones follow at their next update.
 - Each **zone** gets no climate entity, because a zone has no mode of its own. It gets:
 
