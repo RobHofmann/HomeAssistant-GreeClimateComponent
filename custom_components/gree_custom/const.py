@@ -52,6 +52,8 @@ CONF_ENCRYPTION_VERSION = "encryption_version"
 CONF_DISABLE_AVAILABLE_CHECK = "disable_available_check"
 CONF_MAX_ONLINE_ATTEMPTS = "max_online_attempts"
 CONF_RESTORE_STATES = "restore_states"
+# Remember the target temperature per mode, for a unit that has one
+CONF_SETPOINT_MEMORY = "setpoint_memory"
 CONF_DEVICES = "devices"
 CONF_HVAC_MODES = "hvac_modes"
 CONF_FAN_MODES = "fan_modes"
@@ -67,6 +69,7 @@ DEFAULT_ENCRYPTION_VERSION = ENCRYPTION_VERSION_AUTO
 DEFAULT_ENCRYPTION_KEY = ""
 DEFAULT_DISABLE_AVAILABLE_CHECK = False
 DEFAULT_RESTORE_STATES = True
+DEFAULT_SETPOINT_MEMORY = False
 MIN_SCAN_INTERVAL = 5
 DEFAULT_SCAN_INTERVAL = 60
 DEFAULT_PREFER_CLOUD = False

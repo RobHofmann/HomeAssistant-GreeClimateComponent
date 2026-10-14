@@ -39,6 +39,7 @@ from .aiogree.api import (
     FanSpeed,
     GreeProp,
     HorizontalSwingMode,
+    OperationMode,
     VerticalSwingMode,
 )
 from .aiogree.const import MAX_TEMP_C, MAX_TEMP_F, MIN_TEMP_C, MIN_TEMP_F
@@ -668,10 +669,25 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                     else None
                 )
                 zones = [z.device for z in self.coordinator.zone_coordinators]
+                # A standalone or VRF unit with the option remembers its own
+                # target. In Auto it ignores the target, so nothing goes there.
+                for_itself = self.device.device_type in (
+                    DeviceType.AC_UNIT,
+                    DeviceType.VRF_UNIT,
+                )
                 if memory is not None:
-                    await memory.snapshot(zones, old_mode)
+                    await memory.snapshot(
+                        [*zones, self.device] if for_itself else zones, old_mode
+                    )
 
                 self.device.set_operation_mode(new_mode)
+                if (
+                    memory is not None
+                    and for_itself
+                    and new_mode is not OperationMode.auto
+                ):
+                    # Goes out in the same command as the mode, below.
+                    memory.apply(self.device, new_mode)
 
                 # The Auto X-FAN enables that feature if the device is set to a hvac mode that supports X-FAN
                 if self.coordinator.feature_auto_xfan:

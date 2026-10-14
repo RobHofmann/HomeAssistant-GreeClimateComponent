@@ -28,7 +28,7 @@ from homeassistant.helpers import device_registry as dr, issue_registry as ir
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import ConfigType
 
-from .aiogree.api import DeviceType
+from .aiogree.api import DeviceType, GreeProp
 from .aiogree.cipher import EncryptionVersion
 from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeConnectionError
@@ -53,6 +53,7 @@ from .const import (
     CONF_MAX_ONLINE_ATTEMPTS,
     CONF_PREFER_CLOUD,
     CONF_RESTORE_STATES,
+    CONF_SETPOINT_MEMORY,
     CONF_UID,
     CONFENTRY_ID_LOCAL_ONLY,
     DEFAULT_CONNECTION_MAX_ATTEMPTS,
@@ -64,6 +65,7 @@ from .const import (
     DEFAULT_PREFER_CLOUD,
     DEFAULT_RESTORE_STATES,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SETPOINT_MEMORY,
     DOMAIN,
     ENCRYPTION_VERSION_AUTO,
     TO_REDACT,
@@ -347,16 +349,26 @@ async def _async_setup_setpoint_memory(
     entry: GreeConfigEntry,
     coordinators: dict[str, GreeCoordinator],
 ) -> None:
-    """Give the ducted unit of each zone controller the memory of its zones.
+    """Give the devices that remember their target temperature per mode the memory.
 
-    The memory keeps the target temperature of every zone per mode, so a mode
-    change from Home Assistant sets them as the wall panel does. It learns from
-    every poll of a zone. See aiogree/setpoint_memory.py.
+    The ducted unit of a zone controller gets it for its zones, so a mode
+    change from Home Assistant sets them as the wall panel does. A standalone
+    or VRF unit gets it for itself when its options ask for it. The memory
+    learns from every poll of those devices. See aiogree/setpoint_memory.py.
     """
     zones = [
         c for c in coordinators.values() if c.device.device_type is DeviceType.ZONE
     ]
-    if not zones:
+    units = [
+        c
+        for c in coordinators.values()
+        if c.device.device_type in (DeviceType.AC_UNIT, DeviceType.VRF_UNIT)
+        and c.device.supports_property(GreeProp.TARGET_TEMPERATURE_1)
+        and c.device_config.get(CONF_DEVICE_OPTIONS, {}).get(
+            CONF_SETPOINT_MEMORY, DEFAULT_SETPOINT_MEMORY
+        )
+    ]
+    if not zones and not units:
         return
 
     store: Store[SetpointMemoryData] = Store(
@@ -369,10 +381,13 @@ async def _async_setup_setpoint_memory(
         ),
     )
 
-    for zone in zones:
+    for learner in (*zones, *units):
         entry.async_on_unload(
-            zone.async_add_listener(partial(memory.learn, zone.device))
+            learner.async_add_listener(partial(memory.learn, learner.device))
         )
+
+    for unit in units:
+        unit.setpoint_memory = memory
 
     for coordinator in coordinators.values():
         if coordinator.device.device_type is DeviceType.ZONE_CONTROLLER:

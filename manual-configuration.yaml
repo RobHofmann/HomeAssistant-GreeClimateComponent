@@ -117,3 +117,4 @@ gree_custom:
                   external_temperature_sensor: "sensor.living_room_temperature" # Sets a given temperature sensor as the sensor for the AC | str (Entity ID) | omit the key to not use one
                   external_humidity_sensor: "sensor.living_room_humidity" # Sets a given humidity sensor as the sensor for the AC | str (Entity ID) | omit the key to not use one
                   restore_states: true # Wether to restore the last HA state to device when HA starts | bool | default = true
+                  setpoint_memory: false # Remember the target temperature per mode and set it again on a mode change from Home Assistant, not for Auto | bool | default = false

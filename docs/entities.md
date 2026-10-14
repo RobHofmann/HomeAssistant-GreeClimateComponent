@@ -26,6 +26,10 @@ The main entity. Its name is the device name.
 
 Extra attribute: `current_outside_temperature`, the outdoor sensor value in the unit's temperature scale, when the unit has an outdoor sensor. Read it with `{{ state_attr('climate.your_ac', 'current_outside_temperature') }}`.
 
+### Target temperature per mode
+
+With the option **Remember Target Temperature per Mode** on, the climate entity remembers the target temperature of each mode. When you change the mode from Home Assistant, it sets the remembered target of the new mode in the same command. It learns from what the unit reports, so a change made with the remote is remembered too. A mode it has not seen yet keeps the current target. Auto is left out, because the unit uses its own setting there. The option is off by default.
+
 ### Turbo and Quiet
 
 Turbo and Quiet are not fan speeds on the unit but separate features. The integration shows them as fan modes because that is how the remote presents them.

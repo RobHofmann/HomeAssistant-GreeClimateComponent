@@ -15,8 +15,10 @@ from Home Assistant works like one on the panel. See docs/protocol.md.
   not lost. After the change, `recall()` sends the stored values of the new
   mode.
 - What is stored are the raw columns that hold the target temperature, as
-  `GreeDevice.target_temperature_props` gives them, per device MAC and mode.
-  Today only zones give any.
+  `GreeDevice.target_temperature_props` gives them, per device MAC and mode:
+  `StTem` for a zone, `SetTem` and `TemRec` for a standalone or VRF unit.
+- For a unit that remembers its own target, `apply()` sets the stored value
+  without sending it, so it can go out in the same command as the new mode.
 
 The memory does not store itself. The owner loads `data` and saves it when
 `on_change` is called.
@@ -120,11 +122,9 @@ class SetpointMemory:
         """
         changed: list[GreeDevice] = []
         for device in devices:
-            stored = self.stored(device.mac_address, mode)
-            if not stored or stored == device.target_temperature_props:
+            if not self.apply(device, mode):
                 continue
 
-            device.set_target_temperature_props(stored)
             try:
                 await device.push_device_status()
             except GreeError:
@@ -137,6 +137,20 @@ class SetpointMemory:
             changed.append(device)
 
         return changed
+
+    def apply(self, device: GreeDevice, mode: OperationMode) -> bool:
+        """Set the stored target temperature of a mode on a device, without sending it.
+
+        Returns:
+            True if the device got a new target temperature to send
+
+        """
+        stored = self.stored(device.mac_address, mode)
+        if not stored or stored == device.target_temperature_props:
+            return False
+
+        device.set_target_temperature_props(stored)
+        return True
 
     def _remember(
         self, device: GreeDevice, mode: OperationMode, props: Mapping[GreeProp, int]

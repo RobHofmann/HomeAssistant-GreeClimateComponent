@@ -11,12 +11,13 @@ does not, so `SetpointMemory` does it. See docs/protocol.md.
 
 from collections.abc import AsyncIterator
 
-from aiogree.api import GreeProp, OperationMode
+from aiogree.api import DeviceType, GreeProp, OperationMode
 from aiogree.device import GreeDevice
 from aiogree.setpoint_memory import SetpointMemory
 from aiogree.transport_udp import GreeUdpTransport
 import pytest
 
+from .fakes.device import FakeGreeDevice
 from .fakes.zone import FakeZoneController
 
 HEAT = 2
@@ -245,3 +246,95 @@ async def test_snapshot_does_not_store_values_of_another_mode(
     await memory.snapshot(zones, OperationMode.fan)
 
     assert remembered(memory, zones, OperationMode.fan) == [None] * 4
+
+
+#
+# A standalone unit that remembers its own target
+#
+
+
+@pytest.fixture
+async def unit() -> AsyncIterator[tuple[FakeGreeDevice, GreeDevice]]:
+    """Bind a standalone unit that is in Cool at 24 degrees."""
+    fake = FakeGreeDevice()
+    fake.values.update({"Pow": 1, "Mod": 1, "SetTem": 24, "TemRec": 0, "TemUn": 0})
+    await fake.start()
+    transport = GreeUdpTransport(fake.host, fake.port, max_retries=1, timeout=0.3)
+    device = GreeDevice(name="Zolderkamer", mac_addr=fake.mac)
+    await device.bind_with_transport(
+        local_controller_mac=fake.mac, local_transport=transport
+    )
+    try:
+        yield fake, device
+    finally:
+        await transport.disconnect()
+        fake.close()
+
+
+async def test_a_standalone_unit_gives_set_tem_and_tem_rec(
+    unit: tuple[FakeGreeDevice, GreeDevice],
+) -> None:
+    """SetTem holds the degrees and TemRec the half degree."""
+    _, device = unit
+
+    assert device.device_type is DeviceType.AC_UNIT
+    assert device.target_temperature_props == {
+        GreeProp.TARGET_TEMPERATURE_1: 24,
+        GreeProp.TARGET_TEMPERATURE_BIT_1: 0,
+    }
+
+
+async def test_a_unit_learns_its_target_and_sends_it_with_the_mode(
+    unit: tuple[FakeGreeDevice, GreeDevice],
+) -> None:
+    """The stored target of the new mode goes out in the same command as the mode."""
+    fake, device = unit
+    memory = SetpointMemory()
+    await poll(memory, [device])
+    await poll(memory, [device])
+    fake.values.update({"Mod": 4, "SetTem": 20})
+    await poll(memory, [device])
+    await poll(memory, [device])
+
+    assert memory.data[fake.mac] == {
+        "cool": {"SetTem": 24, "TemRec": 0},
+        "heat": {"SetTem": 20, "TemRec": 0},
+    }
+
+    device.set_operation_mode(OperationMode.cool)
+    assert memory.apply(device, OperationMode.cool)
+    fake.reset_record()
+    await device.push_device_status()
+
+    commands = [pack for pack in fake.packs if pack.get("t") == "cmd"]
+    assert len(commands) == 1
+    assert {"Mod", "SetTem"} <= set(commands[0]["opt"])
+    assert (fake.values["Mod"], fake.values["SetTem"]) == (1, 24)
+
+
+async def test_a_fahrenheit_target_is_stored_raw(
+    unit: tuple[FakeGreeDevice, GreeDevice],
+) -> None:
+    """The raw columns already hold the Fahrenheit value, so nothing is converted."""
+    fake, device = unit
+    fake.values.update({"TemUn": 1, "SetTem": 24, "TemRec": 1})
+    memory = SetpointMemory()
+
+    await poll(memory, [device])
+    await poll(memory, [device])
+
+    assert memory.data[fake.mac] == {"cool": {"SetTem": 24, "TemRec": 1}}
+
+
+async def test_apply_without_a_stored_target_changes_nothing(
+    unit: tuple[FakeGreeDevice, GreeDevice],
+) -> None:
+    """Nothing is known about Heat, so the unit keeps its target."""
+    fake, device = unit
+    memory = SetpointMemory()
+
+    assert not memory.apply(device, OperationMode.heat)
+    fake.reset_record()
+    await device.push_device_status()
+
+    assert not any(pack.get("t") == "cmd" for pack in fake.packs)
