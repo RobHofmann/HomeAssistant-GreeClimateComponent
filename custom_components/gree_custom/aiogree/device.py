@@ -8,13 +8,13 @@ from aiomqtt import MqttError
 from packaging.version import Version
 
 from .api import (
+    TARGET_TEMPERATURE_OFFSETS,
     ZONE_CONTROLLER_AC_UNIT_SUFFIX,
     ZONE_CONTROLLER_FAN_TURBO,
     ZONE_CONTROLLER_MODES,
     ZONE_CONTROLLER_MODES_TO_RAW,
     ZONE_CONTROLLER_NAME_PREFIX,
     ZONE_CONTROLLER_TYPES,
-    ZONE_TEMPERATURE_OFFSET,
     DeviceType,
     EncryptionVersion,
     FanSpeed,
@@ -112,6 +112,9 @@ class GreeDevice:
         self._indoor_temp_sensor_prop: GreeProp | None = None
         self._outdoor_temp_sensor_prop: GreeProp | None = None
         self._humidity_sensor_prop: GreeProp | None = None
+        self._target_temp_prop: GreeProp | None = None
+        self._target_temp_bit_prop: GreeProp | None = None
+        self._temp_unit_prop: GreeProp | None = None
 
         self._state = DeviceState(
             device_id=self.unique_id, capabilities=self._capabilities
@@ -213,8 +216,8 @@ class GreeDevice:
 
         The columns a device uses come from what it answers. The type is only
         used where the columns cannot tell: the mode numbers and turbo of a
-        zone controller, and which entities a sub-unit gets. The ducted unit
-        also answers StTem, for example, always with 0.
+        zone controller, the StTem of its ducted unit, which is always 0, and
+        which entities a sub-unit gets.
         """
         name = self._state.info.get(InfoProp.DEVICE_NAME, "")
         if not self.is_sub_unit:
@@ -424,6 +427,35 @@ class GreeDevice:
                 GreeProp.SENSOR_HUMIDITY_1,
                 GreeProp.SENSOR_HUMIDITY_2,
             ]
+        )
+
+        # The ducted unit of a zone controller answers StTem and StFahFlg too,
+        # always with 0, the same as a zone set to 16 degrees Celsius. It has
+        # no target temperature of its own, each zone has one.
+        if self._device_type is DeviceType.ZONE_CONTROLLER:
+            for prop in (
+                GreeProp.TARGET_TEMPERATURE_2,
+                GreeProp.TARGET_TEMPERATURE_BIT_2,
+            ):
+                if prop in self._state.polled_properties:
+                    self._state.remove(prop)
+
+        # 0 is a valid value in these groups: StTem 0 is 16 degrees Celsius,
+        # the bits are 0 or 1, and unit 0 is Celsius. So only a column that
+        # the device does not answer is missing.
+        self._target_temp_prop = self._state.invalidate_missing_property_group(
+            [GreeProp.TARGET_TEMPERATURE_1, GreeProp.TARGET_TEMPERATURE_2],
+            missing_value=-1,
+        )
+
+        self._target_temp_bit_prop = self._state.invalidate_missing_property_group(
+            [GreeProp.TARGET_TEMPERATURE_BIT_1, GreeProp.TARGET_TEMPERATURE_BIT_2],
+            missing_value=-1,
+        )
+
+        self._temp_unit_prop = self._state.invalidate_missing_property_group(
+            [GreeProp.TARGET_TEMPERATURE_UNIT_1, GreeProp.TARGET_TEMPERATURE_UNIT_2],
+            missing_value=-1,
         )
 
         # As far as it is known, both values at 0 is not a valid combination.
@@ -826,73 +858,60 @@ class GreeDevice:
     @property
     def target_temperature_unit(self) -> TemperatureUnits:
         """Return the units of the target temperature."""
+        if self._temp_unit_prop is None:
+            return TemperatureUnits.C
         return TemperatureUnits(
-            self._state.get(self._temperature_unit_prop) or TemperatureUnits.C.value
+            self._state.get(self._temp_unit_prop) or TemperatureUnits.C.value
         )
 
     def set_target_temperature_unit(self, units: TemperatureUnits) -> None:
         """Set the units of the target temperature."""
-        self._state.set(self._temperature_unit_prop, units)
+        if self._temp_unit_prop is None:
+            _LOGGER.warning("[%s] The device has no temperature unit", self.unique_id)
+            return
+        self._state.set(self._temp_unit_prop, units)
 
     @property
-    def _temperature_unit_prop(self) -> GreeProp:
-        """Return the column with the unit: TemUn, or TemUnit when only that one is answered.
+    def has_target_temperature_bit(self) -> bool:
+        """Return True if the device answers a bit for the target temperature.
 
-        The sub-units of a zone controller answer TemUnit and not TemUn.
+        Only then can it hold half degrees in Celsius.
         """
-        if not self._state.supports(
-            GreeProp.TARGET_TEMPERATURE_UNIT
-        ) and self._state.supports(GreeProp.ZONE_TEMPERATURE_UNIT):
-            return GreeProp.ZONE_TEMPERATURE_UNIT
-        return GreeProp.TARGET_TEMPERATURE_UNIT
+        return self._target_temp_bit_prop is not None
 
     @property
     def target_temperature(self) -> float | None:
         """Return the target temperature in target_temperature_unit.
 
-        A zone has its own columns, see GreeProp.ZONE_TARGET_TEMPERATURE. They
-        work like SetTem and TemRec, with the bit as the half degree in Celsius
-        and the same table in Fahrenheit. It is None until the zone is read.
+        The bit is the half degree in Celsius, and picks the value from the
+        table in Fahrenheit. Without a bit column it is 0. None until the
+        device is read, or when it has no target temperature.
         """
+        if self._target_temp_prop is None:
+            return None
 
-        if self._device_type is DeviceType.ZONE:
-            raw = self._state.get(GreeProp.ZONE_TARGET_TEMPERATURE)
-            if raw is None:
-                return None
-            zone_c = raw + ZONE_TEMPERATURE_OFFSET
-            bit = self._state.get(GreeProp.ZONE_TARGET_TEMPERATURE_BIT) or 0
-            if self.target_temperature_unit == TemperatureUnits.F:
-                return gree_get_target_temperature_f(zone_c, bit)
-            return gree_get_target_temperature_c(zone_c, bit)
+        raw = self._state.get(self._target_temp_prop)
+        if raw is None:
+            return None
 
-        raw_c = self._state.get(GreeProp.TARGET_TEMPERATURE, 0)
-        tem_rec = self._state.get(GreeProp.TARGET_TEMPERATURE_BIT, 0)
+        raw_c = raw + TARGET_TEMPERATURE_OFFSETS.get(self._target_temp_prop, 0)
+        bit = 0
+        if self._target_temp_bit_prop is not None:
+            bit = self._state.get(self._target_temp_bit_prop) or 0
 
-        if raw_c is not None and tem_rec is not None:
-            if self.target_temperature_unit == TemperatureUnits.F:
-                return gree_get_target_temperature_f(raw_c, tem_rec)
-            if self.target_temperature_unit == TemperatureUnits.C:
-                return gree_get_target_temperature_c(raw_c, tem_rec)
-        return 0.0
+        if self.target_temperature_unit == TemperatureUnits.F:
+            return gree_get_target_temperature_f(raw_c, bit)
+        return gree_get_target_temperature_c(raw_c, bit)
 
     def set_target_temperature(self, value: float) -> None:
         """Set the target temperature in target_temperature_unit.
 
         Celsius goes to the nearest half degree, Fahrenheit to whole degrees.
-        A zone uses its own columns the same way. When the zone has the bit,
-        it is always sent along, because the controller keeps the old one when
-        only StTem is sent.
+        The bit is sent along when the device answers it. A zone needs that,
+        because it keeps the old bit when only StTem is sent.
         """
-
-        if self._device_type is DeviceType.ZONE:
-            if self.target_temperature_unit == TemperatureUnits.F:
-                raw_c, bit = gree_get_target_temp_props_from_f(round(value))
-            else:
-                raw_c, bit = gree_get_target_temp_props_from_c(value)
-            props = {GreeProp.ZONE_TARGET_TEMPERATURE: raw_c - ZONE_TEMPERATURE_OFFSET}
-            if self._state.supports(GreeProp.ZONE_TARGET_TEMPERATURE_BIT):
-                props[GreeProp.ZONE_TARGET_TEMPERATURE_BIT] = bit
-            self._state.update(props)
+        if self._target_temp_prop is None:
+            _LOGGER.warning("[%s] The device has no target temperature", self.unique_id)
             return
 
         if self.target_temperature_unit == TemperatureUnits.F:
@@ -902,16 +921,15 @@ class GreeDevice:
                     value,
                     round(value),
                 )
-            raw_c, tem_rec = gree_get_target_temp_props_from_f(round(value))
+            raw_c, bit = gree_get_target_temp_props_from_f(round(value))
         else:
-            raw_c, tem_rec = gree_get_target_temp_props_from_c(value)
+            raw_c, bit = gree_get_target_temp_props_from_c(value)
 
-        self._state.update(
-            {
-                GreeProp.TARGET_TEMPERATURE: raw_c,
-                GreeProp.TARGET_TEMPERATURE_BIT: tem_rec,
-            }
-        )
+        offset = TARGET_TEMPERATURE_OFFSETS.get(self._target_temp_prop, 0)
+        props = {self._target_temp_prop: raw_c - offset}
+        if self._target_temp_bit_prop is not None:
+            props[self._target_temp_bit_prop] = bit
+        self._state.update(props)
 
         if self.feature_smart_heat or self.feature_energy_saving:
             _LOGGER.info(

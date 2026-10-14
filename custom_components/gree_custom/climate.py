@@ -210,7 +210,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         # Only offer a target temperature when the unit has one.
         if any(
             mode in hvac_modes for mode in (HVACMode.HEAT, HVACMode.COOL, HVACMode.AUTO)
-        ) and self.device.supports_property(GreeProp.TARGET_TEMPERATURE):
+        ) and self.device.supports_property(GreeProp.TARGET_TEMPERATURE_1):
             self._attr_supported_features |= ClimateEntityFeature.TARGET_TEMPERATURE
 
         if fan_modes:

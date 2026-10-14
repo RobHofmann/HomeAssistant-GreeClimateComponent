@@ -243,28 +243,28 @@ def test_the_views_are_read_only(state: DeviceState) -> None:
 
 def test_a_stale_report_does_not_undo_a_sent_value(timed_state: DeviceState) -> None:
     """The gateway still reports the old value, but the read shows the sent one."""
-    seed(timed_state, {GreeProp.TARGET_TEMPERATURE: 21})
-    timed_state.hold({GreeProp.TARGET_TEMPERATURE: 24})
+    seed(timed_state, {GreeProp.TARGET_TEMPERATURE_1: 21})
+    timed_state.hold({GreeProp.TARGET_TEMPERATURE_1: 24})
 
-    seed(timed_state, {GreeProp.TARGET_TEMPERATURE: 21})
+    seed(timed_state, {GreeProp.TARGET_TEMPERATURE_1: 21})
 
-    assert timed_state.get(GreeProp.TARGET_TEMPERATURE) == 24
-    assert timed_state.raw[GreeProp.TARGET_TEMPERATURE] == 21
-    assert timed_state.held == {GreeProp.TARGET_TEMPERATURE: 24}
+    assert timed_state.get(GreeProp.TARGET_TEMPERATURE_1) == 24
+    assert timed_state.raw[GreeProp.TARGET_TEMPERATURE_1] == 21
+    assert timed_state.held == {GreeProp.TARGET_TEMPERATURE_1: 24}
 
 
 def test_a_report_of_the_sent_value_ends_the_hold(timed_state: DeviceState) -> None:
     """Once confirmed, later reports count again, for example from a remote."""
-    seed(timed_state, {GreeProp.TARGET_TEMPERATURE: 21})
-    timed_state.hold({GreeProp.TARGET_TEMPERATURE: 24})
+    seed(timed_state, {GreeProp.TARGET_TEMPERATURE_1: 21})
+    timed_state.hold({GreeProp.TARGET_TEMPERATURE_1: 24})
 
-    seed(timed_state, {GreeProp.TARGET_TEMPERATURE: 24})
+    seed(timed_state, {GreeProp.TARGET_TEMPERATURE_1: 24})
 
     assert timed_state.held == {}
 
-    seed(timed_state, {GreeProp.TARGET_TEMPERATURE: 19})
+    seed(timed_state, {GreeProp.TARGET_TEMPERATURE_1: 19})
 
-    assert timed_state.get(GreeProp.TARGET_TEMPERATURE) == 19
+    assert timed_state.get(GreeProp.TARGET_TEMPERATURE_1) == 19
 
 
 def test_a_hold_ends_when_its_time_is_up(
@@ -317,30 +317,30 @@ def test_a_new_command_starts_a_new_hold(
 
 def test_a_pending_value_wins_over_a_held_one(timed_state: DeviceState) -> None:
     """A change that is not sent yet is newer than the one that was sent."""
-    seed(timed_state, {GreeProp.TARGET_TEMPERATURE: 21})
-    timed_state.hold({GreeProp.TARGET_TEMPERATURE: 24})
-    timed_state.set(GreeProp.TARGET_TEMPERATURE, 25)
+    seed(timed_state, {GreeProp.TARGET_TEMPERATURE_1: 21})
+    timed_state.hold({GreeProp.TARGET_TEMPERATURE_1: 24})
+    timed_state.set(GreeProp.TARGET_TEMPERATURE_1, 25)
 
-    assert timed_state.get(GreeProp.TARGET_TEMPERATURE) == 25
-    assert timed_state.pending == {GreeProp.TARGET_TEMPERATURE: 25}
-    assert timed_state.held == {GreeProp.TARGET_TEMPERATURE: 24}
+    assert timed_state.get(GreeProp.TARGET_TEMPERATURE_1) == 25
+    assert timed_state.pending == {GreeProp.TARGET_TEMPERATURE_1: 25}
+    assert timed_state.held == {GreeProp.TARGET_TEMPERATURE_1: 24}
 
     timed_state.clear_pending()
 
-    assert timed_state.get(GreeProp.TARGET_TEMPERATURE) == 24
+    assert timed_state.get(GreeProp.TARGET_TEMPERATURE_1) == 24
 
 
 def test_a_change_back_to_the_stale_value_is_still_sent(
     timed_state: DeviceState,
 ) -> None:
     """The device was told 24, so going back to 21 is a real change."""
-    seed(timed_state, {GreeProp.TARGET_TEMPERATURE: 21})
-    timed_state.hold({GreeProp.TARGET_TEMPERATURE: 24})
+    seed(timed_state, {GreeProp.TARGET_TEMPERATURE_1: 21})
+    timed_state.hold({GreeProp.TARGET_TEMPERATURE_1: 24})
 
-    timed_state.set(GreeProp.TARGET_TEMPERATURE, 21)
+    timed_state.set(GreeProp.TARGET_TEMPERATURE_1, 21)
     assert timed_state.has_pending_updates
 
-    timed_state.set(GreeProp.TARGET_TEMPERATURE, 24)
+    timed_state.set(GreeProp.TARGET_TEMPERATURE_1, 24)
     assert not timed_state.has_pending_updates
 
 

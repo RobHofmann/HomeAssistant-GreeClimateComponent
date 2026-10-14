@@ -134,13 +134,24 @@ async def test_discovery_names_come_from_the_controller_name_and_the_suffix(
 
 
 async def test_the_ducted_unit_is_recognised(ac_unit: GreeDevice) -> None:
-    """The name in the info columns and the 00 suffix make it the ducted unit.
-
-    It answers StTem too, always with 0, so the columns alone cannot tell it
-    from a zone.
-    """
+    """The name in the info columns and the 00 suffix make it the ducted unit."""
     assert ac_unit.device_type is DeviceType.ZONE_CONTROLLER
-    assert ac_unit.supports_property(GreeProp.ZONE_TARGET_TEMPERATURE)
+
+
+async def test_the_ducted_unit_has_no_target_temperature(
+    controller: FakeZoneController, ac_unit: GreeDevice
+) -> None:
+    """It answers StTem and StFahFlg, always with 0, the same as a zone at 16 degrees.
+
+    Only the type tells them apart, so the ducted unit stops asking for both.
+    """
+    controller.reset_record()
+    await ac_unit.fetch_device_status()
+
+    asked = {col for pack in controller.packs for col in pack.get("cols", [])}
+    assert not asked & {"StTem", "StFahFlg"}
+    assert "TemUnit" in asked
+    assert ac_unit.target_temperature is None
 
 
 async def test_the_device_type_is_in_the_diagnostics(
@@ -239,13 +250,27 @@ async def test_a_zone_is_recognised_and_polls_its_target_temperature(
 ) -> None:
     """A zone asks for StTem and reads it as degrees Celsius minus 16."""
     assert zone.device_type is DeviceType.ZONE
-    assert zone.supports_property(GreeProp.ZONE_TARGET_TEMPERATURE)
+    assert zone.supports_property(GreeProp.TARGET_TEMPERATURE_2)
     assert zone.target_temperature == 18
 
     controller.units[controller.zone_macs[0]]["StTem"] = 5
     await zone.fetch_device_status()
 
     assert zone.target_temperature == 21
+
+
+async def test_a_zone_at_16_degrees_keeps_its_target_temperature(
+    controller: FakeZoneController,
+) -> None:
+    """StTem 0 is 16 degrees, a valid value. Only a column the zone does not answer is dropped."""
+    controller.units[controller.zone_macs[0]]["StTem"] = 0
+    zone, transport = await bind_unit(controller, "01")
+    try:
+        assert zone.supports_property(GreeProp.TARGET_TEMPERATURE_2)
+        assert zone.supports_property(GreeProp.TARGET_TEMPERATURE_BIT_2)
+        assert zone.target_temperature == 16
+    finally:
+        await transport.disconnect()
 
 
 async def test_a_zone_target_temperature_is_sent_minus_16(
@@ -356,8 +381,8 @@ async def test_the_unit_is_set_on_the_ducted_unit_and_the_zones_follow(
     controller: FakeZoneController, ac_unit: GreeDevice, zone: GreeDevice
 ) -> None:
     """TemUnit, not TemUn, written to the ducted unit. The zones read it at the next poll."""
-    assert ac_unit.supports_property(GreeProp.ZONE_TEMPERATURE_UNIT)
-    assert not ac_unit.supports_property(GreeProp.TARGET_TEMPERATURE_UNIT)
+    assert ac_unit.supports_property(GreeProp.TARGET_TEMPERATURE_UNIT_2)
+    assert not ac_unit.supports_property(GreeProp.TARGET_TEMPERATURE_UNIT_1)
 
     ac_unit.set_target_temperature_unit(TemperatureUnits.F)
     await ac_unit.push_device_status()
@@ -410,17 +435,40 @@ async def test_a_normal_unit_asks_for_the_zone_columns_only_once() -> None:
     assert device.device_type is DeviceType.AC_UNIT
 
 
+OLD_COLUMNS = [
+    GreeProp.TARGET_TEMPERATURE_1,
+    GreeProp.TARGET_TEMPERATURE_BIT_1,
+    GreeProp.TARGET_TEMPERATURE_UNIT_1,
+]
+NEW_COLUMNS = [
+    GreeProp.TARGET_TEMPERATURE_2,
+    GreeProp.TARGET_TEMPERATURE_BIT_2,
+    GreeProp.TARGET_TEMPERATURE_UNIT_2,
+]
+
+
 @pytest.mark.parametrize(
-    ("unsupported", "unit"),
-    [(set(), TemperatureUnits.C), ({"TemUn"}, TemperatureUnits.F)],
-    ids=["TemUn wins", "only TemUnit"],
+    ("unsupported", "kept", "dropped", "target"),
+    [
+        (set(), OLD_COLUMNS, NEW_COLUMNS, 21),
+        ({"SetTem", "TemRec", "TemUn"}, NEW_COLUMNS, OLD_COLUMNS, 67),
+    ],
+    ids=["the old columns win", "only the new columns"],
 )
-async def test_the_unit_column_is_the_one_the_device_answers(
-    unsupported: set[str], unit: TemperatureUnits
+async def test_each_temperature_group_keeps_the_column_the_device_answers(
+    unsupported: set[str],
+    kept: list[GreeProp],
+    dropped: list[GreeProp],
+    target: float,
 ) -> None:
-    """TemUn when the device answers it, as every unit did before. TemUnit only without it."""
+    """SetTem, TemRec and TemUn when the device answers them, as every unit did before.
+
+    The new columns only without them: StTem 3 with bit 1 in Fahrenheit is 67.
+    """
     fake = FakeGreeDevice(unsupported_props=unsupported)
-    fake.values.update({"TemUn": 0, "TemUnit": 1})
+    fake.values.update(
+        {"SetTem": 21, "TemRec": 0, "TemUn": 0, "StTem": 3, "StFahFlg": 1, "TemUnit": 1}
+    )
     await fake.start()
     transport = GreeUdpTransport(fake.host, fake.port, max_retries=1, timeout=0.3)
     try:
@@ -432,7 +480,37 @@ async def test_the_unit_column_is_the_one_the_device_answers(
         await transport.disconnect()
         fake.close()
 
-    assert device.target_temperature_unit is unit
+    assert all(device.supports_property(prop) for prop in kept)
+    assert not any(device.supports_property(prop) for prop in dropped)
+    assert device.target_temperature == target
+
+
+async def test_a_unit_without_the_bit_gets_the_target_alone() -> None:
+    """The bit only goes out to a unit that answers it."""
+    fake = FakeGreeDevice(unsupported_props={"TemRec", "StFahFlg"})
+    await fake.start()
+    transport = GreeUdpTransport(fake.host, fake.port, max_retries=1, timeout=0.3)
+    try:
+        device = GreeDevice(name="Zolderkamer", mac_addr=fake.mac)
+        await device.bind_with_transport(
+            local_controller_mac=fake.mac, local_transport=transport
+        )
+        fake.reset_record()
+        device.set_target_temperature(22)
+        await device.push_device_status()
+    finally:
+        await transport.disconnect()
+        fake.close()
+
+    sent = {
+        column
+        for pack in fake.packs
+        if pack.get("t") == "cmd"
+        for column in pack["opt"]
+    }
+    assert "SetTem" in sent
+    assert not sent & {"TemRec", "StFahFlg"}
+    assert not device.has_target_temperature_bit
 
 
 async def test_a_vrf_indoor_unit_keeps_the_normal_mode_numbers() -> None:

@@ -69,7 +69,7 @@ reference counting rather than on the code saying what it means.
 1. Bind. Try the local transport first, then MQTT. Binding is the key exchange, see [protocol.md](protocol.md#encryption). Right after the key exchange, `probe_device_limits()` measures how many columns one status request may carry on this firmware, see [protocol.md](protocol.md#requests-and-batching).
 2. `fetch_device_info()`. Asks for the `InfoProp` columns (MAC, name, model, firmware).
 3. `fetch_device_status()`. Asks for all polled `GreeProp` columns. The request is split into batches, see [protocol.md](protocol.md#requests-and-batching).
-4. `_remove_unsupported_props()`. Any prop the device did not return is removed from polling for the life of the object. If the device returned nothing at all, this raises `GreeProtocolError` instead, so setup fails and Home Assistant retries later.
+4. `_remove_unsupported_props()`. Any prop the device did not return is removed from polling for the life of the object. If the device returned nothing at all, this raises `GreeProtocolError` instead, so setup fails and Home Assistant retries later. Where one value has several columns (the sensors, and the target temperature, its bit and the unit), it keeps one column per group and saves it on the device, which then reads and writes only that column. See [protocol.md](protocol.md#temperature).
 
 After that the coordinator calls `fetch_device_status()` every `scan_interval` seconds (default 60).
 

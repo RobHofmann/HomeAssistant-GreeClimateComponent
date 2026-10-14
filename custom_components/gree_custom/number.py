@@ -17,7 +17,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .aiogree.api import (
     DeviceType,
-    GreeProp,
     HumidityControlMode,
     OperationMode,
     TemperatureUnits,
@@ -112,7 +111,7 @@ NUMBER_TYPES: list[GreeNumberDescription] = [
         step_func=lambda device: (
             0.5
             if device.target_temperature_unit is TemperatureUnits.C
-            and device.supports_property(GreeProp.ZONE_TARGET_TEMPERATURE_BIT)
+            and device.has_target_temperature_bit
             else 1
         ),
         value_func=lambda device: device.target_temperature,

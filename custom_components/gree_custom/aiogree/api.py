@@ -38,12 +38,15 @@ class GreeProp(StrEnum):
     # the swing mode of the vertical air blades
     SWING_VERTICAL = "SwUpDn"
 
-    # target temperature
-    TARGET_TEMPERATURE = "SetTem"
-    # used to distinguish between Fahrenheit values
-    TARGET_TEMPERATURE_BIT = "TemRec"
+    # target temperature, ordered by preference
+    TARGET_TEMPERATURE_1 = "SetTem"
+    TARGET_TEMPERATURE_2 = "StTem"  # zone of a zone controller, Celsius minus 16
+    # used to distinguish between Fahrenheit values, and the half degree in Celsius
+    TARGET_TEMPERATURE_BIT_1 = "TemRec"
+    TARGET_TEMPERATURE_BIT_2 = "StFahFlg"
     # defines the unit of temperature for the target temperature
-    TARGET_TEMPERATURE_UNIT = "TemUn"
+    TARGET_TEMPERATURE_UNIT_1 = "TemUn"
+    TARGET_TEMPERATURE_UNIT_2 = "TemUnit"  # zone controller and all its sub-units
 
     # Quiet mode which slows down the fan to its most quiet speed. Not available in Dry and Fan mode.
     FEAT_QUIET_MODE = "Quiet"
@@ -93,14 +96,6 @@ class GreeProp(StrEnum):
     BEEPER = "Buzzer_ON_OFF"
     # If set to 1 the unit will beep on every command (available on newer firmwares)
     BEEPER_NEW = "BuzzerCtrl"
-
-    # ZONE CONTROLLER
-    # target temperature of one zone, in whole degrees Celsius minus 16
-    ZONE_TARGET_TEMPERATURE = "StTem"
-    # used to distinguish between Fahrenheit values of a zone, like TemRec
-    ZONE_TARGET_TEMPERATURE_BIT = "StFahFlg"
-    # the unit of temperature of a zone controller and all its sub-units
-    ZONE_TEMPERATURE_UNIT = "TemUnit"
 
 
 PROP_KEY_TO_ENUM = {prop.value: prop for prop in GreeProp}
@@ -526,8 +521,9 @@ ZONE_CONTROLLER_MODES_TO_RAW: dict[OperationMode, int] = {
 }
 # It has no turbo column. Turbo is one more fan speed.
 ZONE_CONTROLLER_FAN_TURBO = 6
-# A zone stores its target temperature as degrees Celsius minus this.
-ZONE_TEMPERATURE_OFFSET = 16
+# Added to the raw value of a target temperature column to get degrees
+# Celsius. StTem, the target temperature of a zone, is degrees Celsius minus 16.
+TARGET_TEMPERATURE_OFFSETS: dict[GreeProp, int] = {GreeProp.TARGET_TEMPERATURE_2: 16}
 
 
 class GreeCommand(StrEnum):
@@ -840,9 +836,12 @@ def _order_set_props(props: dict[str, int]) -> dict[str, int]:
 
     # Temperature-related properties
     for prop in (
-        GreeProp.TARGET_TEMPERATURE_UNIT.value,
-        GreeProp.TARGET_TEMPERATURE_BIT.value,
-        GreeProp.TARGET_TEMPERATURE.value,
+        GreeProp.TARGET_TEMPERATURE_UNIT_1.value,
+        GreeProp.TARGET_TEMPERATURE_UNIT_2.value,
+        GreeProp.TARGET_TEMPERATURE_BIT_1.value,
+        GreeProp.TARGET_TEMPERATURE_BIT_2.value,
+        GreeProp.TARGET_TEMPERATURE_1.value,
+        GreeProp.TARGET_TEMPERATURE_2.value,
     ):
         if prop in remaining:
             ordered[prop] = remaining.pop(prop)

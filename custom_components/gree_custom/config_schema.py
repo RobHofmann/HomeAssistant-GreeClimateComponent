@@ -719,7 +719,7 @@ def setup_device_options_schema(  # noqa: C901
             }
         )
 
-    if device.supports_property(GreeProp.TARGET_TEMPERATURE):
+    if device.supports_property(GreeProp.TARGET_TEMPERATURE_1):
         schema.update(
             {
                 probatio.Required(

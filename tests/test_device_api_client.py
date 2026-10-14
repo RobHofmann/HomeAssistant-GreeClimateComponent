@@ -246,7 +246,7 @@ async def test_a_query_raises_when_the_device_goes_quiet(
         device.reset_record()
 
         with pytest.raises(GreeConnectionError):
-            await client.query_props([GreeProp.TARGET_TEMPERATURE.value])
+            await client.query_props([GreeProp.TARGET_TEMPERATURE_1.value])
     finally:
         await transport.disconnect()
 
@@ -272,7 +272,7 @@ async def test_a_sweep_goes_on_when_the_device_answers_the_canary(
 
         result = await client.query_props(
             [
-                GreeProp.TARGET_TEMPERATURE.value,
+                GreeProp.TARGET_TEMPERATURE_1.value,
                 "ElcDatDte",
                 "ElcDatHor",
                 GreeProp.OP_MODE.value,
@@ -285,7 +285,7 @@ async def test_a_sweep_goes_on_when_the_device_answers_the_canary(
         await transport.disconnect()
 
     assert result.prop_values == {
-        GreeProp.TARGET_TEMPERATURE.value: "21",
+        GreeProp.TARGET_TEMPERATURE_1.value: "21",
         GreeProp.OP_MODE.value: "1",
     }
     assert sorted(result.missing_props) == ["ElcDatDte", "ElcDatHor"]
