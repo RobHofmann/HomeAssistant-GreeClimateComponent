@@ -104,6 +104,15 @@ A zone controller (seen: LE60-13/GH with a ME31-00/C13 WiFi module, firmware `36
 - The full list of columns is a table in the WiFi module firmware. There is no column for the room temperature of a zone, in any released firmware, so it cannot be shown.
 - The status column limit measured by `probe_device_limits()` is 29. Requests far above the limit (about 40 columns and more) made the module reboot.
 
+### Target temperatures per mode
+
+The wall panel remembers the target temperature of every zone per mode. When the mode is changed on the panel, it sets them again. A `Mod` change over WiFi does not: the zones keep the values of the old mode. `SetpointMemory` in `aiogree/setpoint_memory.py` keeps the same memory:
+
+- It learns from every poll of a zone. A zone reports its mode and its target temperature in one reply, so the two belong together. A value is stored when the zone reported the same mode on its poll before, so a poll in the middle of a mode change on the panel is not stored under the wrong mode.
+- Before the climate entity of the ducted unit changes the mode, `snapshot()` reads the zones again and stores them under the old mode. After the change, `recall()` sends the stored values of the new mode. A mode with no stored values changes nothing.
+- It stores the raw columns that hold the target temperature, as `GreeDevice.target_temperature_props` gives them, keyed by device MAC and mode: `{"<zone mac>": {"heat": {"StTem": 3, "StFahFlg": 0}}}`. Raw columns need no unit conversion. The bit is stored too, so a half degree or a °F value comes back exactly. Every device with a target temperature gives them, in the columns it uses, so the format also fits the `SetTem` and `TemRec` of a normal unit. Only zones are remembered today.
+- `__init__.py` keeps the memory in a `Store` per config entry (`gree_custom.<entry_id>.setpoints`).
+
 ## MAC addresses
 
 MACs are written in lower case with no separators. Talking to a device needs two MACs: the device MAC (the unit to control) and the controller MAC (the unit that manages it).

@@ -2,6 +2,7 @@
 
 # Standard library imports
 from collections.abc import Mapping
+from functools import partial
 import json
 import logging
 from typing import Any
@@ -24,11 +25,14 @@ from homeassistant.exceptions import (
     HomeAssistantError,
 )
 from homeassistant.helpers import device_registry as dr, issue_registry as ir
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import ConfigType
 
+from .aiogree.api import DeviceType
 from .aiogree.cipher import EncryptionVersion
 from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeConnectionError
+from .aiogree.setpoint_memory import SetpointMemory, SetpointMemoryData
 from .aiogree.transport_mqtt import GreeMqttTransport
 from .aiogree.transport_udp import GreeUdpTransport
 from .config_schema import CONFIG_SCHEMA as CONFIG_SCHEMA
@@ -84,6 +88,8 @@ from .services import async_setup_services
 
 ISSUE_DEVICE_CONNECTION_FAILED = "device_connection_failed"
 ISSUE_YAML_IMPORT_FAILED = "yaml_import_failed"
+SETPOINT_MEMORY_STORAGE_VERSION = 1
+SETPOINT_MEMORY_SAVE_DELAY = 10
 PLATFORMS = [
     Platform.BINARY_SENSOR,
     Platform.CLIMATE,
@@ -292,6 +298,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
     entry.runtime_data = {}
     entry.runtime_data = coordinators
 
+    await _async_setup_setpoint_memory(hass, entry, coordinators)
+
     # Move the 4.x registry rows before the entities are created
     moved = await async_migrate_legacy_registry(hass, entry)
 
@@ -332,6 +340,49 @@ async def _async_refresh_entry_token(
         entry, data={**entry.data, CONF_CLOUD: new_cloud_conf}
     )
     return new_cloud_conf
+
+
+async def _async_setup_setpoint_memory(
+    hass: HomeAssistant,
+    entry: GreeConfigEntry,
+    coordinators: dict[str, GreeCoordinator],
+) -> None:
+    """Give the ducted unit of each zone controller the memory of its zones.
+
+    The memory keeps the target temperature of every zone per mode, so a mode
+    change from Home Assistant sets them as the wall panel does. It learns from
+    every poll of a zone. See aiogree/setpoint_memory.py.
+    """
+    zones = [
+        c for c in coordinators.values() if c.device.device_type is DeviceType.ZONE
+    ]
+    if not zones:
+        return
+
+    store: Store[SetpointMemoryData] = Store(
+        hass, SETPOINT_MEMORY_STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}.setpoints"
+    )
+    memory = SetpointMemory(
+        await store.async_load(),
+        on_change=lambda: store.async_delay_save(
+            lambda: memory.data, SETPOINT_MEMORY_SAVE_DELAY
+        ),
+    )
+
+    for zone in zones:
+        entry.async_on_unload(
+            zone.async_add_listener(partial(memory.learn, zone.device))
+        )
+
+    for coordinator in coordinators.values():
+        if coordinator.device.device_type is DeviceType.ZONE_CONTROLLER:
+            coordinator.setpoint_memory = memory
+            coordinator.zone_coordinators = [
+                zone
+                for zone in zones
+                if zone.device.mac_address_controller
+                == coordinator.device.mac_address_controller
+            ]
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool:

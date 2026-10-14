@@ -680,6 +680,34 @@ class GreeDevice:
         return self._device_type
 
     @property
+    def target_temperature_props(self) -> dict[GreeProp, int] | None:
+        """Return the raw columns that hold the target temperature, to remember it.
+
+        Used by `SetpointMemory`. Raw columns need no unit conversion. They
+        are the column the device uses, see _remove_unsupported_props. None
+        means there is nothing to remember.
+        """
+        if self._target_temp_prop is None:
+            return None
+        raw = self._state.get(self._target_temp_prop)
+        if raw is None:
+            return None
+        props = {self._target_temp_prop: raw}
+        # With the bit, when the device has one: the half degree in Celsius,
+        # the table in Fahrenheit. A zone keeps an old bit when only StTem is
+        # sent, see set_target_temperature.
+        if self._target_temp_bit_prop is not None:
+            props[self._target_temp_bit_prop] = (
+                self._state.get(self._target_temp_bit_prop) or 0
+            )
+        return props
+
+    def set_target_temperature_props(self, props: Mapping[GreeProp, int]) -> None:
+        """Set the raw columns that hold the target temperature, as remembered."""
+        for prop, value in props.items():
+            self._state.set(prop, value)
+
+    @property
     def has_held_values(self) -> bool:
         """Return True if sent values still wait for the device to confirm them."""
         return bool(self._state.held)

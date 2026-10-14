@@ -13,6 +13,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .aiogree.api import OperationMode
 from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeBindingError, GreeConnectionError
+from .aiogree.setpoint_memory import SetpointMemory
 from .const import DOMAIN
 from .helpers import try_find_new_ip
 
@@ -60,6 +61,10 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         self._feature_auto_light: bool = False
         self._unsub_follow_up_refresh: CALLBACK_TYPE | None = None
         self._is_shut_down: bool = False
+        # Set on the ducted unit of a zone controller: the memory of the zone
+        # target temperatures per mode, and the zones of the same controller.
+        self.setpoint_memory: SetpointMemory | None = None
+        self.zone_coordinators: list[GreeCoordinator] = []
 
     async def _setup(self) -> None:
         """Bind to the device before the first coordinator refresh.

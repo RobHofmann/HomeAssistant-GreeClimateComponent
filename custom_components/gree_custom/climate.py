@@ -658,7 +658,20 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                 # This will be called in the turn on
                 # await self._device.update_device_status()
             else:
-                self.device.set_operation_mode(HVAC_MODES_HA_TO_GREE[hvac_mode])
+                new_mode = HVAC_MODES_HA_TO_GREE[hvac_mode]
+                old_mode = self.device.operation_mode
+                # A zone controller keeps the zone target temperatures of the old
+                # mode on a change over WiFi. Do what its wall panel does.
+                memory = (
+                    self.coordinator.setpoint_memory
+                    if new_mode is not old_mode
+                    else None
+                )
+                zones = [z.device for z in self.coordinator.zone_coordinators]
+                if memory is not None:
+                    await memory.snapshot(zones, old_mode)
+
+                self.device.set_operation_mode(new_mode)
 
                 # The Auto X-FAN enables that feature if the device is set to a hvac mode that supports X-FAN
                 if self.coordinator.feature_auto_xfan:
@@ -670,6 +683,13 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
                 # This will be called in the turn on:
                 # await self._device.update_device_status()
+
+                if memory is not None:
+                    changed = await memory.recall(zones, new_mode)
+                    for zone in self.coordinator.zone_coordinators:
+                        if zone.device in changed:
+                            zone.async_update_listeners()
+                            await zone.async_request_refresh()
 
             # notify coordinator listeners of state change so that dependent entities are updated immediately
             self.coordinator.async_update_listeners()
