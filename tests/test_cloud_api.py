@@ -22,7 +22,13 @@ from aiogree.errors import GreeCloudError, GreeCloudLoginError
 import pytest
 
 from .conftest import RecordingHandler
-from .fakes.cloud import TOKEN, USER_ID, FakeGreeCloud, cloud_device
+from .fakes.cloud import (
+    TOKEN,
+    USER_ID,
+    FakeGreeCloud,
+    cloud_device,
+    zone_controller_cloud_devices,
+)
 
 REGION = GreeRegion.EU
 GATEWAY_MAC = "9424b8fd5ba3"
@@ -245,6 +251,26 @@ async def test_a_duplicate_device_keeps_the_one_that_answers(
     devices = await client.get_all_devices()
 
     assert [device.mac for device in devices] == [SUB_MAC]
+
+
+async def test_a_zone_controller_keeps_its_sub_units(
+    cloud_factory: CloudFactory,
+) -> None:
+    """The gateway is listed next to its AC unit and zones, all with one key.
+
+    The gateway does not answer, its sub-units do, so only the gateway goes.
+    """
+    _, client = await cloud_factory(  # type: ignore[misc]
+        homes=[{"id": 1, "name": "Thuis"}],
+        devices_per_home={1: zone_controller_cloud_devices(GATEWAY_MAC, DEVICE_KEY)},
+    )
+    await client.login()
+
+    devices = await client.get_all_devices()
+
+    assert [device.mac for device in devices] == [
+        f"{GATEWAY_MAC}{suffix}" for suffix in ("00", "02", "03", "04", "01")
+    ]
 
 
 async def test_two_devices_with_different_keys_are_both_kept(

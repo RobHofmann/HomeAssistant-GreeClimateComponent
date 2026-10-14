@@ -510,9 +510,15 @@ class GreeCloudApi:
     ) -> list[CloudDeviceInfoResponse]:
         """Filter out duplicate devices with same key.
 
-        When devices share the same encryption key but have different MACs
-        (one normal, one ending with '00'), keep only the one with '00'.
-        The device without '00' suffix doesn't respond to commands.
+        A gateway can be listed next to its sub-units, which have the MAC of
+        the gateway as pmac. The gateway is left out and every sub-unit is
+        kept. Seen on a zone controller: the gateway, the AC unit (MAC ending
+        in 00) and the zones (01 to 08), all with one key.
+
+        Of the other devices, when devices share the same encryption key but
+        have different MACs (one normal, one ending with '00'), keep only the
+        one with '00'. The device without '00' suffix doesn't respond to
+        commands.
 
         Args:
             devices: List of devices to filter
@@ -521,9 +527,33 @@ class GreeCloudApi:
             Filtered list without duplicates
 
         """
+        # A device can have its own MAC as pmac, which does not make it a
+        # gateway. Only a listed device that another device points to is one.
+        listed = {device.mac for device in devices}
+        gateways = {
+            device.pmac
+            for device in devices
+            if device.pmac and device.pmac != device.mac and device.pmac in listed
+        }
+        if gateways:
+            _LOGGER.debug(
+                "Filtering out gateway(s) listed with their sub-units: %s",
+                sorted(gateways),
+            )
+        sub_units = [
+            device
+            for device in devices
+            if device.pmac in gateways and device.mac not in gateways
+        ]
+        others = [
+            device
+            for device in devices
+            if device.mac not in gateways and device.pmac not in gateways
+        ]
+
         # Group devices by encryption key
         key_groups: dict[str, list[CloudDeviceInfoResponse]] = {}
-        for device in devices:
+        for device in others:
             if device.key not in key_groups:
                 key_groups[device.key] = []
             key_groups[device.key].append(device)
@@ -555,7 +585,8 @@ class GreeCloudApi:
                     # No device with '00' found, keep all (shouldn't happen but be safe)
                     filtered.extend(group)
 
-        return filtered
+        kept = {id(device) for device in [*sub_units, *filtered]}
+        return [device for device in devices if id(device) in kept]
 
 
 async def gree_get_latest_firmware_info(

@@ -22,8 +22,9 @@ from aiogree.cloud_api import CLOUD_SERVERS, GreeCloudApi, GreeRegion
 import pytest
 
 from .conftest import DISCOVERY_PORT
-from .fakes.cloud import FakeGreeCloud, cloud_device
+from .fakes.cloud import FakeGreeCloud, cloud_device, zone_controller_cloud_devices
 from .fakes.device import FakeGreeDevice
+from .fakes.zone import ZONE_CONTROLLER_MAC, FakeZoneController
 
 LOCAL_MAC = "f4911e3f1ac8"
 CLOUD_MAC = "c03937b12280"
@@ -89,6 +90,48 @@ async def test_discovery_joins_the_cloud_and_the_network(
     assert found[0].key == DEVICE_KEY
     # The cloud name is the one the user gave the unit in the app.
     assert found[0].name == "Zolderkamer"
+
+
+async def test_discovery_offers_every_unit_of_a_zone_controller_once(
+    monkeypatch: pytest.MonkeyPatch, loopback_ip: str
+) -> None:
+    """With the cloud and the network, each unit comes back once.
+
+    The name is the one from the app. The address and the controller MAC
+    come from the network, so the units are controlled locally.
+    """
+    server = FakeGreeCloud(
+        homes=[{"id": 1, "name": "Thuis"}],
+        devices_per_home={
+            1: zone_controller_cloud_devices(ZONE_CONTROLLER_MAC, DEVICE_KEY)
+        },
+    )
+    await server.start()
+    monkeypatch.setitem(CLOUD_SERVERS, GreeRegion.EU, server.url)
+    api = GreeCloudApi.for_server(GreeRegion.EU, "rob@example.com", "hunter2")
+    controller = FakeZoneController()
+    await controller.start(loopback_ip, DISCOVERY_PORT)
+
+    try:
+        await api.login()
+        found = await gree_discover_devices(api, [loopback_ip], timeout=1)
+    finally:
+        controller.close()
+        await api.close()
+        await server.close()
+
+    assert [device.mac for device in found] == [
+        f"{ZONE_CONTROLLER_MAC}{index:02d}" for index in range(5)
+    ]
+    assert [device.name for device in found] == [
+        "Zone Controller",
+        "Zone1",
+        "Zone2",
+        "Zone3",
+        "Zone4",
+    ]
+    assert {device.host for device in found} == {loopback_ip}
+    assert {device.mac_controller_local for device in found} == {ZONE_CONTROLLER_MAC}
 
 
 def test_a_device_that_is_only_local_is_kept() -> None:
