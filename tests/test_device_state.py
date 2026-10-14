@@ -207,8 +207,9 @@ def test_a_sensor_group_keeps_only_the_one_that_reports(state: DeviceState) -> N
         },
     )
 
-    state.invalidate_missing_property_group(group)
+    kept = state.invalidate_missing_property_group(group)
 
+    assert kept is GreeProp.SENSOR_INDOOR_TEMPERATURE_2
     assert GreeProp.SENSOR_INDOOR_TEMPERATURE_2 in state.polled_properties
     assert GreeProp.SENSOR_INDOOR_TEMPERATURE_1 not in state.polled_properties
     assert GreeProp.SENSOR_INDOOR_TEMPERATURE_3 not in state.polled_properties
@@ -221,8 +222,9 @@ def test_a_sensor_group_that_reports_nothing_is_dropped_whole(
     group = [GreeProp.SENSOR_HUMIDITY_1, GreeProp.SENSOR_HUMIDITY_2]
     seed(state, {GreeProp.SENSOR_HUMIDITY_1: 0, GreeProp.SENSOR_HUMIDITY_2: 0})
 
-    state.invalidate_missing_property_group(group)
+    kept = state.invalidate_missing_property_group(group)
 
+    assert kept is None
     assert all(prop not in state.polled_properties for prop in group)
 
 

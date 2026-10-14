@@ -106,6 +106,13 @@ class GreeDevice:
 
         self._device_type: DeviceType = DeviceType.AC_UNIT
 
+        # The column of each group that the device answers, see
+        # _remove_unsupported_props. None until the first bind, or when the
+        # device answers none of them.
+        self._indoor_temp_sensor_prop: GreeProp | None = None
+        self._outdoor_temp_sensor_prop: GreeProp | None = None
+        self._humidity_sensor_prop: GreeProp | None = None
+
         self._state = DeviceState(
             device_id=self.unique_id, capabilities=self._capabilities
         )
@@ -397,7 +404,7 @@ class GreeDevice:
         self._state.invalidate_missing_properties()
 
         # Sensors should also be invalidated if their values are not expected (=0)
-        self._state.invalidate_missing_property_group(
+        self._indoor_temp_sensor_prop = self._state.invalidate_missing_property_group(
             [
                 GreeProp.SENSOR_INDOOR_TEMPERATURE_1,
                 GreeProp.SENSOR_INDOOR_TEMPERATURE_2,
@@ -405,14 +412,14 @@ class GreeDevice:
             ]
         )
 
-        self._state.invalidate_missing_property_group(
+        self._outdoor_temp_sensor_prop = self._state.invalidate_missing_property_group(
             [
                 GreeProp.SENSOR_OUTSIDE_TEMPERATURE_1,
                 GreeProp.SENSOR_OUTSIDE_TEMPERATURE_2,
             ]
         )
 
-        self._state.invalidate_missing_property_group(
+        self._humidity_sensor_prop = self._state.invalidate_missing_property_group(
             [
                 GreeProp.SENSOR_HUMIDITY_1,
                 GreeProp.SENSOR_HUMIDITY_2,
@@ -670,20 +677,15 @@ class GreeDevice:
         if self._temp_processor_indoors is None:
             self._temp_processor_indoors = TempOffsetResolver()
 
-        for prop in (
-            GreeProp.SENSOR_INDOOR_TEMPERATURE_1,
-            GreeProp.SENSOR_INDOOR_TEMPERATURE_2,
-            GreeProp.SENSOR_INDOOR_TEMPERATURE_3,
-        ):
-            if self._state.supports(prop):
-                raw_c = self._state.get(prop, None)
-                return (
-                    int(self._temp_processor_indoors.evaluate(raw_c))
-                    if raw_c is not None
-                    else None
-                )
+        if self._indoor_temp_sensor_prop is None:
+            return None
 
-        return None
+        raw_c = self._state.get(self._indoor_temp_sensor_prop)
+        return (
+            int(self._temp_processor_indoors.evaluate(raw_c))
+            if raw_c is not None
+            else None
+        )
 
     @property
     def outdoors_temperature_c(self) -> int | None:
@@ -692,32 +694,24 @@ class GreeDevice:
         if self._temp_processor_outdoors is None:
             self._temp_processor_outdoors = TempOffsetResolver()
 
-        for prop in (
-            GreeProp.SENSOR_OUTSIDE_TEMPERATURE_1,
-            GreeProp.SENSOR_OUTSIDE_TEMPERATURE_2,
-        ):
-            if self._state.supports(prop):
-                raw_c = self._state.get(prop, None)
-                return (
-                    int(self._temp_processor_outdoors.evaluate(raw_c))
-                    if raw_c is not None
-                    else None
-                )
+        if self._outdoor_temp_sensor_prop is None:
+            return None
 
-        return None
+        raw_c = self._state.get(self._outdoor_temp_sensor_prop)
+        return (
+            int(self._temp_processor_outdoors.evaluate(raw_c))
+            if raw_c is not None
+            else None
+        )
 
     @property
     def humidity(self) -> int | None:
         """Return the current humidity if available."""
 
-        for prop in (
-            GreeProp.SENSOR_HUMIDITY_1,
-            GreeProp.SENSOR_HUMIDITY_2,
-        ):
-            if self._state.supports(prop):
-                return self._state.get(prop, None)
+        if self._humidity_sensor_prop is None:
+            return None
 
-        return None
+        return self._state.get(self._humidity_sensor_prop)
 
     @property
     def power_mode(self) -> bool:
