@@ -222,6 +222,33 @@ async def test_a_fahrenheit_target_comes_back_with_its_bit(
     assert zones[0].target_temperature == 67
 
 
+async def test_a_value_from_celsius_comes_back_right_in_fahrenheit(
+    controller: FakeZoneController, zones: list[GreeDevice]
+) -> None:
+    """The raw columns are the same in both units.
+
+    18.5 C is remembered as StTem 2 with the bit. After the unit is switched
+    to Fahrenheit between the modes, the same columns read as 65 F.
+    """
+    first = controller.units[controller.zone_macs[0]]
+    first.update({"StTem": 2, "StFahFlg": 1})
+    memory = SetpointMemory()
+    await poll(memory, zones)
+    await poll(memory, zones)
+    assert zones[0].target_temperature == 18.5
+
+    panel_mode(controller, HEAT, [21, 18, 18, 18])
+    first["StFahFlg"] = 0
+    for values in controller.units.values():
+        values["TemUnit"] = 1
+    await poll(memory, zones)
+    await memory.recall(zones, OperationMode.fan)
+
+    assert (first["StTem"], first["StFahFlg"]) == (2, 1)
+    await zones[0].fetch_device_status()
+    assert zones[0].target_temperature == 65
+
+
 async def test_snapshot_keeps_a_panel_change_made_since_the_last_poll(
     controller: FakeZoneController, zones: list[GreeDevice]
 ) -> None:

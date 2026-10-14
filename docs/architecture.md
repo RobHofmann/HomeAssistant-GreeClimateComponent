@@ -20,7 +20,7 @@ No Home Assistant imports here.
 | `helpers.py` | Encrypt and decrypt packs, temperature math, `TempOffsetResolver`, `redact_str`, `chunked`. |
 | `const.py` | Protocol constants: `MAX_PACK_SIZE`, `MIN_PACK_PROPS`, `STATUS_CANARY_PROP`, `PROBE_TIMEOUT`, `STATUS_CANARY_PROP_MAX_REQUESTS`, temperature and humidity ranges. |
 | `errors.py` | Exceptions. `GreeConnectionError` means no answer. `GreeProtocolError` means a bad answer. `GreeBindingError` means the key exchange failed. |
-| `setpoint_memory.py` | `SetpointMemory`. The target temperature of a device per mode, stored as raw columns per device MAC. Used for the zones of a zone controller, so a mode change works like one on the wall panel, and for a standalone or VRF unit with the `setpoint_memory` option. See [protocol.md](protocol.md#target-temperatures-per-mode). |
+| `setpoint_memory.py` | `SetpointMemory`. The target temperature of a device per mode, stored as raw columns per device MAC. Used for every device with a target temperature, unless its `setpoint_memory` option is off: for the zones of a zone controller, so a mode change works like one on the wall panel, and for a standalone or VRF unit itself. See [protocol.md](protocol.md#target-temperatures-per-mode). |
 
 ## Home Assistant layer
 

@@ -124,7 +124,7 @@
                     "external_temperature_sensor": "If set will replace the built-in HVAC temperature sensor for the Climate entity data",
                     "external_humidity_sensor": "If set will replace the built-in HVAC humidity sensor for the Climate entity data",
                     "restore_states": "If checked, when the integration is started the device will be overridden by previous states of the integration instead of using the current device state.",
-                    "setpoint_memory": "If checked, the target temperature of each mode is remembered and set again when the mode is changed from Home Assistant. Not for Auto, where the unit uses its own setting.",
+                    "setpoint_memory": "If checked, the target temperature of each mode is remembered and set again when the mode is changed from Home Assistant. A zone follows the mode of its AC unit. A unit keeps its own setting in Auto.",
                     "target_temp_step": "Sets the increment step for adjusting the target temperature. Fahrenheit degrees are clamped to the nearest integer."
                 }
             },

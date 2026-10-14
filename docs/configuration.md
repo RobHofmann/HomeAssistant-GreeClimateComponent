@@ -98,7 +98,7 @@ One page per device. Gree devices do not report reliably which features they hav
 | External Temperature Sensor | none | A Home Assistant sensor that replaces the unit's own room temperature in the climate entity. |
 | External Humidity Sensor | none | A Home Assistant sensor that replaces the unit's own humidity in the climate entity. |
 | Restore Entities | on | After a restart, send the last known Home Assistant state to the device instead of taking over the device state. See [Restoring state](entities.md#restoring-state-after-a-restart). |
-| Remember Target Temperature per Mode | off | Remember the target temperature of each mode, and set it again when you change the mode from Home Assistant. Not for Auto, where the unit uses its own setting. Only shown for a unit with a target temperature. The zones of a zone controller always do this. |
+| Remember Target Temperature per Mode | on | Remember the target temperature of each mode, and set it again when you change the mode from Home Assistant. A zone follows the mode of its AC unit. A unit is left alone in Auto, where it uses its own setting. Only shown for a device with a target temperature. |
 
 The external sensors only change what the climate entity shows. The unit keeps using its own sensor to regulate.
 

@@ -900,6 +900,14 @@ class GreeDevice:
         self._state.set(self._temp_unit_prop, units)
 
     @property
+    def has_target_temperature(self) -> bool:
+        """Return True if the device answers a target temperature column.
+
+        The ducted unit of a zone controller has none, its zones have one each.
+        """
+        return self._target_temp_prop is not None
+
+    @property
     def has_target_temperature_bit(self) -> bool:
         """Return True if the device answers a bit for the target temperature.
 

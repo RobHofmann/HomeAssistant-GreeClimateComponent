@@ -28,7 +28,7 @@ Extra attribute: `current_outside_temperature`, the outdoor sensor value in the 
 
 ### Target temperature per mode
 
-With the option **Remember Target Temperature per Mode** on, the climate entity remembers the target temperature of each mode. When you change the mode from Home Assistant, it sets the remembered target of the new mode in the same command. It learns from what the unit reports, so a change made with the remote is remembered too. A mode it has not seen yet keeps the current target. Auto is left out, because the unit uses its own setting there. The option is off by default.
+With the option **Remember Target Temperature per Mode** on, the climate entity remembers the target temperature of each mode. When you change the mode from Home Assistant, it sets the remembered target of the new mode in the same command. It learns from what the unit reports, so a change made with the remote is remembered too. A mode it has not seen yet keeps the current target. Auto is left out, because the unit uses its own setting there. The option is on by default.
 
 ### Turbo and Quiet
 
@@ -57,7 +57,7 @@ A zone controller is controlled locally. Add it with local discovery, or with bo
 | Switch with the name of the zone | Opens and closes the zone. It is the **Zone Switch** feature, so you can leave it out. Do that for a zone that must always stay open: turning such a zone off is refused by the controller or turns the whole system off. |
 | Target Temperature | The target temperature of the zone, in the unit of the controller: 16 to 30 °C in half degrees, or 61 to 86 °F in whole degrees. Home Assistant shows it in your own unit. The wall panel shows only whole degrees in °C, so it shows 18 for 18.5. |
 
-The wall panel remembers the target temperature of every zone for each mode, and sets them again when you change the mode on the panel. A mode change from Home Assistant does the same: the integration learns the values of each mode from what the zones report, and sends them when you change the mode of the AC unit. A mode the integration has not seen yet keeps the values the zones have.
+The wall panel remembers the target temperature of every zone for each mode, and sets them again when you change the mode on the panel. A mode change from Home Assistant does the same: the integration learns the values of each mode from what the zones report, and sends them when you change the mode of the AC unit. A mode the integration has not seen yet keeps the values the zones have. To leave a zone out, turn off **Remember Target Temperature per Mode** in the options of that zone.
 
 ## Sensors
 

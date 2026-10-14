@@ -798,12 +798,9 @@ def setup_device_options_schema(  # noqa: C901
         }
     )
 
-    # Zones remember their target per mode anyway, like the wall panel. Other
-    # units with a target temperature can opt in.
-    if device.device_type in (
-        DeviceType.AC_UNIT,
-        DeviceType.VRF_UNIT,
-    ) and device.supports_property(GreeProp.TARGET_TEMPERATURE_1):
+    # Every device with a target temperature can remember it per mode. A zone
+    # follows the mode of its ducted unit, which has no target of its own.
+    if device.has_target_temperature:
         schema.update(
             {
                 probatio.Required(

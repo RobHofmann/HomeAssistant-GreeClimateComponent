@@ -53,7 +53,7 @@ For a cloud entry, `cloud` holds the account email, region, user id and token. T
 | `options.name` | Device name in Home Assistant. Defaults to the name the unit reports, which is usually the tail of its MAC. |
 | `options.features` | Which optional switches to create. Only features the unit reported as supported are offered. |
 | `options.restore_states` | Restore the last known entity states after a restart. |
-| `options.setpoint_memory` | Remember the target temperature per mode for a standalone or VRF unit. Off by default. |
+| `options.setpoint_memory` | Remember the target temperature per mode, for a device with a target temperature. On by default. |
 
 ## YAML import
 
