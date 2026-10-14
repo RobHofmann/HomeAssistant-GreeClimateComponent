@@ -2,7 +2,7 @@
 
 import asyncio
 from collections.abc import Mapping
-from dataclasses import dataclass, fields, replace
+from dataclasses import dataclass, field, fields, replace
 from enum import IntEnum, StrEnum, unique
 import json
 import logging
@@ -585,12 +585,13 @@ class GreeDiscoveredDevice:
     mac_controller_local: str = ""
     mac_controller_mqtt: str = ""
     user_id: int = DEFAULT_DEVICE_USERID
-    key: str | None = None
+    # Not in the repr, which discovery logs
+    key: str | None = field(default=None, repr=False)
     # Local
     host: str | None = None
     port: int | None = None
-    # Cloud
-    username: str | None = None
+    # Cloud. The email of the account, not in the repr either
+    username: str | None = field(default=None, repr=False)
     # Properties
     name: str = ""
     catalog: str = ""
@@ -1785,8 +1786,8 @@ def gree_merge_discovered_devices(
 
         # Override with non-empty local values
         # So that local info overrides cloud, especially for MAC
-        for field in fields(GreeDiscoveredDevice):
-            value = getattr(local, field.name)
+        for device_field in fields(GreeDiscoveredDevice):
+            value = getattr(local, device_field.name)
 
             if value is None:
                 continue
@@ -1794,7 +1795,7 @@ def gree_merge_discovered_devices(
             if isinstance(value, str) and value == "":
                 continue
 
-            setattr(merged_device, field.name, value)
+            setattr(merged_device, device_field.name, value)
 
         # Prefer cloud name and uid
         merged_device.name = cloud.name

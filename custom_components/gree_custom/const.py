@@ -1,7 +1,7 @@
 """Constants for the Gree integration."""
 
 from homeassistant.components.climate import HVACMode  # pyright: ignore[reportPrivateImportUsage]
-from homeassistant.const import UnitOfTemperature
+from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_TOKEN, UnitOfTemperature
 
 from .aiogree.api import (
     FanSpeed,
@@ -42,6 +42,9 @@ CONF_ALL_DEVICE_CONNECTIONS = "device_connections"
 CONF_ALL_DEVICE_OPTIONS = "device_options"
 CONF_UID = "uid"
 CONF_ENCRYPTION_KEY = "encryption_key"
+# Left out of debug logs and diagnostics, because users post both: the device
+# key and the cloud login.
+TO_REDACT = [CONF_ENCRYPTION_KEY, CONF_PASSWORD, CONF_TOKEN, CONF_EMAIL]
 CONF_ENCRYPTION_VERSION = "encryption_version"
 CONF_DISABLE_AVAILABLE_CHECK = "disable_available_check"
 CONF_MAX_ONLINE_ATTEMPTS = "max_online_attempts"

@@ -168,3 +168,14 @@ def test_the_friendly_name_says_where_a_device_was_found() -> None:
 
     assert local.friendly_name == f"Zolderkamer, {LOCAL_MAC} (Local)"
     assert cloud.friendly_name == f"{CLOUD_MAC} (Cloud)"
+
+
+def test_the_repr_leaves_out_the_key_and_the_account() -> None:
+    """Discovery logs every device with repr(), and users post their debug logs."""
+    device = GreeDiscoveredDevice(
+        mac=CLOUD_MAC, key="V1sT9p0aQ3zXcR7m", username="rob@example.com"
+    )
+
+    assert CLOUD_MAC in repr(device)
+    assert "V1sT9p0aQ3zXcR7m" not in repr(device)
+    assert "rob@example.com" not in repr(device)

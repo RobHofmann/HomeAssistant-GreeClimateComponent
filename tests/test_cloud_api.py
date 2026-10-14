@@ -21,6 +21,7 @@ from aiogree.cloud_api import (
 from aiogree.errors import GreeCloudError, GreeCloudLoginError
 import pytest
 
+from .conftest import RecordingHandler
 from .fakes.cloud import TOKEN, USER_ID, FakeGreeCloud, cloud_device
 
 REGION = GreeRegion.EU
@@ -114,6 +115,44 @@ async def test_a_login_without_a_token_raises(cloud_factory: CloudFactory) -> No
 
     with pytest.raises(GreeCloudLoginError, match="Missing uid or token"):
         await client.login()
+
+
+async def test_the_login_log_leaves_out_the_token_and_the_account(
+    cloud_factory: CloudFactory, gree_logs: RecordingHandler
+) -> None:
+    """Users post their debug logs, so only the result and the user id are logged."""
+    _, client = await cloud_factory(  # type: ignore[misc]
+        login_response={
+            "r": 200,
+            "uid": USER_ID,
+            "token": TOKEN,
+            "email": "rob@example.com",
+            "uname": "rob",
+            "tel": "0612345678",
+        }
+    )
+
+    await client.login()
+
+    logged = "\n".join(gree_logs.messages())
+    assert "Login response" in logged
+    assert str(USER_ID) in logged
+    for secret in (TOKEN, "rob@example.com", "'rob'", "0612345678"):
+        assert secret not in logged
+
+
+async def test_a_login_error_leaves_out_the_account(
+    cloud_factory: CloudFactory,
+) -> None:
+    """The error text ends up in the log too."""
+    _, client = await cloud_factory(  # type: ignore[misc]
+        login_response={"uid": 7, "token": "", "email": "rob@example.com"}
+    )
+
+    with pytest.raises(GreeCloudLoginError) as err:
+        await client.login()
+
+    assert "rob@example.com" not in str(err.value)
 
 
 async def test_an_unknown_login_format_raises(cloud_factory: CloudFactory) -> None:

@@ -100,6 +100,7 @@ from .const import (
     DOMAIN,
     ENCRYPTION_VERSION_AUTO,
     MAX_UNICAST_SCAN_HOSTS,
+    TO_REDACT,
     ZONE_ONLY_FEATURES,
 )
 from .coordinator import GreeConfigEntry
@@ -285,7 +286,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
 
         _LOGGER.debug(
             "YAML import: new entry with config: %s",
-            async_redact_data(data, ["encryption_key", "password", "token"]),
+            async_redact_data(data, TO_REDACT),
         )
         return self.async_create_entry(
             title=title,
@@ -454,7 +455,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Process a Reauth request."""
         reauth_entry = self._get_reauth_entry()
-        _LOGGER.debug("Reauth entry: %s", reauth_entry.title)
+        _LOGGER.debug("Reauth entry: %s", reauth_entry.entry_id)
 
         return await self.async_step_cloud_add()
 
@@ -464,7 +465,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
         """Handle reconfiguration of an existing entry."""
         reconfigure_entry = self._get_reconfigure_entry()
         reconfigure_data = dict(reconfigure_entry.data)
-        _LOGGER.debug("Reconfiguring: %s", reconfigure_entry.title)
+        _LOGGER.debug("Reconfiguring: %s", reconfigure_entry.entry_id)
 
         # If on the local-only entry, exit early and continue with the local method only
         if reconfigure_entry.unique_id == CONFENTRY_ID_LOCAL_ONLY:
@@ -577,9 +578,9 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._discovered_devices_cloud = {d.mac: d for d in discovered}
 
                 _LOGGER.info(
-                    "Discovered %d devices from the cloud account: %s",
+                    "Discovered %d devices from the cloud account of user %s",
                     len(self._discovered_devices_cloud),
-                    self._cloud_api.username,
+                    self._cloud_api.user_id,
                 )
                 return await self._setup_next_setup_method()
 
@@ -1128,7 +1129,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
 
         _LOGGER.debug(
             "New entry with config: %s",
-            async_redact_data(data, ["encryption_key"]),
+            async_redact_data(data, TO_REDACT),
         )
         return self.async_create_entry(
             title=title,

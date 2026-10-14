@@ -9,7 +9,6 @@ from aiomqtt.exceptions import MqttConnectError
 
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.const import (
-    CONF_EMAIL,
     CONF_HOST,
     CONF_NAME,
     CONF_PORT,
@@ -65,6 +64,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     ENCRYPTION_VERSION_AUTO,
+    TO_REDACT,
 )
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .helpers import get_vrf_controller_mac, reconcile_vrf_controllers, try_find_new_ip
@@ -114,15 +114,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool:  # noqa: C901
     """Set up Gree from a config entry."""
 
-    _LOGGER.info(
-        "Setup entry '%s': %s",
-        entry.entry_id,
-        entry.title,
-    )
+    # The title of a cloud entry holds the email, so log the unique id: the
+    # user id of the account, or local_only.
+    _LOGGER.info("Setup entry '%s': %s", entry.entry_id, entry.unique_id)
     _LOGGER.debug(
         "Setup entry '%s': data=%s",
         entry.entry_id,
-        json.dumps(async_redact_data(entry.data, ["encryption_key"])),
+        json.dumps(async_redact_data(entry.data, TO_REDACT)),
     )
 
     conf = entry.data
@@ -192,7 +190,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
                 )
 
         if mac_controller_cloud and cloud_conf and not mqtt_transport:
-            _LOGGER.debug("Creating MQTT transport for %s", cloud_conf[CONF_EMAIL])
+            _LOGGER.debug(
+                "Creating MQTT transport for user %s", cloud_conf.get(CONF_UID)
+            )
 
             userid: int = cloud_conf.get(CONF_UID, 0)
             token: str = cloud_conf.get(CONF_TOKEN, "")
