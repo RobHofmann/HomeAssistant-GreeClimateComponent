@@ -1690,6 +1690,13 @@ async def gree_discover_devices_cloud(
 
     for dev in responses:
         mac, mac_controller = gree_extract_macs(dev.mac)
+        # A sub-unit names its gateway in pmac. Only use it when it is also the
+        # first 12 characters of the sub-unit MAC: that controller is known to
+        # answer (seen on a zone controller, whose zones end in 01 to 08). What
+        # pmac holds for other devices is not known yet.
+        pmac = gree_extract_macs(dev.pmac)[0] if dev.pmac else ""
+        if pmac and mac != pmac and mac[:12] == pmac:
+            mac_controller = pmac
         discovered_devices.append(
             GreeDiscoveredDevice(
                 mac=mac,

@@ -134,6 +134,52 @@ async def test_discovery_offers_every_unit_of_a_zone_controller_once(
     assert {device.mac_controller_local for device in found} == {ZONE_CONTROLLER_MAC}
 
 
+async def discover_in_cloud(
+    monkeypatch: pytest.MonkeyPatch, devices: list[dict]
+) -> list[GreeDiscoveredDevice]:
+    """Run cloud discovery against an account that lists these devices."""
+    server = FakeGreeCloud(
+        homes=[{"id": 1, "name": "Thuis"}], devices_per_home={1: devices}
+    )
+    await server.start()
+    monkeypatch.setitem(CLOUD_SERVERS, GreeRegion.EU, server.url)
+    api = GreeCloudApi.for_server(GreeRegion.EU, "rob@example.com", "hunter2")
+    try:
+        await api.login()
+        return await gree_discover_devices_cloud(api)
+    finally:
+        await api.close()
+        await server.close()
+
+
+async def test_the_sub_units_of_a_zone_controller_get_the_gateway_as_controller(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Their pmac is the gateway, which is also the start of their MAC."""
+    found = await discover_in_cloud(
+        monkeypatch, zone_controller_cloud_devices(ZONE_CONTROLLER_MAC, DEVICE_KEY)
+    )
+
+    assert sorted(device.mac for device in found) == [
+        f"{ZONE_CONTROLLER_MAC}{index:02d}" for index in range(5)
+    ]
+    assert {device.mac_controller_mqtt for device in found} == {ZONE_CONTROLLER_MAC}
+
+
+async def test_a_pmac_that_is_not_the_start_of_the_mac_is_not_used(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """What such a pmac means is not known, so the MAC rules stay as they are."""
+    found = await discover_in_cloud(
+        monkeypatch,
+        [{**cloud_device("9424b8fd5ba301", DEVICE_KEY), "pmac": CLOUD_MAC}],
+    )
+
+    assert [(d.mac, d.mac_controller_mqtt) for d in found] == [
+        ("9424b8fd5ba301", "9424b8fd5ba301")
+    ]
+
+
 def test_a_device_that_is_only_local_is_kept() -> None:
     """Most installs have no cloud account at all."""
     local = GreeDiscoveredDevice(mac=LOCAL_MAC, host="192.168.1.10", name="Zolderkamer")
