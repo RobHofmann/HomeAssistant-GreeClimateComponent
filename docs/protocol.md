@@ -112,7 +112,7 @@ The wall panel remembers the target temperature of every zone per mode. When the
 - Before the climate entity of the ducted unit changes the mode, `snapshot()` reads the zones again and stores them under the old mode. After the change, `recall()` sends the stored values of the new mode. A mode with no stored values changes nothing.
 - It stores the raw columns that hold the target temperature, as `GreeDevice.target_temperature_props` gives them, keyed by device MAC and mode: `{"<zone mac>": {"heat": {"StTem": 3, "StFahFlg": 0}}}`. Raw columns need no unit conversion. They are the columns the device uses: a zone stores `StTem` and its bit `StFahFlg`, so a half degree or a °F value comes back exactly. A standalone or VRF unit stores `SetTem` and `TemRec`.
 - A standalone or VRF unit uses the same memory for itself. The device option `setpoint_memory`, on by default, turns the memory off for one device, a zone included. It stores `SetTem` and `TemRec`, so a unit set to Fahrenheit needs no conversion. On a mode change from Home Assistant, `apply()` sets the stored target without sending it, and it goes out in the same command as the new mode. Nothing is recalled into Auto, where the unit ignores the target temperature.
-- `__init__.py` keeps the memory in a `Store` per config entry (`gree_custom.<entry_id>.setpoints`).
+- `__init__.py` keeps the memory in a `Store` per config entry (`gree_custom.<entry_id>.setpoints`). It is saved when the entry unloads, and removed with the entry.
 
 ## MAC addresses
 

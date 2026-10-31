@@ -16,7 +16,8 @@ from Home Assistant works like one on the panel. See docs/protocol.md.
   mode.
 - What is stored are the raw columns that hold the target temperature, as
   `GreeDevice.target_temperature_props` gives them, per device MAC and mode:
-  `StTem` for a zone, `SetTem` and `TemRec` for a standalone or VRF unit.
+  `StTem` and `StFahFlg` for a zone, `SetTem` and `TemRec` for a standalone or
+  VRF unit.
 - For a unit that remembers its own target, `apply()` sets the stored value
   without sending it, so it can go out in the same command as the new mode.
 

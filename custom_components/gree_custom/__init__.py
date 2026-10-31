@@ -372,15 +372,16 @@ async def _async_setup_setpoint_memory(
     zones = [c for c in learners if c.device.device_type is DeviceType.ZONE]
     units = [c for c in learners if c.device.device_type is not DeviceType.ZONE]
 
-    store: Store[SetpointMemoryData] = Store(
-        hass, SETPOINT_MEMORY_STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}.setpoints"
-    )
+    store = _setpoint_memory_store(hass, entry.entry_id)
     memory = SetpointMemory(
         await store.async_load(),
         on_change=lambda: store.async_delay_save(
             lambda: memory.data, SETPOINT_MEMORY_SAVE_DELAY
         ),
     )
+    # Save on unload rather than after the delay. A delayed save would still
+    # run after the entry is removed, and write the file again.
+    entry.async_on_unload(lambda: store.async_save(memory.data))
 
     for learner in learners:
         entry.async_on_unload(
@@ -402,6 +403,15 @@ async def _async_setup_setpoint_memory(
         if own_zones:
             coordinator.setpoint_memory = memory
             coordinator.zone_coordinators = own_zones
+
+
+def _setpoint_memory_store(
+    hass: HomeAssistant, entry_id: str
+) -> Store[SetpointMemoryData]:
+    """Return the store that keeps the setpoint memory of a config entry."""
+    return Store(
+        hass, SETPOINT_MEMORY_STORAGE_VERSION, f"{DOMAIN}.{entry_id}.setpoints"
+    )
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool:
@@ -428,6 +438,15 @@ async def async_unload_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> boo
 
     await async_disconnect_transports(transports)
     return True
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> None:
+    """Remove the setpoint memory of a removed config entry.
+
+    Home Assistant unloads the entry first, and the unload saves the memory, so
+    nothing writes the file again after this.
+    """
+    await _setpoint_memory_store(hass, entry.entry_id).async_remove()
 
 
 async def async_remove_config_entry_device(
