@@ -76,7 +76,9 @@ def gree_extract_macs(raw_mac: str) -> tuple[str, str]:
     # For VRF units, the MAC will be of >12 characters and end in "00"
     # where for MQTT the first 12 are the main_device MAC and the full string the sub_device
     # For imported configs in mac@main_mac format separate them
-    # TODO: Cloud has a "pmac" field. Check if it is "parent mac" aka main_device
+    # TODO: Cloud has a "pmac" field. Check if it is "parent mac" aka main_device.
+    # For a zone controller it is the gateway, the first 12 characters of each
+    # sub-unit MAC, and gree_discover_devices_cloud() uses it in that case only.
     if "@" in normalized_mac:
         mac, mac_controller = normalized_mac.split("@", 1)
     elif len(normalized_mac) > 12 and normalized_mac.endswith("00"):

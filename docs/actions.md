@@ -59,6 +59,6 @@ missing:
 
 ## Diagnostics download
 
-Every config entry and every device has a **Download diagnostics** item in its three dot menu. The download is a JSON file with the configuration and the last known state of each device. Keys and passwords are redacted.
+Every config entry and every device has a **Download diagnostics** item in its three dot menu. The download is a JSON file with the configuration and the last known state of each device. Keys and the cloud login (token, password and email) are redacted.
 
 The device diagnostics also list the properties the integration polls and the values the device sent that the integration does not know. The diagnostics of a VRF gateway device hold the diagnostics of each of its indoor units. Attach the file to a bug report. See [troubleshooting.md](troubleshooting.md#how-to-report-a-bug).

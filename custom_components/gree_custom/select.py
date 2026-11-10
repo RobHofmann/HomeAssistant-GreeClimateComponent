@@ -11,7 +11,12 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .aiogree.api import HumidityControlMode, OperationMode, TemperatureUnits
+from .aiogree.api import (
+    DeviceType,
+    HumidityControlMode,
+    OperationMode,
+    TemperatureUnits,
+)
 from .aiogree.device import GreeDevice
 from .aiogree.errors import (
     GreeContinuousDryUnavailable,
@@ -62,6 +67,9 @@ SELECT_TYPES: list[GreeSelectDescription] = [
         auto_device_support=True,
         key=GATTR_TEMP_UNITS,
         translation_key=GATTR_TEMP_UNITS,
+        # Every sub-unit of a zone controller answers TemUnit, but they share
+        # one unit, set on the ducted unit. So the zones get no select.
+        device_filter=lambda device: device.device_type is not DeviceType.ZONE,
         entity_category=EntityCategory.CONFIG,
         options=[f"º{member.name}" for member in TemperatureUnits],
         value_func=lambda device: f"º{device.target_temperature_unit.name}",

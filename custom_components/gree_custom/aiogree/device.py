@@ -8,6 +8,14 @@ from aiomqtt import MqttError
 from packaging.version import Version
 
 from .api import (
+    TARGET_TEMPERATURE_OFFSETS,
+    ZONE_CONTROLLER_AC_UNIT_SUFFIX,
+    ZONE_CONTROLLER_FAN_TURBO,
+    ZONE_CONTROLLER_MODES,
+    ZONE_CONTROLLER_MODES_TO_RAW,
+    ZONE_CONTROLLER_NAME_PREFIX,
+    ZONE_CONTROLLER_TYPES,
+    DeviceType,
     EncryptionVersion,
     FanSpeed,
     GreeProp,
@@ -96,6 +104,18 @@ class GreeDevice:
         self._firmware_code: str | None = None
         self._firmware_protocol_version: str = ""
 
+        self._device_type: DeviceType = DeviceType.AC_UNIT
+
+        # The column of each group that the device answers, see
+        # _remove_unsupported_props. None until the first bind, or when the
+        # device answers none of them.
+        self._indoor_temp_sensor_prop: GreeProp | None = None
+        self._outdoor_temp_sensor_prop: GreeProp | None = None
+        self._humidity_sensor_prop: GreeProp | None = None
+        self._target_temp_prop: GreeProp | None = None
+        self._target_temp_bit_prop: GreeProp | None = None
+        self._temp_unit_prop: GreeProp | None = None
+
         self._state = DeviceState(
             device_id=self.unique_id, capabilities=self._capabilities
         )
@@ -175,6 +195,7 @@ class GreeDevice:
 
                 # Fetch initial information after sucessful bind
                 await self.fetch_device_info()
+                self._detect_device_type()
                 await self.fetch_device_status(first_fetch=True)
                 self._remove_unsupported_props()
                 return
@@ -184,6 +205,31 @@ class GreeDevice:
     def _device_pushed_status(self, status: dict[str, str]) -> None:
         _LOGGER.debug("[%s] Got data pushed from the device", self.unique_id)
         self._state.process_new_state(status)
+
+    def _detect_device_type(self) -> None:
+        """Find out what kind of device this is.
+
+        A unit that is not a sub-unit is a standalone unit. A sub-unit of a
+        zone controller answers the info request with the name of the zone
+        controller, and its MAC suffix tells the ducted unit from the zones.
+        Every other sub-unit is a VRF indoor unit.
+
+        The columns a device uses come from what it answers. The type is only
+        used where the columns cannot tell: the mode numbers and turbo of a
+        zone controller, the StTem of its ducted unit, which is always 0, and
+        which entities a sub-unit gets.
+        """
+        name = self._state.info.get(InfoProp.DEVICE_NAME, "")
+        if not self.is_sub_unit:
+            self._device_type = DeviceType.AC_UNIT
+        elif not name.startswith(ZONE_CONTROLLER_NAME_PREFIX):
+            self._device_type = DeviceType.VRF_UNIT
+        elif self._mac_addr.endswith(ZONE_CONTROLLER_AC_UNIT_SUFFIX):
+            self._device_type = DeviceType.ZONE_CONTROLLER
+        else:
+            self._device_type = DeviceType.ZONE
+
+        _LOGGER.debug("[%s] Device type: %s", self.unique_id, self._device_type)
 
     async def unbind_device(self) -> None:
         """Properly disconnect the device from transport."""
@@ -361,7 +407,7 @@ class GreeDevice:
         self._state.invalidate_missing_properties()
 
         # Sensors should also be invalidated if their values are not expected (=0)
-        self._state.invalidate_missing_property_group(
+        self._indoor_temp_sensor_prop = self._state.invalidate_missing_property_group(
             [
                 GreeProp.SENSOR_INDOOR_TEMPERATURE_1,
                 GreeProp.SENSOR_INDOOR_TEMPERATURE_2,
@@ -369,18 +415,47 @@ class GreeDevice:
             ]
         )
 
-        self._state.invalidate_missing_property_group(
+        self._outdoor_temp_sensor_prop = self._state.invalidate_missing_property_group(
             [
                 GreeProp.SENSOR_OUTSIDE_TEMPERATURE_1,
                 GreeProp.SENSOR_OUTSIDE_TEMPERATURE_2,
             ]
         )
 
-        self._state.invalidate_missing_property_group(
+        self._humidity_sensor_prop = self._state.invalidate_missing_property_group(
             [
                 GreeProp.SENSOR_HUMIDITY_1,
                 GreeProp.SENSOR_HUMIDITY_2,
             ]
+        )
+
+        # The ducted unit of a zone controller answers StTem and StFahFlg too,
+        # always with 0, the same as a zone set to 16 degrees Celsius. It has
+        # no target temperature of its own, each zone has one.
+        if self._device_type is DeviceType.ZONE_CONTROLLER:
+            for prop in (
+                GreeProp.TARGET_TEMPERATURE_2,
+                GreeProp.TARGET_TEMPERATURE_BIT_2,
+            ):
+                if prop in self._state.polled_properties:
+                    self._state.remove(prop)
+
+        # 0 is a valid value in these groups: StTem 0 is 16 degrees Celsius,
+        # the bits are 0 or 1, and unit 0 is Celsius. So only a column that
+        # the device does not answer is missing.
+        self._target_temp_prop = self._state.invalidate_missing_property_group(
+            [GreeProp.TARGET_TEMPERATURE_1, GreeProp.TARGET_TEMPERATURE_2],
+            missing_value=-1,
+        )
+
+        self._target_temp_bit_prop = self._state.invalidate_missing_property_group(
+            [GreeProp.TARGET_TEMPERATURE_BIT_1, GreeProp.TARGET_TEMPERATURE_BIT_2],
+            missing_value=-1,
+        )
+
+        self._temp_unit_prop = self._state.invalidate_missing_property_group(
+            [GreeProp.TARGET_TEMPERATURE_UNIT_1, GreeProp.TARGET_TEMPERATURE_UNIT_2],
+            missing_value=-1,
         )
 
         # As far as it is known, both values at 0 is not a valid combination.
@@ -400,6 +475,7 @@ class GreeDevice:
             "transport": str(self._api.transport),
             "mac": self.mac_address,
             "mac_controller": self.mac_address_controller,
+            "device_type": self._device_type.value,
             "name": self.name,
             "fw": self.firmware_version,
             "is_bound": self._api.bound,
@@ -450,6 +526,13 @@ class GreeDevice:
 
     def supports_property(self, property: GreeProp) -> bool:
         """Return True if the device endpoint supports the property."""
+        # A zone controller has turbo as a fan speed, not as its own column.
+        if (
+            property is GreeProp.FEAT_TURBO_MODE
+            and self._device_type is DeviceType.ZONE_CONTROLLER
+        ):
+            return self._state.supports(GreeProp.FAN_SPEED)
+
         # We consider a property as unsupported if it is not present in the raw state list
         # This assumes that the full state is fetched at least once before this method is called
         return self._state.supports(property)
@@ -592,6 +675,11 @@ class GreeDevice:
         return self.mac_address != self.mac_address_controller
 
     @property
+    def device_type(self) -> DeviceType:
+        """Return what kind of device this is. Known after the first bind."""
+        return self._device_type
+
+    @property
     def has_held_values(self) -> bool:
         """Return True if sent values still wait for the device to confirm them."""
         return bool(self._state.held)
@@ -621,20 +709,15 @@ class GreeDevice:
         if self._temp_processor_indoors is None:
             self._temp_processor_indoors = TempOffsetResolver()
 
-        for prop in (
-            GreeProp.SENSOR_INDOOR_TEMPERATURE_1,
-            GreeProp.SENSOR_INDOOR_TEMPERATURE_2,
-            GreeProp.SENSOR_INDOOR_TEMPERATURE_3,
-        ):
-            if self._state.supports(prop):
-                raw_c = self._state.get(prop, None)
-                return (
-                    int(self._temp_processor_indoors.evaluate(raw_c))
-                    if raw_c is not None
-                    else None
-                )
+        if self._indoor_temp_sensor_prop is None:
+            return None
 
-        return None
+        raw_c = self._state.get(self._indoor_temp_sensor_prop)
+        return (
+            int(self._temp_processor_indoors.evaluate(raw_c))
+            if raw_c is not None
+            else None
+        )
 
     @property
     def outdoors_temperature_c(self) -> int | None:
@@ -643,32 +726,24 @@ class GreeDevice:
         if self._temp_processor_outdoors is None:
             self._temp_processor_outdoors = TempOffsetResolver()
 
-        for prop in (
-            GreeProp.SENSOR_OUTSIDE_TEMPERATURE_1,
-            GreeProp.SENSOR_OUTSIDE_TEMPERATURE_2,
-        ):
-            if self._state.supports(prop):
-                raw_c = self._state.get(prop, None)
-                return (
-                    int(self._temp_processor_outdoors.evaluate(raw_c))
-                    if raw_c is not None
-                    else None
-                )
+        if self._outdoor_temp_sensor_prop is None:
+            return None
 
-        return None
+        raw_c = self._state.get(self._outdoor_temp_sensor_prop)
+        return (
+            int(self._temp_processor_outdoors.evaluate(raw_c))
+            if raw_c is not None
+            else None
+        )
 
     @property
     def humidity(self) -> int | None:
         """Return the current humidity if available."""
 
-        for prop in (
-            GreeProp.SENSOR_HUMIDITY_1,
-            GreeProp.SENSOR_HUMIDITY_2,
-        ):
-            if self._state.supports(prop):
-                return self._state.get(prop, None)
+        if self._humidity_sensor_prop is None:
+            return None
 
-        return None
+        return self._state.get(self._humidity_sensor_prop)
 
     @property
     def power_mode(self) -> bool:
@@ -682,6 +757,11 @@ class GreeDevice:
     @property
     def operation_mode(self) -> OperationMode:
         """Return the current operation mode."""
+        if self._device_type in ZONE_CONTROLLER_TYPES:
+            return ZONE_CONTROLLER_MODES.get(
+                self._state.get(GreeProp.OP_MODE) or 0, OperationMode.auto
+            )
+
         return OperationMode(
             self._state.get(GreeProp.OP_MODE) or OperationMode.auto.value
         )
@@ -706,12 +786,29 @@ class GreeDevice:
         if mode != OperationMode.heat and self.feature_smart_heat:
             self.set_feature_smart_heat(False)
 
+        if self._device_type in ZONE_CONTROLLER_TYPES:
+            # Turbo is a fan speed here, and only Cool and Heat have it.
+            if self.feature_turbo and mode not in (
+                OperationMode.cool,
+                OperationMode.heat,
+            ):
+                self.set_feature_turbo(False)
+            self._state.set(GreeProp.OP_MODE, ZONE_CONTROLLER_MODES_TO_RAW[mode])
+            return
+
         self._state.set(GreeProp.OP_MODE, mode)
 
     @property
     def fan_speed(self) -> FanSpeed:
         """Return the current fan speed."""
-        return FanSpeed(self._state.get(GreeProp.FAN_SPEED) or FanSpeed.auto.value)
+        raw = self._state.get(GreeProp.FAN_SPEED) or FanSpeed.auto.value
+        if (
+            self._device_type in ZONE_CONTROLLER_TYPES
+            and raw == ZONE_CONTROLLER_FAN_TURBO
+        ):
+            # Turbo is reported through `feature_turbo`.
+            return FanSpeed.high
+        return FanSpeed(raw)
 
     def set_fan_speed(self, speed: FanSpeed) -> None:
         """Set the device fan speed mode.
@@ -761,31 +858,62 @@ class GreeDevice:
     @property
     def target_temperature_unit(self) -> TemperatureUnits:
         """Return the units of the target temperature."""
+        if self._temp_unit_prop is None:
+            return TemperatureUnits.C
         return TemperatureUnits(
-            self._state.get(GreeProp.TARGET_TEMPERATURE_UNIT)
-            or TemperatureUnits.C.value
+            self._state.get(self._temp_unit_prop) or TemperatureUnits.C.value
         )
 
     def set_target_temperature_unit(self, units: TemperatureUnits) -> None:
         """Set the units of the target temperature."""
-        self._state.set(GreeProp.TARGET_TEMPERATURE_UNIT, units)
+        if self._temp_unit_prop is None:
+            _LOGGER.warning("[%s] The device has no temperature unit", self.unique_id)
+            return
+        self._state.set(self._temp_unit_prop, units)
 
     @property
-    def target_temperature(self) -> float:
-        """Return the target temperature in target_temperature_unit."""
+    def has_target_temperature_bit(self) -> bool:
+        """Return True if the device answers a bit for the target temperature.
 
-        raw_c = self._state.get(GreeProp.TARGET_TEMPERATURE, 0)
-        tem_rec = self._state.get(GreeProp.TARGET_TEMPERATURE_BIT, 0)
+        Only then can it hold half degrees in Celsius, and every whole degree
+        in Fahrenheit. Without it, Fahrenheit goes in steps of about 2.
+        """
+        return self._target_temp_bit_prop is not None
 
-        if raw_c is not None and tem_rec is not None:
-            if self.target_temperature_unit == TemperatureUnits.F:
-                return gree_get_target_temperature_f(raw_c, tem_rec)
-            if self.target_temperature_unit == TemperatureUnits.C:
-                return gree_get_target_temperature_c(raw_c, tem_rec)
-        return 0.0
+    @property
+    def target_temperature(self) -> float | None:
+        """Return the target temperature in target_temperature_unit.
+
+        The bit is the half degree in Celsius, and picks the value from the
+        table in Fahrenheit. Without a bit column it is 0. None until the
+        device is read, or when it has no target temperature.
+        """
+        if self._target_temp_prop is None:
+            return None
+
+        raw = self._state.get(self._target_temp_prop)
+        if raw is None:
+            return None
+
+        raw_c = raw + TARGET_TEMPERATURE_OFFSETS.get(self._target_temp_prop, 0)
+        bit = 0
+        if self._target_temp_bit_prop is not None:
+            bit = self._state.get(self._target_temp_bit_prop) or 0
+
+        if self.target_temperature_unit == TemperatureUnits.F:
+            return gree_get_target_temperature_f(raw_c, bit)
+        return gree_get_target_temperature_c(raw_c, bit)
 
     def set_target_temperature(self, value: float) -> None:
-        """Set the target temperature in target_temperature_unit."""
+        """Set the target temperature in target_temperature_unit.
+
+        Celsius goes to the nearest half degree, Fahrenheit to whole degrees.
+        The bit is sent along when the device answers it. A zone needs that,
+        because it keeps the old bit when only StTem is sent.
+        """
+        if self._target_temp_prop is None:
+            _LOGGER.warning("[%s] The device has no target temperature", self.unique_id)
+            return
 
         if self.target_temperature_unit == TemperatureUnits.F:
             if not value.is_integer():
@@ -794,16 +922,15 @@ class GreeDevice:
                     value,
                     round(value),
                 )
-            raw_c, tem_rec = gree_get_target_temp_props_from_f(round(value))
+            raw_c, bit = gree_get_target_temp_props_from_f(round(value))
         else:
-            raw_c, tem_rec = gree_get_target_temp_props_from_c(value)
+            raw_c, bit = gree_get_target_temp_props_from_c(value)
 
-        self._state.update(
-            {
-                GreeProp.TARGET_TEMPERATURE: raw_c,
-                GreeProp.TARGET_TEMPERATURE_BIT: tem_rec,
-            }
-        )
+        offset = TARGET_TEMPERATURE_OFFSETS.get(self._target_temp_prop, 0)
+        props = {self._target_temp_prop: raw_c - offset}
+        if self._target_temp_bit_prop is not None:
+            props[self._target_temp_bit_prop] = bit
+        self._state.update(props)
 
         if self.feature_smart_heat or self.feature_energy_saving:
             _LOGGER.info(
@@ -928,6 +1055,8 @@ class GreeDevice:
     @property
     def feature_turbo(self) -> bool:
         """Return the turbo mode state."""
+        if self._device_type in ZONE_CONTROLLER_TYPES:
+            return self._state.get(GreeProp.FAN_SPEED) == ZONE_CONTROLLER_FAN_TURBO
         return self._state.get_bool(GreeProp.FEAT_TURBO_MODE)
 
     def set_feature_turbo(self, value: bool) -> None:
@@ -944,6 +1073,15 @@ class GreeDevice:
             raise GreeTurboUnavailable(
                 "Turbo mode is only available under Cool or Heat modes"
             )
+
+        if self._device_type in ZONE_CONTROLLER_TYPES:
+            # A zone controller has no turbo column. Turbo is fan speed 6, and
+            # leaving it goes back to the highest normal speed.
+            if value:
+                self._state.set(GreeProp.FAN_SPEED, ZONE_CONTROLLER_FAN_TURBO)
+            elif self.feature_turbo:
+                self._state.set(GreeProp.FAN_SPEED, FanSpeed.high)
+            return
 
         self._state.set_bool(GreeProp.FEAT_TURBO_MODE, value)
 

@@ -69,7 +69,7 @@ reference counting rather than on the code saying what it means.
 1. Bind. Try the local transport first, then MQTT. Binding is the key exchange, see [protocol.md](protocol.md#encryption). Right after the key exchange, `probe_device_limits()` measures how many columns one status request may carry on this firmware, see [protocol.md](protocol.md#requests-and-batching).
 2. `fetch_device_info()`. Asks for the `InfoProp` columns (MAC, name, model, firmware).
 3. `fetch_device_status()`. Asks for all polled `GreeProp` columns. The request is split into batches, see [protocol.md](protocol.md#requests-and-batching).
-4. `_remove_unsupported_props()`. Any prop the device did not return is removed from polling for the life of the object. If the device returned nothing at all, this raises `GreeProtocolError` instead, so setup fails and Home Assistant retries later.
+4. `_remove_unsupported_props()`. Any prop the device did not return is removed from polling for the life of the object. If the device returned nothing at all, this raises `GreeProtocolError` instead, so setup fails and Home Assistant retries later. Where one value has several columns (the sensors, and the target temperature, its bit and the unit), it keeps one column per group and saves it on the device, which then reads and writes only that column. See [protocol.md](protocol.md#temperature).
 
 After that the coordinator calls `fetch_device_status()` every `scan_interval` seconds (default 60).
 
@@ -81,6 +81,7 @@ The indoor units behind one local VRF gateway are grouped under a controller dev
 
 - A sub-unit is a device whose `connection.local.mac_controller_local` is set and differs from its own MAC. The runtime `mac_address_controller` is not used, because for MQTT it comes from the cloud MAC.
 - Every local controller MAC with at least one sub-unit gets one controller device. Its identifier is `(gree_custom, "controller_<mac>")`, its model is `VRF gateway`, and its name comes from the `vrf_controller` device translation.
+- A zone controller gets the same controller device, with model `Zone controller` and the `zone_controller` translation. The `device_type` of a bound sub-unit decides which. With no bound sub-unit the registry keeps the last known model and name, and a new device gets the VRF label.
 - The controller has no entities. Its `connections` hold the gateway MAC. Discovery never returns the gateway itself as a device, so no other device of this integration has that MAC.
 - Its `sw_version` and `hw_version` come from the first bound sub-unit, because the firmware belongs to the WiFi module of the gateway. With no bound sub-unit the registry keeps the last known values.
 - A cloud-only VRF has no local controller MAC, so it gets no controller device yet.

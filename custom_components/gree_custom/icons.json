@@ -56,6 +56,9 @@
     "number": {
       "humidity_control_target": {
         "default": "mdi:water-percent"
+      },
+      "zone_target_temperature": {
+        "default": "mdi:home-thermometer"
       }
     },
     "switch": {
@@ -94,6 +97,12 @@
       },
       "beeper": {
         "default": "mdi:volume-high"
+      },
+      "zone": {
+        "default": "mdi:hvac",
+        "state": {
+          "off": "mdi:hvac-off"
+        }
       }
     }
   },

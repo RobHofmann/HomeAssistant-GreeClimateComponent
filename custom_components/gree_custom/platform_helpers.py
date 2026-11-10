@@ -46,6 +46,9 @@ def supported_descriptions(
     for description in descriptions:
         feature = entity_feature_key(description)
 
+        if not description.device_filter(device):
+            continue
+
         if (
             configured_features is not None
             and not description.auto_device_support

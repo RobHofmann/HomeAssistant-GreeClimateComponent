@@ -391,16 +391,23 @@ def _restored_options(
 
     ent_reg = er.async_get(hass)
     try:
-        last_states = async_get_restore_data(hass).last_states
+        restore_data = async_get_restore_data(hass)
     except KeyError:
         return {}
+
+    # Home Assistant 2026.11 removed last_states and keys the stored states
+    # by registry entry. Older releases, down to the minimum in hacs.json,
+    # only have last_states.
+    get_stored_state = getattr(restore_data, "async_get_stored_state", None)
+    if get_stored_state is None:
+        get_stored_state = getattr(restore_data, "last_states", {}).get
 
     options: dict[str, Any] = {}
 
     for row in er.async_entries_for_config_entry(ent_reg, entry_id):
         legacy_key = row.unique_id.removeprefix(f"{mac_controller}_")
         option = LEGACY_STATE_OPTIONS.get(legacy_key)
-        stored = last_states.get(row.entity_id)
+        stored = get_stored_state(row.entity_id)
         if option is None or stored is None:
             continue
 

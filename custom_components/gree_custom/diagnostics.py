@@ -4,11 +4,10 @@ import logging
 from typing import Any
 
 from homeassistant.components.diagnostics import async_redact_data
-from homeassistant.const import CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
 
-from .const import CONF_DEVICES, CONF_ENCRYPTION_KEY, DOMAIN
+from .const import CONF_DEVICES, DOMAIN, TO_REDACT
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .helpers import get_vrf_controller_mac, get_vrf_sub_units
 
@@ -34,7 +33,7 @@ async def async_get_config_entry_diagnostics(
     #     diagnostics["entry_data"]["advanced"]["encryption_key"]
     # )
 
-    return async_redact_data(diagnostics, [CONF_ENCRYPTION_KEY, CONF_PASSWORD])
+    return async_redact_data(diagnostics, TO_REDACT)
 
 
 async def async_get_device_diagnostics(
