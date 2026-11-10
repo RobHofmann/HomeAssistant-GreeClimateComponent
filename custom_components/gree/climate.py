@@ -446,17 +446,24 @@ class GreeClimate(ClimateEntity):
         if self._has_temp_sensor:
             _LOGGER.debug(f"{self._name}: Built-in temperature sensor reading: {self._acOptions['TemSen']}")
 
+            raw_temsen = self._acOptions["TemSen"]
+            try:
+                raw_temsen = float(raw_temsen)
+            except (TypeError, ValueError):
+                _LOGGER.debug(f"{self._name}: TemSen not numeric ({raw_temsen!r}), skipping current temperature update")
+                return
+
             if self._temp_sensor_offset is None:  # user hasn't chosen an offset
                 # User hasn't set automaticaly, so try to determine the offset
-                temp_c = self._process_temp_sensor(self._acOptions["TemSen"])
+                temp_c = self._process_temp_sensor(raw_temsen)
                 _LOGGER.debug("method UpdateHACurrentTemperature: User has not chosen an offset, using process_temp_sensor() to automatically determine offset.")
             else:
                 # User set
                 if self._temp_sensor_offset is True:
-                    temp_c = self._acOptions["TemSen"] - TEMSEN_OFFSET
+                    temp_c = raw_temsen - TEMSEN_OFFSET
 
                 elif self._temp_sensor_offset is False:
-                    temp_c = self._acOptions["TemSen"]
+                    temp_c = raw_temsen
 
                 _LOGGER.debug(f"method UpdateHACurrentTemperature: User has chosen an offset ({self._temp_sensor_offset})")
 
@@ -476,16 +483,23 @@ class GreeClimate(ClimateEntity):
         if self._has_outside_temp_sensor:
             _LOGGER.debug(f"{self._name}: UpdateHAOutsideTemperature: OutEnvTem: {self._acOptions['OutEnvTem']}")
 
+            raw_outenvtem = self._acOptions["OutEnvTem"]
+            try:
+                raw_outenvtem = float(raw_outenvtem)
+            except (TypeError, ValueError):
+                _LOGGER.debug(f"{self._name}: OutEnvTem not numeric ({raw_outenvtem!r}), skipping outside temperature update")
+                return
+
             if self._temp_sensor_offset is None:  # user hasn't chosen an offset
                 # User hasn't set automatically, so try to determine the offset
-                temp_c = self._process_temp_sensor(self._acOptions["OutEnvTem"])
+                temp_c = self._process_temp_sensor(raw_outenvtem)
                 _LOGGER.debug("method UpdateHAOutsideTemperature: User has not chosen an offset, using process_temp_sensor() to automatically determine offset.")
             else:
                 # User set
                 if self._temp_sensor_offset is True:
-                    temp_c = self._acOptions["OutEnvTem"] - TEMSEN_OFFSET
+                    temp_c = raw_outenvtem - TEMSEN_OFFSET
                 elif self._temp_sensor_offset is False:
-                    temp_c = self._acOptions["OutEnvTem"]
+                    temp_c = raw_outenvtem
 
                 _LOGGER.debug(f"method UpdateHAOutsideTemperature: User has chosen an offset ({self._temp_sensor_offset})")
 
@@ -504,7 +518,13 @@ class GreeClimate(ClimateEntity):
         # Update room humidity from built-in AC room humidity sensor if available
         if self._has_room_humidity_sensor:
             _LOGGER.debug(f"{self._name}: UpdateHARoomHumidity: DwatSen: {self._acOptions['DwatSen']}")
-            self._current_room_humidity = self._acOptions["DwatSen"]
+            raw_humidity = self._acOptions["DwatSen"]
+            try:
+                raw_humidity = float(raw_humidity)
+            except (TypeError, ValueError):
+                _LOGGER.debug(f"{self._name}: DwatSen not numeric ({raw_humidity!r}), skipping room humidity update")
+                return
+            self._current_room_humidity = raw_humidity
             _LOGGER.debug(f"{self._name}: UpdateHARoomHumidity: HA room humidity set with device built-in room humidity sensor state: {self._current_room_humidity}%")
 
     def UpdateHAStateToCurrentACState(self):
@@ -563,7 +583,7 @@ class GreeClimate(ClimateEntity):
             except Exception:
                 _LOGGER.debug("Could not determine whether device has an built-in temperature sensor. Retrying at next update()")
             else:
-                if temp_sensor is not None:
+                if temp_sensor not in (None, ""):
                     self._has_temp_sensor = True
                     self._acOptions.update({"TemSen": None})
                     self._optionsToFetch.append("TemSen")
@@ -580,7 +600,7 @@ class GreeClimate(ClimateEntity):
             except Exception:
                 _LOGGER.debug("Could not determine whether device has an anti direct blow feature. Retrying at next update()")
             else:
-                if anti_direct_blow is not None:
+                if anti_direct_blow not in (None, ""):
                     self._has_anti_direct_blow = True
                     self._acOptions.update({"AntiDirectBlow": None})
                     self._optionsToFetch.append("AntiDirectBlow")
@@ -597,7 +617,7 @@ class GreeClimate(ClimateEntity):
             except Exception:
                 _LOGGER.debug("Could not determine whether device has a built-in light sensor. Retrying at next update()")
             else:
-                if light_sensor is not None:
+                if light_sensor not in (None, ""):
                     self._has_light_sensor = True
                     self._acOptions.update({"LigSen": None})
                     self._optionsToFetch.append("LigSen")
@@ -614,7 +634,7 @@ class GreeClimate(ClimateEntity):
             except Exception:
                 _LOGGER.debug("Could not determine whether device has an outside temperature sensor. Retrying at next update()")
             else:
-                if outside_temp_sensor is not None:
+                if outside_temp_sensor not in (None, ""):
                     self._has_outside_temp_sensor = True
                     self._acOptions.update({"OutEnvTem": None})
                     self._optionsToFetch.append("OutEnvTem")
@@ -631,7 +651,7 @@ class GreeClimate(ClimateEntity):
             except Exception:
                 _LOGGER.debug("Could not determine whether device has a room humidity sensor. Retrying at next update()")
             else:
-                if humidity_sensor is not None:
+                if humidity_sensor not in (None, ""):
                     self._has_room_humidity_sensor = True
                     self._acOptions.update({"DwatSen": None})
                     self._optionsToFetch.append("DwatSen")
