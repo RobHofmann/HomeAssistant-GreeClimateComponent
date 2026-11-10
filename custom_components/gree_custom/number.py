@@ -15,10 +15,29 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .aiogree.api import HumidityControlMode, OperationMode
-from .aiogree.const import MAX_HUM_COOL_P, MAX_HUM_DRY_P, MIN_HUM_COOL_P, MIN_HUM_DRY_P
+from .aiogree.api import (
+    DeviceType,
+    HumidityControlMode,
+    OperationMode,
+    TemperatureUnits,
+)
+from .aiogree.const import (
+    MAX_HUM_COOL_P,
+    MAX_HUM_DRY_P,
+    MAX_TEMP_C,
+    MAX_TEMP_F,
+    MIN_HUM_COOL_P,
+    MIN_HUM_DRY_P,
+    MIN_TEMP_C,
+    MIN_TEMP_F,
+)
 from .aiogree.device import GreeDevice
-from .const import GATTR_FEAT_HUMIDITY, GATTR_FEAT_HUMIDITY_TARGET
+from .const import (
+    GATTR_FEAT_HUMIDITY,
+    GATTR_FEAT_HUMIDITY_TARGET,
+    GATTR_ZONE_TARGET_TEMPERATURE,
+    UNITS_GREE_TO_HA,
+)
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
 from .platform_helpers import supported_descriptions
@@ -31,10 +50,14 @@ class GreeNumberDescription(
 ):
     """Description of a Gree number."""
 
-    value_func: Callable[[GreeDevice], int]
-    set_func: Callable[[GreeDevice, int], None]
+    value_func: Callable[[GreeDevice], float | None]
+    set_func: Callable[[GreeDevice, float], None]
     min_func: Callable[[GreeDevice], int] | None = None
     max_func: Callable[[GreeDevice], int] | None = None
+    # The unit and the step, when the device decides them, such as Celsius
+    # in half degrees or whole Fahrenheit
+    unit_func: Callable[[GreeDevice], str] | None = None
+    step_func: Callable[[GreeDevice], float] | None = None
     updates_device: bool = True
 
 
@@ -49,7 +72,7 @@ NUMBER_TYPES: list[GreeNumberDescription] = [
         native_unit_of_measurement=PERCENTAGE,
         value_func=lambda device: device.feature_humidity_control_target,
         set_func=lambda device, value: device.set_feature_humidity_control_target(
-            value
+            int(value)
         ),
         additional_available_func=lambda device: (
             device.operation_mode in (OperationMode.cool, OperationMode.dry)
@@ -66,7 +89,35 @@ NUMBER_TYPES: list[GreeNumberDescription] = [
             else MAX_HUM_DRY_P
         ),
         updates_device=True,
-    )
+    ),
+    GreeNumberDescription(
+        key=GATTR_ZONE_TARGET_TEMPERATURE,
+        translation_key=GATTR_ZONE_TARGET_TEMPERATURE,
+        auto_device_support=True,
+        device_filter=lambda device: device.device_type is DeviceType.ZONE,
+        device_class=NumberDeviceClass.TEMPERATURE,
+        mode=NumberMode.BOX,
+        min_func=lambda device: (
+            MIN_TEMP_F
+            if device.target_temperature_unit is TemperatureUnits.F
+            else MIN_TEMP_C
+        ),
+        max_func=lambda device: (
+            MAX_TEMP_F
+            if device.target_temperature_unit is TemperatureUnits.F
+            else MAX_TEMP_C
+        ),
+        unit_func=lambda device: UNITS_GREE_TO_HA[device.target_temperature_unit],
+        step_func=lambda device: (
+            0.5
+            if device.target_temperature_unit is TemperatureUnits.C
+            and device.has_target_temperature_bit
+            else 1
+        ),
+        value_func=lambda device: device.target_temperature,
+        set_func=lambda device, value: device.set_target_temperature(value),
+        updates_device=True,
+    ),
 ]
 
 
@@ -149,7 +200,25 @@ class GreeNumber(GreeEntity, NumberEntity):  # pyright: ignore[reportIncompatibl
 
     @property
     @override
-    def native_value(self) -> float:
+    def native_step(self) -> float | None:
+        """Return the step, from the device when it decides it."""
+        if self.entity_description.step_func is not None:
+            return self.entity_description.step_func(self.device)
+
+        return super().native_step
+
+    @property
+    @override
+    def native_unit_of_measurement(self) -> str | None:
+        """Return the unit, from the device when it decides it."""
+        if self.entity_description.unit_func is not None:
+            return self.entity_description.unit_func(self.device)
+
+        return super().native_unit_of_measurement
+
+    @property
+    @override
+    def native_value(self) -> float | None:
         """Return the state of the sensor."""
         return self.entity_description.value_func(self.device)
 
@@ -160,7 +229,7 @@ class GreeNumber(GreeEntity, NumberEntity):  # pyright: ignore[reportIncompatibl
             raise HomeAssistantError("Entity unavailable")
 
         try:
-            self.entity_description.set_func(self.device, int(value))
+            self.entity_description.set_func(self.device, value)
 
             if self.entity_description.updates_device:
                 await self.coordinator.push_device_status()

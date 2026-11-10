@@ -15,7 +15,7 @@ When Home Assistant runs in a Docker container on a bridge network, the discover
 
 ## Enable debug logging
 
-Debug logs show every packet in both directions, with the keys redacted. Turn them on before you reproduce a problem.
+Debug logs show every packet in both directions, with the keys and the cloud login (token, password and email) redacted. Turn them on before you reproduce a problem.
 
 In the UI: open the integration under **Settings** > **Devices & Services**, click the three dots and choose **Enable debug logging**. Reproduce the problem, then choose **Disable debug logging**. Home Assistant then downloads the log.
 
@@ -91,7 +91,7 @@ Run the checks under [Time out and cannot connect errors](#time-out-and-cannot-c
 2. The Home Assistant version and the integration version, from HACS or `manifest.json`.
 3. Whether the device is controlled locally or through the cloud.
 4. What you did, what you expected, and what happened.
-5. The diagnostics download of the config entry or the device. See [actions.md](actions.md#diagnostics-download). Keys and passwords are redacted for you.
+5. The diagnostics download of the config entry or the device. See [actions.md](actions.md#diagnostics-download). Keys and the cloud login (token, password and email) are redacted for you.
 6. A debug log of the moment the problem happened. See [Enable debug logging](#enable-debug-logging). Remove anything personal before you paste it.
 
 A report without a log usually gets a request for one first, which costs a round trip.

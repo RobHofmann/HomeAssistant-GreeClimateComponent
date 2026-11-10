@@ -258,8 +258,11 @@ class DeviceState:
 
     def invalidate_missing_property_group(
         self, props: list[GreeProp], missing_value: int = 0
-    ) -> None:
-        """Remove a group of properties from polling based on a ordered list of preference."""
+    ) -> GreeProp | None:
+        """Remove a group of properties from polling based on a ordered list of preference.
+
+        Returns the property that is kept, or None if none of them has a value.
+        """
 
         # Keep the first (lowest priority number) non-zero value
         preferred = next(
@@ -275,6 +278,8 @@ class DeviceState:
                 continue
 
             self.remove(prop)
+
+        return preferred
 
     @property
     def has_pending_updates(self) -> bool:

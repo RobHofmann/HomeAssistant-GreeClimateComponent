@@ -90,7 +90,7 @@ One page per device. Gree devices do not report reliably which features they hav
 | Fan Speeds | all the unit supports | Auto, Low, Medium-Low, Medium, Medium-High, High, and Turbo and Quiet when the unit has them. |
 | Vertical Swing Modes | all | The vertical positions and swing ranges. |
 | Horizontal Swing Modes | all | The horizontal positions and swing ranges. Only shown when the unit has horizontal swing. |
-| Device Features and Modes | all the unit supports | Which switches and selects to create. See [entities.md](entities.md). |
+| Device Features and Modes | all the unit supports | Which switches and selects to create. See [entities.md](entities.md). On a zone of a zone controller, leave out **Zone Switch** if the zone must always stay open. |
 | Temperature Step | 1 | The step of the target temperature, 0.5 to 5 in steps of 0.5. In Fahrenheit the step is rounded to a whole degree. |
 | External Temperature Sensor | none | A Home Assistant sensor that replaces the unit's own room temperature in the climate entity. |
 | External Humidity Sensor | none | A Home Assistant sensor that replaces the unit's own humidity in the climate entity. |

@@ -21,7 +21,14 @@ from aiogree.cloud_api import (
 from aiogree.errors import GreeCloudError, GreeCloudLoginError
 import pytest
 
-from .fakes.cloud import TOKEN, USER_ID, FakeGreeCloud, cloud_device
+from .conftest import RecordingHandler
+from .fakes.cloud import (
+    TOKEN,
+    USER_ID,
+    FakeGreeCloud,
+    cloud_device,
+    zone_controller_cloud_devices,
+)
 
 REGION = GreeRegion.EU
 GATEWAY_MAC = "9424b8fd5ba3"
@@ -116,6 +123,44 @@ async def test_a_login_without_a_token_raises(cloud_factory: CloudFactory) -> No
         await client.login()
 
 
+async def test_the_login_log_leaves_out_the_token_and_the_account(
+    cloud_factory: CloudFactory, gree_logs: RecordingHandler
+) -> None:
+    """Users post their debug logs, so only the result and the user id are logged."""
+    _, client = await cloud_factory(  # type: ignore[misc]
+        login_response={
+            "r": 200,
+            "uid": USER_ID,
+            "token": TOKEN,
+            "email": "rob@example.com",
+            "uname": "rob",
+            "tel": "0612345678",
+        }
+    )
+
+    await client.login()
+
+    logged = "\n".join(gree_logs.messages())
+    assert "Login response" in logged
+    assert str(USER_ID) in logged
+    for secret in (TOKEN, "rob@example.com", "'rob'", "0612345678"):
+        assert secret not in logged
+
+
+async def test_a_login_error_leaves_out_the_account(
+    cloud_factory: CloudFactory,
+) -> None:
+    """The error text ends up in the log too."""
+    _, client = await cloud_factory(  # type: ignore[misc]
+        login_response={"uid": 7, "token": "", "email": "rob@example.com"}
+    )
+
+    with pytest.raises(GreeCloudLoginError) as err:
+        await client.login()
+
+    assert "rob@example.com" not in str(err.value)
+
+
 async def test_an_unknown_login_format_raises(cloud_factory: CloudFactory) -> None:
     """Better an error than a client that thinks it is logged in."""
     _, client = await cloud_factory(login_response={"something": "else"})  # type: ignore[misc]
@@ -206,6 +251,26 @@ async def test_a_duplicate_device_keeps_the_one_that_answers(
     devices = await client.get_all_devices()
 
     assert [device.mac for device in devices] == [SUB_MAC]
+
+
+async def test_a_zone_controller_keeps_its_sub_units(
+    cloud_factory: CloudFactory,
+) -> None:
+    """The gateway is listed next to its AC unit and zones, all with one key.
+
+    The gateway does not answer, its sub-units do, so only the gateway goes.
+    """
+    _, client = await cloud_factory(  # type: ignore[misc]
+        homes=[{"id": 1, "name": "Thuis"}],
+        devices_per_home={1: zone_controller_cloud_devices(GATEWAY_MAC, DEVICE_KEY)},
+    )
+    await client.login()
+
+    devices = await client.get_all_devices()
+
+    assert [device.mac for device in devices] == [
+        f"{GATEWAY_MAC}{suffix}" for suffix in ("00", "02", "03", "04", "01")
+    ]
 
 
 async def test_two_devices_with_different_keys_are_both_kept(
