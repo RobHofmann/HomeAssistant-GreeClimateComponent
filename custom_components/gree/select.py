@@ -4,21 +4,25 @@ from __future__ import annotations
 
 # Standard library imports
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from inspect import isawaitable
 
 # Home Assistant imports
+from homeassistant.components.climate import HVACMode
 from homeassistant.components.select import (
     SelectEntity,
     SelectEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
 # Local imports
+from .const import AUX_HEAT_MODES
 from .entity import GreeEntity, GreeEntityDescription
 
 _LOGGER = logging.getLogger(__name__)
@@ -28,7 +32,7 @@ _LOGGER = logging.getLogger(__name__)
 class GreeSelectEntityDescription(GreeEntityDescription, SelectEntityDescription):
     """Describes Gree select entity."""
 
-    set_fn: Callable[[object, str], None] = None
+    set_fn: Callable[[object, str], Awaitable[None] | None] = None
     restore_state: bool = False
     options_fn: Callable[[object], list[str]] = None
 
@@ -51,12 +55,33 @@ def get_temperature_sensor_options(hass: HomeAssistant) -> list[str]:
     return options
 
 
+async def _set_auxiliary_heat(device, option: str) -> None:
+    """Set the device's auxiliary electric heating mode."""
+    await device.SyncState({"AssHt": AUX_HEAT_MODES[option]})
+
+
+def _get_auxiliary_heat(device) -> str | None:
+    """Return the mode reported by the device, or unknown if unsupported."""
+    value = device._acOptions.get("AssHt")
+    return next((mode for mode, code in AUX_HEAT_MODES.items() if value == code), None)
+
+
 SELECTS: tuple[GreeSelectEntityDescription, ...] = (
+    GreeSelectEntityDescription(
+        property_key="auxiliary_heat",
+        icon="mdi:heating-coil",
+        options=list(AUX_HEAT_MODES),
+        value_fn=_get_auxiliary_heat,
+        set_fn=_set_auxiliary_heat,
+        available_fn=lambda device: bool(device.available)
+        and device._hvac_mode in (HVACMode.HEAT, HVACMode.AUTO)
+        and _get_auxiliary_heat(device) is not None,
+    ),
     GreeSelectEntityDescription(
         property_key="external_temperature_sensor",
         icon="mdi:thermometer-lines",
         options=[],  # Will be populated dynamically
-        value_fn=lambda device: getattr(device, "_external_temperature_sensor", "None"),
+        value_fn=lambda device: getattr(device, "_external_temperature_sensor", None) or "None",
         set_fn=lambda device, value: setattr(device, "_external_temperature_sensor", None if value == "None" else value),
         entity_category=EntityCategory.CONFIG,
         restore_state=True,
@@ -83,7 +108,8 @@ class GreeSelectEntity(GreeEntity, SelectEntity, RestoreEntity):
         super().__init__(hass, entry, description)
         self._hass = hass
         # Initialize with no external sensor configured
-        self._device._external_temperature_sensor = None
+        if description.property_key == "external_temperature_sensor":
+            self._device._external_temperature_sensor = None
         # Set up options dynamically
         if description.options_fn:
             self._attr_options = description.options_fn(hass)
@@ -102,25 +128,33 @@ class GreeSelectEntity(GreeEntity, SelectEntity, RestoreEntity):
         if self.entity_description.restore_state:
             restored = await self.async_get_last_state()
             if restored and self.entity_description.set_fn:
-                self.entity_description.set_fn(self._device, restored.state)
+                await self._async_set_option(restored.state)
                 _LOGGER.debug("Restored %s state: %s", self.entity_id, restored.state)
 
     @property
-    def current_option(self) -> str:
+    def current_option(self) -> str | None:
         """Return the current selected option."""
         if self.entity_description.value_fn:
-            value = self.entity_description.value_fn(self._device)
-            return value or "None"
-        return "None"
+            return self.entity_description.value_fn(self._device)
+        return None
+
+    async def _async_set_option(self, option: str) -> None:
+        """Handle both device commands and local configuration setters."""
+        result = self.entity_description.set_fn(self._device, option)
+        if isawaitable(result):
+            await result
 
     async def async_select_option(self, option: str) -> None:
         """Select an option."""
+        if not self.available:
+            raise HomeAssistantError("Entity unavailable")
+
         if option not in self._attr_options:
             _LOGGER.error("Option %s not available in %s", option, self._attr_options)
             return
 
         if self.entity_description.set_fn:
-            self.entity_description.set_fn(self._device, option)
+            await self._async_set_option(option)
             self.async_write_ha_state()
             _LOGGER.info("Selected %s: %s", self.entity_description.property_key, option)
 
@@ -136,4 +170,4 @@ class GreeSelectEntity(GreeEntity, SelectEntity, RestoreEntity):
     @property
     def available(self) -> bool:
         """Return if entity is available."""
-        return True
+        return super().available
