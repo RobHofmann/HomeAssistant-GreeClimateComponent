@@ -98,20 +98,15 @@ for. Do not widen the shared config.
 
 ## 5. What the suite does not cover
 
-The suite covers the protocol layer, `custom_components/gree_custom/aiogree/`.
-It does not cover the Home Assistant layer: the entities, the coordinator and
-the config flow.
-
-Those need
+The suite covers the protocol layer, `custom_components/gree_custom/aiogree/`,
+and the config flow, in `tests/config_flow/`. The config flow tests run a real
+Home Assistant through
 [pytest-homeassistant-custom-component](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component),
-which extracts Home Assistant's own test plugins for custom integrations. It
-needs the `enable_custom_integrations` fixture and `asyncio_mode = auto`, which
-`pytest.ini` already sets. It is not a dependency of this repository yet,
-because it pulls in all of Home Assistant and CI does not need it for the
-protocol tests.
+against a fake Gree Cloud, a fake MQTT broker and fake units on loopback.
 
-So a green run does not mean a change is safe. For anything that touches an
-entity, a service or the config flow, also run Home Assistant itself against a
+It does not cover the entities, the coordinator beyond setup and unload, or the
+real Gree servers. So a green run does not mean a change is safe. For anything
+that touches an entity or a service, also run Home Assistant itself against a
 device or a fake one, and say in the pull request which one you did.
 
 ## 6. Report

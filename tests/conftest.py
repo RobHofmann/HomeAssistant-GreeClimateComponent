@@ -16,6 +16,11 @@ from aiogree.api import (
 from aiogree.const import DEFAULT_DEVICE_PORT
 import pytest
 
+try:
+    import pytest_socket
+except ImportError:  # pragma: no cover - only without the Home Assistant plugin
+    pytest_socket = None
+
 # Everything the protocol layer logs sits under this logger, because the tests
 # import the package as "aiogree". Inside Home Assistant the same records are
 # named "custom_components.gree_custom.aiogree.*".
@@ -69,6 +74,25 @@ class RecordingHandler(logging.Handler):
     def warnings(self) -> list[str]:
         """Return the messages logged at warning level or above."""
         return self.messages(logging.WARNING)
+
+
+@pytest.fixture(autouse=True)
+def loopback_sockets() -> None:
+    """Allow sockets on loopback, and nowhere else.
+
+    pytest-homeassistant-custom-component blocks every socket before each
+    test, and allows a connect only to 127.0.0.1. The fakes in this suite
+    listen on real sockets anywhere in 127.0.0.0/8, so this opens that range
+    again. A test that tries to reach a real Gree server or a real device
+    still fails. Without the plugin there is nothing to undo.
+    """
+    if pytest_socket is None:
+        return
+
+    # The allow list patches whatever class socket.socket is at that moment,
+    # so the real class has to be back first.
+    pytest_socket.enable_socket()
+    pytest_socket.socket_allow_hosts(["127.0.0.0/8"])
 
 
 @pytest.fixture(autouse=True)

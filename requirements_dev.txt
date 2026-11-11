@@ -10,6 +10,11 @@ pytest>=8.4
 pytest-asyncio>=1.0
 pytest-timeout>=2.3
 
+# The config flow tests run a real Home Assistant. This plugin pins one exact
+# Home Assistant release, and pytest, pytest-asyncio and pytest-timeout with
+# it. 0.13.371 is Home Assistant 2026.10.0. Bump it on purpose, in its own PR.
+pytest-homeassistant-custom-component==0.13.371
+
 # Integration dependencies (from manifest)
 asyncio-dgram
 aiomqtt

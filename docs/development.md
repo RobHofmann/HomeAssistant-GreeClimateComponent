@@ -17,18 +17,38 @@ Use the devcontainer. `CONTRIBUTING.md` has the steps. Inside it, the VS Code ta
 
 ## Testing
 
-`tests/` holds a pytest suite for the protocol layer. Run it from the repo
-root:
+`tests/` holds a pytest suite for the protocol layer, and `tests/config_flow/`
+holds tests for the config flow that run inside a real Home Assistant. One
+`pytest` run does both. Run it from the repo root, on Linux:
 
 ```bash
 pip install -r requirements_dev.txt
 pytest
 ```
 
-It takes about 30 seconds. `pytest -n auto` needs `pytest-xdist` and cuts that
-to about 8 seconds. There is also a `run-tests` skill for coding agents in
-`.claude/skills/`, which runs the suite and the three linters and says what to
-report.
+It takes about 65 seconds: about 45 for the protocol tests and about 20 for
+the config flow. The first install takes a few minutes, because
+`requirements_dev.txt` pins `pytest-homeassistant-custom-component`, which
+brings one exact Home Assistant release (0.13.371 is Home Assistant 2026.10.0).
+That plugin also pins pytest, pytest-asyncio and pytest-timeout. Bump it on
+purpose, in its own PR.
+
+Without a local Python 3.14, run it in a throwaway container:
+
+```bash
+docker run --rm -v "$PWD:/src" -w /src python:3.14-slim sh -c \
+  "python -m venv /venv && /venv/bin/pip install -q -r requirements_dev.txt && /venv/bin/pytest -q"
+```
+
+Only the config flow tests:
+
+```bash
+pytest -q tests/config_flow
+```
+
+`pytest -n auto` needs `pytest-xdist`. There is also a `run-tests` skill for
+coding agents in `.claude/skills/`, which runs the suite and the three linters
+and says what to report.
 
 ### What it covers
 
@@ -46,8 +66,14 @@ report.
 | `test_device_state.py` | Reads, pending values, held values and their TTL, what counts as supported, pruning |
 | `test_device_api_client.py` | Bind, the column probe, diagnostic sweeps and the canary, listeners, one bind shared by the sub-units of a controller |
 | `test_device.py` | The poll cycle and the rules between features |
+| `config_flow/test_setup.py` | The user flow with cloud and LAN, closing it after the login, the YAML import and why it refuses reconfigure, reauth after the broker refuses the token |
+| `config_flow/test_reconfigure.py` | The reconfigure menu: finish at once, rediscover with and without new units, edit with and without a new bind, remove, a local-only entry, a VRF host change, closing the flow after a login |
+| `config_flow/test_registry_lookup.py` | `get_device_by_identifier` on a registry with and without `async_get_device_by_identifier` |
 
-254 tests, about 94 percent of `aiogree/`. Check the number of the day with:
+255 protocol tests, about 94 percent of `aiogree/`, and 16 config flow tests.
+One config flow test is a strict `xfail`: it shows a known defect and starts to
+fail as soon as the defect is fixed, so the marker gets removed with the fix.
+Check the coverage of the day with:
 
 ```bash
 pytest --cov=aiogree --cov-report=term-missing
@@ -57,17 +83,53 @@ That needs `pytest-cov`, which is not a dependency of the suite.
 
 ### What is not covered yet
 
-The Home Assistant layer: the entities, the coordinator, the config flow and
-the services. Those need
-[pytest-homeassistant-custom-component](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component),
-which extracts Home Assistant's own test plugins for custom integrations. It
-needs the `enable_custom_integrations` fixture and `asyncio_mode = auto`, which
-`pytest.ini` already sets. It is not a dependency yet because it pulls in all of
-Home Assistant, which CI does not need for the protocol tests. The devcontainer
-already has Home Assistant, so that is where this work starts.
+The entities, the poll cycle of the coordinator, the services, the DHCP step
+and the migration from 4.x. The config flow tests set entries up and unload
+them, so the entities are created, but no test checks what they show.
 
-So a green suite does not mean a change is safe. It means the protocol layer
-still works. Say in the PR what else you tested.
+So a green suite does not mean a change is safe. Say in the PR what else you
+tested.
+
+### The config flow tests
+
+They use
+[pytest-homeassistant-custom-component](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component),
+which extracts Home Assistant's own test plugins: the `hass` fixture, the flow
+manager, the config entries and the registries. The component is loaded from
+`custom_components/` through the `enable_custom_integrations` fixture.
+`tests/config_flow/conftest.py` says per piece what is real:
+
+- The Gree Cloud is `FakeGreeCloud` on real HTTP. Only the server address of
+  the region is changed, so the login and the device list run the real client.
+- MQTT is `FakeMqttBroker`, in place of `aiomqtt.Client`. It hands each request
+  to a `FakeGreeDevice`, so a bind over the cloud runs the real protocol. It can
+  refuse the login, which is how the reauth test starts.
+- LAN units are `FakeGreeDevice` and `FakeVrfGateway` on real UDP, on port 7000
+  of their own address in `127.0.0.0/8`. The flow finds them through its extra
+  hosts field, which is the real unicast scan.
+- The broadcast is switched off, because the test host has no LAN and a
+  broadcast would leave the machine. `helpers._get_hass_broadcast_addr` is the
+  only function of the component that is replaced.
+- The flow forms are filled the way the frontend fills them: every field
+  starts at its default or suggested value, and a test names only what it
+  changes (`submit()` in the conftest).
+
+Every test checks resource hygiene. It counts the cloud logins, and it checks
+that the only MQTT clients and UDP sockets still open belong to a loaded
+entry. When a test ends, the `gree` fixture unloads every entry, and then
+nothing may stay open.
+
+The plugin applies Home Assistant's test rules to the whole run, also to the
+protocol tests: it blocks sockets, fails a test that leaves a task or a timer
+behind, and runs the event loop in debug mode. The `loopback_sockets` fixture
+in `tests/conftest.py` allows sockets on `127.0.0.0/8` again, and nowhere else,
+so a test that tries to reach a real Gree server still fails.
+
+Code in a test file runs with Home Assistant's strictest deprecation rules,
+because it is not an integration. A deprecated call such as
+`device_registry.async_get_device` raises there, while the component itself
+only logs it. Use calls that exist in both 2026.3 and the pinned release, for
+example `dr.async_entries_for_config_entry`.
 
 ### How the fakes work
 
@@ -87,7 +149,8 @@ none of that.
   `FakeGreeDevice` without a socket, for the paths UDP does not have.
 - `tests/fakes/mqtt.py` has `FakeMqttClient`. This is the one place where the
   wire is replaced, because MQTT needs a broker. Everything above the broker is
-  still the shipped code.
+  still the shipped code. `FakeMqttBroker` in the same file answers each
+  request with a `FakeGreeDevice`, and can refuse the login.
 
 A new failure mode is a new keyword on `FakeGreeDevice`, not a new class. The
 ones that exist are `answer_scan`, `answer_bind`, `scan_delay`, `reply_delay`,
@@ -189,8 +252,10 @@ Ruff is pinned to one exact version, in `lint.yml` and in `requirements_dev.txt`
 `validate.yaml` runs three jobs on every push and PR:
 
 - **Hassfest** and **HACS** validation. Neither imports or compiles the Python.
-- **Tests**: `pytest` on Python 3.14, on an Ubuntu runner. This one does import
-  the protocol layer, so a syntax error or a broken import fails the build.
+- **Tests**: `pytest` on Python 3.14, on an Ubuntu runner. It runs the protocol
+  tests and the config flow tests, so a syntax error or a broken import in
+  the component fails the build. The install of Home Assistant takes a few
+  minutes of the job.
 
 CI does not run pylint or mypy. They need the Home Assistant core checkout in
 `.ha-core`, which only the devcontainer has. Run both yourself before you push.
