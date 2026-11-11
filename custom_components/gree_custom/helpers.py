@@ -586,9 +586,10 @@ def reconcile_vrf_controllers(
     device without entities. A wanted controller is never recreated, so its
     device id, user name and area survive restarts.
 
-    The sub-units are linked from here and not through DeviceInfo, because HA
-    2026.3 only has via_device and newer versions only have via_device_id.
-    The link needs the sub-unit devices, so they must exist first.
+    The sub-units are linked from here and not through DeviceInfo. That was
+    needed while HA 2026.3 was the floor, which only had via_device. With the
+    2026.11 floor the link can move to DeviceInfo later. The link needs the
+    sub-unit devices, so they must exist first.
     """
     device_registry = dr.async_get(hass)
     sub_units = get_vrf_sub_units(device_configs)
@@ -626,7 +627,7 @@ def reconcile_vrf_controllers(
         return
 
     # Look up the sub-units in the entry devices, async_get_device is
-    # deprecated in newer HA versions and its replacement is not in 2026.3
+    # deprecated in newer HA versions
     devices_by_mac: dict[str, dr.DeviceEntry] = {
         identifier: device_entry
         for device_entry in entry_devices

@@ -418,7 +418,7 @@ def registry_device(
     """Return the device registry row of one unit of an entry.
 
     `async_get_device` and lookups on `devices` are deprecated in Home
-    Assistant 2026.10, and their replacements are not in 2026.3.
+    Assistant 2026.10. Reading the devices of the entry works on every version.
     """
     return next(
         (

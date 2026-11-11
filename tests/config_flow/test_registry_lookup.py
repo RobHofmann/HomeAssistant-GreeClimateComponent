@@ -1,9 +1,8 @@
 """Tests for `get_device_by_identifier`, the device registry lookup by owner.
 
-Home Assistant 2026.8 added `async_get_device_by_identifier`. Older versions,
-down to the 2026.3 floor of this repo, only have `async_get_device`. The
-helper uses the new call when it is there, and otherwise the old call with an
-owner check. The first branch runs against the real registry of the Home
+Home Assistant 2026.8 added `async_get_device_by_identifier`. Older versions
+only have `async_get_device`. The helper uses the new call when it is there,
+and otherwise the old call with an owner check. The first branch runs against the real registry of the Home
 Assistant in the test. The second needs an older registry, so a small stand-in
 without the new method serves the rows of the real one.
 """

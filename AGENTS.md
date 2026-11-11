@@ -12,7 +12,7 @@ Older releases (4.x) used the domain `gree` and a different code base. `migratio
 
 ## Versions
 
-- Python 3.14. Home Assistant 2026.3 or newer.
+- Python 3.14. Home Assistant 2026.11 or newer.
 - Python 3.14 syntax is used on purpose, for example `except A, B:` without brackets (PEP 758). Do not "fix" it. Check the code with a 3.14 interpreter, not an older one.
 
 ## Where to read more
