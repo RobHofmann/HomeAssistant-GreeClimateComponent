@@ -602,7 +602,7 @@ class GreeClimate(ClimateEntity):
             except Exception:
                 _LOGGER.debug("Could not determine whether device has auxiliary heat. Retrying at next update()")
             else:
-                self._has_auxiliary_heat = auxiliary_heat is not None
+                self._has_auxiliary_heat = auxiliary_heat not in (None, "")
                 if self._has_auxiliary_heat:
                     self._acOptions["AssHt"] = auxiliary_heat
                     self._optionsToFetch.append("AssHt")
