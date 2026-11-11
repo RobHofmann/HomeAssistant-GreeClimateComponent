@@ -62,6 +62,27 @@ REQUIREMENTS = ["pycryptodome"]
 
 _LOGGER = logging.getLogger(__name__)
 
+
+def _is_numeric(value) -> bool:
+    """Return True only when the device returned a usable number."""
+    if value is None or isinstance(value, bool):
+        return False
+    try:
+        float(value)
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
+def _decode_temp_add0_1(ac_options) -> float | None:
+    """Decode SetTem plus the Add0.1 tenths digit, or None when unavailable."""
+    set_tem = ac_options.get("SetTem")
+    tenths = ac_options.get("Add0.1")
+    if not _is_numeric(set_tem) or not _is_numeric(tenths):
+        return None
+    return float(set_tem) + float(tenths) / 10.0
+
+
 SUPPORT_FLAGS = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.FAN_MODE | ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
 
 
@@ -172,6 +193,9 @@ class GreeClimate(ClimateEntity):
         self._has_half_degree_option = None
         # Keep the existing TemRec behavior unless the user opts in.
         self._use_add_half_degree = False
+        # GR-Gcloud VRF gateways report the Celsius fraction as Add0.1 tenths.
+        self._has_add0_1_option = None
+        self._step_autodetected = False
         # Initialize target temperature step with default value (will be overridden by number entity when available)
         self._target_temperature_step = DEFAULT_TARGET_TEMP_STEP
         # Device uses a combination of Celsius + a set bit for Fahrenheit, so the integration needs to be aware of the units.
@@ -255,6 +279,7 @@ class GreeClimate(ClimateEntity):
             "TemUn": None,
             "HeatCoolType": None,
             "TemRec": None,
+            "Add0.1": None,
             "SvSt": None,
             "SlpMod": None,
             "AssHt": None,
@@ -317,8 +342,17 @@ class GreeClimate(ClimateEntity):
         return acOptions
 
     @property
+    def uses_add0_1(self):
+        """Whether this unit carries the Celsius fraction as an Add0.1 tenths digit."""
+        return self._has_add0_1_option is True and _is_numeric(self._acOptions.get("Add0.1"))
+
+    @property
     def uses_add_half_degree(self):
         """Whether Celsius control should use the optional half-degree field."""
+        # Add0.1 already carries the fraction; sending Add0.5 as well would
+        # leave the two encodings disagreeing on the device.
+        if self.uses_add0_1:
+            return False
         return (
             self._unit_of_measurement == "°C"
             and self._has_half_degree_option is True
@@ -331,10 +365,13 @@ class GreeClimate(ClimateEntity):
         if self.uses_add_half_degree:
             opt_list.append("Add0.5")
 
+        if self.uses_add0_1:
+            opt_list.append("Add0.1")
+
         # Collect values from _acOptions
         p_values = [self._acOptions.get(k) for k in opt_list]
-        if self.uses_add_half_degree:
-            # Only Add0.5 carries the Celsius half degree in outgoing commands.
+        if self.uses_add_half_degree or self.uses_add0_1:
+            # Exactly one field carries the Celsius fraction in outgoing commands.
             p_values[opt_list.index("TemRec")] = 0
 
         # Filter out empty ones
@@ -376,8 +413,13 @@ class GreeClimate(ClimateEntity):
             half_bit = self._acOptions.get("Add0.5") if self.uses_add_half_degree else None
             if half_bit not in (0, 1):
                 half_bit = self._acOptions["TemRec"]
-            temp_c = decode_temp_c(SetTem=self._acOptions["SetTem"], TemRec=half_bit)
-            temp_f = gree_c_to_f(SetTem=self._acOptions["SetTem"], TemRec=self._acOptions["TemRec"])
+            add0_1_temp = _decode_temp_add0_1(self._acOptions) if self.uses_add0_1 else None
+            if add0_1_temp is not None:
+                temp_c = add0_1_temp
+                temp_f = gree_c_to_f(SetTem=int(temp_c), TemRec=0 if temp_c == int(temp_c) else 1)
+            else:
+                temp_c = decode_temp_c(SetTem=self._acOptions["SetTem"], TemRec=half_bit)
+                temp_f = gree_c_to_f(SetTem=self._acOptions["SetTem"], TemRec=self._acOptions["TemRec"])
 
             if self._unit_of_measurement == "°C":
                 display_temp = temp_c
@@ -578,6 +620,19 @@ class GreeClimate(ClimateEntity):
                     self._optionsToFetch.append("Add0.5")
                     _LOGGER.info("%s: Reports Add0.5; Celsius half-degree control can be enabled manually", self._name)
 
+        # Probe the tenths-digit fraction some VRF gateways use instead of TemRec.
+        if self._has_add0_1_option is None:
+            try:
+                add0_1 = await self.GreeGetValues(["Add0.1"])
+            except Exception:
+                _LOGGER.debug("Could not query Add0.1; retrying at the next update")
+            else:
+                self._has_add0_1_option = _is_numeric(add0_1)
+                if self._has_add0_1_option:
+                    self._acOptions["Add0.1"] = int(float(add0_1))
+                    self._optionsToFetch.append("Add0.1")
+                    _LOGGER.info("%s: Reports Add0.1; Celsius fractions are sent as a tenths digit", self._name)
+
         if self._has_temp_sensor is None:
             _LOGGER.debug("Attempt to check whether device has an built-in temperature sensor")
             try:
@@ -602,7 +657,7 @@ class GreeClimate(ClimateEntity):
             except Exception:
                 _LOGGER.debug("Could not determine whether device has auxiliary heat. Retrying at next update()")
             else:
-                self._has_auxiliary_heat = auxiliary_heat is not None
+                self._has_auxiliary_heat = auxiliary_heat not in (None, "")
                 if self._has_auxiliary_heat:
                     self._acOptions["AssHt"] = auxiliary_heat
                     self._optionsToFetch.append("AssHt")
@@ -695,6 +750,14 @@ class GreeClimate(ClimateEntity):
                     self._device_online = True
             # Set latest status from device
             self._acOptions = self.SetAcOptions(self._acOptions, optionsToFetch, currentValues)
+
+            # Add0.1 means the unit accepts 0.5 C targets. Lift the step once so
+            # the slider can reach them; the step number entity can still
+            # override this afterwards.
+            if not self._step_autodetected and self.uses_add0_1:
+                self._step_autodetected = True
+                if self._target_temperature_step >= 1:
+                    self._target_temperature_step = 0.5
 
             # Snapshot what the device actually reported this cycle, so we can
             # confirm pending commands against the *device's* value rather than
@@ -997,17 +1060,28 @@ class GreeClimate(ClimateEntity):
 
                 if self._unit_of_measurement == "°C":
                     SetTem, TemRec = encode_temp_c(T=target_temperature)  # takes care of 1/2 degrees
+                    target_c = float(target_temperature)
                 elif self._unit_of_measurement == "°F":
                     SetTem, TemRec = gree_f_to_c(desired_temp_f=target_temperature)
+                    target_c = (float(target_temperature) - 32.0) * 5.0 / 9.0
                 else:
                     _LOGGER.error("Unable to set temperature. Units not set to °C or °F")
                     return
 
-                half_option = "TemRec"
-                if self.uses_add_half_degree:
-                    half_option = "Add0.5"
-                await self.SyncState({"SetTem": int(SetTem), half_option: int(TemRec)})
-                _LOGGER.debug(f"{self._name}: async_set_temperature: Set Temp to {target_temperature}{self._unit_of_measurement} ->  SyncState with SetTem={SetTem}, {half_option}={TemRec}")
+                if self.uses_add0_1:
+                    # This unit keeps the fraction in Add0.1 and ignores TemRec.
+                    # Derive SetTem from Celsius so °F targets round the same way.
+                    set_tem_c = int(encode_temp_c(T=target_c)[0])
+                    tenths = max(0, min(9, int(round((target_c - set_tem_c) * 10))))
+                    payload = {"SetTem": set_tem_c, "Add0.1": tenths}
+                else:
+                    half_option = "TemRec"
+                    if self.uses_add_half_degree:
+                        half_option = "Add0.5"
+                    payload = {"SetTem": int(SetTem), half_option: int(TemRec)}
+
+                await self.SyncState(payload)
+                _LOGGER.debug(f"{self._name}: async_set_temperature: Set Temp to {target_temperature}{self._unit_of_measurement} ->  SyncState with {payload}")
 
                 self.async_write_ha_state()
 
