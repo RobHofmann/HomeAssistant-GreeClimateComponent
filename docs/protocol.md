@@ -36,6 +36,13 @@ Facts about how Gree devices behave on the wire. Most of these are not visible f
 - Some devices report sensor temperatures with a +40 offset. `TempOffsetResolver` in `aiogree/helpers.py` detects this from the values it sees.
 - Fahrenheit uses the protocol's own lookup table, not a formula.
 
+## Quiet
+
+- The component writes `Quiet` 2 to turn Quiet on and 0 to turn it off, as the Gree app does. Many units ignore `Quiet` 1 (issue #491). The value is `QUIET_ON` in `aiogree/api.py`.
+- On read, any value other than 0 means Quiet is on. Units report 1 or 2. A user report suggests that on some remotes 1 is "auto quiet" and 2 is "quiet now", but this is not confirmed.
+- Choosing Quiet does not send `WdSpd`. The app sends only `Quiet`. One 4.x user also sent `WdSpd` 1, as their remote does, but changed both at once, so it is not known that `WdSpd` is needed.
+- A unit that answers 1 after a write of 2 keeps the hold until `HELD_VALUE_TTL` runs out. Both values read as on, so the user sees no difference.
+
 ## Discovery and network
 
 - Local discovery is a plain text `{"t": "scan"}` UDP broadcast. The device answers with a `dev` pack encrypted with the generic key.

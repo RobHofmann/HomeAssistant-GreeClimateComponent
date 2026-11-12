@@ -648,6 +648,48 @@ async def test_the_plain_feature_switches(bound: GreeDevice) -> None:
     assert bound.feature_anti_direct_blow is True
 
 
+@pytest.mark.parametrize(("on", "sent"), [(True, 2), (False, 0)])
+async def test_quiet_is_sent_as_the_app_sends_it(
+    unit: FakeGreeDevice, bound: GreeDevice, on: bool, sent: int
+) -> None:
+    """The Gree app sends Quiet 2. Many units ignore Quiet 1 (issue #491)."""
+    if not on:
+        # Start from Quiet on, so turning it off is a real change.
+        unit.values[GreeProp.FEAT_QUIET_MODE.value] = 2
+        await bound.fetch_device_status()
+    unit.reset_record()
+
+    bound.set_feature_quiet(on)
+    await bound.push_device_status()
+
+    command = next(pack for pack in unit.packs if pack.get("t") == "cmd")
+    values = dict(zip(command["opt"], command["p"], strict=True))
+    assert values[GreeProp.FEAT_QUIET_MODE.value] == sent
+    assert GreeProp.FAN_SPEED.value not in values
+
+
+@pytest.mark.parametrize(("reported", "quiet"), [(0, False), (1, True), (2, True)])
+async def test_quiet_reads_as_on_for_any_value_but_0(
+    reported: int, quiet: bool
+) -> None:
+    """Units report Quiet as 1 or 2, and both mean on.
+
+    The value comes from a poll only. Right after a push the sent value is
+    held, so a read then would not test the reported value.
+    """
+    unit = FakeGreeDevice()
+    unit.values.update(LIVE_VALUES)
+    unit.values[GreeProp.FEAT_QUIET_MODE.value] = reported
+    await unit.start()
+    device, transport = await bind(unit)
+
+    try:
+        assert device.feature_quiet is quiet
+    finally:
+        await transport.disconnect()
+        unit.close()
+
+
 async def test_target_dry_reads_back_as_target_dry(bound: GreeDevice) -> None:
     """Target dry is stored as 0 and disabled as 15, so a 0 must not read as off.
 

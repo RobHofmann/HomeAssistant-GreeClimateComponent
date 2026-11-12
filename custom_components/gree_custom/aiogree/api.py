@@ -524,6 +524,8 @@ ZONE_CONTROLLER_FAN_TURBO = 6
 # Added to the raw value of a target temperature column to get degrees
 # Celsius. StTem, the target temperature of a zone, is degrees Celsius minus 16.
 TARGET_TEMPERATURE_OFFSETS: dict[GreeProp, int] = {GreeProp.TARGET_TEMPERATURE_2: 16}
+# The value the Gree app writes to turn Quiet on. Many units ignore 1.
+QUIET_ON = 2
 
 
 class GreeCommand(StrEnum):
