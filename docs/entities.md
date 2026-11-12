@@ -68,7 +68,7 @@ Created when the unit has the sensor. Some are disabled by default: enable them 
 | Indoor Coil Temperature | °C | no | The temperature of the coil in the indoor unit. |
 | Outdoor Coil Temperature | °C | no | The temperature of the coil in the outdoor unit. |
 
-The four compressor sensors only exist when the unit reports them with a value other than 0. Many units do not report them over the local connection. Their temperature scale is not fully confirmed yet, see [protocol.md](protocol.md#compressor-telemetry).
+The three temperature sensors only exist when the unit reports them with a value other than 0. Compressor Frequency and Compressor Running also exist at 0, when the unit reports the compressor or outdoor coil temperature, because the frequency is 0 while the compressor rests. Many units do not report any of them over the local connection. Their temperature scale is not fully confirmed yet, see [protocol.md](protocol.md#compressor-telemetry).
 
 Some units report temperatures with an offset of 40. The integration detects that from the values it sees and corrects it.
 

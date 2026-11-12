@@ -350,13 +350,19 @@ async def test_a_lone_zero_frequency_is_dropped(unit: FakeGreeDevice) -> None:
 async def test_the_indoor_coil_is_not_the_room_temperature(
     unit: FakeGreeDevice,
 ) -> None:
-    """InEvaTem is the coil. The room temperature still comes from TemSen."""
+    """InEvaTem is the coil. The room temperature still comes from TemSen.
+
+    The fake answers the frequency with 0. An indoor coil alone does not prove
+    compressor data, so that 0 is dropped and the action follows the mode.
+    """
     unit.values[GreeProp.SENSOR_INDOOR_COIL_TEMPERATURE.value] = 48
     device, transport = await bind(unit)
 
     try:
         assert device.indoors_temperature_c == 21
         assert device.indoor_coil_temperature_c == 8
+        assert not device.has_compressor_data
+        assert device.compressor_running is None
     finally:
         await transport.disconnect()
 

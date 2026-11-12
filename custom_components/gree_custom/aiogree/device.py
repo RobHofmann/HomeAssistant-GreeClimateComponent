@@ -458,10 +458,16 @@ class GreeDevice:
 
         # The frequency is 0 while the compressor is stopped, so a 0 at bind
         # does not prove that the unit has no frequency. When the unit reports
-        # one of the telemetry temperatures, it has compressor telemetry, and
-        # its frequency is kept even when it is 0.
+        # a temperature of the outdoor unit, it has compressor telemetry, and
+        # its frequency is kept even when it is 0. The indoor coil does not
+        # count: an indoor unit can have that sensor without any compressor
+        # data, and a kept 0 would show idle for ever.
         if not any(
-            self._state.supports(prop) for prop in TELEMETRY_TEMPERATURE_WINDOWS_C
+            self._state.supports(prop)
+            for prop in (
+                GreeProp.SENSOR_COMPRESSOR_TEMPERATURE,
+                GreeProp.SENSOR_OUTDOOR_COIL_TEMPERATURE,
+            )
         ):
             self._state.invalidate_missing_property_group(
                 [GreeProp.SENSOR_COMPRESSOR_FREQUENCY]
