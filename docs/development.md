@@ -76,6 +76,8 @@ and says what to report.
 | `config_flow/test_setup.py` | The user flow with cloud and LAN, closing it after the login, the YAML import and why it refuses reconfigure, reauth after the broker refuses the token |
 | `config_flow/test_reconfigure.py` | The reconfigure menu: finish at once, rediscover with and without new units, edit with and without a new bind, remove, a local-only entry, a VRF host change, closing the flow after a login |
 | `config_flow/test_registry_lookup.py` | `get_device_by_identifier` finds only the device of its own config entry |
+| `config_flow/test_compressor.py` | Compressor entities with and without compressor data, disabled by default, the outdoor sensor of a new and an existing device, `hvac_action` |
+| `config_flow/test_translations.py` | Every config flow key, exception and sensor name has a text in `en`, `nl` and `pt` |
 
 255 protocol tests, about 94 percent of `aiogree/`, and 16 config flow tests.
 One config flow test is a strict `xfail`: it shows a known defect and starts to

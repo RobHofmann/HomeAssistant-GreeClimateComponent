@@ -60,7 +60,7 @@ LIVE_VALUES: dict[str, Any] = {
     GreeProp.TARGET_TEMPERATURE_1.value: 21,
     GreeProp.TARGET_TEMPERATURE_BIT_1.value: 0,
     GreeProp.TARGET_TEMPERATURE_UNIT_1.value: TemperatureUnits.C.value,
-    GreeProp.SENSOR_INDOOR_TEMPERATURE_3.value: 61,
+    GreeProp.SENSOR_INDOOR_TEMPERATURE_2.value: 61,
     GreeProp.SENSOR_OUTSIDE_TEMPERATURE_1.value: 52,
     GreeProp.SENSOR_HUMIDITY_1.value: 55,
     GreeProp.FEATURE_HUMIDITY_CONTROL.value: HumidityControlMode.disabled.value,
@@ -222,9 +222,8 @@ async def test_only_the_sensor_that_reports_is_kept(unit: FakeGreeDevice) -> Non
     device, transport = await bind(unit)
 
     try:
-        assert device.supports_property(GreeProp.SENSOR_INDOOR_TEMPERATURE_3)
+        assert device.supports_property(GreeProp.SENSOR_INDOOR_TEMPERATURE_2)
         assert not device.supports_property(GreeProp.SENSOR_INDOOR_TEMPERATURE_1)
-        assert not device.supports_property(GreeProp.SENSOR_INDOOR_TEMPERATURE_2)
     finally:
         await transport.disconnect()
 
@@ -236,6 +235,130 @@ async def test_a_sensor_that_reports_celsius_plus_forty_is_corrected(
     assert bound.indoors_temperature_c == 21
     assert bound.outdoors_temperature_c == 12
     assert bound.humidity == 55
+
+
+#
+# Compressor telemetry
+#
+
+# A unit that reports compressor telemetry while its compressor runs. The
+# temperatures carry the offset of 40, as the room sensor of this unit does.
+COMPRESSOR_VALUES: dict[str, Any] = {
+    GreeProp.SENSOR_COMPRESSOR_FREQUENCY.value: 58,
+    GreeProp.SENSOR_COMPRESSOR_TEMPERATURE.value: 115,
+    GreeProp.SENSOR_INDOOR_COIL_TEMPERATURE.value: 48,
+    GreeProp.SENSOR_OUTDOOR_COIL_TEMPERATURE.value: 85,
+}
+COMPRESSOR_PROPS = [
+    GreeProp.SENSOR_COMPRESSOR_FREQUENCY,
+    GreeProp.SENSOR_COMPRESSOR_TEMPERATURE,
+    GreeProp.SENSOR_INDOOR_COIL_TEMPERATURE,
+    GreeProp.SENSOR_OUTDOOR_COIL_TEMPERATURE,
+]
+
+
+async def test_a_unit_without_compressor_columns_has_no_compressor_data(
+    unit: FakeGreeDevice,
+) -> None:
+    """The dev unit leaves the columns out. Nothing is kept or shown."""
+    unit.unsupported_props = {prop.value for prop in COMPRESSOR_PROPS}
+    device, transport = await bind(unit)
+
+    try:
+        for prop in COMPRESSOR_PROPS:
+            assert not device.supports_property(prop)
+            assert prop not in device._state.polled_properties  # noqa: SLF001
+        assert not device.has_compressor_data
+        assert device.compressor_frequency is None
+        assert device.compressor_running is None
+        assert device.compressor_temperature_c is None
+        assert device.indoor_coil_temperature_c is None
+        assert device.outdoor_coil_temperature_c is None
+    finally:
+        await transport.disconnect()
+
+
+async def test_compressor_columns_that_answer_zero_are_dropped(
+    bound: GreeDevice,
+) -> None:
+    """A unit that answers 0 for every compressor column does not have them."""
+    for prop in COMPRESSOR_PROPS:
+        assert not bound.supports_property(prop)
+    assert bound.compressor_running is None
+
+
+async def test_a_running_compressor_is_reported(unit: FakeGreeDevice) -> None:
+    """Every column with a value is kept, and the offset of 40 comes off."""
+    unit.values.update(COMPRESSOR_VALUES)
+    device, transport = await bind(unit)
+
+    try:
+        for prop in COMPRESSOR_PROPS:
+            assert device.supports_property(prop)
+        assert device.has_compressor_data
+        assert device.compressor_frequency == 58
+        assert device.compressor_running is True
+        assert device.compressor_temperature_c == 75
+        assert device.indoor_coil_temperature_c == 8
+        assert device.outdoor_coil_temperature_c == 45
+    finally:
+        await transport.disconnect()
+
+
+async def test_a_stopped_compressor_at_bind_keeps_its_frequency(
+    unit: FakeGreeDevice,
+) -> None:
+    """The frequency is 0 while the compressor rests, which is not "missing".
+
+    The unit reports a compressor temperature, so it has telemetry. Its
+    frequency is kept, reads idle now, and running once the compressor starts.
+    """
+    unit.values.update(
+        {
+            GreeProp.SENSOR_COMPRESSOR_FREQUENCY.value: 0,
+            GreeProp.SENSOR_COMPRESSOR_TEMPERATURE.value: 62,
+        }
+    )
+    device, transport = await bind(unit)
+
+    try:
+        assert device.has_compressor_data
+        assert device.compressor_frequency == 0
+        assert device.compressor_running is False
+        assert device.supports_property(GreeProp.SENSOR_COMPRESSOR_TEMPERATURE)
+        assert not device.supports_property(GreeProp.SENSOR_INDOOR_COIL_TEMPERATURE)
+
+        unit.values[GreeProp.SENSOR_COMPRESSOR_FREQUENCY.value] = 40
+        await device.fetch_device_status()
+        assert device.compressor_running is True
+    finally:
+        await transport.disconnect()
+
+
+async def test_a_lone_zero_frequency_is_dropped(unit: FakeGreeDevice) -> None:
+    """Without any telemetry temperature, a 0 frequency is not trusted."""
+    unit.values[GreeProp.SENSOR_COMPRESSOR_FREQUENCY.value] = 0
+    device, transport = await bind(unit)
+
+    try:
+        assert not device.has_compressor_data
+        assert device.compressor_running is None
+    finally:
+        await transport.disconnect()
+
+
+async def test_the_indoor_coil_is_not_the_room_temperature(
+    unit: FakeGreeDevice,
+) -> None:
+    """InEvaTem is the coil. The room temperature still comes from TemSen."""
+    unit.values[GreeProp.SENSOR_INDOOR_COIL_TEMPERATURE.value] = 48
+    device, transport = await bind(unit)
+
+    try:
+        assert device.indoors_temperature_c == 21
+        assert device.indoor_coil_temperature_c == 8
+    finally:
+        await transport.disconnect()
 
 
 async def test_push_sends_only_what_changed(

@@ -11,6 +11,7 @@ from homeassistant.components.climate import (
     ClimateEntity,
     ClimateEntityDescription,
     ClimateEntityFeature,  # pyright: ignore[reportPrivateImportUsage]
+    HVACAction,  # pyright: ignore[reportPrivateImportUsage]
     HVACMode,  # pyright: ignore[reportPrivateImportUsage]
 )
 from homeassistant.const import (
@@ -70,6 +71,39 @@ from .entity import GreeEntity, GreeEntityDescription
 _LOGGER = logging.getLogger(__name__)
 
 GATTR_CLIMATE = "hvac"
+
+# The action that matches each HVAC mode while the unit runs. Auto has none:
+# the unit chooses between cooling and heating itself and does not report
+# which one.
+HVAC_MODE_TO_ACTION: dict[HVACMode, HVACAction] = {
+    HVACMode.COOL: HVACAction.COOLING,
+    HVACMode.HEAT: HVACAction.HEATING,
+    HVACMode.DRY: HVACAction.DRYING,
+    HVACMode.FAN_ONLY: HVACAction.FAN,
+}
+
+
+def gree_hvac_action(
+    hvac_mode: HVACMode, compressor_running: bool | None
+) -> HVACAction | None:
+    """Return what the unit is doing now.
+
+    Without compressor data (`compressor_running` is None), the action follows
+    the HVAC mode. With compressor data, a stopped compressor is idle, and a
+    running one does the action of the mode. Fan only never needs the
+    compressor, so it is always the fan. Auto has no matching action, so it is
+    None (unknown) unless the compressor is stopped.
+    """
+    if hvac_mode == HVACMode.OFF:
+        return HVACAction.OFF
+
+    if hvac_mode == HVACMode.FAN_ONLY:
+        return HVACAction.FAN
+
+    if compressor_running is False:
+        return HVACAction.IDLE
+
+    return HVAC_MODE_TO_ACTION.get(hvac_mode)
 
 
 class GreeClimateDescription(
@@ -538,7 +572,11 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             )
             or HVACMode.FAN_ONLY in self._attr_hvac_modes
         ):
-            self._attr_hvac_mode = self.get_hvac_mode()
+            hvac_mode = self.get_hvac_mode()
+            self._attr_hvac_mode = hvac_mode
+            self._attr_hvac_action = gree_hvac_action(
+                hvac_mode, self.device.compressor_running
+            )
 
         if self._attr_supported_features & ClimateEntityFeature.FAN_MODE:
             self._attr_fan_mode = self.get_fan_mode()

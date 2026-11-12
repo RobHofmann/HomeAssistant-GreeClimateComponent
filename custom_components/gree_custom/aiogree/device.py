@@ -69,6 +69,21 @@ from .transport_udp import GreeUdpTransport
 
 _LOGGER = logging.getLogger(__name__)
 
+# The compressor and coil temperatures. Like the room and outdoor sensors,
+# they are read as Celsius with an offset of 40 that is detected from the
+# values seen (TempOffsetResolver). The window is the plausible range in
+# Celsius for each sensor. It is wider than the room window, because a coil
+# runs far below or above the room, and the compressor gets hot. A wide window
+# leaves many values undecided, for example 48 is 48 or 8 degrees. While
+# undecided, the offset is assumed, because the room and outdoor columns of
+# known units carry it. One report says these columns are in Fahrenheit; that
+# is not confirmed, see docs/protocol.md.
+TELEMETRY_TEMPERATURE_WINDOWS_C: dict[GreeProp, tuple[float, float]] = {
+    GreeProp.SENSOR_COMPRESSOR_TEMPERATURE: (-30.0, 120.0),
+    GreeProp.SENSOR_INDOOR_COIL_TEMPERATURE: (-10.0, 70.0),
+    GreeProp.SENSOR_OUTDOOR_COIL_TEMPERATURE: (-35.0, 70.0),
+}
+
 
 class GreeDevice:
     """Representation of a Gree device."""
@@ -98,6 +113,14 @@ class GreeDevice:
 
         self._temp_processor_indoors: TempOffsetResolver | None = None
         self._temp_processor_outdoors: TempOffsetResolver | None = None
+        # One resolver per telemetry temperature, because each keeps its own
+        # lowest and highest value.
+        self._temp_processors_telemetry: dict[GreeProp, TempOffsetResolver] = {
+            prop: TempOffsetResolver(
+                indoor_min=low, indoor_max=high, assume_offset=True
+            )
+            for prop, (low, high) in TELEMETRY_TEMPERATURE_WINDOWS_C.items()
+        }
         self._beeper = False
 
         self._firmware_version: str | None = None
@@ -411,7 +434,6 @@ class GreeDevice:
             [
                 GreeProp.SENSOR_INDOOR_TEMPERATURE_1,
                 GreeProp.SENSOR_INDOOR_TEMPERATURE_2,
-                GreeProp.SENSOR_INDOOR_TEMPERATURE_3,
             ]
         )
 
@@ -428,6 +450,22 @@ class GreeDevice:
                 GreeProp.SENSOR_HUMIDITY_2,
             ]
         )
+
+        # Compressor telemetry. A unit without it leaves the columns out or
+        # answers 0, so a temperature is only kept when it is not 0.
+        for prop in TELEMETRY_TEMPERATURE_WINDOWS_C:
+            self._state.invalidate_missing_property_group([prop])
+
+        # The frequency is 0 while the compressor is stopped, so a 0 at bind
+        # does not prove that the unit has no frequency. When the unit reports
+        # one of the telemetry temperatures, it has compressor telemetry, and
+        # its frequency is kept even when it is 0.
+        if not any(
+            self._state.supports(prop) for prop in TELEMETRY_TEMPERATURE_WINDOWS_C
+        ):
+            self._state.invalidate_missing_property_group(
+                [GreeProp.SENSOR_COMPRESSOR_FREQUENCY]
+            )
 
         # The ducted unit of a zone controller answers StTem and StFahFlg too,
         # always with 0, the same as a zone set to 16 degrees Celsius. It has
@@ -744,6 +782,51 @@ class GreeDevice:
             return None
 
         return self._state.get(self._humidity_sensor_prop)
+
+    @property
+    def has_compressor_data(self) -> bool:
+        """Return True if the device reports the compressor frequency."""
+        return self._state.supports(GreeProp.SENSOR_COMPRESSOR_FREQUENCY)
+
+    @property
+    def compressor_frequency(self) -> int | None:
+        """Return the compressor frequency in Hz, 0 while it is stopped."""
+        if not self.has_compressor_data:
+            return None
+        return self._state.get(GreeProp.SENSOR_COMPRESSOR_FREQUENCY)
+
+    @property
+    def compressor_running(self) -> bool | None:
+        """Return True while the compressor runs, None without compressor data."""
+        frequency = self.compressor_frequency
+        if frequency is None:
+            return None
+        return frequency > 0
+
+    def _telemetry_temperature_c(self, prop: GreeProp) -> int | None:
+        """Return a compressor or coil temperature in Celsius if available."""
+        if not self._state.supports(prop):
+            return None
+
+        raw_c = self._state.get(prop)
+        if raw_c is None:
+            return None
+        return int(self._temp_processors_telemetry[prop].evaluate(raw_c))
+
+    @property
+    def compressor_temperature_c(self) -> int | None:
+        """Return the compressor temperature if available."""
+        return self._telemetry_temperature_c(GreeProp.SENSOR_COMPRESSOR_TEMPERATURE)
+
+    @property
+    def indoor_coil_temperature_c(self) -> int | None:
+        """Return the indoor unit coil temperature if available."""
+        return self._telemetry_temperature_c(GreeProp.SENSOR_INDOOR_COIL_TEMPERATURE)
+
+    @property
+    def outdoor_coil_temperature_c(self) -> int | None:
+        """Return the outdoor unit coil temperature if available."""
+        return self._telemetry_temperature_c(GreeProp.SENSOR_OUTDOOR_COIL_TEMPERATURE)
 
     @property
     def power_mode(self) -> bool:

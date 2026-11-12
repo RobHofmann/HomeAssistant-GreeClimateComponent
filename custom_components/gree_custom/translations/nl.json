@@ -257,11 +257,26 @@
             },
             "room_humidity": {
                 "name": "Luchtvochtigheid binnen"
+            },
+            "compressor_frequency": {
+                "name": "Compressorfrequentie"
+            },
+            "compressor_temperature": {
+                "name": "Compressortemperatuur"
+            },
+            "indoor_coil_temperature": {
+                "name": "Temperatuur binnenunitbatterij"
+            },
+            "outdoor_coil_temperature": {
+                "name": "Temperatuur buitenunitbatterij"
             }
         },
         "binary_sensor": {
             "faults": {
                 "name": "Storingsdetectie"
+            },
+            "compressor_running": {
+                "name": "Compressor actief"
             }
         },
         "climate": {

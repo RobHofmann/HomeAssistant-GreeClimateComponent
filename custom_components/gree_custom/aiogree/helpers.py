@@ -133,11 +133,13 @@ class TempOffsetResolver:
         indoor_max: float = 40.0,  # hottest plausible indoor °C
         offset: float = TEMSEN_OFFSET,  # device's fixed offset
         margin: float = 2.0,  # tolerance before "impossible":
+        assume_offset: bool = False,  # what to return while still undecided
     ) -> None:
         """Initialize the resolver."""
         self._lo_lim = indoor_min - margin
         self._hi_lim = indoor_max + margin
         self._offset = offset
+        self._assume_offset = assume_offset
 
         self._min_raw: float | None = None
         self._max_raw: float | None = None
@@ -150,7 +152,10 @@ class TempOffsetResolver:
         if self._max_raw is None or raw > self._max_raw:
             self._max_raw = raw
         self._check()  # evaluate every time, so it can change it's mind as needed
-        return raw - self._offset if self._has_offset else raw
+        has_offset = (
+            self._assume_offset if self._has_offset is None else self._has_offset
+        )
+        return raw - self._offset if has_offset else raw
 
     def _check(self) -> None:
         if self._min_raw is None or self._max_raw is None:
