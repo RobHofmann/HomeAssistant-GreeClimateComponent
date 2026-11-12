@@ -17,7 +17,7 @@ The main entity. Its name is the device name.
 | Part | What it does |
 |---|---|
 | HVAC mode | Auto, Cool, Dry, Fan only, Heat, Off. You choose the list at setup. Off turns the unit off, every other mode turns it on. |
-| Target temperature | 16 to 30 degrees C, or 61 to 86 degrees F. Available when Heat, Cool or Auto is in the mode list and the unit has a target temperature. The step is the **Temperature Step** option. In Auto mode the unit uses its own factory setting, so a temperature sent with Auto is ignored and logged as a warning. |
+| Target temperature | 16 to 30 degrees C, or 61 to 86 degrees F. Available when Heat, Cool or Auto is in the mode list and the unit has a target temperature. The step is 0.5 in Celsius when **Use half-degrees °C** is on, and 1 otherwise. With the option off, a half degree sent by an automation goes up to the next whole degree. A half degree set with the remote still shows as it is. In Auto mode the unit uses its own factory setting, so a temperature sent with Auto is ignored and logged as a warning. |
 | Current temperature | The unit's room sensor, converted to the unit's temperature scale. Replaced by the **External Temperature Sensor** when one is set, also converted to the unit's scale. That changes only what Home Assistant shows; the unit keeps regulating on its own sensor. |
 | Current humidity | The unit's humidity sensor, when it has one. Replaced by the **External Humidity Sensor** when one is set. Display only, like the temperature. |
 | Fan mode | Auto, Low, Medium-Low, Medium, Medium-High, High, plus Turbo and Quiet when the unit has them. See below. |
@@ -37,7 +37,7 @@ Turbo and Quiet are not fan speeds on the unit but separate features. The integr
 
 ### Temperature scale
 
-The unit has its own temperature scale, Celsius or Fahrenheit, which you change with the **Temperature Units** select. The climate entity follows the unit, and Home Assistant converts to your display units. Fahrenheit values come from the unit's own lookup table, not from a formula.
+The unit has its own temperature scale, Celsius or Fahrenheit, which you change with the **Temperature Units** select. The climate entity follows the unit, and Home Assistant converts to your display units. Fahrenheit values come from the unit's own lookup table, not from a formula. That table needs `TemRec` or `StFahFlg`, so a unit without them is Celsius only: it gets no select, and Home Assistant converts to Fahrenheit for you.
 
 ## Zone controller
 
@@ -51,7 +51,7 @@ A zone controller is controlled locally. Add it with local discovery, or with bo
 | Entity | What it does |
 |---|---|
 | Switch with the name of the zone | Opens and closes the zone. It is the **Zone Switch** feature, so you can leave it out. Do that for a zone that must always stay open: turning such a zone off is refused by the controller or turns the whole system off. |
-| Target Temperature | The target temperature of the zone, in the unit of the controller: 16 to 30 °C in half degrees, or 61 to 86 °F in whole degrees. Home Assistant shows it in your own unit. The wall panel shows only whole degrees in °C, so it shows 18 for 18.5. |
+| Target Temperature | The target temperature of the zone, in the unit of the controller: 16 to 30 °C, in half degrees when **Use half-degrees °C** is on, or 61 to 86 °F in whole degrees. Home Assistant shows it in your own unit. The wall panel shows only whole degrees in °C, so it shows 18 for 18.5. |
 
 ## Sensors
 
@@ -99,7 +99,7 @@ Two switches are integration features. They do not exist on the unit and their s
 
 | Select | Feature | Available in | Options |
 |---|---|---|---|
-| Temperature Units | none, created when the unit answers the property | every mode | ºC, ºF. Changes the scale of the unit itself. Configuration category. |
+| Temperature Units | none, created when the unit answers `TemUn` and also `TemRec` or `StFahFlg`, or on the AC unit of a zone controller | every mode | ºC, ºF. Changes the scale of the unit itself. Configuration category. |
 | Humidity Control | Humidity Control | Cool, Dry | Disabled, Normal Dry, Smart Dry, Continuous Dry. Smart Dry only in Cool. Continuous Dry only in Dry. The other options fail with a message. |
 
 ## Numbers

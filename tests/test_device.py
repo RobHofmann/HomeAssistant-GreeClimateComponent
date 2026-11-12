@@ -432,7 +432,8 @@ async def test_setting_the_swing_modes(bound: GreeDevice) -> None:
 
 
 async def test_the_target_temperature_in_celsius(bound: GreeDevice) -> None:
-    """Half degrees are kept in a separate column."""
+    """Half degrees are kept in a separate column, when the option is on."""
+    bound.set_half_degrees(True)
     bound.set_target_temperature(22.5)
 
     assert bound.target_temperature == 22.5

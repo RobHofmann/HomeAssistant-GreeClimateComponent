@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 import logging
+import math
 from typing import Any
 
 from aiomqtt import MqttError
@@ -115,6 +116,10 @@ class GreeDevice:
         self._target_temp_prop: GreeProp | None = None
         self._target_temp_bit_prop: GreeProp | None = None
         self._temp_unit_prop: GreeProp | None = None
+
+        # The user option "Use half-degrees °C". Off by default, because every
+        # unit takes whole degrees.
+        self._half_degrees: bool = False
 
         self._state = DeviceState(
             device_id=self.unique_id, capabilities=self._capabilities
@@ -856,9 +861,30 @@ class GreeDevice:
         self._state.set(GreeProp.SWING_HORIZONTAL, swing_mode)
 
     @property
-    def target_temperature_unit(self) -> TemperatureUnits:
-        """Return the units of the target temperature."""
+    def supports_temperature_unit_change(self) -> bool:
+        """Return True if the unit can be switched between Celsius and Fahrenheit.
+
+        The target temperature column is always Celsius. Only the bit column
+        tells the Fahrenheit degrees apart, so a unit without a bit is Celsius
+        only. The ducted unit of a zone controller is the exception: it has no
+        target temperature and no bit of its own, but its unit column sets the
+        unit of the whole system, and the zones do have the bit.
+        """
         if self._temp_unit_prop is None:
+            return False
+        return (
+            self._target_temp_bit_prop is not None
+            or self._device_type is DeviceType.ZONE_CONTROLLER
+        )
+
+    @property
+    def target_temperature_unit(self) -> TemperatureUnits:
+        """Return the units of the target temperature.
+
+        Celsius when the unit cannot change units, see
+        supports_temperature_unit_change.
+        """
+        if self._temp_unit_prop is None or not self.supports_temperature_unit_change:
             return TemperatureUnits.C
         return TemperatureUnits(
             self._state.get(self._temp_unit_prop) or TemperatureUnits.C.value
@@ -866,8 +892,10 @@ class GreeDevice:
 
     def set_target_temperature_unit(self, units: TemperatureUnits) -> None:
         """Set the units of the target temperature."""
-        if self._temp_unit_prop is None:
-            _LOGGER.warning("[%s] The device has no temperature unit", self.unique_id)
+        if self._temp_unit_prop is None or not self.supports_temperature_unit_change:
+            _LOGGER.warning(
+                "[%s] The device cannot change its temperature unit", self.unique_id
+            )
             return
         self._state.set(self._temp_unit_prop, units)
 
@@ -875,18 +903,64 @@ class GreeDevice:
     def has_target_temperature_bit(self) -> bool:
         """Return True if the device answers a bit for the target temperature.
 
-        Only then can it hold half degrees in Celsius, and every whole degree
-        in Fahrenheit. Without it, Fahrenheit goes in steps of about 2.
+        Only then can it hold every whole degree in Fahrenheit.
         """
         return self._target_temp_bit_prop is not None
+
+    def _half_degree_props(self) -> list[GreeProp]:
+        """Return the half degree columns the device answers.
+
+        These are the bit column (TemRec or StFahFlg), Add0.5 and Add0.1.
+        Answering a column is no proof that the unit uses it: some units
+        answer all three with 0. So all of them are written together, and
+        the unit takes the one it knows.
+        """
+        props = [
+            prop
+            for prop in (
+                GreeProp.TARGET_TEMPERATURE_HALF_C,
+                GreeProp.TARGET_TEMPERATURE_TENTHS_C,
+            )
+            if self._state.supports(prop)
+        ]
+        if self._target_temp_bit_prop is not None:
+            props.insert(0, self._target_temp_bit_prop)
+        return props
+
+    @property
+    def supports_half_degrees(self) -> bool:
+        """Return True if the unit answers a column for half degrees Celsius."""
+        return self._target_temp_prop is not None and bool(self._half_degree_props())
+
+    @property
+    def half_degrees(self) -> bool:
+        """Return True if half degrees Celsius are used.
+
+        This needs the user option and a unit that answers a half degree
+        column. Fahrenheit is always in whole degrees.
+        """
+        return self._half_degrees and self.supports_half_degrees
+
+    def set_half_degrees(self, value: bool) -> None:
+        """Set the user option "Use half-degrees °C"."""
+        self._half_degrees = value
+
+    @property
+    def target_temperature_step(self) -> float:
+        """Return the step of the target temperature, in its unit."""
+        if self.target_temperature_unit is TemperatureUnits.C and self.half_degrees:
+            return 0.5
+        return 1.0
 
     @property
     def target_temperature(self) -> float | None:
         """Return the target temperature in target_temperature_unit.
 
-        The bit is the half degree in Celsius, and picks the value from the
-        table in Fahrenheit. Without a bit column it is 0. None until the
-        device is read, or when it has no target temperature.
+        In Celsius the value is a half degree when any answered half degree
+        column is set. A column the unit ignores reads 0, so it does no harm.
+        In Fahrenheit the bit picks the value from the table, and the other
+        columns are not used. None until the device is read, or when it has
+        no target temperature.
         """
         if self._target_temp_prop is None:
             return None
@@ -896,26 +970,34 @@ class GreeDevice:
             return None
 
         raw_c = raw + TARGET_TEMPERATURE_OFFSETS.get(self._target_temp_prop, 0)
-        bit = 0
-        if self._target_temp_bit_prop is not None:
-            bit = self._state.get(self._target_temp_bit_prop) or 0
 
         if self.target_temperature_unit == TemperatureUnits.F:
+            bit = 0
+            if self._target_temp_bit_prop is not None:
+                bit = self._state.get(self._target_temp_bit_prop) or 0
             return gree_get_target_temperature_f(raw_c, bit)
-        return gree_get_target_temperature_c(raw_c, bit)
+
+        half = any(self._state.get(prop) for prop in self._half_degree_props())
+        return gree_get_target_temperature_c(raw_c, 1 if half else 0)
 
     def set_target_temperature(self, value: float) -> None:
         """Set the target temperature in target_temperature_unit.
 
-        Celsius goes to the nearest half degree, Fahrenheit to whole degrees.
-        The bit is sent along when the device answers it. A zone needs that,
-        because it keeps the old bit when only StTem is sent.
+        Celsius goes to the nearest half degree when half_degrees is on, and
+        to the nearest whole degree when it is off. Fahrenheit goes to whole
+        degrees. Every answered half degree column is sent along, also as 0
+        for a whole degree, so a half degree set with a remote is cleared:
+        the bit as 1, Add0.5 as 1 and Add0.1 as 5 for a half degree in
+        Celsius. In Fahrenheit the bit comes from the table and the Celsius
+        only columns are 0. A zone needs the bit, because it keeps the old
+        bit when only StTem is sent.
         """
         if self._target_temp_prop is None:
             _LOGGER.warning("[%s] The device has no target temperature", self.unique_id)
             return
 
-        if self.target_temperature_unit == TemperatureUnits.F:
+        fahrenheit = self.target_temperature_unit == TemperatureUnits.F
+        if fahrenheit:
             if not value.is_integer():
                 _LOGGER.warning(
                     "The Gree API does not support floating Fahrenheit values, the applied value will be: %.2f -> %d",
@@ -923,13 +1005,23 @@ class GreeDevice:
                     round(value),
                 )
             raw_c, bit = gree_get_target_temp_props_from_f(round(value))
-        else:
+        elif self.half_degrees:
             raw_c, bit = gree_get_target_temp_props_from_c(value)
+        else:
+            # Round a half up, so 22.5 goes to 23, not to 22 as round() does
+            raw_c, bit = gree_get_target_temp_props_from_c(math.floor(value + 0.5))
 
         offset = TARGET_TEMPERATURE_OFFSETS.get(self._target_temp_prop, 0)
         props = {self._target_temp_prop: raw_c - offset}
-        if self._target_temp_bit_prop is not None:
-            props[self._target_temp_bit_prop] = bit
+        for prop in self._half_degree_props():
+            if prop is self._target_temp_bit_prop:
+                props[prop] = bit
+            elif fahrenheit:
+                props[prop] = 0
+            elif prop is GreeProp.TARGET_TEMPERATURE_TENTHS_C:
+                props[prop] = 5 * bit
+            else:
+                props[prop] = bit
         self._state.update(props)
 
         if self.feature_smart_heat or self.feature_energy_saving:

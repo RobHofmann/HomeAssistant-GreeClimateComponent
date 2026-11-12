@@ -66,6 +66,7 @@ from .config_schema import (
     VALID_FAN_MODES,
     VALID_HVAC_MODES,
     _target_temp_step,
+    half_degrees_from_temp_step,
 )
 from .const import (
     ATTR_EXTERNAL_HUMIDITY_SENSOR,
@@ -79,6 +80,7 @@ from .const import (
     CONF_ENCRYPTION_KEY,
     CONF_ENCRYPTION_VERSION,
     CONF_FAN_MODES,
+    CONF_HALF_DEGREES,
     CONF_HVAC_MODES,
     CONF_SWING_HORIZONTAL_MODES,
     CONF_SWING_MODES,
@@ -88,7 +90,6 @@ from .const import (
     DEFAULT_FAN_MODES,
     DEFAULT_SWING_HORIZONTAL_MODES,
     DEFAULT_SWING_MODES,
-    DEFAULT_TARGET_TEMP_STEP,
     DOMAIN,
 )
 from .helpers import get_device_by_identifier
@@ -182,9 +183,12 @@ LEGACY_SAME_KEYS = {
 LEGACY_CLIMATE_PREFIX = f"{LEGACY_DOMAIN}_"
 CLIMATE_KEY = "hvac"
 
-# 4.x entities whose last state becomes an option here
+# 4.x entities whose last state becomes an option here. The step number and
+# the switch "Half-degree via Add0.5" (4.0.13 and later) both become
+# half_degrees: on when the step is not a whole number or the switch is on.
 LEGACY_STATE_OPTIONS = {
     "target_temp_step": CONF_TEMPERATURE_STEP,
+    "half_degree_control": CONF_HALF_DEGREES,
     "external_temperature_sensor": ATTR_EXTERNAL_TEMPERATURE_SENSOR,
     "external_humidity_sensor": ATTR_EXTERNAL_HUMIDITY_SENSOR,
 }
@@ -382,6 +386,23 @@ def _normalize_device(
     return mac, normalized
 
 
+def _restored_option(option: str, value: str) -> dict[str, Any]:
+    """Turn the state of one 4.x entity into options here.
+
+    The step and the switch only ever turn half_degrees on, so the one that
+    is on wins. Raises probatio.Invalid for a value that is not valid here.
+    """
+    if option == CONF_TEMPERATURE_STEP:
+        if half_degrees_from_temp_step(_target_temp_step(value)):
+            return {CONF_HALF_DEGREES: True}
+        return {}
+
+    if option == CONF_HALF_DEGREES:
+        return {CONF_HALF_DEGREES: True} if cv.boolean(value) else {}
+
+    return {option: cv.entity_id(value)}
+
+
 def _restored_options(
     hass: HomeAssistant, entry_id: str | None, mac_controller: str
 ) -> dict[str, Any]:
@@ -417,12 +438,7 @@ def _restored_options(
             continue
 
         try:
-            if option == CONF_TEMPERATURE_STEP:
-                step = _target_temp_step(value)
-                if step != DEFAULT_TARGET_TEMP_STEP:
-                    options[option] = step
-            else:
-                options[option] = cv.entity_id(value)
+            options.update(_restored_option(option, value))
         except probatio.Invalid:
             _LOGGER.info(
                 "Migration from 4.x: %s value '%s' of %s is not valid here and is"

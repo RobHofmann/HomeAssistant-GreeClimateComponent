@@ -36,6 +36,28 @@ Facts about how Gree devices behave on the wire. Most of these are not visible f
 - Some devices report sensor temperatures with a +40 offset. `TempOffsetResolver` in `aiogree/helpers.py` detects this from the values it sees.
 - Fahrenheit uses the protocol's own lookup table, not a formula.
 
+### Half degrees Celsius
+
+Units carry the half degree in different columns. Seen so far:
+
+- The bit (`TemRec`, or `StFahFlg` on a zone). In Fahrenheit it picks the value from the table, see below. Many units take it as the half degree in Celsius.
+- `Add0.5` (`TARGET_TEMPERATURE_HALF_C`), 0 or 1. Seen on a split unit that ignores `TemRec` writes (PR 537).
+- `Add0.1` (`TARGET_TEMPERATURE_TENTHS_C`), a tenths digit 0 to 9. The unit rounds it to the nearest half degree: 1 gives .0, 3 gives .5, 8 carries into `SetTem`. Seen on a GR-Gcloud VRF gateway, which answers `TemRec` with `""` and makes `Add0.5` follow `Add0.1` (PR 568).
+
+Answering a column is no proof that the unit uses it. One unit answers all three with 0 but does not support all of them (issue 569). So no single preferred column works for every known unit, and the code writes all of them:
+
+- `Add0.5` and `Add0.1` are normal `GreeProp` columns. They are polled, and the first poll drops them on a unit that does not answer them (an empty answer counts as not answered).
+- `set_target_temperature()` writes every half degree column the unit answers, in the same command as `SetTem`. A half degree in Celsius is the bit 1, `Add0.5` 1 and `Add0.1` 5. A whole degree is 0 in all of them, so a half degree set with a remote is cleared. In Fahrenheit the bit comes from the table and `Add0.5` and `Add0.1` are 0.
+- `target_temperature` reads a half degree in Celsius when any answered column is not 0. A column the unit ignores reads 0, so it does no harm. In Fahrenheit only the bit is read.
+- `GreeDevice.set_half_degrees()` is the user option "Use half-degrees °C" (`half_degrees` in the device options, off by default). Off, Celsius goes to the nearest whole degree, with a half going up (22.5 gives 23). The read side does not change, so a half degree set with a remote still shows.
+- `supports_half_degrees` is true when the unit answers one of the columns. The options form only offers the checkbox then. `target_temperature_step` is 0.5 in Celsius with the option on, and 1 otherwise. The climate entity and the zone number take their step from it.
+- No retry loop: nothing resends a value the unit did not take. A sub-unit holds the sent values for at most `HELD_VALUE_TTL`, see [Stale state after a command](#stale-state-after-a-command), then shows what the unit reports. A column the unit ignores is only sent again with the next temperature command. `has_pending_updates` compares with the reported value, so it does not cause a push by itself.
+- Known risk: a unit that stores a column it ignores (it reads back what was written). If the setpoint then changes on the remote, the stored half stays and the value reads .5 too high, until Home Assistant sets the next whole degree. No such unit is known.
+
+### Temperature unit
+
+`TemUn` (or `TemUnit`) switches the unit between Celsius and Fahrenheit, but `SetTem` is always whole degrees Celsius. Only the bit picks the Fahrenheit degree from the table. So `supports_temperature_unit_change` needs the unit column and a bit column. Without a bit the unit is Celsius only: `target_temperature_unit` is always Celsius, and the **Temperature Units** select is not created. Home Assistant converts the value for a user who shows Fahrenheit. The AC unit of a zone controller is the exception: it has no bit of its own (it drops `StFahFlg`, see [Zone controllers](#zone-controllers)), but its `TemUnit` switches the whole system and the zones do have the bit.
+
 ## Discovery and network
 
 - Local discovery is a plain text `{"t": "scan"}` UDP broadcast. The device answers with a `dev` pack encrypted with the generic key.

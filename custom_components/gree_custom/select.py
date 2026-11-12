@@ -69,7 +69,11 @@ SELECT_TYPES: list[GreeSelectDescription] = [
         translation_key=GATTR_TEMP_UNITS,
         # Every sub-unit of a zone controller answers TemUnit, but they share
         # one unit, set on the ducted unit. So the zones get no select.
-        device_filter=lambda device: device.device_type is not DeviceType.ZONE,
+        # A unit without a bit column is Celsius only.
+        device_filter=lambda device: (
+            device.device_type is not DeviceType.ZONE
+            and device.supports_temperature_unit_change
+        ),
         entity_category=EntityCategory.CONFIG,
         options=[f"º{member.name}" for member in TemperatureUnits],
         value_func=lambda device: f"º{device.target_temperature_unit.name}",

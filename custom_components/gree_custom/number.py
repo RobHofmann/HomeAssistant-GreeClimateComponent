@@ -108,12 +108,7 @@ NUMBER_TYPES: list[GreeNumberDescription] = [
             else MAX_TEMP_C
         ),
         unit_func=lambda device: UNITS_GREE_TO_HA[device.target_temperature_unit],
-        step_func=lambda device: (
-            0.5
-            if device.target_temperature_unit is TemperatureUnits.C
-            and device.has_target_temperature_bit
-            else 1
-        ),
+        step_func=lambda device: device.target_temperature_step,
         value_func=lambda device: device.target_temperature,
         set_func=lambda device, value: device.set_target_temperature(value),
         updates_device=True,

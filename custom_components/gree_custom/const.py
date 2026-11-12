@@ -23,6 +23,8 @@ ZONE_CONTROLLER_TRANSLATION_KEY = "zone_controller"
 ZONE_CONTROLLER_MODEL = "Zone controller"
 
 CURRENT_CONF_VERSION = 3
+# 2: the device option target_temp_step became half_degrees
+CURRENT_CONF_MINOR_VERSION = 2
 
 CONFENTRY_ID_LOCAL_ONLY = "local_only"
 
@@ -58,10 +60,12 @@ CONF_FAN_MODES = "fan_modes"
 CONF_SWING_MODES = "swing_modes"
 CONF_SWING_HORIZONTAL_MODES = "swing_horizontal_modes"
 CONF_FEATURES = "features"
+# Replaced by CONF_HALF_DEGREES. Still read from 4.x, YAML and older entries.
 CONF_TEMPERATURE_STEP = "target_temp_step"
+CONF_HALF_DEGREES = "half_degrees"
 CONF_PREFER_CLOUD = "prefer_cloud"
 
-DEFAULT_TARGET_TEMP_STEP = 1
+DEFAULT_HALF_DEGREES = False
 ENCRYPTION_VERSION_AUTO = "0"
 DEFAULT_ENCRYPTION_VERSION = ENCRYPTION_VERSION_AUTO
 DEFAULT_ENCRYPTION_KEY = ""
