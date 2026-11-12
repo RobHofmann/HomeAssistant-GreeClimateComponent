@@ -6,6 +6,7 @@ The rest of the module holds the form schemas that the config flow shows.
 """
 
 from collections.abc import Mapping
+import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -34,9 +35,6 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.selector import (
     EntitySelector,
     EntitySelectorConfig,
-    NumberSelector,
-    NumberSelectorConfig,
-    NumberSelectorMode,
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
@@ -68,6 +66,7 @@ from .const import (
     CONF_EXTRA_SCAN_NETWORKS,
     CONF_FAN_MODES,
     CONF_FEATURES,
+    CONF_HALF_DEGREES,
     CONF_HVAC_MODES,
     CONF_MAC_CONTROLLER_CLOUD,
     CONF_MAC_CONTROLLER_LOCAL,
@@ -86,13 +85,13 @@ from .const import (
     DEFAULT_ENCRYPTION_KEY,
     DEFAULT_ENCRYPTION_VERSION,
     DEFAULT_FAN_MODES,
+    DEFAULT_HALF_DEGREES,
     DEFAULT_HVAC_MODES,
     DEFAULT_PREFER_CLOUD,
     DEFAULT_RESTORE_STATES,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SWING_HORIZONTAL_MODES,
     DEFAULT_SWING_MODES,
-    DEFAULT_TARGET_TEMP_STEP,
     DOMAIN,
     ENCRYPTION_VERSION_AUTO,
     GATTR_FEAT_QUIET_MODE,
@@ -101,6 +100,8 @@ from .const import (
     ZONE_ONLY_FEATURES,
 )
 from .helpers import get_entity_ids_from_unique_ids
+
+_LOGGER = logging.getLogger(__name__)
 
 HEX_CHARACTERS = "0123456789abcdef"
 VALID_MAC_LENGTHS = (12, 14)
@@ -171,6 +172,45 @@ def _target_temp_step(value: Any) -> float:
     return step
 
 
+def half_degrees_from_temp_step(step: float) -> bool:
+    """Tell if an old temperature step means "Use half-degrees °C".
+
+    A step that is not a whole number, such as 0.5, can only reach half
+    degrees. A whole step, such as 2, has no match and becomes off.
+    """
+    return not float(step).is_integer()
+
+
+def options_without_temperature_step(options: Mapping[str, Any]) -> dict[str, Any]:
+    """Replace the old target_temp_step option with half_degrees.
+
+    An option half_degrees that is already there wins. The step itself is
+    gone: the climate entity now takes its step from the unit and from
+    half_degrees.
+    """
+    converted = dict(options)
+    if CONF_TEMPERATURE_STEP not in converted:
+        return converted
+
+    step = converted.pop(CONF_TEMPERATURE_STEP)
+    if CONF_HALF_DEGREES not in converted and half_degrees_from_temp_step(step):
+        converted[CONF_HALF_DEGREES] = True
+    return converted
+
+
+def _yaml_temperature_step(options: dict[str, Any]) -> dict[str, Any]:
+    """Accept target_temp_step in YAML, and turn it into half_degrees."""
+    if CONF_TEMPERATURE_STEP not in options:
+        return options
+
+    _LOGGER.warning(
+        "%s: target_temp_step is replaced by half_degrees: true or false. It"
+        " still works for now, but please change your YAML",
+        options.get(CONF_NAME),
+    )
+    return options_without_temperature_step(options)
+
+
 CLOUD_SCHEMA = probatio.Schema(
     {
         probatio.Required(CONF_EMAIL): cv.string,
@@ -222,31 +262,36 @@ CONNECTION_SCHEMA = probatio.Schema(
     }
 )
 
-OPTIONS_SCHEMA = probatio.Schema(
-    {
-        probatio.Required(CONF_NAME): cv.string,
-        probatio.Optional(CONF_HVAC_MODES): probatio.All(
-            cv.ensure_list, [probatio.In(VALID_HVAC_MODES)]
-        ),
-        probatio.Optional(CONF_FAN_MODES): probatio.All(
-            cv.ensure_list, [probatio.In(VALID_FAN_MODES)]
-        ),
-        probatio.Optional(CONF_SWING_MODES): probatio.All(
-            cv.ensure_list, [probatio.In(DEFAULT_SWING_MODES)]
-        ),
-        probatio.Optional(CONF_SWING_HORIZONTAL_MODES): probatio.All(
-            cv.ensure_list, [probatio.In(DEFAULT_SWING_HORIZONTAL_MODES)]
-        ),
-        probatio.Optional(CONF_FEATURES): probatio.All(
-            cv.ensure_list, [probatio.In(VALID_FEATURES)]
-        ),
-        probatio.Optional(CONF_TEMPERATURE_STEP): _target_temp_step,
-        probatio.Optional(ATTR_EXTERNAL_TEMPERATURE_SENSOR): cv.entity_id,
-        probatio.Optional(ATTR_EXTERNAL_HUMIDITY_SENSOR): cv.entity_id,
-        probatio.Optional(
-            CONF_RESTORE_STATES, default=DEFAULT_RESTORE_STATES
-        ): cv.boolean,
-    }
+OPTIONS_SCHEMA = probatio.All(
+    probatio.Schema(
+        {
+            probatio.Required(CONF_NAME): cv.string,
+            probatio.Optional(CONF_HVAC_MODES): probatio.All(
+                cv.ensure_list, [probatio.In(VALID_HVAC_MODES)]
+            ),
+            probatio.Optional(CONF_FAN_MODES): probatio.All(
+                cv.ensure_list, [probatio.In(VALID_FAN_MODES)]
+            ),
+            probatio.Optional(CONF_SWING_MODES): probatio.All(
+                cv.ensure_list, [probatio.In(DEFAULT_SWING_MODES)]
+            ),
+            probatio.Optional(CONF_SWING_HORIZONTAL_MODES): probatio.All(
+                cv.ensure_list, [probatio.In(DEFAULT_SWING_HORIZONTAL_MODES)]
+            ),
+            probatio.Optional(CONF_FEATURES): probatio.All(
+                cv.ensure_list, [probatio.In(VALID_FEATURES)]
+            ),
+            # Replaced by half_degrees, still accepted, see _yaml_temperature_step
+            probatio.Optional(CONF_TEMPERATURE_STEP): _target_temp_step,
+            probatio.Optional(CONF_HALF_DEGREES): cv.boolean,
+            probatio.Optional(ATTR_EXTERNAL_TEMPERATURE_SENSOR): cv.entity_id,
+            probatio.Optional(ATTR_EXTERNAL_HUMIDITY_SENSOR): cv.entity_id,
+            probatio.Optional(
+                CONF_RESTORE_STATES, default=DEFAULT_RESTORE_STATES
+            ): cv.boolean,
+        }
+    ),
+    _yaml_temperature_step,
 )
 
 
@@ -723,23 +768,15 @@ def setup_device_options_schema(  # noqa: C901
             }
         )
 
-    if device.supports_property(GreeProp.TARGET_TEMPERATURE_1):
+    # Only for a unit that answers a half degree column: TemRec, StFahFlg,
+    # Add0.5 or Add0.1. Answering is no proof of support, so it stays a choice.
+    if device.supports_half_degrees:
         schema.update(
             {
                 probatio.Required(
-                    CONF_TEMPERATURE_STEP,
-                    default=defaults.get(
-                        CONF_TEMPERATURE_STEP, DEFAULT_TARGET_TEMP_STEP
-                    ),
-                ): NumberSelector(
-                    NumberSelectorConfig(
-                        min=MIN_TARGET_TEMP_STEP,
-                        max=MAX_TARGET_TEMP_STEP,
-                        step=0.5,
-                        mode=NumberSelectorMode.BOX,
-                        unit_of_measurement="ºC",
-                    )
-                )
+                    CONF_HALF_DEGREES,
+                    default=defaults.get(CONF_HALF_DEGREES, DEFAULT_HALF_DEGREES),
+                ): cv.boolean
             }
         )
 

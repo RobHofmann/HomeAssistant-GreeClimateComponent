@@ -51,12 +51,10 @@ from .const import (
     CONF_HVAC_MODES,
     CONF_SWING_HORIZONTAL_MODES,
     CONF_SWING_MODES,
-    CONF_TEMPERATURE_STEP,
     DEFAULT_FAN_MODES,
     DEFAULT_HVAC_MODES,
     DEFAULT_SWING_HORIZONTAL_MODES,
     DEFAULT_SWING_MODES,
-    DEFAULT_TARGET_TEMP_STEP,
     DOMAIN,
     GATTR_FEAT_QUIET_MODE,
     GATTR_FEAT_TURBO,
@@ -154,9 +152,6 @@ async def async_setup_entry(
                 fan_modes,
                 swing_modes,
                 swing_horizontal_modes,
-                temperature_step=options.get(
-                    CONF_TEMPERATURE_STEP, DEFAULT_TARGET_TEMP_STEP
-                ),
                 restore_state=coordinator.restore_states,
                 check_availability=coordinator.check_availability,
                 external_temperature_sensor_id=options.get(
@@ -182,7 +177,6 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         fan_modes: list[str],
         swing_modes: list[str],
         swing_horizontal_modes: list[str],
-        temperature_step: int,
         restore_state: bool = True,
         check_availability: bool = True,
         external_temperature_sensor_id: str | None = None,
@@ -198,8 +192,6 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         self._external_humidity_sensor = external_humidity_sensor_id
         # Last external sensor value and its unit
         self._external_temperature: tuple[float, str] | None = None
-
-        self._attr_target_temperature_step = temperature_step
 
         self._attr_hvac_modes = hvac_modes
 
@@ -549,6 +541,8 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
         self._attr_native_temperature_unit = self.get_temp_units()
         self._attr_native_target_temperature = self.get_current_target_temp()
+        # Follows the unit and the "Use half-degrees °C" option
+        self._attr_target_temperature_step = self.device.target_temperature_step
 
         if (
             self._external_temperature_sensor is None

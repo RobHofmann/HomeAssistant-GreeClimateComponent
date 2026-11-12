@@ -113,7 +113,7 @@ gree_custom:
                       - "anti_direct_blow"
                       - "powersave"
                       - "humidity_control"
-                  target_temp_step: 1 # Number of degrees increase or decrease when changing the temperature | 0.5 <= number <= 5, 0.5 increments | default = 1
+                  half_degrees: false # Set the target temperature in steps of 0.5 C | bool | default = false. Replaces target_temp_step, which still works for now: a step of 0.5 means true
                   external_temperature_sensor: "sensor.living_room_temperature" # Sets a given temperature sensor as the sensor for the AC | str (Entity ID) | omit the key to not use one
                   external_humidity_sensor: "sensor.living_room_humidity" # Sets a given humidity sensor as the sensor for the AC | str (Entity ID) | omit the key to not use one
                   restore_states: true # Wether to restore the last HA state to device when HA starts | bool | default = true

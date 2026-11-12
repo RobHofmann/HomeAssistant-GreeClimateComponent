@@ -50,7 +50,7 @@ Your devices move to this version by themselves. Their entity IDs, areas, names 
 
 What changes:
 
-- The number entity for the temperature step and the selects for the external sensors are gone. Their values become the options **Temperature Step**, **External Temperature Sensor** and **External Humidity Sensor**.
+- The number entity for the temperature step and the selects for the external sensors are gone. Their values become the options **Use half-degrees °C**, **External Temperature Sensor** and **External Humidity Sensor**. A step of 0.5 turns **Use half-degrees °C** on, and so does the 4.x switch **Half-degree via Add0.5**. A whole step such as 2 has no match: the step now follows the unit.
 - Switches for features your unit does not have are removed. 4.x created them for every unit.
 - `temp_sensor_offset` is gone. This version detects the offset itself.
 - The swing modes have other names. The migration picks the name that moves the louvers to the same position as before.

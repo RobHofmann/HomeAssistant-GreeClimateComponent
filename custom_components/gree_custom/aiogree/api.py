@@ -44,6 +44,11 @@ class GreeProp(StrEnum):
     # used to distinguish between Fahrenheit values, and the half degree in Celsius
     TARGET_TEMPERATURE_BIT_1 = "TemRec"
     TARGET_TEMPERATURE_BIT_2 = "StFahFlg"
+    # Other columns that some units use for the half degree in Celsius, see
+    # GreeDevice.set_target_temperature. Add0.5 is 0 or 1, Add0.1 is a tenths
+    # digit that the unit rounds to the nearest half degree.
+    TARGET_TEMPERATURE_HALF_C = "Add0.5"
+    TARGET_TEMPERATURE_TENTHS_C = "Add0.1"
     # defines the unit of temperature for the target temperature
     TARGET_TEMPERATURE_UNIT_1 = "TemUn"
     TARGET_TEMPERATURE_UNIT_2 = "TemUnit"  # zone controller and all its sub-units
@@ -135,8 +140,6 @@ class OtherProps(StrEnum):
 
     UNKN_ACStupPos = "ACStupPos"
     UNKN_ActiveTime = "ActiveTime"
-    UNKN_Add0_1 = "Add0.1"
-    UNKN_Add0_5 = "Add0.5"
     UNKN_AirQ = "AirQ"
     UNKN_AllErr = "AllErr"
     UNKN_Antifreeze = "Antifreeze"

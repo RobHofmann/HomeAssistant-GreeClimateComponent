@@ -94,7 +94,7 @@ One page per device. Gree devices do not report reliably which features they hav
 | Vertical Swing Modes | all | The vertical positions and swing ranges. |
 | Horizontal Swing Modes | all | The horizontal positions and swing ranges. Only shown when the unit has horizontal swing. |
 | Device Features and Modes | all the unit supports | Which switches and selects to create. See [entities.md](entities.md). On a zone of a zone controller, leave out **Zone Switch** if the zone must always stay open. |
-| Temperature Step | 1 | The step of the target temperature, 0.5 to 5 in steps of 0.5. In Fahrenheit the step is rounded to a whole degree. |
+| Use half-degrees °C | off | Set the target temperature in steps of 0.5 °C instead of 1 °C. Only shown when the unit answers one of the half degree properties (`TemRec`, `StFahFlg`, `Add0.5`, `Add0.1`). Some units answer one and still take only whole degrees: if a half degree jumps back to a whole one, turn it off. Fahrenheit is always in whole degrees. The step of the climate entity follows this option and the unit's scale. |
 | External Temperature Sensor | none | A Home Assistant sensor that replaces the unit's own room temperature in the climate entity. |
 | External Humidity Sensor | none | A Home Assistant sensor that replaces the unit's own humidity in the climate entity. |
 | Restore Entities | on | After a restart, send the last known Home Assistant state to the device instead of taking over the device state. See [Restoring state](entities.md#restoring-state-after-a-restart). |
