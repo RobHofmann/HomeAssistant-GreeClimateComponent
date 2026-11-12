@@ -484,19 +484,10 @@ def get_device_by_identifier(
 ) -> dr.DeviceEntry | None:
     """Return the device with the identifier that the config entry owns.
 
-    HA 2026.8 added `async_get_device_by_identifier`, and `async_get_device`
-    stops working in 2027.8. Older versions only have `async_get_device`, so
-    use it there and check the owner.
+    `async_get_device` stops working in HA 2027.8. Its replacement,
+    `async_get_device_by_identifier`, is in every version from the 2026.11 floor.
     """
-    if hasattr(device_registry, "async_get_device_by_identifier"):
-        return device_registry.async_get_device_by_identifier(
-            identifier, config_entry_id
-        )
-
-    device = device_registry.async_get_device(identifiers={identifier})
-    if device is None or config_entry_id not in device.config_entries:
-        return None
-    return device
+    return device_registry.async_get_device_by_identifier(identifier, config_entry_id)
 
 
 def get_vrf_controller_mac(device_entry: dr.DeviceEntry) -> str | None:
