@@ -63,6 +63,7 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
         scan_info: dict[str, Any] | None = None,
         stale_reads_after_cmd: int = 0,
         apply_commands: bool = True,
+        read_only_props: set[str] | None = None,
     ) -> None:
         """Set up the device.
 
@@ -97,6 +98,9 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
                 can be several requests. `catch_up()` ends it at once.
             apply_commands: False means a command is acknowledged but the
                 values do not change. That is a command the unit rejected.
+            read_only_props: Columns the device answers but never changes on a
+                command, while it applies the rest of the command. Some units
+                answer a half degree column such as Add0.5 that they ignore.
 
         """
         self.mac = mac
@@ -119,6 +123,7 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
         self.scan_info = scan_info
         self.stale_reads_after_cmd = stale_reads_after_cmd
         self.apply_commands = apply_commands
+        self.read_only_props = read_only_props or set()
 
         # The cached state a gateway answers with after a command, and how
         # many more status requests it is used for.
@@ -383,7 +388,8 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
 
         if self.apply_commands:
             for option, value in zip(options, values, strict=False):
-                self.values[option] = value
+                if option not in self.read_only_props:
+                    self.values[option] = value
         return {
             "t": "res",
             "mac": self.mac,

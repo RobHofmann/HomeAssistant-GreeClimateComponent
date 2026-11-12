@@ -302,6 +302,7 @@ async def test_a_zone_takes_half_degrees_in_celsius(
 ) -> None:
     """The bit is the half degree, like TemRec. Seen on the real controller: 2 and 1 stay 18.5."""
     values = controller.units[controller.zone_macs[0]]
+    zone.set_half_degrees(True)
 
     zone.set_target_temperature(18.5)
     await zone.push_device_status()

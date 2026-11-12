@@ -2,6 +2,7 @@
 
 # Standard library imports
 from collections.abc import Mapping
+import copy
 import json
 import logging
 from typing import Any
@@ -31,7 +32,10 @@ from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeConnectionError
 from .aiogree.transport_mqtt import GreeMqttTransport
 from .aiogree.transport_udp import GreeUdpTransport
-from .config_schema import CONFIG_SCHEMA as CONFIG_SCHEMA
+from .config_schema import (
+    CONFIG_SCHEMA as CONFIG_SCHEMA,
+    options_without_temperature_step,
+)
 
 # Local imports
 from .const import (
@@ -44,6 +48,7 @@ from .const import (
     CONF_DISABLE_AVAILABLE_CHECK,
     CONF_ENCRYPTION_KEY,
     CONF_ENCRYPTION_VERSION,
+    CONF_HALF_DEGREES,
     CONF_MAC_CONTROLLER_CLOUD,
     CONF_MAC_CONTROLLER_LOCAL,
     CONF_MAX_ONLINE_ATTEMPTS,
@@ -51,12 +56,15 @@ from .const import (
     CONF_RESTORE_STATES,
     CONF_UID,
     CONFENTRY_ID_LOCAL_ONLY,
+    CURRENT_CONF_MINOR_VERSION,
+    CURRENT_CONF_VERSION,
     DEFAULT_CONNECTION_MAX_ATTEMPTS,
     DEFAULT_CONNECTION_TIMEOUT,
     DEFAULT_DEVICE_PORT,
     DEFAULT_DEVICE_UID,
     DEFAULT_DISABLE_AVAILABLE_CHECK,
     DEFAULT_ENCRYPTION_VERSION,
+    DEFAULT_HALF_DEGREES,
     DEFAULT_PREFER_CLOUD,
     DEFAULT_RESTORE_STATES,
     DEFAULT_SCAN_INTERVAL,
@@ -214,6 +222,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
             preferred_encryption_key=preferred_encryption_key,
             user_id=uid,
         )
+        device.set_half_degrees(
+            bool(options.get(CONF_HALF_DEGREES, DEFAULT_HALF_DEGREES))
+        )
 
         local_transport = (
             None if prefer_cloud else local_transports.get(mac_controller_local)
@@ -304,6 +315,41 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
 
     # The sub-unit devices exist now, link them to their controller
     reconcile_vrf_controllers(hass, entry, device_configs)
+    return True
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool:
+    """Bring an entry of an older minor version up to date.
+
+    Minor version 2 replaced the device option target_temp_step with
+    half_degrees. An entry of another major version is refused, as Home
+    Assistant did before this function existed.
+    """
+    if entry.version != CURRENT_CONF_VERSION:
+        _LOGGER.error(
+            "Entry '%s' has version %s, this release only reads version %s",
+            entry.title,
+            entry.version,
+            CURRENT_CONF_VERSION,
+        )
+        return False
+
+    if entry.minor_version < 2:
+        data = copy.deepcopy(dict(entry.data))
+        for dev_config in data.get(CONF_DEVICES, {}).values():
+            options = dev_config.get(CONF_DEVICE_OPTIONS)
+            if options is not None:
+                dev_config[CONF_DEVICE_OPTIONS] = options_without_temperature_step(
+                    options
+                )
+        hass.config_entries.async_update_entry(
+            entry, data=data, minor_version=CURRENT_CONF_MINOR_VERSION
+        )
+        _LOGGER.info(
+            "Entry '%s': the temperature step option is now Use half-degrees °C",
+            entry.title,
+        )
+
     return True
 
 

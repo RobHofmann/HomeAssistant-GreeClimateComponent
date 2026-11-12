@@ -95,6 +95,7 @@ from .const import (
     CONF_SWING_MODES,
     CONF_UID,
     CONFENTRY_ID_LOCAL_ONLY,
+    CURRENT_CONF_MINOR_VERSION,
     CURRENT_CONF_VERSION,
     DATA_YAML_UNIQUE_IDS,
     DEFAULT_DEVICE_UID,
@@ -229,6 +230,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle the config flow for the integration."""
 
     VERSION = CURRENT_CONF_VERSION
+    MINOR_VERSION = CURRENT_CONF_MINOR_VERSION
 
     def __init__(self) -> None:
         """Initialize the flow."""
