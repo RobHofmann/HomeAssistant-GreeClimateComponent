@@ -702,8 +702,17 @@ class GreeDevice:
             )
         return props
 
-    def set_target_temperature_props(self, props: Mapping[GreeProp, int]) -> None:
-        """Set the raw columns that hold the target temperature, as remembered."""
+    def set_state_props(self, props: Mapping[GreeProp, int]) -> None:
+        """Set raw column values in the device state, without sending them.
+
+        They go out with the next push_device_status(), the same way as the
+        values of the typed setters. set_props() instead sends them at once
+        and skips the state. A column the device does not answer is refused.
+
+        Only for exceptions, such as raw values remembered from the device
+        itself. Use the typed setters otherwise (set_target_temperature() and
+        the others): they convert units and check ranges, this does not.
+        """
         for prop, value in props.items():
             self._state.set(prop, value)
 

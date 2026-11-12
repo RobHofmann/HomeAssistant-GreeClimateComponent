@@ -6,6 +6,10 @@ A mode change over WiFi does not do that: the zones keep the values of the old
 mode (seen on a LE60-13/GH). This class keeps the same memory, so a mode change
 from Home Assistant works like one on the panel. See docs/protocol.md.
 
+It is Home Assistant behaviour, turned on per device by the setpoint_memory
+option, so it lives here and not in aiogree. It still imports nothing from
+Home Assistant, so the tests need no Home Assistant instance.
+
 - A device reports its mode and its target temperature in one reply, so the
   two belong together. A value is stored when the device reported the same
   mode on the poll before. A poll in the middle of a mode change on the panel
@@ -20,6 +24,8 @@ from Home Assistant works like one on the panel. See docs/protocol.md.
   VRF unit.
 - For a unit that remembers its own target, `apply()` sets the stored value
   without sending it, so it can go out in the same command as the new mode.
+  It uses `GreeDevice.set_state_props()`, since the raw columns need no
+  conversion.
 
 The memory does not store itself. The owner loads `data` and saves it when
 `on_change` is called.
@@ -28,9 +34,9 @@ The memory does not store itself. The owner loads `data` and saves it when
 from collections.abc import Callable, Iterable, Mapping
 import logging
 
-from .api import PROP_KEY_TO_ENUM, GreeProp, OperationMode
-from .device import GreeDevice
-from .errors import GreeError
+from .aiogree.api import PROP_KEY_TO_ENUM, GreeProp, OperationMode
+from .aiogree.device import GreeDevice
+from .aiogree.errors import GreeError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -150,7 +156,7 @@ class SetpointMemory:
         if not stored or stored == device.target_temperature_props:
             return False
 
-        device.set_target_temperature_props(stored)
+        device.set_state_props(stored)
         return True
 
     def _remember(

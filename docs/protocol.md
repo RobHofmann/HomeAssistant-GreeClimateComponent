@@ -106,12 +106,12 @@ A zone controller (seen: LE60-13/GH with a ME31-00/C13 WiFi module, firmware `36
 
 ### Target temperatures per mode
 
-The wall panel remembers the target temperature of every zone per mode. When the mode is changed on the panel, it sets them again. A `Mod` change over WiFi does not: the zones keep the values of the old mode. `SetpointMemory` in `aiogree/setpoint_memory.py` keeps the same memory:
+The wall panel remembers the target temperature of every zone per mode. When the mode is changed on the panel, it sets them again. A `Mod` change over WiFi does not: the zones keep the values of the old mode. `SetpointMemory` in `setpoint_memory.py`, in the Home Assistant layer, keeps the same memory:
 
 - It learns from every poll of a zone. A zone reports its mode and its target temperature in one reply, so the two belong together. A value is stored when the zone reported the same mode on its poll before, so a poll in the middle of a mode change on the panel is not stored under the wrong mode.
 - Before the climate entity of the ducted unit changes the mode, `snapshot()` reads the zones again and stores them under the old mode. After the change, `recall()` sends the stored values of the new mode. A mode with no stored values changes nothing.
 - It stores the raw columns that hold the target temperature, as `GreeDevice.target_temperature_props` gives them, keyed by device MAC and mode: `{"<zone mac>": {"heat": {"StTem": 3, "StFahFlg": 0}}}`. Raw columns need no unit conversion. They are the columns the device uses: a zone stores `StTem` and its bit `StFahFlg`, so a half degree or a °F value comes back exactly. A standalone or VRF unit stores `SetTem` and `TemRec`.
-- A standalone or VRF unit uses the same memory for itself. The device option `setpoint_memory`, on by default, turns the memory off for one device, a zone included. It stores `SetTem` and `TemRec`, so a unit set to Fahrenheit needs no conversion. On a mode change from Home Assistant, `apply()` sets the stored target without sending it, and it goes out in the same command as the new mode. Nothing is recalled into Auto, where the unit ignores the target temperature.
+- A standalone or VRF unit uses the same memory for itself. The device option `setpoint_memory`, on by default, turns the memory off for one device, a zone included. It stores `SetTem` and `TemRec`, so a unit set to Fahrenheit needs no conversion. On a mode change from Home Assistant, `apply()` sets the stored target with `GreeDevice.set_state_props()`, without sending it, and it goes out in the same command as the new mode. Nothing is recalled into Auto, where the unit ignores the target temperature.
 - `__init__.py` keeps the memory in a `Store` per config entry (`gree_custom.<entry_id>.setpoints`). It is saved when the entry unloads, and removed with the entry.
 
 ## MAC addresses

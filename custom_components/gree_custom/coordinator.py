@@ -13,9 +13,9 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .aiogree.api import OperationMode
 from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeBindingError, GreeConnectionError
-from .aiogree.setpoint_memory import SetpointMemory
 from .const import DOMAIN
 from .helpers import try_find_new_ip
+from .setpoint_memory import SetpointMemory
 
 _LOGGER = logging.getLogger(__name__)
 

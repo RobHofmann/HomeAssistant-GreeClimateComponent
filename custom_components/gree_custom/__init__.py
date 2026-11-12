@@ -32,7 +32,6 @@ from .aiogree.api import DeviceType
 from .aiogree.cipher import EncryptionVersion
 from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeConnectionError
-from .aiogree.setpoint_memory import SetpointMemory, SetpointMemoryData
 from .aiogree.transport_mqtt import GreeMqttTransport
 from .aiogree.transport_udp import GreeUdpTransport
 from .config_schema import CONFIG_SCHEMA as CONFIG_SCHEMA
@@ -87,6 +86,7 @@ from .migration import (
     async_unload_legacy_entries,
 )
 from .services import async_setup_services
+from .setpoint_memory import SetpointMemory, SetpointMemoryData
 
 ISSUE_DEVICE_CONNECTION_FAILED = "device_connection_failed"
 ISSUE_YAML_IMPORT_FAILED = "yaml_import_failed"
@@ -356,7 +356,7 @@ async def _async_setup_setpoint_memory(
     zones of a zone controller follow the mode of their ducted unit, so the
     ducted unit gets it for them, and a mode change from Home Assistant sets
     them as the wall panel does. The memory learns from every poll of those
-    devices. See aiogree/setpoint_memory.py.
+    devices. See setpoint_memory.py.
     """
     learners = [
         c

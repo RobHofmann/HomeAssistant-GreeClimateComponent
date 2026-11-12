@@ -20,7 +20,6 @@ No Home Assistant imports here.
 | `helpers.py` | Encrypt and decrypt packs, temperature math, `TempOffsetResolver`, `redact_str`, `chunked`. |
 | `const.py` | Protocol constants: `MAX_PACK_SIZE`, `MIN_PACK_PROPS`, `STATUS_CANARY_PROP`, `PROBE_TIMEOUT`, `STATUS_CANARY_PROP_MAX_REQUESTS`, temperature and humidity ranges. |
 | `errors.py` | Exceptions. `GreeConnectionError` means no answer. `GreeProtocolError` means a bad answer. `GreeBindingError` means the key exchange failed. |
-| `setpoint_memory.py` | `SetpointMemory`. The target temperature of a device per mode, stored as raw columns per device MAC. Used for every device with a target temperature, unless its `setpoint_memory` option is off: for the zones of a zone controller, so a mode change works like one on the wall panel, and for a standalone or VRF unit itself. See [protocol.md](protocol.md#target-temperatures-per-mode). |
 
 ## Home Assistant layer
 
@@ -28,6 +27,7 @@ No Home Assistant imports here.
 |---|---|
 | `__init__.py` | Entry setup. Builds transports and devices, binds them, starts one `GreeCoordinator` per device. Creates and links the VRF controller devices, see [VRF controller device](#vrf-controller-device). |
 | `coordinator.py` | `GreeCoordinator`. Polls on `scan_interval` and listens for status pushed by the device. Polls again every 2 s after a command while the device has not confirmed it, until the hold ends. |
+| `setpoint_memory.py` | `SetpointMemory`. The target temperature of a device per mode, stored as raw columns per device MAC. Used for every device with a target temperature, unless its `setpoint_memory` option is off: for the zones of a zone controller, so a mode change works like one on the wall panel, and for a standalone or VRF unit itself. It imports nothing from Home Assistant; `__init__.py` keeps it in a `Store`. See [protocol.md](protocol.md#target-temperatures-per-mode). |
 | `config_flow.py` | Setup, reconfigure, reauth and YAML import flows. Local discovery, cloud login, device picker, per device options. Reconfigure is a menu over the same steps, see [config-entry.md](config-entry.md#reconfigure). `async_step_import` turns one validated YAML item into a config entry. |
 | `config_schema.py` | `CONFIG_SCHEMA` for the `gree_custom:` block in `configuration.yaml`. Validates the YAML, normalizes the MAC addresses and fills the defaults. It also holds the form schemas that the config flow shows. |
 | `migration.py` | Moves a 4.x setup (domain `gree`) to this integration: config entries, the `gree:` YAML block, and the device and entity registry rows. See [config-entry.md](config-entry.md#migration-from-4x). |

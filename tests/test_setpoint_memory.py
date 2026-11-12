@@ -11,11 +11,20 @@ does not, so `SetpointMemory` does it. See docs/protocol.md.
 
 from collections.abc import AsyncIterator
 
-from aiogree.api import DeviceType, GreeProp, OperationMode
-from aiogree.device import GreeDevice
-from aiogree.setpoint_memory import SetpointMemory
-from aiogree.transport_udp import GreeUdpTransport
 import pytest
+
+# SetpointMemory is on the Home Assistant side, so it imports the protocol
+# layer as custom_components.gree_custom.aiogree. The devices must come from
+# the same import, not the top level "aiogree" the protocol tests use: two
+# imports are two copies, and their enums would not compare equal.
+from custom_components.gree_custom.aiogree.api import (
+    DeviceType,
+    GreeProp,
+    OperationMode,
+)
+from custom_components.gree_custom.aiogree.device import GreeDevice
+from custom_components.gree_custom.aiogree.transport_udp import GreeUdpTransport
+from custom_components.gree_custom.setpoint_memory import SetpointMemory
 
 from .fakes.device import FakeGreeDevice
 from .fakes.zone import FakeZoneController
