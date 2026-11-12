@@ -79,7 +79,7 @@ and says what to report.
 | `config_flow/test_compressor.py` | Compressor entities with and without compressor data, disabled by default, the outdoor sensor of a new and an existing device, `hvac_action` |
 | `config_flow/test_translations.py` | Every config flow key, exception and sensor name has a text in `en`, `nl` and `pt` |
 
-255 protocol tests, about 94 percent of `aiogree/`, and 16 config flow tests.
+360 tests in all, protocol and config flow together (HA 2026.10 pin, November 2026). The protocol tests cover about 94 percent of `aiogree/`.
 One config flow test is a strict `xfail`: it shows a known defect and starts to
 fail as soon as the defect is fixed, so the marker gets removed with the fix.
 Check the coverage of the day with:
