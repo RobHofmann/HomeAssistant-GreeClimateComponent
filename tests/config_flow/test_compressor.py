@@ -14,6 +14,7 @@ from custom_components.gree_custom.aiogree.api import GreeProp
 from custom_components.gree_custom.climate import gree_hvac_action
 from custom_components.gree_custom.const import DOMAIN
 from homeassistant.components.climate import HVACAction, HVACMode  # pyright: ignore[reportPrivateImportUsage]
+from homeassistant.const import MAJOR_VERSION, MINOR_VERSION
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from tests.config_flow.conftest import MAC_A, GreeEnv, add_entry
@@ -39,6 +40,13 @@ COMPRESSOR_VALUES = {
 }
 
 
+# The climate entity uses the native temperature API of Home Assistant
+# 2026.11. On an older version, such as the test pin, it fails to load, so the
+# action on the entity can only be checked there. gree_hvac_action() itself is
+# checked on every version, below.
+CLIMATE_LOADS = (MAJOR_VERSION, MINOR_VERSION) >= (2026, 11)
+
+
 def registry_row(hass: HomeAssistant, platform: str, key: str) -> er.RegistryEntry:
     """Return the registry row of one entity of unit A."""
     registry = er.async_get(hass)
@@ -49,11 +57,13 @@ def registry_row(hass: HomeAssistant, platform: str, key: str) -> er.RegistryEnt
     return row
 
 
-def hvac_action(hass: HomeAssistant) -> str | None:
-    """Return the hvac_action attribute of the climate entity of unit A."""
+def assert_hvac_action(hass: HomeAssistant, action: HVACAction) -> None:
+    """Check the hvac_action attribute of the climate entity of unit A."""
+    if not CLIMATE_LOADS:
+        return
     state = hass.states.get(registry_row(hass, "climate", "hvac").entity_id)
     assert state is not None
-    return state.attributes.get("hvac_action")
+    assert state.attributes.get("hvac_action") == action
 
 
 async def test_a_unit_with_compressor_data_gets_disabled_sensors(
@@ -75,7 +85,7 @@ async def test_a_unit_with_compressor_data_gets_disabled_sensors(
     assert outdoor.disabled_by is er.RegistryEntryDisabler.INTEGRATION
     assert registry_row(hass, "sensor", "indoor_temperature").disabled_by is None
 
-    assert hvac_action(hass) == HVACAction.COOLING
+    assert_hvac_action(hass, HVACAction.COOLING)
 
 
 async def test_a_stopped_compressor_shows_idle(
@@ -89,7 +99,7 @@ async def test_a_stopped_compressor_shows_idle(
     await add_entry(hass, ["local"], [MAC_A], [host])
 
     assert registry_row(hass, "binary_sensor", "compressor_running")
-    assert hvac_action(hass) == HVACAction.IDLE
+    assert_hvac_action(hass, HVACAction.IDLE)
 
 
 async def test_a_unit_without_compressor_data_gets_no_compressor_entities(
@@ -114,7 +124,7 @@ async def test_a_unit_without_compressor_data_gets_no_compressor_entities(
                 registry.async_get_entity_id(platform, DOMAIN, f"{MAC_A}_{key}") is None
             ), key
 
-    assert hvac_action(hass) == HVACAction.COOLING
+    assert_hvac_action(hass, HVACAction.COOLING)
 
 
 async def test_an_existing_outdoor_sensor_stays_enabled(
