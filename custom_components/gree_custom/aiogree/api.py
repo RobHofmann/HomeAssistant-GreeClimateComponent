@@ -77,6 +77,8 @@ class GreeProp(StrEnum):
     FEATURE_HUMIDITY_CONTROL = "Dmod"
     # humidity control mode. sets the humidity target for the humidity control mode. (HUM% - 15) / 5
     FEATURE_HUMIDITY_TARGET = "Dwet"
+    # auxiliary electric heating, see AuxiliaryHeatMode for the values
+    FEAT_AUXILIARY_HEAT = "AssHt"
 
     # SENSORS
     # indoor temperature sensors, used to read the current room temperature, if available, ordered by preference
@@ -141,7 +143,6 @@ class OtherProps(StrEnum):
     UNKN_AllErr = "AllErr"
     UNKN_Antifreeze = "Antifreeze"
     UNKN_AppTimer = "AppTimer"
-    UNKN_AssHt = "AssHt"
     UNKN_AutoClean = "AutoClean"
     UNKN_AutoCleanSta = "AutoCleanSta"
     UNKN_AutoCleanStaEx = "AutoCleanStaEx"
@@ -474,6 +475,19 @@ class HumidityControlMode(IntEnum):
     target_dry = 0
     continuous_dry = 1  # This is only available in dry operation mode
     smart_dry = 2  # This is only available in cool operation mode
+
+
+@unique
+class AuxiliaryHeatMode(IntEnum):
+    """Enumeration of the auxiliary electric heating modes (AssHt).
+
+    The values were checked against the Gree+ app on one unit with three
+    modes. Other models may use other values.
+    """
+
+    off = 0
+    always_on = 1
+    auto = 2
 
 
 @unique

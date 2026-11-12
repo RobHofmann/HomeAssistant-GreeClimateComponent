@@ -102,6 +102,7 @@ Two switches are integration features. They do not exist on the unit and their s
 |---|---|---|---|
 | Temperature Units | none, created when the unit answers the property | every mode | ºC, ºF. Changes the scale of the unit itself. Configuration category. |
 | Humidity Control | Humidity Control | Cool, Dry | Disabled, Normal Dry, Smart Dry, Continuous Dry. Smart Dry only in Cool. Continuous Dry only in Dry. The other options fail with a message. |
+| Auxiliary Heat | Auxiliary Heat | Heat, Auto | Off, Always On, Auto. Controls the electric heater of the unit. Auto lets the unit decide when to use it. Shows unknown when the unit reports a value that is not one of these three. |
 
 ## Numbers
 
