@@ -3,7 +3,7 @@
 ## Versions
 
 - Python **3.14**. `.ruff.toml`, `mypy.ini` and `.pylintrc` all target 3.14.
-- Home Assistant 2026.3 or newer. HA 2026.3 was the first release that requires Python 3.14. `hacs.json` states this floor for HACS installs. Keep it in line with the Python version the code needs; HA 2026.1 and 2026.2 still run Python 3.13.
+- Home Assistant 2026.11 or newer. The climate entity uses the native temperature API (`native_temperature_unit`, `native_current_temperature`, `native_target_temperature`) that HA 2026.11 added. `hacs.json` states this floor for HACS installs. Python 3.14 is still needed; HA 2026.11 runs on it anyway.
 - Python 3.14 syntax is used on purpose. Example: `except GreeConnectionError, GreeProtocolError:` without brackets is valid since PEP 758. Do not "fix" it.
 - Check compile, lint and imports with a Python 3.14 interpreter. A local 3.13 gives false errors on the syntax above.
 
@@ -32,6 +32,13 @@ the config flow. The first install takes a few minutes, because
 brings one exact Home Assistant release (0.13.371 is Home Assistant 2026.10.0).
 That plugin also pins pytest, pytest-asyncio and pytest-timeout. Bump it on
 purpose, in its own PR.
+
+The pinned release is below the 2026.11 floor, because no release of the
+plugin for Home Assistant 2026.11 exists yet. Bump it in its own PR when one
+exists. Until then, `async_setup_entry` and `async_unload_entry` keep returning
+`bool`: Home Assistant 2026.10 marks an entry as failed when setup returns
+`None`. Since 2026.11 they may return `None`, and `async_unload_entry` can use
+`async_unload_platforms_or_raise`. Make that change together with the bump.
 
 Without a local Python 3.14, run it in a throwaway container:
 
@@ -68,7 +75,7 @@ and says what to report.
 | `test_device.py` | The poll cycle and the rules between features |
 | `config_flow/test_setup.py` | The user flow with cloud and LAN, closing it after the login, the YAML import and why it refuses reconfigure, reauth after the broker refuses the token |
 | `config_flow/test_reconfigure.py` | The reconfigure menu: finish at once, rediscover with and without new units, edit with and without a new bind, remove, a local-only entry, a VRF host change, closing the flow after a login |
-| `config_flow/test_registry_lookup.py` | `get_device_by_identifier` on a registry with and without `async_get_device_by_identifier` |
+| `config_flow/test_registry_lookup.py` | `get_device_by_identifier` finds only the device of its own config entry |
 
 255 protocol tests, about 94 percent of `aiogree/`, and 16 config flow tests.
 One config flow test is a strict `xfail`: it shows a known defect and starts to
@@ -128,8 +135,8 @@ so a test that tries to reach a real Gree server still fails.
 Code in a test file runs with Home Assistant's strictest deprecation rules,
 because it is not an integration. A deprecated call such as
 `device_registry.async_get_device` raises there, while the component itself
-only logs it. Use calls that exist in both 2026.3 and the pinned release, for
-example `dr.async_entries_for_config_entry`.
+only logs it. Use calls that exist in both the pinned release and the floor in
+`hacs.json`, for example `dr.async_entries_for_config_entry`.
 
 ### How the fakes work
 

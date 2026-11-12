@@ -484,19 +484,10 @@ def get_device_by_identifier(
 ) -> dr.DeviceEntry | None:
     """Return the device with the identifier that the config entry owns.
 
-    HA 2026.8 added `async_get_device_by_identifier`, and `async_get_device`
-    stops working in 2027.8. Older versions only have `async_get_device`, so
-    use it there and check the owner.
+    `async_get_device` stops working in HA 2027.8. Its replacement,
+    `async_get_device_by_identifier`, is in every version from the 2026.11 floor.
     """
-    if hasattr(device_registry, "async_get_device_by_identifier"):
-        return device_registry.async_get_device_by_identifier(
-            identifier, config_entry_id
-        )
-
-    device = device_registry.async_get_device(identifiers={identifier})
-    if device is None or config_entry_id not in device.config_entries:
-        return None
-    return device
+    return device_registry.async_get_device_by_identifier(identifier, config_entry_id)
 
 
 def get_vrf_controller_mac(device_entry: dr.DeviceEntry) -> str | None:
@@ -586,9 +577,10 @@ def reconcile_vrf_controllers(
     device without entities. A wanted controller is never recreated, so its
     device id, user name and area survive restarts.
 
-    The sub-units are linked from here and not through DeviceInfo, because HA
-    2026.3 only has via_device and newer versions only have via_device_id.
-    The link needs the sub-unit devices, so they must exist first.
+    The sub-units are linked from here and not through DeviceInfo. That was
+    needed while HA 2026.3 was the floor, which only had via_device. With the
+    2026.11 floor the link can move to DeviceInfo later. The link needs the
+    sub-unit devices, so they must exist first.
     """
     device_registry = dr.async_get(hass)
     sub_units = get_vrf_sub_units(device_configs)
@@ -626,7 +618,7 @@ def reconcile_vrf_controllers(
         return
 
     # Look up the sub-units in the entry devices, async_get_device is
-    # deprecated in newer HA versions and its replacement is not in 2026.3
+    # deprecated in newer HA versions
     devices_by_mac: dict[str, dr.DeviceEntry] = {
         identifier: device_entry
         for device_entry in entry_devices

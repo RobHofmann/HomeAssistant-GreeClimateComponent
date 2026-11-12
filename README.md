@@ -3,7 +3,7 @@
 [![GitHub Release](https://img.shields.io/github/v/release/RobHofmann/HomeAssistant-GreeClimateComponent?sort=semver)](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/releases)
 [![License](https://img.shields.io/github/license/RobHofmann/HomeAssistant-GreeClimateComponent)](LICENSE)
 [![HACS](https://img.shields.io/badge/HACS-Default-orange.svg)](https://hacs.xyz)
-[![Home Assistant](https://img.shields.io/badge/Compatible-Home_Assistant_2026.3+-blue.svg)](https://www.home-assistant.io)
+[![Home Assistant](https://img.shields.io/badge/Compatible-Home_Assistant_2026.11+-blue.svg)](https://www.home-assistant.io)
 
 [![Validate](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/actions/workflows/validate.yaml/badge.svg)](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/actions/workflows/validate.yaml)
 [![Lint](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/actions/workflows/lint.yml/badge.svg)](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/actions/workflows/lint.yml)
