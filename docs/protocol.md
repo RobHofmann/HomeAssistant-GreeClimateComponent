@@ -52,7 +52,7 @@ Answering a column is no proof that the unit uses it. One unit answers all three
 - `GreeDevice.set_half_degrees()` is the user option "Use half-degrees °C" (`half_degrees` in the device options, off by default). Off, Celsius goes to the nearest whole degree, with a half going up (22.5 gives 23). The read side does not change, so a half degree set with a remote still shows.
 - `supports_half_degrees` is true when the unit answers one of the columns. The options form only offers the checkbox then. `target_temperature_step` is 0.5 in Celsius with the option on, and 1 otherwise. The climate entity and the zone number take their step from it.
 - No retry loop: nothing resends a value the unit did not take. A sub-unit holds the sent values for at most `HELD_VALUE_TTL`, see [Stale state after a command](#stale-state-after-a-command), then shows what the unit reports. A column the unit ignores is only sent again with the next temperature command. `has_pending_updates` compares with the reported value, so it does not cause a push by itself.
-- Known risk: a unit that stores a column it ignores (it reads back what was written). If the setpoint then changes on the remote, the stored half stays and the value reads .5 too high, until Home Assistant sets the next whole degree. No such unit is known.
+- Known risk: a unit that stores a column it ignores (it reads back what was written). If the setpoint then changes on the remote, the stored half stays and the value reads .5 too high, until Home Assistant sets the next whole degree. This is not tested. The unit of PR 537 is the one to check: it accepts a `TemRec` write without applying it, and it is not known if `TemRec` then reads back as 1.
 
 ### Temperature unit
 
