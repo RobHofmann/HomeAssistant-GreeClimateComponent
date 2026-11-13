@@ -33,6 +33,7 @@ Turbo and Quiet are not fan speeds on the unit but separate features. The integr
 - **Turbo** runs the fan at its maximum. Only in Cool and Heat mode. Selecting it in another mode fails with a message.
 - **Quiet** runs the fan at its most quiet speed. The integration turns it on the same way as the Gree app. The fan mode shows Quiet whenever the unit reports Quiet as on, also when you turned it on with the remote.
 - The unit ignores both while Power Save or Smart Heat 8°C is on. The integration logs that and leaves the setting for when those are turned off.
+- Turbo and Quiet exclude each other, as in the Gree app: turning one on turns the other off.
 - Selecting a normal speed turns Turbo and Quiet off.
 
 ### Temperature scale

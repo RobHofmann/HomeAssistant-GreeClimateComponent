@@ -1052,6 +1052,11 @@ class GreeDevice:
         # so do not change this back to set_bool().
         self._state.set(GreeProp.FEAT_QUIET_MODE, QUIET_ON if value else 0)
 
+        # Quiet and Turbo exclude each other, as in the Gree app: Quiet on turns
+        # Turbo off. Only for a unit that has Turbo, so no unknown column is sent.
+        if value and self.supports_property(GreeProp.FEAT_TURBO_MODE):
+            self.set_feature_turbo(False)
+
         if value and (self.feature_energy_saving or self.feature_smart_heat):
             _LOGGER.info(
                 "[%s] Quiet mode set, but being ignored while smart heat or energy saving modes are enabled",
@@ -1079,6 +1084,10 @@ class GreeDevice:
             raise GreeTurboUnavailable(
                 "Turbo mode is only available under Cool or Heat modes"
             )
+
+        # Turbo on turns Quiet off, as in the Gree app.
+        if value and self.supports_property(GreeProp.FEAT_QUIET_MODE):
+            self._state.set(GreeProp.FEAT_QUIET_MODE, 0)
 
         if self._device_type in ZONE_CONTROLLER_TYPES:
             # A zone controller has no turbo column. Turbo is fan speed 6, and

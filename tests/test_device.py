@@ -668,6 +668,46 @@ async def test_quiet_is_sent_as_the_app_sends_it(
     assert GreeProp.FAN_SPEED.value not in values
 
 
+@pytest.mark.parametrize(
+    ("turn_on", "sent"),
+    [("quiet", {"Quiet": 2, "Tur": 0}), ("turbo", {"Tur": 1, "Quiet": 0})],
+)
+async def test_quiet_and_turbo_exclude_each_other(
+    unit: FakeGreeDevice, bound: GreeDevice, turn_on: str, sent: dict[str, int]
+) -> None:
+    """As in the Gree app, Quiet on turns Turbo off, and Turbo on turns Quiet off."""
+    # Start with the other mode on.
+    unit.values[GreeProp.FEAT_QUIET_MODE.value] = 2 if turn_on == "turbo" else 0
+    unit.values[GreeProp.FEAT_TURBO_MODE.value] = 1 if turn_on == "quiet" else 0
+    await bound.fetch_device_status()
+    unit.reset_record()
+
+    if turn_on == "quiet":
+        bound.set_feature_quiet(True)
+    else:
+        bound.set_feature_turbo(True)
+    await bound.push_device_status()
+
+    command = next(pack for pack in unit.packs if pack.get("t") == "cmd")
+    values = dict(zip(command["opt"], command["p"], strict=True))
+    assert {key: values[key] for key in sent} == sent
+    assert bound.feature_quiet is (turn_on == "quiet")
+    assert bound.feature_turbo is (turn_on == "turbo")
+
+
+async def test_quiet_off_leaves_turbo_alone(
+    unit: FakeGreeDevice, bound: GreeDevice
+) -> None:
+    """Only switching a mode on clears the other one."""
+    unit.values[GreeProp.FEAT_QUIET_MODE.value] = 0
+    unit.values[GreeProp.FEAT_TURBO_MODE.value] = 1
+    await bound.fetch_device_status()
+
+    bound.set_feature_quiet(False)
+
+    assert bound.feature_turbo is True
+
+
 @pytest.mark.parametrize(("reported", "quiet"), [(0, False), (1, True), (2, True)])
 async def test_quiet_reads_as_on_for_any_value_but_0(
     reported: int, quiet: bool
