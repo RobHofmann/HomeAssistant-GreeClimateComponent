@@ -142,9 +142,9 @@ class GreeDevice:
         self._target_temp_bit_prop: GreeProp | None = None
         self._temp_unit_prop: GreeProp | None = None
 
-        # The user option "Use half-degrees °C". Off by default, because every
-        # unit takes whole degrees.
-        self._half_degrees: bool = False
+        # The user option "Use half-degrees °C". None when the user made no
+        # choice: see default_half_degrees.
+        self._half_degrees: bool | None = None
 
         self._state = DeviceState(
             device_id=self.unique_id, capabilities=self._capabilities
@@ -1038,10 +1038,24 @@ class GreeDevice:
         This needs the user option and a unit that answers a half degree
         column. Fahrenheit is always in whole degrees.
         """
-        return self._half_degrees and self.supports_half_degrees
+        choice = self._half_degrees
+        if choice is None:
+            choice = self.default_half_degrees
+        return choice and self.supports_half_degrees
 
-    def set_half_degrees(self, value: bool) -> None:
-        """Set the user option "Use half-degrees °C"."""
+    @property
+    def default_half_degrees(self) -> bool:
+        """Return the option "Use half-degrees °C" when the user made no choice.
+
+        On for a zone of a zone controller: its only half degree column is
+        StFahFlg, which the zones take, and before the option existed zones
+        always used half degrees. Off for every other unit, because some
+        answer a half degree column and still take only whole degrees.
+        """
+        return self.device_type is DeviceType.ZONE
+
+    def set_half_degrees(self, value: bool | None) -> None:
+        """Set the user option "Use half-degrees °C". None means no choice."""
         self._half_degrees = value
 
     @property

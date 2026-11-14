@@ -66,7 +66,6 @@ from .const import (
     DEFAULT_DEVICE_UID,
     DEFAULT_DISABLE_AVAILABLE_CHECK,
     DEFAULT_ENCRYPTION_VERSION,
-    DEFAULT_HALF_DEGREES,
     DEFAULT_PREFER_CLOUD,
     DEFAULT_RESTORE_STATES,
     DEFAULT_SCAN_INTERVAL,
@@ -226,9 +225,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
             preferred_encryption_key=preferred_encryption_key,
             user_id=uid,
         )
-        device.set_half_degrees(
-            bool(options.get(CONF_HALF_DEGREES, DEFAULT_HALF_DEGREES))
-        )
+        half_degrees = options.get(CONF_HALF_DEGREES)
+        device.set_half_degrees(None if half_degrees is None else bool(half_degrees))
 
         local_transport = (
             None if prefer_cloud else local_transports.get(mac_controller_local)
