@@ -240,6 +240,7 @@
                 "light_sensor": "Display Auto Brightness",
                 "faults": "Fault Detection",
                 "humidity_control": "Humidity Control",
+                "auxiliary_heat": "Auxiliary Heat",
                 "zone": "Zone Switch"
             }
         }
@@ -328,6 +329,14 @@
         "select": {
             "temperature_units": {
                 "name": "Temperature Units"
+            },
+            "auxiliary_heat": {
+                "name": "Auxiliary Heat",
+                "state": {
+                    "off": "Off",
+                    "always_on": "Always On",
+                    "auto": "Auto"
+                }
             },
             "humidity_control": {
                 "name": "Humidity Control",

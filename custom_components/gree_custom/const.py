@@ -109,6 +109,8 @@ GATTR_FEAT_TURBO = "turbo"
 GATTR_FEAT_HUMIDITY = "humidity_control"
 # Humidity Control Target. Sets humidity target for humidity control
 GATTR_FEAT_HUMIDITY_TARGET = "humidity_control_target"
+# Auxiliary electric heating: off, always on or auto. Only in Heat and Auto mode
+GATTR_FEAT_AUXILIARY_HEAT = "auxiliary_heat"
 
 # Zone controller. Opens and closes one zone. It is a feature, so it can be left
 # out for a zone that must always stay open.
@@ -146,12 +148,18 @@ ATTR_FEATURES_TO_PROP_MAP: dict[str, list[GreeProp]] = {
     GATTR_ANTI_DIRECT_BLOW: [GreeProp.FEAT_ANTI_DIRECT_BLOW],
     GATTR_FEAT_ENERGY_SAVING: [GreeProp.FEAT_ENERGY_SAVING],
     GATTR_FEAT_HUMIDITY: [GreeProp.FEATURE_HUMIDITY_CONTROL],
+    GATTR_FEAT_AUXILIARY_HEAT: [GreeProp.FEAT_AUXILIARY_HEAT],
     GATTR_ZONE: [GreeProp.POWER],
 }
 
 # Features that only a zone has. Every unit has a Pow column, so the props
 # alone cannot tell.
 ZONE_ONLY_FEATURES: list[str] = [GATTR_ZONE]
+
+# Features the user must turn on. Many units answer the column without having
+# the function, so these are not in DEFAULT_SUPPORTED_FEATURES and are not
+# ticked when a device is added.
+OPT_IN_FEATURES: list[str] = [GATTR_FEAT_AUXILIARY_HEAT]
 
 ATTR_SENSORS_TO_PROP_MAP: dict[str, list[GreeProp]] = {
     GATTR_INDOOR_TEMPERATURE: [

@@ -98,6 +98,7 @@ from .const import (
     GATTR_FEAT_QUIET_MODE,
     GATTR_FEAT_TURBO,
     MIN_SCAN_INTERVAL,
+    OPT_IN_FEATURES,
     ZONE_ONLY_FEATURES,
 )
 from .helpers import get_entity_ids_from_unique_ids
@@ -707,10 +708,14 @@ def setup_device_options_schema(  # noqa: C901
                 probatio.Optional(
                     CONF_FEATURES,
                     # Defaults copied from another device may hold features
-                    # this one does not have.
+                    # this one does not have. A new device starts without the
+                    # opt-in features.
                     default=[
                         feature
-                        for feature in defaults.get(CONF_FEATURES, valid_features)
+                        for feature in defaults.get(
+                            CONF_FEATURES,
+                            [f for f in valid_features if f not in OPT_IN_FEATURES],
+                        )
                         if feature in valid_features
                     ],
                 ): SelectSelector(

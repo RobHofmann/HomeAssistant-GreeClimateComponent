@@ -16,6 +16,7 @@ from .api import (
     ZONE_CONTROLLER_MODES_TO_RAW,
     ZONE_CONTROLLER_NAME_PREFIX,
     ZONE_CONTROLLER_TYPES,
+    AuxiliaryHeatMode,
     DeviceType,
     EncryptionVersion,
     FanSpeed,
@@ -1164,6 +1165,24 @@ class GreeDevice:
     def set_feature_anti_direct_blow(self, value: bool) -> None:
         """Set the anti direct blow mode state."""
         self._state.set_bool(GreeProp.FEAT_ANTI_DIRECT_BLOW, value)
+
+    @property
+    def feature_auxiliary_heat(self) -> AuxiliaryHeatMode | None:
+        """Return the auxiliary electric heating mode.
+
+        Returns None when the device reports no value, or a value that is not
+        a known mode.
+        """
+        raw_value = self._state.get(GreeProp.FEAT_AUXILIARY_HEAT)
+
+        if raw_value is None or raw_value not in AuxiliaryHeatMode:
+            return None
+
+        return AuxiliaryHeatMode(raw_value)
+
+    def set_feature_auxiliary_heat(self, mode: AuxiliaryHeatMode) -> None:
+        """Set the auxiliary electric heating mode."""
+        self._state.set(GreeProp.FEAT_AUXILIARY_HEAT, mode.value)
 
     @property
     def feature_humidity_control(self) -> HumidityControlMode:

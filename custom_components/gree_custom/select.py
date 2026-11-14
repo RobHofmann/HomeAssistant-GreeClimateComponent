@@ -12,6 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from .aiogree.api import (
+    AuxiliaryHeatMode,
     DeviceType,
     HumidityControlMode,
     OperationMode,
@@ -23,7 +24,12 @@ from .aiogree.errors import (
     GreeHumidityControlUnavailable,
     GreeSmartDryUnavailable,
 )
-from .const import DOMAIN, GATTR_FEAT_HUMIDITY, GATTR_TEMP_UNITS
+from .const import (
+    DOMAIN,
+    GATTR_FEAT_AUXILIARY_HEAT,
+    GATTR_FEAT_HUMIDITY,
+    GATTR_TEMP_UNITS,
+)
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
 from .platform_helpers import supported_descriptions
@@ -89,7 +95,32 @@ SELECT_TYPES: list[GreeSelectDescription] = [
         ),
         updates_device=True,
     ),
+    GreeSelectDescription(
+        key=GATTR_FEAT_AUXILIARY_HEAT,
+        translation_key=GATTR_FEAT_AUXILIARY_HEAT,
+        options=[member.name for member in AuxiliaryHeatMode],
+        value_func=lambda device: (
+            mode.name if (mode := device.feature_auxiliary_heat) is not None else None
+        ),
+        set_func=lambda device, value: device.set_feature_auxiliary_heat(
+            AuxiliaryHeatMode[value]
+        ),
+        additional_available_func=lambda device: (
+            device.operation_mode in (OperationMode.heat, OperationMode.auto)
+        ),
+        updates_device=True,
+    ),
 ]
+
+
+def restores_state(description: GreeSelectDescription, restore_states: bool) -> bool:
+    """Return whether a select sends its last state to the device at start.
+
+    Humidity Control and Auxiliary Heat are functions of the unit, so they
+    follow the Restore Entities option like the switches. The temperature unit
+    is a setting of the unit itself and is never restored.
+    """
+    return restore_states and description.key != GATTR_TEMP_UNITS
 
 
 async def async_setup_entry(
@@ -117,7 +148,12 @@ async def async_setup_entry(
         )
 
         entities.extend(
-            GreeSelect(description, coordinator, False, coordinator.check_availability)
+            GreeSelect(
+                description,
+                coordinator,
+                restores_state(description, coordinator.restore_states),
+                coordinator.check_availability,
+            )
             for description in descriptions
         )
 
@@ -182,6 +218,9 @@ class GreeSelect(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ignore[re
             self.coordinator.async_update_listeners()
 
             await self.coordinator.async_request_refresh()
+        except HomeAssistantError:
+            # Already says what went wrong, such as a mode that is not allowed.
+            raise
         except Exception as err:
             _LOGGER.debug(
                 "Error in async_select_option(%s, %s, %s -> %s)",
@@ -191,7 +230,7 @@ class GreeSelect(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ignore[re
                 option,
             )
             raise HomeAssistantError(
-                "Failed to select a different temperature unit."
+                translation_domain=DOMAIN, translation_key="generic"
             ) from err
 
         self.async_write_ha_state()

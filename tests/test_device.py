@@ -17,12 +17,14 @@ from typing import Any
 
 from aiogree import device_api_client, transport_mqtt
 from aiogree.api import (
+    AuxiliaryHeatMode,
     FanSpeed,
     GreeProp,
     HorizontalSwingMode,
     HumidityControlMode,
     InfoProp,
     OperationMode,
+    OtherProps,
     SleepMode,
     TemperatureUnits,
     VerticalSwingMode,
@@ -895,3 +897,111 @@ async def test_a_firmware_check_that_the_server_cannot_answer(
 async def test_the_device_model_comes_from_the_info_columns(bound: GreeDevice) -> None:
     """The model is what the entity shows in the device registry."""
     assert bound.device_model_id == "32768 (1)"
+
+
+#
+# Auxiliary heat
+#
+
+
+async def test_auxiliary_heat_reads_the_reported_mode(
+    unit: FakeGreeDevice,
+) -> None:
+    """A unit that answers AssHt keeps it, and 0 reads as off, not as missing."""
+    unit.values[GreeProp.FEAT_AUXILIARY_HEAT.value] = 0
+    device, transport = await bind(unit)
+
+    try:
+        assert device.supports_property(GreeProp.FEAT_AUXILIARY_HEAT)
+        assert device.feature_auxiliary_heat is AuxiliaryHeatMode.off
+    finally:
+        await transport.disconnect()
+
+
+@pytest.mark.parametrize(
+    ("mode", "wire_value"),
+    [
+        (AuxiliaryHeatMode.off, 0),
+        (AuxiliaryHeatMode.always_on, 1),
+        (AuxiliaryHeatMode.auto, 2),
+    ],
+)
+async def test_each_auxiliary_heat_mode_sends_its_value(
+    unit: FakeGreeDevice,
+    mode: AuxiliaryHeatMode,
+    wire_value: int,
+) -> None:
+    """The values are the ones 4.x sends, so a migrated unit acts the same."""
+    # Start from another mode, so every mode is a change that gets sent.
+    unit.values[GreeProp.FEAT_AUXILIARY_HEAT.value] = (wire_value + 1) % 3
+    device, transport = await bind(unit)
+
+    try:
+        unit.reset_record()
+        device.set_feature_auxiliary_heat(mode)
+        await device.push_device_status()
+
+        commands = [pack for pack in unit.packs if pack.get("t") == "cmd"]
+        assert len(commands) == 1
+        sent = dict(zip(commands[0]["opt"], commands[0]["p"], strict=True))
+        assert sent[GreeProp.FEAT_AUXILIARY_HEAT.value] == wire_value
+        assert unit.values[GreeProp.FEAT_AUXILIARY_HEAT.value] == wire_value
+        assert device.feature_auxiliary_heat is mode
+    finally:
+        await transport.disconnect()
+
+
+async def test_a_unit_without_auxiliary_heat_drops_it(unit: FakeGreeDevice) -> None:
+    """The first poll drops AssHt, so it is never polled or sent again."""
+    unit.unsupported_props = {GreeProp.FEAT_AUXILIARY_HEAT.value}
+    device, transport = await bind(unit)
+
+    try:
+        assert not device.supports_property(GreeProp.FEAT_AUXILIARY_HEAT)
+        assert device.feature_auxiliary_heat is None
+
+        unit.reset_record()
+        await device.fetch_device_status()
+
+        polled = [
+            col
+            for pack in unit.packs
+            if pack.get("t") == "status"
+            for col in pack["cols"]
+        ]
+        assert GreeProp.POWER.value in polled
+        assert GreeProp.FEAT_AUXILIARY_HEAT.value not in polled
+    finally:
+        await transport.disconnect()
+
+
+async def test_an_empty_auxiliary_heat_answer_drops_it(unit: FakeGreeDevice) -> None:
+    """Some VRF gateways answer an empty string for a column they lack."""
+    unit.values[GreeProp.FEAT_AUXILIARY_HEAT.value] = ""
+    device, transport = await bind(unit)
+
+    try:
+        assert not device.supports_property(GreeProp.FEAT_AUXILIARY_HEAT)
+        assert device.feature_auxiliary_heat is None
+    finally:
+        await transport.disconnect()
+
+
+async def test_an_unknown_auxiliary_heat_value_reads_as_no_mode(
+    unit: FakeGreeDevice,
+) -> None:
+    """A model with other values shows no mode instead of failing the poll."""
+    unit.values[GreeProp.FEAT_AUXILIARY_HEAT.value] = 7
+    device, transport = await bind(unit)
+
+    try:
+        assert device.supports_property(GreeProp.FEAT_AUXILIARY_HEAT)
+        assert device.feature_auxiliary_heat is None
+    finally:
+        await transport.disconnect()
+
+
+def test_auxiliary_heat_is_asked_only_once_in_a_full_sweep() -> None:
+    """AssHt moved from the unknown props to the polled props, not into both."""
+    assert GreeProp.FEAT_AUXILIARY_HEAT.value == "AssHt"
+    assert "AssHt" not in {prop.value for prop in OtherProps}

@@ -44,6 +44,11 @@ Facts about how Gree devices behave on the wire. Most of these are not visible f
 - Quiet and Turbo exclude each other, as in the app. `set_feature_quiet(True)` sends `Tur` 0, and `set_feature_turbo(True)` sends `Quiet` 0, each only when the unit has that column. Turning one off leaves the other as it is.
 - A unit that answers 1 after a write of 2 keeps the hold until `HELD_VALUE_TTL` runs out. Both values read as on, so the user sees no difference.
 
+## Auxiliary heat
+
+- `AssHt` (`FEAT_AUXILIARY_HEAT`) holds the mode of the electric heater: 0 off, 1 always on, 2 auto. These values were checked against the Gree+ app on one unit, in 4.x PR #539. Other models may use other values. A value outside 0 to 2 reads as no mode.
+- 4.x asked for `AssHt` once before it added it to the poll, because 4.x matched values to columns by position, and a unit that left the column out shifted every value after it. Here no probe is needed: values are matched by name inside one response, and the first poll drops the column on a unit that does not answer it. A gateway that answers an empty string is dropped too, because the value is not a number.
+
 ## Discovery and network
 
 - Local discovery is a plain text `{"t": "scan"}` UDP broadcast. The device answers with a `dev` pack encrypted with the generic key.
