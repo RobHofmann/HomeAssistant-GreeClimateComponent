@@ -74,6 +74,7 @@ from .const import (
     CONF_MAX_ONLINE_ATTEMPTS,
     CONF_PREFER_CLOUD,
     CONF_RESTORE_STATES,
+    CONF_SETPOINT_MEMORY,
     CONF_SWING_HORIZONTAL_MODES,
     CONF_SWING_MODES,
     CONF_TEMPERATURE_STEP,
@@ -90,6 +91,7 @@ from .const import (
     DEFAULT_PREFER_CLOUD,
     DEFAULT_RESTORE_STATES,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SETPOINT_MEMORY,
     DEFAULT_SWING_HORIZONTAL_MODES,
     DEFAULT_SWING_MODES,
     DEFAULT_TARGET_TEMP_STEP,
@@ -245,6 +247,9 @@ OPTIONS_SCHEMA = probatio.Schema(
         probatio.Optional(ATTR_EXTERNAL_HUMIDITY_SENSOR): cv.entity_id,
         probatio.Optional(
             CONF_RESTORE_STATES, default=DEFAULT_RESTORE_STATES
+        ): cv.boolean,
+        probatio.Optional(
+            CONF_SETPOINT_MEMORY, default=DEFAULT_SETPOINT_MEMORY
         ): cv.boolean,
     }
 )
@@ -792,5 +797,17 @@ def setup_device_options_schema(  # noqa: C901
             ): cv.boolean,
         }
     )
+
+    # Every device with a target temperature can remember it per mode. A zone
+    # follows the mode of its ducted unit, which has no target of its own.
+    if device.has_target_temperature:
+        schema.update(
+            {
+                probatio.Required(
+                    CONF_SETPOINT_MEMORY,
+                    default=defaults.get(CONF_SETPOINT_MEMORY, DEFAULT_SETPOINT_MEMORY),
+                ): cv.boolean,
+            }
+        )
 
     return probatio.Schema(schema)

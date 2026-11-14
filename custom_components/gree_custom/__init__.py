@@ -2,6 +2,7 @@
 
 # Standard library imports
 from collections.abc import Mapping
+from functools import partial
 import json
 import logging
 from typing import Any
@@ -24,8 +25,10 @@ from homeassistant.exceptions import (
     HomeAssistantError,
 )
 from homeassistant.helpers import device_registry as dr, issue_registry as ir
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import ConfigType
 
+from .aiogree.api import DeviceType
 from .aiogree.cipher import EncryptionVersion
 from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeConnectionError
@@ -49,6 +52,7 @@ from .const import (
     CONF_MAX_ONLINE_ATTEMPTS,
     CONF_PREFER_CLOUD,
     CONF_RESTORE_STATES,
+    CONF_SETPOINT_MEMORY,
     CONF_UID,
     CONFENTRY_ID_LOCAL_ONLY,
     DEFAULT_CONNECTION_MAX_ATTEMPTS,
@@ -60,6 +64,7 @@ from .const import (
     DEFAULT_PREFER_CLOUD,
     DEFAULT_RESTORE_STATES,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SETPOINT_MEMORY,
     DOMAIN,
     ENCRYPTION_VERSION_AUTO,
     TO_REDACT,
@@ -81,9 +86,12 @@ from .migration import (
     async_unload_legacy_entries,
 )
 from .services import async_setup_services
+from .setpoint_memory import SetpointMemory, SetpointMemoryData
 
 ISSUE_DEVICE_CONNECTION_FAILED = "device_connection_failed"
 ISSUE_YAML_IMPORT_FAILED = "yaml_import_failed"
+SETPOINT_MEMORY_STORAGE_VERSION = 1
+SETPOINT_MEMORY_SAVE_DELAY = 10
 PLATFORMS = [
     Platform.BINARY_SENSOR,
     Platform.CLIMATE,
@@ -292,6 +300,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
     entry.runtime_data = {}
     entry.runtime_data = coordinators
 
+    await _async_setup_setpoint_memory(hass, entry, coordinators)
+
     # Move the 4.x registry rows before the entities are created
     moved = await async_migrate_legacy_registry(hass, entry)
 
@@ -334,6 +344,76 @@ async def _async_refresh_entry_token(
     return new_cloud_conf
 
 
+async def _async_setup_setpoint_memory(
+    hass: HomeAssistant,
+    entry: GreeConfigEntry,
+    coordinators: dict[str, GreeCoordinator],
+) -> None:
+    """Give the devices that remember their target temperature per mode the memory.
+
+    Every device with a target temperature does, unless its setpoint_memory
+    option is off. A standalone or VRF unit gets the memory for itself. The
+    zones of a zone controller follow the mode of their ducted unit, so the
+    ducted unit gets it for them, and a mode change from Home Assistant sets
+    them as the wall panel does. The memory learns from every poll of those
+    devices. See setpoint_memory.py.
+    """
+    learners = [
+        c
+        for c in coordinators.values()
+        if c.device.has_target_temperature
+        and c.device_config.get(CONF_DEVICE_OPTIONS, {}).get(
+            CONF_SETPOINT_MEMORY, DEFAULT_SETPOINT_MEMORY
+        )
+    ]
+    if not learners:
+        return
+
+    zones = [c for c in learners if c.device.device_type is DeviceType.ZONE]
+    units = [c for c in learners if c.device.device_type is not DeviceType.ZONE]
+
+    store = _setpoint_memory_store(hass, entry.entry_id)
+    memory = SetpointMemory(
+        await store.async_load(),
+        on_change=lambda: store.async_delay_save(
+            lambda: memory.data, SETPOINT_MEMORY_SAVE_DELAY
+        ),
+    )
+    # Save on unload rather than after the delay. A delayed save would still
+    # run after the entry is removed, and write the file again.
+    entry.async_on_unload(lambda: store.async_save(memory.data))
+
+    for learner in learners:
+        entry.async_on_unload(
+            learner.async_add_listener(partial(memory.learn, learner.device))
+        )
+
+    for unit in units:
+        unit.setpoint_memory = memory
+
+    for coordinator in coordinators.values():
+        if coordinator.device.device_type is not DeviceType.ZONE_CONTROLLER:
+            continue
+        own_zones = [
+            zone
+            for zone in zones
+            if zone.device.mac_address_controller
+            == coordinator.device.mac_address_controller
+        ]
+        if own_zones:
+            coordinator.setpoint_memory = memory
+            coordinator.zone_coordinators = own_zones
+
+
+def _setpoint_memory_store(
+    hass: HomeAssistant, entry_id: str
+) -> Store[SetpointMemoryData]:
+    """Return the store that keeps the setpoint memory of a config entry."""
+    return Store(
+        hass, SETPOINT_MEMORY_STORAGE_VERSION, f"{DOMAIN}.{entry_id}.setpoints"
+    )
+
+
 async def async_unload_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool:
     """Unload a config entry and close its connections.
 
@@ -358,6 +438,15 @@ async def async_unload_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> boo
 
     await async_disconnect_transports(transports)
     return True
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> None:
+    """Remove the setpoint memory of a removed config entry.
+
+    Home Assistant unloads the entry first, and the unload saves the memory, so
+    nothing writes the file again after this.
+    """
+    await _setpoint_memory_store(hass, entry.entry_id).async_remove()
 
 
 async def async_remove_config_entry_device(

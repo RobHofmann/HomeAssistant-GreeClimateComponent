@@ -15,6 +15,7 @@ from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeBindingError, GreeConnectionError
 from .const import DOMAIN
 from .helpers import try_find_new_ip
+from .setpoint_memory import SetpointMemory
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,6 +61,11 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         self._feature_auto_light: bool = False
         self._unsub_follow_up_refresh: CALLBACK_TYPE | None = None
         self._is_shut_down: bool = False
+        # The memory of the target temperatures per mode. Set on the ducted
+        # unit of a zone controller, with the zones of the same controller, and
+        # on a standalone or VRF unit that remembers its own target.
+        self.setpoint_memory: SetpointMemory | None = None
+        self.zone_coordinators: list[GreeCoordinator] = []
 
     async def _setup(self) -> None:
         """Bind to the device before the first coordinator refresh.
