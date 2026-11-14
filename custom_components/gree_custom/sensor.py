@@ -12,14 +12,22 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import PERCENTAGE, UnitOfTemperature
+from homeassistant.const import PERCENTAGE, UnitOfFrequency, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.typing import StateType
 
 from .aiogree.device import GreeDevice
-from .const import GATTR_HUMIDITY, GATTR_INDOOR_TEMPERATURE, GATTR_OUTDOOR_TEMPERATURE
+from .const import (
+    GATTR_COMPRESSOR_FREQUENCY,
+    GATTR_COMPRESSOR_TEMPERATURE,
+    GATTR_HUMIDITY,
+    GATTR_INDOOR_COIL_TEMPERATURE,
+    GATTR_INDOOR_TEMPERATURE,
+    GATTR_OUTDOOR_COIL_TEMPERATURE,
+    GATTR_OUTDOOR_TEMPERATURE,
+)
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
 from .platform_helpers import supported_descriptions
@@ -50,6 +58,9 @@ SENSOR_TYPES: list[GreeSensorDescription] = [
         auto_device_support=True,
         key=GATTR_OUTDOOR_TEMPERATURE,
         translation_key=GATTR_OUTDOOR_TEMPERATURE,
+        # Disabled for new devices only. An entity that is already in the
+        # registry keeps its own enabled or disabled state.
+        entity_registry_enabled_default=False,
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
@@ -65,6 +76,52 @@ SENSOR_TYPES: list[GreeSensorDescription] = [
         native_unit_of_measurement=PERCENTAGE,
         suggested_display_precision=0,
         value_func=lambda device: device.humidity,
+    ),
+    # Compressor telemetry. Created only when the unit reports it, and
+    # disabled by default.
+    GreeSensorDescription(
+        auto_device_support=True,
+        key=GATTR_COMPRESSOR_FREQUENCY,
+        translation_key=GATTR_COMPRESSOR_FREQUENCY,
+        device_class=SensorDeviceClass.FREQUENCY,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfFrequency.HERTZ,
+        suggested_display_precision=0,
+        entity_registry_enabled_default=False,
+        value_func=lambda device: device.compressor_frequency,
+    ),
+    GreeSensorDescription(
+        auto_device_support=True,
+        key=GATTR_COMPRESSOR_TEMPERATURE,
+        translation_key=GATTR_COMPRESSOR_TEMPERATURE,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        suggested_display_precision=0,
+        entity_registry_enabled_default=False,
+        value_func=lambda device: device.compressor_temperature_c,
+    ),
+    GreeSensorDescription(
+        auto_device_support=True,
+        key=GATTR_INDOOR_COIL_TEMPERATURE,
+        translation_key=GATTR_INDOOR_COIL_TEMPERATURE,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        suggested_display_precision=0,
+        entity_registry_enabled_default=False,
+        value_func=lambda device: device.indoor_coil_temperature_c,
+    ),
+    GreeSensorDescription(
+        auto_device_support=True,
+        key=GATTR_OUTDOOR_COIL_TEMPERATURE,
+        translation_key=GATTR_OUTDOOR_COIL_TEMPERATURE,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        suggested_display_precision=0,
+        entity_registry_enabled_default=False,
+        value_func=lambda device: device.outdoor_coil_temperature_c,
     ),
 ]
 

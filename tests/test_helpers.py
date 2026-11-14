@@ -156,6 +156,24 @@ def test_temp_offset_resolver_can_change_its_mind() -> None:
     assert resolver.evaluate(65) == 25
 
 
+def test_temp_offset_resolver_can_assume_the_offset_while_undecided() -> None:
+    """A wide window leaves 48 open: 48 or 8. The caller picks the offset."""
+    resolver = TempOffsetResolver(indoor_min=-10, indoor_max=70, assume_offset=True)
+
+    assert resolver.evaluate(48) == 8
+    # -5 with the offset would be -45 degrees, which is not plausible. So the
+    # sensor has no offset, and 48 is 48 from now on.
+    assert resolver.evaluate(-5) == -5
+    assert resolver.evaluate(48) == 48
+
+
+def test_temp_offset_resolver_does_not_assume_the_offset_by_default() -> None:
+    """The room sensors keep the old behaviour: undecided shows the raw value."""
+    resolver = TempOffsetResolver(indoor_min=-10, indoor_max=70)
+
+    assert resolver.evaluate(48) == 48
+
+
 def test_encrypt_pack_needs_a_cipher() -> None:
     """A payload must never go out unencrypted by accident."""
     with pytest.raises(GreeError, match="Cipher must not be None"):

@@ -171,6 +171,9 @@
         "binary_sensor": {
             "faults": {
                 "name": "Falha de Operação"
+            },
+            "compressor_running": {
+                "name": "Compressor em Funcionamento"
             }
         },
         "climate": {
@@ -249,6 +252,18 @@
             },
             "room_humidity": {
                 "name": "Humidade Interior"
+            },
+            "compressor_frequency": {
+                "name": "Frequência do Compressor"
+            },
+            "compressor_temperature": {
+                "name": "Temperatura do Compressor"
+            },
+            "indoor_coil_temperature": {
+                "name": "Temperatura da Serpentina Interior"
+            },
+            "outdoor_coil_temperature": {
+                "name": "Temperatura da Serpentina Exterior"
             }
         },
         "switch": {

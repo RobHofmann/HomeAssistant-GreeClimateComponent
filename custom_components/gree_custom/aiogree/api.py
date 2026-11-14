@@ -81,8 +81,7 @@ class GreeProp(StrEnum):
     # SENSORS
     # indoor temperature sensors, used to read the current room temperature, if available, ordered by preference
     SENSOR_INDOOR_TEMPERATURE_1 = "EnvTem"
-    SENSOR_INDOOR_TEMPERATURE_2 = "InEvaTem"
-    SENSOR_INDOOR_TEMPERATURE_3 = "TemSen"  # value heavily varies with operation mode
+    SENSOR_INDOOR_TEMPERATURE_2 = "TemSen"  # value heavily varies with operation mode
     # outside temperature sensors, used to read the current outdoors temperature, if available, ordered by preference
     SENSOR_OUTSIDE_TEMPERATURE_1 = "OutEnvTem"
     SENSOR_OUTSIDE_TEMPERATURE_2 = "TemsSenOut"
@@ -91,6 +90,14 @@ class GreeProp(StrEnum):
     SENSOR_HUMIDITY_2 = "HumSen"
     # error display. 0 if no error, otherwise error
     SENSOR_FAULT = "FaultDisplay"
+    # compressor telemetry, only on some units. A unit without it leaves the
+    # columns out or answers 0, so each one is only kept when it is not 0.
+    # The frequency is 0 while the compressor is stopped, see
+    # GreeDevice._remove_unsupported_props for how that case is kept.
+    SENSOR_COMPRESSOR_FREQUENCY = "CompressorFqy"
+    SENSOR_COMPRESSOR_TEMPERATURE = "CompressorTem"
+    SENSOR_INDOOR_COIL_TEMPERATURE = "InEvaTem"
+    SENSOR_OUTDOOR_COIL_TEMPERATURE = "OutEvaTem"
 
     # If set to 0 the unit will beep on every command
     BEEPER = "Buzzer_ON_OFF"

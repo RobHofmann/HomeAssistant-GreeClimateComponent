@@ -262,11 +262,26 @@
             },
             "room_humidity": {
                 "name": "Indoor Humidity"
+            },
+            "compressor_frequency": {
+                "name": "Compressor Frequency"
+            },
+            "compressor_temperature": {
+                "name": "Compressor Temperature"
+            },
+            "indoor_coil_temperature": {
+                "name": "Indoor Coil Temperature"
+            },
+            "outdoor_coil_temperature": {
+                "name": "Outdoor Coil Temperature"
             }
         },
         "binary_sensor": {
             "faults": {
                 "name": "Fault Detection"
+            },
+            "compressor_running": {
+                "name": "Compressor Running"
             }
         },
         "climate": {

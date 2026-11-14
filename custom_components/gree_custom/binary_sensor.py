@@ -14,7 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .aiogree.device import GreeDevice
-from .const import GATTR_FAULTS
+from .const import GATTR_COMPRESSOR_RUNNING, GATTR_FAULTS
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
 from .platform_helpers import supported_descriptions
@@ -37,6 +37,16 @@ SENSOR_TYPES: list[GreeBinarySensorDescription] = [
         device_class=BinarySensorDeviceClass.PROBLEM,
         entity_category=EntityCategory.DIAGNOSTIC,
         value_func=lambda device: device.has_hvac_error,
+        auto_device_support=True,
+    ),
+    # Created only when the unit reports the compressor frequency, and
+    # disabled by default like the other compressor sensors.
+    GreeBinarySensorDescription(
+        key=GATTR_COMPRESSOR_RUNNING,
+        translation_key=GATTR_COMPRESSOR_RUNNING,
+        device_class=BinarySensorDeviceClass.RUNNING,
+        entity_registry_enabled_default=False,
+        value_func=lambda device: device.compressor_running,
         auto_device_support=True,
     ),
 ]
