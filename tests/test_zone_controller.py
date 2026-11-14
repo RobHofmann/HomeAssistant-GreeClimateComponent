@@ -315,6 +315,31 @@ async def test_a_zone_takes_half_degrees_in_celsius(
     assert (values["StTem"], values["StFahFlg"]) == (5, 0)
 
 
+async def test_a_zone_uses_half_degrees_until_the_user_says_no(
+    controller: FakeZoneController, zone: GreeDevice
+) -> None:
+    """An entry without the option, as after the upgrade, keeps the 0.5 step."""
+    values = controller.units[controller.zone_macs[0]]
+    zone.set_half_degrees(None)
+
+    assert zone.default_half_degrees
+    assert zone.target_temperature_step == 0.5
+    zone.set_target_temperature(19.5)
+    await zone.push_device_status()
+    assert (values["StTem"], values["StFahFlg"]) == (3, 1)
+
+    zone.set_half_degrees(False)
+    assert zone.target_temperature_step == 1
+
+
+async def test_the_ac_unit_of_a_zone_controller_has_no_half_degree_default(
+    ac_unit: GreeDevice,
+) -> None:
+    """Only zones default to half degrees, and the ducted unit offers none."""
+    assert not ac_unit.default_half_degrees
+    assert not ac_unit.half_degrees
+
+
 #
 # Fahrenheit. The values are the ones the wall panel showed.
 #

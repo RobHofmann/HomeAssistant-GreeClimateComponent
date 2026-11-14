@@ -5,11 +5,15 @@ climate step that follows from it, and every way an old step reaches the new
 option: an entry of minor version 1, a YAML block and a 4.x migration.
 """
 
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, cast
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 import custom_components.gree_custom as gree_component
+from custom_components.gree_custom.aiogree.api import DeviceType
+from custom_components.gree_custom.aiogree.device import GreeDevice
+from custom_components.gree_custom.config_flow import _copied_options
 from custom_components.gree_custom.config_schema import CONFIG_SCHEMA
 from custom_components.gree_custom.const import (
     CONF_DEVICE_CONNECTION,
@@ -226,3 +230,11 @@ def test_a_converted_4x_device_keeps_half_degrees() -> None:
 
     assert normalized is not None
     assert normalized[1][CONF_DEVICE_OPTIONS][CONF_HALF_DEGREES] is True
+
+
+def test_the_option_carries_over_to_the_next_zone() -> None:
+    """One choice on the first zone fills the form of the next one."""
+    zone = cast(GreeDevice, SimpleNamespace(device_type=DeviceType.ZONE))
+    copied = _copied_options(zone, {CONF_NAME: "Zone 1", CONF_HALF_DEGREES: False})
+
+    assert copied == {CONF_HALF_DEGREES: False}

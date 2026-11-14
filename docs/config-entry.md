@@ -53,7 +53,7 @@ For a cloud entry, `cloud` holds the account email, region, user id and token. T
 | `options.name` | Device name in Home Assistant. Defaults to the name the unit reports, which is usually the tail of its MAC. |
 | `options.features` | Which optional switches to create. Only features the unit reported as supported are offered. |
 | `options.restore_states` | Restore the last known entity states after a restart. |
-| `options.half_degrees` | "Use half-degrees °C". Only offered when the unit answers a half degree column, see [protocol.md](protocol.md#half-degrees-celsius). Missing means off. It replaced `options.target_temp_step` in minor version 2. |
+| `options.half_degrees` | "Use half-degrees °C". Only offered when the unit answers a half degree column, see [protocol.md](protocol.md#half-degrees-celsius). Missing means off, except on a zone of a zone controller, where it means on. So an existing zone keeps its 0.5 step after the upgrade. It replaced `options.target_temp_step` in minor version 2. |
 
 ## YAML import
 

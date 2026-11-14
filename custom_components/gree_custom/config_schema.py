@@ -85,7 +85,6 @@ from .const import (
     DEFAULT_ENCRYPTION_KEY,
     DEFAULT_ENCRYPTION_VERSION,
     DEFAULT_FAN_MODES,
-    DEFAULT_HALF_DEGREES,
     DEFAULT_HVAC_MODES,
     DEFAULT_PREFER_CLOUD,
     DEFAULT_RESTORE_STATES,
@@ -775,12 +774,15 @@ def setup_device_options_schema(  # noqa: C901
 
     # Only for a unit that answers a half degree column: TemRec, StFahFlg,
     # Add0.5 or Add0.1. Answering is no proof of support, so it stays a choice.
+    # On by default for a zone, see GreeDevice.default_half_degrees.
     if device.supports_half_degrees:
         schema.update(
             {
                 probatio.Required(
                     CONF_HALF_DEGREES,
-                    default=defaults.get(CONF_HALF_DEGREES, DEFAULT_HALF_DEGREES),
+                    default=defaults.get(
+                        CONF_HALF_DEGREES, device.default_half_degrees
+                    ),
                 ): cv.boolean
             }
         )
