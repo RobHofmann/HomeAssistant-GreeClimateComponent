@@ -63,6 +63,10 @@ Your devices are under **Settings** > **Devices & Services** > **Gree Climate**.
 
 📖 **[Full installation guide](docs/installation.md)** · **[Full configuration guide](docs/configuration.md)**
 
+## ⚠️ Known limitations
+
+- **Multi-split units:** when one outdoor unit serves several indoor units, the unit only reports that the compressor runs, not for which indoor unit. So every indoor unit can show heating or cooling while only one of them works. The integration shows idle when the room already passed the target (above it in Heat, below it in Cool), but between those points the action is a best guess. See [entities](docs/entities.md).
+
 ## ❓ Help and support
 
 - 💬 **[Discord](https://discord.gg/JPcBkvRhTS)**: questions and chat with other users and the maintainers. Report bugs as a GitHub issue, not on Discord.

@@ -167,6 +167,19 @@ def test_temp_offset_resolver_can_assume_the_offset_while_undecided() -> None:
     assert resolver.evaluate(48) == 48
 
 
+def test_temp_offset_resolver_takes_a_per_call_assumption() -> None:
+    """A caller can pass the decision of another sensor while undecided."""
+    resolver = TempOffsetResolver(indoor_min=-10, indoor_max=70, assume_offset=True)
+
+    assert resolver.has_offset is None
+    assert resolver.evaluate(48, assume_offset=False) == 48
+    assert resolver.evaluate(48, assume_offset=None) == 8
+    # Once decided, the resolver's own decision wins.
+    resolver.evaluate(-5)
+    assert resolver.has_offset is False
+    assert resolver.evaluate(48, assume_offset=True) == 48
+
+
 def test_temp_offset_resolver_does_not_assume_the_offset_by_default() -> None:
     """The room sensors keep the old behaviour: undecided shows the raw value."""
     resolver = TempOffsetResolver(indoor_min=-10, indoor_max=70)

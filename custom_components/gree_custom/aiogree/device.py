@@ -71,15 +71,15 @@ from .transport_udp import GreeUdpTransport
 
 _LOGGER = logging.getLogger(__name__)
 
-# The compressor and coil temperatures. Like the room and outdoor sensors,
-# they are read as Celsius with an offset of 40 that is detected from the
-# values seen (TempOffsetResolver). The window is the plausible range in
-# Celsius for each sensor. It is wider than the room window, because a coil
+# The compressor and coil temperatures. They are always in Celsius. Like the
+# room and outdoor sensors, they may carry an offset of 40, which is detected
+# from the values seen (TempOffsetResolver). The window is the plausible range
+# in Celsius for each sensor. It is wider than the room window, because a coil
 # runs far below or above the room, and the compressor gets hot. A wide window
 # leaves many values undecided, for example 48 is 48 or 8 degrees. While
-# undecided, the offset is assumed, because the room and outdoor columns of
-# known units carry it. One report says these columns are in Fahrenheit; that
-# is not confirmed, see docs/protocol.md.
+# undecided, these sensors follow the room sensor: a unit whose room sensor has
+# the offset most likely has it here too. When the room sensor is undecided as
+# well, the offset is assumed. See docs/protocol.md.
 TELEMETRY_TEMPERATURE_WINDOWS_C: dict[GreeProp, tuple[float, float]] = {
     GreeProp.SENSOR_COMPRESSOR_TEMPERATURE: (-30.0, 120.0),
     GreeProp.SENSOR_INDOOR_COIL_TEMPERATURE: (-10.0, 70.0),
@@ -458,22 +458,20 @@ class GreeDevice:
         for prop in TELEMETRY_TEMPERATURE_WINDOWS_C:
             self._state.invalidate_missing_property_group([prop])
 
-        # The frequency is 0 while the compressor is stopped, so a 0 at bind
-        # does not prove that the unit has no frequency. When the unit reports
-        # a temperature of the outdoor unit, it has compressor telemetry, and
-        # its frequency is kept even when it is 0. The indoor coil does not
-        # count: an indoor unit can have that sensor without any compressor
-        # data, and a kept 0 would show idle for ever.
-        if not any(
-            self._state.supports(prop)
-            for prop in (
-                GreeProp.SENSOR_COMPRESSOR_TEMPERATURE,
-                GreeProp.SENSOR_OUTDOOR_COIL_TEMPERATURE,
-            )
+        # Then the frequency, after the temperatures. It is 0 while the
+        # compressor is stopped, so a 0 at bind does not prove that the unit
+        # has no frequency. A 0 is kept when the compressor temperature is
+        # reported, because a unit with that column also has the frequency.
+        # Without it, a 0 frequency is dropped. A frequency above 0 is always
+        # kept. The coil temperatures are not used here: a unit can have them
+        # without any compressor data, and a kept 0 would show idle for ever.
+        frequency = GreeProp.SENSOR_COMPRESSOR_FREQUENCY
+        if (
+            self._state.supports(frequency)
+            and self._state.get(frequency, 0) == 0
+            and not self._state.supports(GreeProp.SENSOR_COMPRESSOR_TEMPERATURE)
         ):
-            self._state.invalidate_missing_property_group(
-                [GreeProp.SENSOR_COMPRESSOR_FREQUENCY]
-            )
+            self._state.remove(frequency)
 
         # The ducted unit of a zone controller answers StTem and StFahFlg too,
         # always with 0, the same as a zone set to 16 degrees Celsius. It has
@@ -819,7 +817,17 @@ class GreeDevice:
         raw_c = self._state.get(prop)
         if raw_c is None:
             return None
-        return int(self._temp_processors_telemetry[prop].evaluate(raw_c))
+
+        room_has_offset = (
+            self._temp_processor_indoors.has_offset
+            if self._temp_processor_indoors is not None
+            else None
+        )
+        return int(
+            self._temp_processors_telemetry[prop].evaluate(
+                raw_c, assume_offset=room_has_offset
+            )
+        )
 
     @property
     def compressor_temperature_c(self) -> int | None:

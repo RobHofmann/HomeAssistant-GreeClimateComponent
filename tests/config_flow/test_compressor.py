@@ -172,3 +172,51 @@ def test_hvac_action(
 ) -> None:
     """Without compressor data the mode decides, with it idle is told apart."""
     assert gree_hvac_action(mode, running) == action
+
+
+@pytest.mark.parametrize(
+    ("running", "current", "target", "action"),
+    [
+        (True, 26, 22, HVACAction.COOLING),
+        (True, 18, 22, HVACAction.HEATING),
+        (True, 22, 22, None),
+        (None, 26, 22, HVACAction.COOLING),
+        (None, 18, 22, HVACAction.HEATING),
+        (False, 26, 22, HVACAction.IDLE),
+        (True, None, 22, None),
+        (True, 26, None, None),
+    ],
+)
+def test_auto_compares_room_and_target(
+    running: bool | None,
+    current: float | None,
+    target: float | None,
+    action: HVACAction | None,
+) -> None:
+    """Auto guesses cooling or heating from the room and target temperature."""
+    assert gree_hvac_action(HVACMode.AUTO, running, current, target) == action
+
+
+@pytest.mark.parametrize(
+    ("mode", "running", "current", "target", "action"),
+    [
+        # A multi-split: the compressor runs for another indoor unit.
+        (HVACMode.HEAT, True, 23, 21, HVACAction.IDLE),
+        (HVACMode.HEAT, True, 19, 21, HVACAction.HEATING),
+        (HVACMode.HEAT, True, 21, 21, HVACAction.HEATING),
+        (HVACMode.COOL, True, 20, 24, HVACAction.IDLE),
+        (HVACMode.COOL, True, 26, 24, HVACAction.COOLING),
+        (HVACMode.HEAT, None, 23, 21, HVACAction.IDLE),
+        (HVACMode.HEAT, True, None, 21, HVACAction.HEATING),
+        (HVACMode.DRY, True, 20, 24, HVACAction.DRYING),
+    ],
+)
+def test_the_action_never_goes_against_the_room(
+    mode: HVACMode,
+    running: bool | None,
+    current: float | None,
+    target: float | None,
+    action: HVACAction,
+) -> None:
+    """Heat above the target and Cool below it are idle, compressor or not."""
+    assert gree_hvac_action(mode, running, current, target) == action

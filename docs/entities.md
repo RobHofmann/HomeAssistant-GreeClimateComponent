@@ -23,7 +23,9 @@ The main entity. Its name is the device name.
 | Fan mode | Auto, Low, Medium-Low, Medium, Medium-High, High, plus Turbo and Quiet when the unit has them. See below. |
 | Swing mode | Vertical positions and swing ranges, when the unit has vertical swing. |
 | Horizontal swing mode | Horizontal positions and swing ranges, when the unit has them. |
-| HVAC action | What the unit does now. Without compressor data it follows the HVAC mode: cooling, heating, drying, fan or off. When the unit reports its compressor, a stopped compressor shows idle. In Auto the unit does not tell whether it cools or heats, so the action is unknown while it runs. |
+| HVAC action | What the unit does now. Without compressor data it follows the HVAC mode: cooling, heating, drying, fan or off. When the unit reports its compressor, a stopped compressor shows idle. In Auto the unit does not tell whether it cools or heats, so the action is a guess: cooling when the room is warmer than the target, heating when it is colder, unknown when they are equal. In Heat with the room above the target, or Cool with the room below it, the action is idle. See the multi-split note below the table. |
+
+**Multi-split units:** when one outdoor unit serves several indoor units, the unit only reports that the compressor runs, not for which indoor unit. So all indoor units can show heating or cooling while only one of them works. The idle rule above catches the indoor units whose room already passed the target; between those points the action is a best guess.
 
 Extra attribute: `current_outside_temperature`, the outdoor sensor value in the unit's temperature scale, when the unit has an outdoor sensor. Read it with `{{ state_attr('climate.your_ac', 'current_outside_temperature') }}`. Since Home Assistant 2026.11 the climate entity also has a `temperature_unit` attribute, which Home Assistant itself adds.
 
@@ -69,7 +71,7 @@ Created when the unit has the sensor. Some are disabled by default: enable them 
 | Indoor Coil Temperature | °C | no | The temperature of the coil in the indoor unit. |
 | Outdoor Coil Temperature | °C | no | The temperature of the coil in the outdoor unit. |
 
-The three temperature sensors only exist when the unit reports them with a value other than 0. Compressor Frequency and Compressor Running also exist at 0, when the unit reports the compressor or outdoor coil temperature, because the frequency is 0 while the compressor rests. Many units do not report any of them over the local connection. Their temperature scale is not fully confirmed yet, see [protocol.md](protocol.md#compressor-telemetry).
+The three temperature sensors only exist when the unit reports them with a value other than 0. Compressor Frequency and Compressor Running also exist at 0, when the unit reports the compressor temperature, because the frequency is 0 while the compressor rests. Many units do not report any of them over the local connection. The temperatures are in Celsius, see [protocol.md](protocol.md#compressor-telemetry).
 
 Some units report temperatures with an offset of 40. The integration detects that from the values it sees and corrects it.
 

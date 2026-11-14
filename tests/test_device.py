@@ -349,6 +349,49 @@ async def test_a_lone_zero_frequency_is_dropped(unit: FakeGreeDevice) -> None:
         await transport.disconnect()
 
 
+async def test_an_outdoor_coil_alone_does_not_keep_a_zero_frequency(
+    unit: FakeGreeDevice,
+) -> None:
+    """Only the compressor temperature proves that the unit has the frequency."""
+    unit.values.update(
+        {
+            GreeProp.SENSOR_COMPRESSOR_FREQUENCY.value: 0,
+            GreeProp.SENSOR_OUTDOOR_COIL_TEMPERATURE.value: 85,
+        }
+    )
+    device, transport = await bind(unit)
+
+    try:
+        assert device.supports_property(GreeProp.SENSOR_OUTDOOR_COIL_TEMPERATURE)
+        assert not device.has_compressor_data
+        assert device.compressor_running is None
+    finally:
+        await transport.disconnect()
+
+
+async def test_telemetry_temperatures_follow_the_room_sensor_offset(
+    unit: FakeGreeDevice,
+) -> None:
+    """An undecided coil value takes the offset decision of the room sensor.
+
+    48 fits the coil window with and without the offset. A room sensor at 20
+    cannot have the offset (that would be -20 degrees), so 48 is 48.
+    """
+    unit.values.update(
+        {
+            GreeProp.SENSOR_INDOOR_TEMPERATURE_2.value: 20,
+            GreeProp.SENSOR_INDOOR_COIL_TEMPERATURE.value: 48,
+        }
+    )
+    device, transport = await bind(unit)
+
+    try:
+        assert device.indoors_temperature_c == 20
+        assert device.indoor_coil_temperature_c == 48
+    finally:
+        await transport.disconnect()
+
+
 async def test_the_indoor_coil_is_not_the_room_temperature(
     unit: FakeGreeDevice,
 ) -> None:

@@ -145,16 +145,28 @@ class TempOffsetResolver:
         self._max_raw: float | None = None
         self._has_offset: bool | None = None  # undecided until True/False
 
-    def evaluate(self, raw: float) -> float:
-        """Evaluate the raw temperature and return corrected value."""
+    @property
+    def has_offset(self) -> bool | None:
+        """Return whether the sensor has the offset, or None while undecided."""
+        return self._has_offset
+
+    def evaluate(self, raw: float, assume_offset: bool | None = None) -> float:
+        """Evaluate the raw temperature and return corrected value.
+
+        `assume_offset` overrides the constructor value for this call. It is
+        only used while the resolver is still undecided.
+        """
         if self._min_raw is None or raw < self._min_raw:
             self._min_raw = raw
         if self._max_raw is None or raw > self._max_raw:
             self._max_raw = raw
         self._check()  # evaluate every time, so it can change it's mind as needed
-        has_offset = (
-            self._assume_offset if self._has_offset is None else self._has_offset
-        )
+        if self._has_offset is not None:
+            has_offset = self._has_offset
+        elif assume_offset is not None:
+            has_offset = assume_offset
+        else:
+            has_offset = self._assume_offset
         return raw - self._offset if has_offset else raw
 
     def _check(self) -> None:
