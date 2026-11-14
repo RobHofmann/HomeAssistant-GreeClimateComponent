@@ -14,6 +14,7 @@ import re
 
 import pytest
 
+from custom_components.gree_custom import binary_sensor, sensor
 from custom_components.gree_custom.aiogree.api import AuxiliaryHeatMode
 
 COMPONENT = Path(__file__).parents[2] / "custom_components" / "gree_custom"
@@ -52,6 +53,11 @@ MENU_OPTIONS = {
     for option in re.findall(r'"([^"]+)"', block)
 }
 EXCEPTIONS = keys(r'translation_domain=DOMAIN,\s*translation_key="([^"]+)"', ALL_SOURCE)
+# The entity names of the sensor platforms, per platform.
+ENTITY_NAMES = {
+    "sensor": {d.translation_key for d in sensor.SENSOR_TYPES},
+    "binary_sensor": {d.translation_key for d in binary_sensor.SENSOR_TYPES},
+}
 
 
 def test_the_source_has_keys() -> None:
@@ -92,3 +98,13 @@ def test_the_auxiliary_heat_select_has_a_text_for_every_mode(language: str) -> N
     select = texts["entity"]["select"]["auxiliary_heat"]
     assert select["name"]
     assert sorted(select["state"]) == sorted(m.name for m in AuxiliaryHeatMode)
+
+
+@pytest.mark.parametrize("language", LANGUAGES)
+@pytest.mark.parametrize("platform", sorted(ENTITY_NAMES))
+def test_every_sensor_name_has_a_text(language: str, platform: str) -> None:
+    """The name of each sensor and binary sensor, such as Compressor Running."""
+    names = translations(language)["entity"][platform]
+
+    assert sorted(ENTITY_NAMES[platform] - set(names)) == []
+    assert all("name" in names[key] for key in ENTITY_NAMES[platform])

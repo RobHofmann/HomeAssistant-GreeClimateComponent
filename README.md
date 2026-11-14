@@ -63,6 +63,11 @@ Your devices are under **Settings** > **Devices & Services** > **Gree Climate**.
 
 📖 **[Full installation guide](docs/installation.md)** · **[Full configuration guide](docs/configuration.md)**
 
+## ⚠️ Known limitations
+
+- **HVAC action on multi-split units:** when one outdoor unit serves several indoor units, the unit only reports that the compressor runs, not for which indoor unit. So every indoor unit in Heat or Cool shows heating or cooling while only one of them works. See [entities](docs/entities.md).
+- **HVAC action in Auto:** the unit does not report whether it heats or cools, so the action is unknown while the compressor runs. The room temperature cannot tell either, because a unit keeps working a few degrees past its target.
+
 ## ❓ Help and support
 
 - 💬 **[Discord](https://discord.gg/JPcBkvRhTS)**: questions and chat with other users and the maintainers. Report bugs as a GitHub issue, not on Discord.
