@@ -15,10 +15,12 @@ from custom_components.gree_custom.const import (
     DEFAULT_SUPPORTED_FEATURES,
     GATTR_BEEPER,
     GATTR_FEAT_AUXILIARY_HEAT,
+    GATTR_FEAT_HUMIDITY,
+    GATTR_TEMP_UNITS,
     OPT_IN_FEATURES,
 )
 from custom_components.gree_custom.platform_helpers import supported_descriptions
-from custom_components.gree_custom.select import SELECT_TYPES
+from custom_components.gree_custom.select import SELECT_TYPES, restores_state
 from homeassistant.core import HomeAssistant
 
 
@@ -84,3 +86,14 @@ def test_select_needs_the_feature_turned_on() -> None:
     assert GATTR_FEAT_AUXILIARY_HEAT in keys(
         {CONF_DEVICE_OPTIONS: {CONF_FEATURES: [GATTR_FEAT_AUXILIARY_HEAT]}}
     )
+
+
+def test_device_function_selects_follow_restore_states() -> None:
+    """Humidity Control and Auxiliary Heat follow the option; units never restore."""
+    by_key = {d.key: d for d in SELECT_TYPES}
+
+    for key in (GATTR_FEAT_AUXILIARY_HEAT, GATTR_FEAT_HUMIDITY):
+        assert restores_state(by_key[key], True)
+        assert not restores_state(by_key[key], False)
+
+    assert not restores_state(by_key[GATTR_TEMP_UNITS], True)

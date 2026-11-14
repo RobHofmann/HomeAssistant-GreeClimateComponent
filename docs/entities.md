@@ -120,11 +120,11 @@ Mode dependent entities, such as X-Fan or Power Save, are unavailable outside th
 
 ## Restoring state after a restart
 
-With **Restore Entities** on, which is the default, the integration sends the last known Home Assistant state to the device when it starts. That covers the climate entity (mode, fan, swing and target temperature) and the feature switches. Turn it off when Home Assistant should take over what the device is doing at that moment. That is useful when you also use the remote.
+With **Restore Entities** on, which is the default, the integration sends the last known Home Assistant state to the device when it starts. That covers the climate entity (mode, fan, swing and target temperature), the feature switches, and the Humidity Control and Auxiliary Heat selects. Turn it off when Home Assistant should take over what the device is doing at that moment. That is useful when you also use the remote.
 
 Three switches are always restored, whatever the option says: Beeper, Auto X-Fan and Auto Display Light. Their state lives in Home Assistant and not on the unit.
 
-Sensors and selects are not restored. They show the device values as soon as the first poll comes in.
+Sensors and the Temperature Units select are not restored. They show the device values as soon as the first poll comes in. A select that was unavailable when Home Assistant stopped, because the unit was in another mode, is not restored either.
 
 ## Polling and pushed updates
 

@@ -113,6 +113,16 @@ SELECT_TYPES: list[GreeSelectDescription] = [
 ]
 
 
+def restores_state(description: GreeSelectDescription, restore_states: bool) -> bool:
+    """Return whether a select sends its last state to the device at start.
+
+    Humidity Control and Auxiliary Heat are functions of the unit, so they
+    follow the Restore Entities option like the switches. The temperature unit
+    is a setting of the unit itself and is never restored.
+    """
+    return restore_states and description.key != GATTR_TEMP_UNITS
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: GreeConfigEntry,
@@ -138,7 +148,12 @@ async def async_setup_entry(
         )
 
         entities.extend(
-            GreeSelect(description, coordinator, False, coordinator.check_availability)
+            GreeSelect(
+                description,
+                coordinator,
+                restores_state(description, coordinator.restore_states),
+                coordinator.check_availability,
+            )
             for description in descriptions
         )
 
