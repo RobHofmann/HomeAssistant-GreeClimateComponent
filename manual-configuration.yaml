@@ -101,7 +101,7 @@ gree_custom:
                       - "center"
                       - "right_center"
                       - "right"
-                  features: # Supported device features | list | options = ["beeper", "air", "xfan", "sleep", "eightdegheat", "lights", "light_sensor", "health", "anti_direct_blow", "powersave", "humidity_control"] | default = all options except "humidity_control"
+                  features: # Supported device features | list | options = ["beeper", "air", "xfan", "sleep", "eightdegheat", "lights", "light_sensor", "health", "anti_direct_blow", "powersave", "humidity_control", "auxiliary_heat"] | default = all options except "humidity_control"
                       - "beeper"
                       - "air"
                       - "xfan"
@@ -113,6 +113,7 @@ gree_custom:
                       - "anti_direct_blow"
                       - "powersave"
                       - "humidity_control"
+                      - "auxiliary_heat"
                   target_temp_step: 1 # Number of degrees increase or decrease when changing the temperature | 0.5 <= number <= 5, 0.5 increments | default = 1
                   external_temperature_sensor: "sensor.living_room_temperature" # Sets a given temperature sensor as the sensor for the AC | str (Entity ID) | omit the key to not use one
                   external_humidity_sensor: "sensor.living_room_humidity" # Sets a given humidity sensor as the sensor for the AC | str (Entity ID) | omit the key to not use one

@@ -238,7 +238,8 @@
                 "powersave": "Energiebesparing",
                 "light_sensor": "Automatische displayhelderheid",
                 "faults": "Storingsdetectie",
-                "humidity_control": "Vochtigheidsregeling"
+                "humidity_control": "Vochtigheidsregeling",
+                "auxiliary_heat": "Elektrische bijverwarming"
             }
         }
     },
@@ -320,6 +321,14 @@
         "select": {
             "temperature_units": {
                 "name": "Temperatuureenheid"
+            },
+            "auxiliary_heat": {
+                "name": "Elektrische bijverwarming",
+                "state": {
+                    "off": "Uit",
+                    "always_on": "Altijd aan",
+                    "auto": "Automatisch"
+                }
             },
             "humidity_control": {
                 "name": "Vochtigheidsregeling",

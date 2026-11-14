@@ -12,6 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from .aiogree.api import (
+    AuxiliaryHeatMode,
     DeviceType,
     HumidityControlMode,
     OperationMode,
@@ -23,7 +24,12 @@ from .aiogree.errors import (
     GreeHumidityControlUnavailable,
     GreeSmartDryUnavailable,
 )
-from .const import DOMAIN, GATTR_FEAT_HUMIDITY, GATTR_TEMP_UNITS
+from .const import (
+    DOMAIN,
+    GATTR_FEAT_AUXILIARY_HEAT,
+    GATTR_FEAT_HUMIDITY,
+    GATTR_TEMP_UNITS,
+)
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
 from .platform_helpers import supported_descriptions
@@ -86,6 +92,21 @@ SELECT_TYPES: list[GreeSelectDescription] = [
         set_func=_set_humidity_control_mode,
         additional_available_func=lambda device: (
             device.operation_mode in (OperationMode.cool, OperationMode.dry)
+        ),
+        updates_device=True,
+    ),
+    GreeSelectDescription(
+        key=GATTR_FEAT_AUXILIARY_HEAT,
+        translation_key=GATTR_FEAT_AUXILIARY_HEAT,
+        options=[member.name for member in AuxiliaryHeatMode],
+        value_func=lambda device: (
+            mode.name if (mode := device.feature_auxiliary_heat) is not None else None
+        ),
+        set_func=lambda device, value: device.set_feature_auxiliary_heat(
+            AuxiliaryHeatMode[value]
+        ),
+        additional_available_func=lambda device: (
+            device.operation_mode in (OperationMode.heat, OperationMode.auto)
         ),
         updates_device=True,
     ),

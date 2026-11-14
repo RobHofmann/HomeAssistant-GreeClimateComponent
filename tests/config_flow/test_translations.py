@@ -14,6 +14,8 @@ import re
 
 import pytest
 
+from custom_components.gree_custom.aiogree.api import AuxiliaryHeatMode
+
 COMPONENT = Path(__file__).parents[2] / "custom_components" / "gree_custom"
 LANGUAGES = ("en", "nl", "pt")
 CONFIG_FLOW = (COMPONENT / "config_flow.py").read_text(encoding="utf-8")
@@ -79,3 +81,14 @@ def test_every_exception_key_has_a_text(language: str) -> None:
     exceptions = translations(language)["exceptions"]
 
     assert sorted(EXCEPTIONS - set(exceptions)) == []
+
+
+@pytest.mark.parametrize("language", LANGUAGES)
+def test_the_auxiliary_heat_select_has_a_text_for_every_mode(language: str) -> None:
+    """The feature picker and every option of the select have a text."""
+    texts = translations(language)
+
+    assert "auxiliary_heat" in texts["selector"]["features"]["options"]
+    select = texts["entity"]["select"]["auxiliary_heat"]
+    assert select["name"]
+    assert sorted(select["state"]) == sorted(m.name for m in AuxiliaryHeatMode)

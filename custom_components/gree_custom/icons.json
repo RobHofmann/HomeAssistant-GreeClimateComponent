@@ -51,6 +51,9 @@
       },
       "humidity_control": {
         "default": "mdi:water-sync"
+      },
+      "auxiliary_heat": {
+        "default": "mdi:heating-coil"
       }
     },
     "number": {
