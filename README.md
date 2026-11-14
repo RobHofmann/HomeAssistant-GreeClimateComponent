@@ -65,7 +65,8 @@ Your devices are under **Settings** > **Devices & Services** > **Gree Climate**.
 
 ## ⚠️ Known limitations
 
-- **Multi-split units:** when one outdoor unit serves several indoor units, the unit only reports that the compressor runs, not for which indoor unit. So every indoor unit can show heating or cooling while only one of them works. The integration shows idle when the room already passed the target (above it in Heat, below it in Cool), but between those points the action is a best guess. See [entities](docs/entities.md).
+- **HVAC action on multi-split units:** when one outdoor unit serves several indoor units, the unit only reports that the compressor runs, not for which indoor unit. So every indoor unit in Heat or Cool shows heating or cooling while only one of them works. See [entities](docs/entities.md).
+- **HVAC action in Auto:** the unit does not report whether it heats or cools, so the action is unknown while the compressor runs. The room temperature cannot tell either, because a unit keeps working a few degrees past its target.
 
 ## ❓ Help and support
 

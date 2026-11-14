@@ -74,7 +74,7 @@ GATTR_CLIMATE = "hvac"
 
 # The action that matches each HVAC mode while the unit runs. Auto has none:
 # the unit chooses between cooling and heating itself and does not report
-# which one, so it is guessed from the room and target temperature.
+# which one.
 HVAC_MODE_TO_ACTION: dict[HVACMode, HVACAction] = {
     HVACMode.COOL: HVACAction.COOLING,
     HVACMode.HEAT: HVACAction.HEATING,
@@ -84,26 +84,15 @@ HVAC_MODE_TO_ACTION: dict[HVACMode, HVACAction] = {
 
 
 def gree_hvac_action(
-    hvac_mode: HVACMode,
-    compressor_running: bool | None,
-    current_temperature: float | None = None,
-    target_temperature: float | None = None,
+    hvac_mode: HVACMode, compressor_running: bool | None
 ) -> HVACAction | None:
     """Return what the unit is doing now.
 
     Without compressor data (`compressor_running` is None), the action follows
     the HVAC mode. With compressor data, a stopped compressor is idle, and a
     running one does the action of the mode. Fan only never needs the
-    compressor, so it is always the fan.
-
-    Auto has no matching action. A room warmer than the target means cooling,
-    a colder room heating. Without both temperatures, or when they are equal,
-    the action is None (unknown).
-
-    The action never goes against the temperature: Heat with a room above the
-    target, or Cool with a room below it, is idle. On a multi-split all indoor
-    units share one compressor, so a running compressor does not prove that
-    this indoor unit is working.
+    compressor, so it is always the fan. Auto has no matching action, so it is
+    None (unknown) unless the compressor is stopped.
     """
     if hvac_mode == HVACMode.OFF:
         return HVACAction.OFF
@@ -114,37 +103,7 @@ def gree_hvac_action(
     if compressor_running is False:
         return HVACAction.IDLE
 
-    return _action_by_temperature(hvac_mode, current_temperature, target_temperature)
-
-
-def _action_by_temperature(
-    hvac_mode: HVACMode,
-    current_temperature: float | None,
-    target_temperature: float | None,
-) -> HVACAction | None:
-    """Return the action of a mode that may be working, checked against the room.
-
-    Auto cools when the room is warmer than the target and heats when it is
-    colder. Heat with a warmer room and Cool with a colder room are idle.
-    Without both temperatures the action follows the mode.
-    """
-    mode_action = HVAC_MODE_TO_ACTION.get(hvac_mode)
-    if current_temperature is None or target_temperature is None:
-        return mode_action
-
-    if hvac_mode == HVACMode.AUTO:
-        if current_temperature > target_temperature:
-            return HVACAction.COOLING
-        if current_temperature < target_temperature:
-            return HVACAction.HEATING
-        return None
-
-    if hvac_mode == HVACMode.HEAT and current_temperature > target_temperature:
-        return HVACAction.IDLE
-    if hvac_mode == HVACMode.COOL and current_temperature < target_temperature:
-        return HVACAction.IDLE
-
-    return mode_action
+    return HVAC_MODE_TO_ACTION.get(hvac_mode)
 
 
 class GreeClimateDescription(
@@ -600,17 +559,6 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         # Force refresh from coordinator
         await self.coordinator.async_request_refresh()
 
-    def _update_hvac_action(self) -> None:
-        """Set the action from the mode, the compressor and the temperatures."""
-        if self._attr_hvac_mode is None:
-            return
-        self._attr_hvac_action = gree_hvac_action(
-            self._attr_hvac_mode,
-            self.device.compressor_running,
-            self._attr_native_current_temperature,
-            self._attr_native_target_temperature,
-        )
-
     def _update_attributes(self) -> None:
         """Update the entity attributes with the device values."""
         self._attr_available = self.device.available
@@ -624,7 +572,11 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             )
             or HVACMode.FAN_ONLY in self._attr_hvac_modes
         ):
-            self._attr_hvac_mode = self.get_hvac_mode()
+            hvac_mode = self.get_hvac_mode()
+            self._attr_hvac_mode = hvac_mode
+            self._attr_hvac_action = gree_hvac_action(
+                hvac_mode, self.device.compressor_running
+            )
 
         if self._attr_supported_features & ClimateEntityFeature.FAN_MODE:
             self._attr_fan_mode = self.get_fan_mode()
@@ -649,9 +601,6 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             or self._external_humidity_sensor == "None"
         ):
             self._attr_current_humidity = self.get_current_humidity()
-
-        # After the temperatures, because the action compares them.
-        self._update_hvac_action()
 
         outside_temp = self.get_outside_current_temp()
         if outside_temp is not None:
