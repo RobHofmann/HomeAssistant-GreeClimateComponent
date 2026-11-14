@@ -203,6 +203,9 @@ class GreeSelect(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ignore[re
             self.coordinator.async_update_listeners()
 
             await self.coordinator.async_request_refresh()
+        except HomeAssistantError:
+            # Already says what went wrong, such as a mode that is not allowed.
+            raise
         except Exception as err:
             _LOGGER.debug(
                 "Error in async_select_option(%s, %s, %s -> %s)",
@@ -212,7 +215,7 @@ class GreeSelect(GreeEntity, SelectEntity, RestoreEntity):  # pyright: ignore[re
                 option,
             )
             raise HomeAssistantError(
-                "Failed to select a different temperature unit."
+                translation_domain=DOMAIN, translation_key="generic"
             ) from err
 
         self.async_write_ha_state()

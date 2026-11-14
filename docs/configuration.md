@@ -93,7 +93,7 @@ One page per device. Gree devices do not report reliably which features they hav
 | Fan Speeds | all the unit supports | Auto, Low, Medium-Low, Medium, Medium-High, High, and Turbo and Quiet when the unit has them. |
 | Vertical Swing Modes | all | The vertical positions and swing ranges. |
 | Horizontal Swing Modes | all | The horizontal positions and swing ranges. Only shown when the unit has horizontal swing. |
-| Device Features and Modes | all the unit supports | Which switches and selects to create. See [entities.md](entities.md). On a zone of a zone controller, leave out **Zone Switch** if the zone must always stay open. |
+| Device Features and Modes | all the unit supports, except Auxiliary Heat | Which switches and selects to create. See [entities.md](entities.md). Auxiliary Heat is not ticked for a new device, because many units answer its property without having the heater; tick it yourself when the unit has one. On a zone of a zone controller, leave out **Zone Switch** if the zone must always stay open. |
 | Temperature Step | 1 | The step of the target temperature, 0.5 to 5 in steps of 0.5. In Fahrenheit the step is rounded to a whole degree. |
 | External Temperature Sensor | none | A Home Assistant sensor that replaces the unit's own room temperature in the climate entity. |
 | External Humidity Sensor | none | A Home Assistant sensor that replaces the unit's own humidity in the climate entity. |
@@ -190,7 +190,7 @@ The key of every device is its MAC address. Write it in lower case without separ
 
 ### Options that differ from the UI defaults
 
-- `features` left out means every feature except `humidity_control`. In the UI the default is every feature the unit supports. Write the list yourself when you want humidity control.
+- `features` left out means every feature except `humidity_control` and `auxiliary_heat`. In the UI the default is every feature the unit supports, except `auxiliary_heat`. Write the list yourself when you want humidity control or auxiliary heat.
 - `fan_modes` left out means every speed except `turbo` and `quiet`.
 - `hvac_modes`, `swing_modes` and `swing_horizontal_modes` left out mean all options.
 - `encryption_version` left out means `"0"`, auto detect. Because the import does not bind the device, the version is detected at every start. That is fine.
