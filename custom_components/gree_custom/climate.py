@@ -31,7 +31,7 @@ from homeassistant.core import (
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
-from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.helpers.restore_state import ExtraStoredData, RestoreEntity
 from homeassistant.util.unit_conversion import TemperatureConverter
 
 from .aiogree.api import (
@@ -67,6 +67,7 @@ from .const import (
 )
 from .coordinator import GreeConfigEntry, GreeCoordinator
 from .entity import GreeEntity, GreeEntityDescription
+from .setpoint_memory import SetpointMemory, SetpointMemoryData
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -77,6 +78,19 @@ class GreeClimateDescription(
     GreeEntityDescription, ClimateEntityDescription, frozen_or_thawed=True
 ):
     """Description of a Gree Climate entity."""
+
+
+class GreeClimateExtraData(ExtraStoredData):
+    """What the climate entity keeps over a restart, next to its state."""
+
+    def __init__(self, setpoint_memory: SetpointMemoryData) -> None:
+        """Keep the target temperatures per mode, see setpoint_memory.py."""
+        self.setpoint_memory = setpoint_memory
+
+    @override
+    def as_dict(self) -> dict[str, Any]:
+        """Return the data to store."""
+        return {"setpoint_memory": self.setpoint_memory}
 
 
 async def async_setup_entry(
@@ -251,6 +265,11 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         await super().async_added_to_hass()
 
         self._update_attributes()
+
+        # Before the state, whose mode change uses it. Not tied to restore_state.
+        memory = self.coordinator.setpoint_memory
+        if memory is not None and (extra := await self.async_get_last_extra_data()):
+            memory.restore(extra.as_dict().get("setpoint_memory") or {})
 
         # Restore last HA state to device if applicable
         if self.restore_state:
@@ -427,6 +446,17 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                     last_target_temperature,
                     self.temperature_unit,
                 )
+
+    @property
+    @override
+    def extra_restore_state_data(self) -> GreeClimateExtraData | None:
+        """Keep the target temperatures per mode over a restart.
+
+        For a zone controller these are the ones of its zones, which have no
+        climate entity of their own.
+        """
+        memory = self.coordinator.setpoint_memory
+        return None if memory is None else GreeClimateExtraData(memory.data)
 
     @override
     def _handle_coordinator_update(self) -> None:
@@ -646,6 +676,16 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
     @override
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set the HVAC Mode."""
+        await self._async_set_hvac_mode(hvac_mode)
+
+    async def _async_set_hvac_mode(
+        self, hvac_mode: HVACMode, temperature: float | None = None
+    ) -> None:
+        """Set the HVAC Mode, and the target temperature if one is given.
+
+        Both go out in one command. A given temperature wins over the one the
+        setpoint memory has for the new mode.
+        """
         _LOGGER.debug("set_hvac_mode(%s, %s)", self.device.unique_id, hvac_mode)
 
         if not self.available:
@@ -655,6 +695,8 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
         try:
             if hvac_mode == HVACMode.OFF:
+                if temperature is not None:
+                    self.device.set_target_temperature(temperature)
                 await self.async_turn_off()
                 # This will be called in the turn on
                 # await self._device.update_device_status()
@@ -675,13 +717,16 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                     DeviceType.AC_UNIT,
                     DeviceType.VRF_UNIT,
                 )
+                # Before anything is set, so it stores what the devices report
                 if memory is not None:
                     await memory.snapshot(
                         [*zones, self.device] if for_itself else zones, old_mode
                     )
 
                 self.device.set_operation_mode(new_mode)
-                if (
+                if temperature is not None:
+                    self.device.set_target_temperature(temperature)
+                elif (
                     memory is not None
                     and for_itself
                     and new_mode is not OperationMode.auto
@@ -701,11 +746,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                 # await self._device.update_device_status()
 
                 if memory is not None:
-                    changed = await memory.recall(zones, new_mode)
-                    for zone in self.coordinator.zone_coordinators:
-                        if zone.device in changed:
-                            zone.async_update_listeners()
-                            await zone.async_request_refresh()
+                    await self._async_recall_zones(memory, new_mode)
 
             # notify coordinator listeners of state change so that dependent entities are updated immediately
             self.coordinator.async_update_listeners()
@@ -718,6 +759,17 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             ) from err
 
         self.async_write_ha_state()
+
+    async def _async_recall_zones(
+        self, memory: SetpointMemory, mode: OperationMode
+    ) -> None:
+        """Send the stored target temperatures of a mode to the zones, if any."""
+        zones = self.coordinator.zone_coordinators
+        changed = await memory.recall([zone.device for zone in zones], mode)
+        for zone in zones:
+            if zone.device in changed:
+                zone.async_update_listeners()
+                await zone.async_request_refresh()
 
     def get_fan_mode(self) -> str:
         """Convert Gree Fan Modes to HA. Accounts for the 2 special modes."""
@@ -926,13 +978,12 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
         try:
             # TODO: Confirm that HA sends the values in this entity's temperature_unit which matches the device unit
-            if temperature is not None:
-                self.device.set_target_temperature(temperature)
-
             if hvac_mode and hvac_mode in self._attr_hvac_modes:
-                # This will call the set_hvac_mode which internally will send to device
-                await self.async_set_hvac_mode(hvac_mode)
+                # Sets the temperature too, and sends both in one command
+                await self._async_set_hvac_mode(hvac_mode, temperature)
             else:
+                if temperature is not None:
+                    self.device.set_target_temperature(temperature)
                 await self.coordinator.push_device_status()
 
                 # notify coordinator listeners of state change so that dependent entities are updated immediately

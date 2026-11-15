@@ -1,124 +1,87 @@
 """The target temperature of a device, remembered per mode.
 
-The wall panel of a zone controller remembers the target temperature of every
-zone for each mode, and sets them again when the mode is changed on the panel.
-A mode change over WiFi does not do that: the zones keep the values of the old
-mode (seen on a LE60-13/GH). This class keeps the same memory, so a mode change
-from Home Assistant works like one on the panel. See docs/protocol.md.
-
-It is Home Assistant behaviour, turned on per device by the setpoint_memory
-option, so it lives here and not in aiogree. It still imports nothing from
-Home Assistant, so the tests need no Home Assistant instance.
-
-- A device reports its mode and its target temperature in one reply, so the
-  two belong together. A value is stored when the device reported the same
-  mode on the read before. A read in the middle of a mode change on the panel
-  is then not stored under the wrong mode. Another look at the same read does
-  not count, see `GreeDevice.status_reads`.
-- Only what a device reported is stored, never a value that is set and not
-  sent yet. A standalone or VRF unit learns only while it is on. A zone also
-  learns while it is closed: its `Pow` is its damper, not the power of the
-  unit.
-- Before the mode is changed, `snapshot()` reads the devices again and stores
-  them under the old mode, so a change made on the panel since the last poll is
-  not lost. After the change, `recall()` sends the stored values of the new
-  mode.
-- What is stored are the raw columns that hold the target temperature, as
-  `GreeDevice.target_temperature_props` gives them, per device MAC and mode:
-  `StTem` and `StFahFlg` for a zone, `SetTem` and `TemRec` for a standalone or
-  VRF unit.
-- For a unit that remembers its own target, `apply()` sets the stored value
-  without sending it, so it can go out in the same command as the new mode.
-  It uses `GreeDevice.set_state_props()`, since the raw columns need no
-  conversion. A target set for the same command, for example by
-  `climate.set_temperature` with a mode, wins over the stored one.
-
-The memory does not store itself. The owner loads `data` and saves it when
-`on_change` is called.
+When the mode is changed on the wall panel of a zone controller, the panel sets
+the target temperatures the zones had in that mode. A mode change over WiFi
+does not. This class remembers the targets per device and mode, from what the
+devices report, so a mode change from Home Assistant can set them. A standalone
+or VRF unit uses it for its own target. It is Home Assistant behaviour, turned
+on per device by the setpoint_memory option, but imports nothing from Home
+Assistant. See docs/protocol.md.
 """
 
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Iterable, Mapping
 import logging
+from typing import Any
 
-from .aiogree.api import PROP_KEY_TO_ENUM, DeviceType, GreeProp, OperationMode
+from .aiogree.api import DeviceType, OperationMode, TemperatureUnits
 from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeError
 
 _LOGGER = logging.getLogger(__name__)
 
-# {device MAC: {mode name: {column: raw value}}}
-type SetpointMemoryData = dict[str, dict[str, dict[str, int]]]
+# {device MAC: {mode name: {"temperature": 20.5, "unit": "C"}}}
+type SetpointMemoryData = dict[str, dict[str, dict[str, Any]]]
 
 
 class SetpointMemory:
     """Remembers the target temperature of devices per mode."""
 
-    def __init__(
-        self,
-        data: SetpointMemoryData | None = None,
-        on_change: Callable[[], None] | None = None,
-    ) -> None:
-        """Start with stored data, if there is any.
-
-        Args:
-            data: What `data` held before, for example after a restart.
-            on_change: Called after a stored value changed.
-
-        """
-        self._data: SetpointMemoryData = data or {}
-        self._on_change = on_change
-        # The read and the mode each device reported on it, as last seen by
-        # learn().
-        self._last_read: dict[str, tuple[int, OperationMode]] = {}
+    def __init__(self) -> None:
+        """Start empty. The climate entity restores what was stored."""
+        self._data: SetpointMemoryData = {}
+        # The mode each device reported on its last read, see learn().
+        self._last_mode: dict[str, OperationMode] = {}
 
     @property
     def data(self) -> SetpointMemoryData:
-        """Everything that is stored, to be saved by the owner."""
-        return self._data
-
-    def stored(self, device_mac: str, mode: OperationMode) -> dict[GreeProp, int]:
-        """Return the stored target temperature columns of a device for one mode."""
-        columns = self._data.get(device_mac, {}).get(mode.name, {})
+        """Return a copy of everything that is stored."""
         return {
-            PROP_KEY_TO_ENUM[key]: value
-            for key, value in columns.items()
-            if key in PROP_KEY_TO_ENUM
+            mac: {mode: dict(value) for mode, value in modes.items()}
+            for mac, modes in self._data.items()
         }
+
+    def restore(self, data: Mapping[str, Any]) -> None:
+        """Take back what `data` gave before a restart. Values learned since win."""
+        for mac, modes in data.items():
+            if not isinstance(modes, Mapping):
+                continue
+            for mode, value in modes.items():
+                if mode in OperationMode.__members__ and _is_stored_value(value):
+                    self._data.setdefault(mac, {}).setdefault(mode, dict(value))
+
+    def stored(self, device: GreeDevice, mode: OperationMode) -> float | None:
+        """Return the stored target of a device for a mode, in the unit it uses now."""
+        value = self._data.get(device.mac_address, {}).get(mode.name)
+        if value is None:
+            return None
+
+        temperature = float(value["temperature"])
+        unit = device.target_temperature_unit
+        if value["unit"] == unit.name:
+            return temperature
+        if unit is TemperatureUnits.F:
+            return float(round(temperature * 9 / 5 + 32))
+        return round((temperature - 32) * 5 / 9 * 2) / 2
 
     def learn(self, device: GreeDevice) -> None:
         """Store what a device reported, once it reports the same mode twice in a row.
 
-        Call this whenever the device may have been read, for example from a
-        coordinator listener. A call without a new read changes nothing.
+        The coordinator calls this after every read. A device reports its mode
+        and its target in one reply, so a read in the middle of a mode change on
+        the panel is not stored under the wrong mode.
         """
-        props = device.target_temperature_props
-        if props is None:
-            return
-
-        read = device.status_reads
-        last = self._last_read.get(device.mac_address)
-        if last is not None and last[0] == read:
-            return
         mode = device.operation_mode
-        self._last_read[device.mac_address] = (read, mode)
-
-        # Values that were just sent and are not confirmed yet are stored once
-        # the device reports them.
-        if (
-            last is not None
-            and last[1] is mode
-            and not device.has_held_values
-            and _is_running(device)
-        ):
-            self._remember(device, mode, props)
+        if self._last_mode.get(device.mac_address) is mode:
+            self._store(device, mode)
+        self._last_mode[device.mac_address] = mode
 
     async def snapshot(
         self, devices: Iterable[GreeDevice], mode: OperationMode
     ) -> None:
-        """Read the devices again and store their values under the mode that is about to end.
+        """Read the devices again and store their targets under the mode that ends.
 
-        What the devices report is stored, not a target that is set and not
-        sent yet.
+        Call it before the new mode or a new target is set, so a change made on
+        the panel or with the remote since the last poll is kept.
         """
         for device in devices:
             try:
@@ -129,20 +92,12 @@ class SetpointMemory:
                     device.unique_id,
                 )
                 continue
-
-            props = device.target_temperature_props
-            if (
-                props is not None
-                and device.operation_mode is mode
-                and not device.has_held_values
-                and _is_running(device)
-            ):
-                self._remember(device, mode, props)
+            self._store(device, mode)
 
     async def recall(
         self, devices: Iterable[GreeDevice], mode: OperationMode
     ) -> list[GreeDevice]:
-        """Send the stored target temperatures of a mode to the devices.
+        """Send the stored targets of a mode to the devices.
 
         Returns:
             The devices that got a new target temperature
@@ -167,51 +122,51 @@ class SetpointMemory:
         return changed
 
     def apply(self, device: GreeDevice, mode: OperationMode) -> bool:
-        """Set the stored target temperature of a mode on a device, without sending it.
-
-        A target that is already set for the same command wins, for example
-        one given to climate.set_temperature with the mode.
+        """Set the stored target of a mode on a device, without sending it.
 
         Returns:
             True if the device got a new target temperature to send
 
         """
-        stored = self.stored(device.mac_address, mode)
-        if (
-            not stored
-            or device.has_pending_target_temperature
-            or stored == device.target_temperature_props
-        ):
+        temperature = self.stored(device, mode)
+        if temperature is None or temperature == device.target_temperature:
             return False
 
-        device.set_state_props(stored)
+        device.set_target_temperature(temperature)
         return True
 
-    def _remember(
-        self, device: GreeDevice, mode: OperationMode, props: Mapping[GreeProp, int]
-    ) -> None:
-        """Store the target temperature columns a device has now for one mode."""
-        columns = {prop.value: value for prop, value in props.items()}
-        modes = self._data.setdefault(device.mac_address, {})
-        if modes.get(mode.name) == columns:
+    def _store(self, device: GreeDevice, mode: OperationMode) -> None:
+        """Store the target of a device under a mode, if it belongs to that mode."""
+        temperature = device.target_temperature
+        if (
+            temperature is None
+            or device.operation_mode is not mode
+            # Sent and not confirmed yet: stored once the device reports it
+            or device.has_held_values
+            # An off unit keeps a mode and a target that are not in use. A
+            # zone's Pow is its damper, so a closed zone still counts.
+            or (device.device_type is not DeviceType.ZONE and not device.power_mode)
+        ):
             return
 
-        modes[mode.name] = columns
-        _LOGGER.debug(
-            "[%s] Stored target temperature %s for %s",
-            device.unique_id,
-            columns,
-            mode.name,
-        )
-        if self._on_change is not None:
-            self._on_change()
+        unit = device.target_temperature_unit.name
+        value = {"temperature": float(temperature), "unit": unit}
+        modes = self._data.setdefault(device.mac_address, {})
+        if modes.get(mode.name) != value:
+            modes[mode.name] = value
+            _LOGGER.debug(
+                "[%s] Stored %s %s for %s",
+                device.unique_id,
+                temperature,
+                unit,
+                mode.name,
+            )
 
 
-def _is_running(device: GreeDevice) -> bool:
-    """Return True if the target of the device belongs to the mode it reports.
-
-    A standalone or VRF unit that is off keeps a mode and a target, but they
-    are not in use. A zone's Pow is its damper, not the power of the unit, so
-    a closed zone counts as running.
-    """
-    return device.device_type is DeviceType.ZONE or device.power_mode
+def _is_stored_value(value: Any) -> bool:
+    """Return True if `value` is a target as _store() stores it."""
+    return (
+        isinstance(value, Mapping)
+        and isinstance(value.get("temperature"), int | float)
+        and value.get("unit") in TemperatureUnits.__members__
+    )

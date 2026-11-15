@@ -61,9 +61,10 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         self._feature_auto_light: bool = False
         self._unsub_follow_up_refresh: CALLBACK_TYPE | None = None
         self._is_shut_down: bool = False
-        # The memory of the target temperatures per mode. Set on the ducted
-        # unit of a zone controller, with the zones of the same controller, and
-        # on a standalone or VRF unit that remembers its own target.
+        # The memory of the target temperatures per mode. Set on every device
+        # it learns from: a standalone or VRF unit that remembers its own
+        # target, and the zones of a zone controller. Also set on the ducted
+        # unit, with its zones, because its mode change sets them.
         self.setpoint_memory: SetpointMemory | None = None
         self.zone_coordinators: list[GreeCoordinator] = []
 
@@ -135,6 +136,10 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         except Exception as err:
             _LOGGER.exception("Error getting state from device")
             raise UpdateFailed("Error getting state from device") from err
+
+        # Here and only here: each call is then one new read of the device.
+        if self.setpoint_memory is not None:
+            self.setpoint_memory.learn(self.device)
 
     async def push_device_status(self) -> None:
         """Push the current transient state to the device.
