@@ -44,7 +44,7 @@ from .aiogree.api import (
     VerticalSwingMode,
 )
 from .aiogree.const import MAX_TEMP_C, MAX_TEMP_F, MIN_TEMP_C, MIN_TEMP_F
-from .aiogree.errors import GreeTurboUnavailable
+from .aiogree.errors import GreeError, GreeTurboUnavailable
 from .const import (
     ATTR_EXTERNAL_HUMIDITY_SENSOR,
     ATTR_EXTERNAL_TEMPERATURE_SENSOR,
@@ -757,36 +757,14 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                 # await self._device.update_device_status()
             else:
                 new_mode = HVAC_MODES_HA_TO_GREE[hvac_mode]
-                old_mode = self.device.operation_mode
-                # A zone controller keeps the zone target temperatures of the old
-                # mode on a change over WiFi. Do what its wall panel does.
-                memory = (
-                    self.coordinator.setpoint_memory
-                    if new_mode is not old_mode
-                    else None
-                )
-                zones = [z.device for z in self.coordinator.zone_coordinators]
-                # A standalone or VRF unit with the option remembers its own
-                # target. In Auto it ignores the target, so nothing goes there.
-                for_itself = self.device.device_type in (
-                    DeviceType.AC_UNIT,
-                    DeviceType.VRF_UNIT,
-                )
-                # Before anything is set, so it stores what the devices report
-                if memory is not None:
-                    await memory.snapshot(
-                        [*zones, self.device] if for_itself else zones, old_mode
-                    )
+                memory = await self._async_setpoint_memory_for(new_mode)
 
                 self.device.set_operation_mode(new_mode)
                 if temperature is not None:
                     self.device.set_target_temperature(temperature)
-                elif (
-                    memory is not None
-                    and for_itself
-                    and new_mode is not OperationMode.auto
-                ):
-                    # Goes out in the same command as the mode, below.
+                elif memory is not None and new_mode is not OperationMode.auto:
+                    # A unit ignores its target in Auto. This goes out in the
+                    # same command as the mode, below.
                     memory.apply(self.device, new_mode)
 
                 # The Auto X-FAN enables that feature if the device is set to a hvac mode that supports X-FAN
@@ -815,16 +793,41 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
         self.async_write_ha_state()
 
+    async def _async_setpoint_memory_for(
+        self, new_mode: OperationMode
+    ) -> SetpointMemory | None:
+        """Return the setpoint memory if it is used for this mode change.
+
+        The wall panel of a zone controller sets the zone targets of the new
+        mode, a mode change over WiFi does not, so the memory does it. A unit
+        with the memory gets its own target. One more read first, before
+        anything is set, so the old mode keeps a target changed since the last
+        poll.
+        """
+        memory = self.coordinator.setpoint_memory
+        if memory is None or new_mode is self.device.operation_mode:
+            return None
+
+        for coordinator in self.coordinator.zone_coordinators or [self.coordinator]:
+            await coordinator.async_refresh()
+        return memory
+
     async def _async_recall_zones(
         self, memory: SetpointMemory, mode: OperationMode
     ) -> None:
         """Send the stored target temperatures of a mode to the zones, if any."""
-        zones = self.coordinator.zone_coordinators
-        changed = await memory.recall([zone.device for zone in zones], mode)
-        for zone in zones:
-            if zone.device in changed:
-                zone.async_update_listeners()
-                await zone.async_request_refresh()
+        for zone in self.coordinator.zone_coordinators:
+            if not memory.apply(zone.device, mode):
+                continue
+            try:
+                await zone.push_device_status()
+            except GreeError:
+                _LOGGER.warning(
+                    "[%s] Could not set the stored target temperature for %s",
+                    zone.device.unique_id,
+                    mode.name,
+                )
+            zone.async_update_listeners()
 
     def get_fan_mode(self) -> str:
         """Convert Gree Fan Modes to HA. Accounts for the 2 special modes."""

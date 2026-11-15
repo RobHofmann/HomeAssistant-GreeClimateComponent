@@ -20,13 +20,15 @@ import pytest
 from custom_components.gree_custom.aiogree.api import DeviceType, OperationMode
 from custom_components.gree_custom.aiogree.device import GreeDevice
 from custom_components.gree_custom.aiogree.transport_udp import GreeUdpTransport
-from custom_components.gree_custom.setpoint_memory import SetpointMemory
+from custom_components.gree_custom.setpoint_memory import (
+    SetpointMemory,
+    offers_setpoint_memory,
+)
 
 from .fakes.device import FakeGreeDevice
 from .fakes.zone import FakeZoneController
 
 HEAT = 2
-COOL = 1
 
 
 @pytest.fixture
@@ -100,7 +102,21 @@ def remembered(
     memory: SetpointMemory, zones: list[GreeDevice], mode: OperationMode
 ) -> list[float | None]:
     """Return what the memory has for each zone in one mode."""
-    return [memory.stored(zone, mode) for zone in zones]
+    data = memory.data
+    return [
+        data.get(zone.mac_address, {}).get(mode.name, {}).get("temperature")
+        for zone in zones
+    ]
+
+
+async def recall(
+    memory: SetpointMemory, zones: list[GreeDevice], mode: OperationMode
+) -> list[GreeDevice]:
+    """Set and send the stored targets of a mode, as the climate entity does."""
+    changed = [zone for zone in zones if memory.apply(zone, mode)]
+    for zone in changed:
+        await zone.push_device_status()
+    return changed
 
 
 def temperatures(controller: FakeZoneController) -> list[int]:
@@ -180,7 +196,7 @@ async def test_recall_sends_the_stored_values_of_the_new_mode(
     )
     await poll(memory, zones)
 
-    changed = await memory.recall(zones, OperationMode.heat)
+    changed = await recall(memory, zones, OperationMode.heat)
 
     assert temperatures(controller) == [19, 18, 17, 18]
     assert [zone.mac_address for zone in changed] == [
@@ -197,7 +213,7 @@ async def test_recall_of_a_mode_without_values_changes_nothing(
     await poll(memory, zones)
     controller.reset_record()
 
-    changed = await memory.recall(zones, OperationMode.dry)
+    changed = await recall(memory, zones, OperationMode.dry)
 
     assert changed == []
     assert not any(pack.get("t") == "cmd" for pack in controller.packs)
@@ -218,7 +234,7 @@ async def test_a_fahrenheit_target_comes_back_with_its_bit(
     panel_mode(controller, HEAT, [19, 18, 18, 18])
     first["StFahFlg"] = 0
     await poll(memory, zones)
-    await memory.recall(zones, OperationMode.fan)
+    await recall(memory, zones, OperationMode.fan)
 
     assert (first["StTem"], first["StFahFlg"]) == (3, 1)
     assert zones[0].target_temperature == 67
@@ -244,37 +260,25 @@ async def test_a_value_from_celsius_comes_back_right_in_fahrenheit(
     for values in controller.units.values():
         values["TemUnit"] = 1
     await poll(memory, zones)
-    await memory.recall(zones, OperationMode.fan)
+    await recall(memory, zones, OperationMode.fan)
 
     assert (first["StTem"], first["StFahFlg"]) == (2, 1)
     await zones[0].fetch_device_status()
     assert zones[0].target_temperature == 65
 
 
-async def test_snapshot_keeps_a_panel_change_made_since_the_last_poll(
+async def test_a_change_in_the_same_mode_is_stored_on_the_next_read(
     controller: FakeZoneController, zones: list[GreeDevice]
 ) -> None:
-    """The value changed on the panel just before the switch is not lost."""
+    """The climate entity reads once more before a mode change, so this keeps it."""
     memory = SetpointMemory()
     await poll(memory, zones)
     await poll(memory, zones)
 
     set_on_panel(controller, [22, 18, 18, 18])
-    await memory.snapshot(zones, OperationMode.fan)
+    await poll(memory, zones)
 
     assert remembered(memory, zones, OperationMode.fan) == [22, 18, 18, 18]
-
-
-async def test_snapshot_does_not_store_values_of_another_mode(
-    controller: FakeZoneController, zones: list[GreeDevice]
-) -> None:
-    """If the mode already changed on the panel, the values are not the old mode's."""
-    memory = SetpointMemory()
-    panel_mode(controller, COOL, [24, 24, 24, 24])
-
-    await memory.snapshot(zones, OperationMode.fan)
-
-    assert remembered(memory, zones, OperationMode.fan) == [None] * 4
 
 
 async def test_a_closed_zone_still_learns(
@@ -290,31 +294,16 @@ async def test_a_closed_zone_still_learns(
     assert remembered(memory, zones, OperationMode.fan) == [18, 18, 18, 18]
 
 
-async def test_restore_keeps_what_was_learned_since(
-    controller: FakeZoneController, zones: list[GreeDevice]
+async def test_the_option_is_on_the_ducted_unit_for_all_zones(
+    controller: FakeZoneController,
+    transport: GreeUdpTransport,
+    zones: list[GreeDevice],
 ) -> None:
-    """A value learned before the entity restored its data is newer."""
-    memory = SetpointMemory()
-    await poll(memory, zones)
-    await poll(memory, zones)
-    first = controller.zone_macs[0]
+    """As on the wall panel, the mode of the ducted unit sets every zone."""
+    ac_unit = await bind(controller, transport, controller.ac_unit)
 
-    memory.restore(
-        {
-            first: {
-                "fan": {"temperature": 22.0, "unit": "C"},
-                "heat": {"temperature": 20.0, "unit": "C"},
-                "warm": {"temperature": 21.0, "unit": "C"},
-                "cool": {"temperature": "24", "unit": "C"},
-            },
-            controller.zone_macs[1]: "not a mode",
-        }
-    )
-
-    assert memory.data[first] == {
-        "fan": {"temperature": 18.0, "unit": "C"},
-        "heat": {"temperature": 20.0, "unit": "C"},
-    }
+    assert offers_setpoint_memory(ac_unit)
+    assert not any(offers_setpoint_memory(zone) for zone in zones)
 
 
 #
@@ -357,6 +346,7 @@ async def test_a_unit_learns_its_target_and_sends_it_with_the_mode(
         "heat": {"temperature": 20.0, "unit": "C"},
     }
     assert device.device_type is DeviceType.AC_UNIT
+    assert offers_setpoint_memory(device)
 
     device.set_operation_mode(OperationMode.cool)
     assert memory.apply(device, OperationMode.cool)
@@ -407,6 +397,6 @@ async def test_a_unit_that_is_off_learns_nothing(
 
     await poll(memory, [device])
     await poll(memory, [device])
-    await memory.snapshot([device], OperationMode.cool)
+    await poll(memory, [device])
 
     assert memory.data == {}

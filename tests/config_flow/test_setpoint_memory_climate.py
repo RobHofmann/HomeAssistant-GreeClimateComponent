@@ -1,8 +1,9 @@
 """The target temperature per mode, through the climate entity of a real Home Assistant.
 
 The memory itself is tested in tests/test_setpoint_memory.py. This checks that
-the coordinator feeds it from its reads, what a service call does with it, and
-that the climate entity keeps it over a reload and a restart.
+the coordinators feed it from their reads, what a mode change does with it, for
+a standalone unit and for the zones of a zone controller, and that the climate
+entity keeps it over a reload and a restart.
 """
 
 import pytest
@@ -21,6 +22,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er, restore_state
 from tests.config_flow.conftest import MAC_A, GreeEnv, add_entry
 from tests.fakes.device import FakeGreeDevice
+from tests.fakes.zone import FakeZoneController
 
 # The climate entity uses the native temperature API of Home Assistant 2026.11
 # (#570). The test plugin is still pinned to 2026.10, where the entity cannot
@@ -155,3 +157,39 @@ async def test_the_memory_is_kept_over_a_reload_and_a_restart(
         blocking=True,
     )
     assert (fake.values["Mod"], fake.values["SetTem"]) == (4, 20)
+
+
+async def test_a_mode_change_sets_the_zones_as_the_wall_panel_does(
+    hass: HomeAssistant, gree: GreeEnv
+) -> None:
+    """The zones learn into the memory of the ducted unit, whose mode change sets them."""
+    controller = FakeZoneController()
+    gree.devices["zone_controller"] = controller
+    host = await gree.start_udp(controller)
+    entry = await add_entry(
+        hass, ["local"], [controller.ac_unit, *controller.zone_macs], [host]
+    )
+    coordinators = list(entry.runtime_data.values())
+    first = controller.units[controller.zone_macs[0]]
+
+    async def poll_all() -> None:
+        for coordinator in coordinators:
+            await poll(hass, coordinator)
+
+    # Fan with every zone at 18, then Heat with the first zone at 21, on the panel
+    await poll_all()
+    await poll_all()
+    for unit in controller.units.values():
+        unit["Mod"] = 2
+    first["StTem"] = 21 - 16
+    await poll_all()
+    await poll_all()
+
+    for hvac_mode, expected in (("fan_only", 18), ("heat", 21)):
+        await hass.services.async_call(
+            CLIMATE_DOMAIN,
+            "set_hvac_mode",
+            {ATTR_ENTITY_ID: climate_of(hass, entry), "hvac_mode": hvac_mode},
+            blocking=True,
+        )
+        assert first["StTem"] + 16 == expected, hvac_mode

@@ -104,6 +104,7 @@ from .const import (
     ZONE_ONLY_FEATURES,
 )
 from .helpers import get_entity_ids_from_unique_ids
+from .setpoint_memory import offers_setpoint_memory
 
 HEX_CHARACTERS = "0123456789abcdef"
 VALID_MAC_LENGTHS = (12, 14)
@@ -803,9 +804,8 @@ def setup_device_options_schema(  # noqa: C901
         }
     )
 
-    # Every device with a target temperature can remember it per mode. A zone
-    # follows the mode of its ducted unit, which has no target of its own.
-    if device.has_target_temperature:
+    # On the ducted unit of a zone controller it is for all of its zones
+    if offers_setpoint_memory(device):
         schema.update(
             {
                 probatio.Required(

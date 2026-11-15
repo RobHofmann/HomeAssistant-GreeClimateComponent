@@ -84,7 +84,7 @@ from .migration import (
     async_unload_legacy_entries,
 )
 from .services import async_setup_services
-from .setpoint_memory import SetpointMemory
+from .setpoint_memory import SetpointMemory, offers_setpoint_memory
 
 ISSUE_DEVICE_CONNECTION_FAILED = "device_connection_failed"
 ISSUE_YAML_IMPORT_FAILED = "yaml_import_failed"
@@ -341,44 +341,28 @@ async def _async_refresh_entry_token(
 
 
 def _setup_setpoint_memory(coordinators: dict[str, GreeCoordinator]) -> None:
-    """Give the devices that remember their target temperature per mode a memory.
+    """Give the units with the setpoint_memory option a memory.
 
-    Every device with a target temperature does, unless its setpoint_memory
-    option is off. A standalone or VRF unit gets a memory for itself. The
-    zones of a zone controller follow the mode of their ducted unit, so they
-    share one memory with it: the zones learn, and a mode change of the ducted
-    unit sets them as the wall panel does. The climate entity keeps the memory
-    in its restore state. See setpoint_memory.py.
+    The ducted unit of a zone controller shares it with its zones, as the wall
+    panel does: they learn into it, and its mode change sets them. See
+    setpoint_memory.py.
     """
-    learners = [
-        c
-        for c in coordinators.values()
-        if c.device.has_target_temperature
-        and c.device_config.get(CONF_DEVICE_OPTIONS, {}).get(
-            CONF_SETPOINT_MEMORY, DEFAULT_SETPOINT_MEMORY
-        )
-    ]
-    zones = [c for c in learners if c.device.device_type is DeviceType.ZONE]
-
-    for unit in learners:
-        if unit.device.device_type is not DeviceType.ZONE:
-            unit.setpoint_memory = SetpointMemory()
-
     for coordinator in coordinators.values():
-        if coordinator.device.device_type is not DeviceType.ZONE_CONTROLLER:
+        device = coordinator.device
+        if not offers_setpoint_memory(device) or not coordinator.device_config.get(
+            CONF_DEVICE_OPTIONS, {}
+        ).get(CONF_SETPOINT_MEMORY, DEFAULT_SETPOINT_MEMORY):
             continue
-        own_zones = [
+
+        coordinator.setpoint_memory = SetpointMemory()
+        coordinator.zone_coordinators = [
             zone
-            for zone in zones
-            if zone.device.mac_address_controller
-            == coordinator.device.mac_address_controller
+            for zone in coordinators.values()
+            if zone.device.device_type is DeviceType.ZONE
+            and zone.device.mac_address_controller == device.mac_address_controller
         ]
-        if own_zones:
-            memory = SetpointMemory()
-            coordinator.setpoint_memory = memory
-            coordinator.zone_coordinators = own_zones
-            for zone in own_zones:
-                zone.setpoint_memory = memory
+        for zone in coordinator.zone_coordinators:
+            zone.setpoint_memory = coordinator.setpoint_memory
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool:

@@ -61,10 +61,9 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         self._feature_auto_light: bool = False
         self._unsub_follow_up_refresh: CALLBACK_TYPE | None = None
         self._is_shut_down: bool = False
-        # The memory of the target temperatures per mode. Set on every device
-        # it learns from: a standalone or VRF unit that remembers its own
-        # target, and the zones of a zone controller. Also set on the ducted
-        # unit, with its zones, because its mode change sets them.
+        # The memory of the target temperatures per mode, on a unit with the
+        # setpoint_memory option. The ducted unit of a zone controller shares
+        # its memory with its zones, which learn into it.
         self.setpoint_memory: SetpointMemory | None = None
         self.zone_coordinators: list[GreeCoordinator] = []
 
