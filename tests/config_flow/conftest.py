@@ -1,9 +1,9 @@
 """Fixtures for the config flow tests.
 
 These tests run the shipped config flow inside a real Home Assistant, from
-pytest-homeassistant-custom-component: the flow manager, the config entries,
-the device registry and the reload after a flow. What is real and what is
-faked:
+pytest-homeassistant: the flow manager, the config entries, the device
+registry and the reload after a flow. Its `hass` fixture loads the component
+from `custom_components/` by default. What is real and what is faked:
 
 - Gree Cloud: `FakeGreeCloud`, real HTTP on loopback. Only the server address
   of the region changes, so the login and the device list run the real client.
@@ -207,7 +207,6 @@ def component_logs() -> Iterator[RecordingHandler]:
 @pytest.fixture
 async def gree(
     hass: HomeAssistant,
-    enable_custom_integrations: None,
     monkeypatch: pytest.MonkeyPatch,
     loopback_ips: Callable[[int], list[str]],
 ) -> AsyncIterator[GreeEnv]:

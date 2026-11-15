@@ -101,7 +101,7 @@ for. Do not widen the shared config.
 The suite covers the protocol layer, `custom_components/gree_custom/aiogree/`,
 and the config flow, in `tests/config_flow/`. The config flow tests run a real
 Home Assistant through
-[pytest-homeassistant-custom-component](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component),
+[pytest-homeassistant](https://github.com/home-assistant/core/tree/dev/packages/pytest-homeassistant),
 against a fake Gree Cloud, a fake MQTT broker and fake units on loopback.
 
 It does not cover the entities, the coordinator beyond setup and unload, or the
