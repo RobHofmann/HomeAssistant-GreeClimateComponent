@@ -11,6 +11,7 @@ from homeassistant.components.climate import (
     ClimateEntity,
     ClimateEntityDescription,
     ClimateEntityFeature,  # pyright: ignore[reportPrivateImportUsage]
+    HVACAction,  # pyright: ignore[reportPrivateImportUsage]
     HVACMode,  # pyright: ignore[reportPrivateImportUsage]
 )
 from homeassistant.const import (
@@ -72,6 +73,39 @@ from .setpoint_memory import SetpointMemory, SetpointMemoryData
 _LOGGER = logging.getLogger(__name__)
 
 GATTR_CLIMATE = "hvac"
+
+# The action that matches each HVAC mode while the unit runs. Auto has none:
+# the unit chooses between cooling and heating itself and does not report
+# which one.
+HVAC_MODE_TO_ACTION: dict[HVACMode, HVACAction] = {
+    HVACMode.COOL: HVACAction.COOLING,
+    HVACMode.HEAT: HVACAction.HEATING,
+    HVACMode.DRY: HVACAction.DRYING,
+    HVACMode.FAN_ONLY: HVACAction.FAN,
+}
+
+
+def gree_hvac_action(
+    hvac_mode: HVACMode, compressor_running: bool | None
+) -> HVACAction | None:
+    """Return what the unit is doing now.
+
+    Without compressor data (`compressor_running` is None), the action follows
+    the HVAC mode. With compressor data, a stopped compressor is idle, and a
+    running one does the action of the mode. Fan only never needs the
+    compressor, so it is always the fan. Auto has no matching action, so it is
+    None (unknown) unless the compressor is stopped.
+    """
+    if hvac_mode == HVACMode.OFF:
+        return HVACAction.OFF
+
+    if hvac_mode == HVACMode.FAN_ONLY:
+        return HVACAction.FAN
+
+    if compressor_running is False:
+        return HVACAction.IDLE
+
+    return HVAC_MODE_TO_ACTION.get(hvac_mode)
 
 
 class GreeClimateDescription(
@@ -211,6 +245,8 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
 
         self._external_temperature_sensor = external_temperature_sensor_id
         self._external_humidity_sensor = external_humidity_sensor_id
+        # Last external sensor value and its unit
+        self._external_temperature: tuple[float, str] | None = None
 
         self._attr_target_temperature_step = temperature_step
 
@@ -424,11 +460,11 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             last_target_temperature = TemperatureConverter.convert(
                 last_target_temperature,
                 last_unit,
-                self._attr_temperature_unit,
+                self._attr_native_temperature_unit,
             )
             if (
                 self._attr_supported_features & ClimateEntityFeature.TARGET_TEMPERATURE
-                and last_target_temperature != self._attr_target_temperature
+                and last_target_temperature != self._attr_native_target_temperature
             ):
                 try:
                     await self.async_set_temperature(
@@ -444,7 +480,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                 _LOGGER.debug(
                     "No need to restore the target_temperature: %s%s",
                     last_target_temperature,
-                    self.temperature_unit,
+                    self.native_temperature_unit,
                 )
 
     @property
@@ -471,6 +507,19 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         """Update current temperature based on external sensor updates."""
         new_state = event.data.get("new_state")
         self._update_current_temperature_from_external(new_state)
+
+    def _set_external_current_temperature(self) -> None:
+        """Set the current temperature from the external sensor value.
+
+        The sensor can use another unit than the device, so convert the value
+        to the device unit.
+        """
+        if self._external_temperature is None:
+            return
+        value, unit = self._external_temperature
+        self._attr_native_current_temperature = TemperatureConverter.convert(
+            value, unit, self._attr_native_temperature_unit
+        )
 
     def _update_current_temperature_from_external(
         self, new_state: State | None
@@ -499,10 +548,10 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
                     value,
                     unit,
                 )
-                # Update internal state based on the other entity
-                self._attr_current_temperature = self.hass.config.units.temperature(
-                    value, unit
-                )
+                # Keep the sensor value in its own unit. The device unit can
+                # change later, so every update converts it again.
+                self._external_temperature = (value, unit)
+                self._set_external_current_temperature()
                 self.async_write_ha_state()
 
     @callback
@@ -554,7 +603,11 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             )
             or HVACMode.FAN_ONLY in self._attr_hvac_modes
         ):
-            self._attr_hvac_mode = self.get_hvac_mode()
+            hvac_mode = self.get_hvac_mode()
+            self._attr_hvac_mode = hvac_mode
+            self._attr_hvac_action = gree_hvac_action(
+                hvac_mode, self.device.compressor_running
+            )
 
         if self._attr_supported_features & ClimateEntityFeature.FAN_MODE:
             self._attr_fan_mode = self.get_fan_mode()
@@ -563,14 +616,16 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         if self._attr_supported_features & ClimateEntityFeature.SWING_HORIZONTAL_MODE:
             self._attr_swing_horizontal_mode = self.get_swing_horizontal_mode()
 
-        self._attr_temperature_unit = self.get_temp_units()
-        self._attr_target_temperature = self.get_current_target_temp()
+        self._attr_native_temperature_unit = self.get_temp_units()
+        self._attr_native_target_temperature = self.get_current_target_temp()
 
         if (
             self._external_temperature_sensor is None
             or self._external_temperature_sensor == "None"
         ):
-            self._attr_current_temperature = self.get_current_temp()
+            self._attr_native_current_temperature = self.get_current_temp()
+        else:
+            self._set_external_current_temperature()
 
         if (
             self._external_humidity_sensor is None
@@ -587,13 +642,13 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
         if self._attr_supported_features & ClimateEntityFeature.TARGET_TEMPERATURE:
             self._attr_max_temp = (
                 MAX_TEMP_C
-                if self._attr_temperature_unit == UnitOfTemperature.CELSIUS
+                if self._attr_native_temperature_unit == UnitOfTemperature.CELSIUS
                 else MAX_TEMP_F
             )
 
             self._attr_min_temp = (
                 MIN_TEMP_C
-                if self._attr_temperature_unit == UnitOfTemperature.CELSIUS
+                if self._attr_native_temperature_unit == UnitOfTemperature.CELSIUS
                 else MIN_TEMP_F
             )
 
@@ -915,7 +970,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             return TemperatureConverter.convert(
                 float(self.device.indoors_temperature_c),
                 UnitOfTemperature.CELSIUS,
-                self._attr_temperature_unit,
+                self._attr_native_temperature_unit,
             )
 
         return None
@@ -929,7 +984,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             return TemperatureConverter.convert(
                 float(self.device.outdoors_temperature_c),
                 UnitOfTemperature.CELSIUS,
-                self._attr_temperature_unit,
+                self._attr_native_temperature_unit,
             )
 
         return None
@@ -977,7 +1032,7 @@ class GreeClimate(GreeEntity, ClimateEntity, RestoreEntity):  # pyright: ignore[
             )
 
         try:
-            # TODO: Confirm that HA sends the values in this entity's temperature_unit which matches the device unit
+            # TODO: Confirm that HA sends the values in this entity's native_temperature_unit, which matches the device unit
             if hvac_mode and hvac_mode in self._attr_hvac_modes:
                 # Sets the temperature too, and sends both in one command
                 await self._async_set_hvac_mode(hvac_mode, temperature)

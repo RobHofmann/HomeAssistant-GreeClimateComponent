@@ -17,12 +17,14 @@ from typing import Any
 
 from aiogree import device_api_client, transport_mqtt
 from aiogree.api import (
+    AuxiliaryHeatMode,
     FanSpeed,
     GreeProp,
     HorizontalSwingMode,
     HumidityControlMode,
     InfoProp,
     OperationMode,
+    OtherProps,
     SleepMode,
     TemperatureUnits,
     VerticalSwingMode,
@@ -60,7 +62,7 @@ LIVE_VALUES: dict[str, Any] = {
     GreeProp.TARGET_TEMPERATURE_1.value: 21,
     GreeProp.TARGET_TEMPERATURE_BIT_1.value: 0,
     GreeProp.TARGET_TEMPERATURE_UNIT_1.value: TemperatureUnits.C.value,
-    GreeProp.SENSOR_INDOOR_TEMPERATURE_3.value: 61,
+    GreeProp.SENSOR_INDOOR_TEMPERATURE_2.value: 61,
     GreeProp.SENSOR_OUTSIDE_TEMPERATURE_1.value: 52,
     GreeProp.SENSOR_HUMIDITY_1.value: 55,
     GreeProp.FEATURE_HUMIDITY_CONTROL.value: HumidityControlMode.disabled.value,
@@ -222,9 +224,8 @@ async def test_only_the_sensor_that_reports_is_kept(unit: FakeGreeDevice) -> Non
     device, transport = await bind(unit)
 
     try:
-        assert device.supports_property(GreeProp.SENSOR_INDOOR_TEMPERATURE_3)
+        assert device.supports_property(GreeProp.SENSOR_INDOOR_TEMPERATURE_2)
         assert not device.supports_property(GreeProp.SENSOR_INDOOR_TEMPERATURE_1)
-        assert not device.supports_property(GreeProp.SENSOR_INDOOR_TEMPERATURE_2)
     finally:
         await transport.disconnect()
 
@@ -236,6 +237,179 @@ async def test_a_sensor_that_reports_celsius_plus_forty_is_corrected(
     assert bound.indoors_temperature_c == 21
     assert bound.outdoors_temperature_c == 12
     assert bound.humidity == 55
+
+
+#
+# Compressor telemetry
+#
+
+# A unit that reports compressor telemetry while its compressor runs. The
+# temperatures carry the offset of 40, as the room sensor of this unit does.
+COMPRESSOR_VALUES: dict[str, Any] = {
+    GreeProp.SENSOR_COMPRESSOR_FREQUENCY.value: 58,
+    GreeProp.SENSOR_COMPRESSOR_TEMPERATURE.value: 115,
+    GreeProp.SENSOR_INDOOR_COIL_TEMPERATURE.value: 48,
+    GreeProp.SENSOR_OUTDOOR_COIL_TEMPERATURE.value: 85,
+}
+COMPRESSOR_PROPS = [
+    GreeProp.SENSOR_COMPRESSOR_FREQUENCY,
+    GreeProp.SENSOR_COMPRESSOR_TEMPERATURE,
+    GreeProp.SENSOR_INDOOR_COIL_TEMPERATURE,
+    GreeProp.SENSOR_OUTDOOR_COIL_TEMPERATURE,
+]
+
+
+async def test_a_unit_without_compressor_columns_has_no_compressor_data(
+    unit: FakeGreeDevice,
+) -> None:
+    """The dev unit leaves the columns out. Nothing is kept or shown."""
+    unit.unsupported_props = {prop.value for prop in COMPRESSOR_PROPS}
+    device, transport = await bind(unit)
+
+    try:
+        for prop in COMPRESSOR_PROPS:
+            assert not device.supports_property(prop)
+            assert prop not in device._state.polled_properties  # noqa: SLF001
+        assert not device.has_compressor_data
+        assert device.compressor_frequency is None
+        assert device.compressor_running is None
+        assert device.compressor_temperature_c is None
+        assert device.indoor_coil_temperature_c is None
+        assert device.outdoor_coil_temperature_c is None
+    finally:
+        await transport.disconnect()
+
+
+async def test_compressor_columns_that_answer_zero_are_dropped(
+    bound: GreeDevice,
+) -> None:
+    """A unit that answers 0 for every compressor column does not have them."""
+    for prop in COMPRESSOR_PROPS:
+        assert not bound.supports_property(prop)
+    assert bound.compressor_running is None
+
+
+async def test_a_running_compressor_is_reported(unit: FakeGreeDevice) -> None:
+    """Every column with a value is kept, and the offset of 40 comes off."""
+    unit.values.update(COMPRESSOR_VALUES)
+    device, transport = await bind(unit)
+
+    try:
+        for prop in COMPRESSOR_PROPS:
+            assert device.supports_property(prop)
+        assert device.has_compressor_data
+        assert device.compressor_frequency == 58
+        assert device.compressor_running is True
+        assert device.compressor_temperature_c == 75
+        assert device.indoor_coil_temperature_c == 8
+        assert device.outdoor_coil_temperature_c == 45
+    finally:
+        await transport.disconnect()
+
+
+async def test_a_stopped_compressor_at_bind_keeps_its_frequency(
+    unit: FakeGreeDevice,
+) -> None:
+    """The frequency is 0 while the compressor rests, which is not "missing".
+
+    The unit reports a compressor temperature, so it has telemetry. Its
+    frequency is kept, reads idle now, and running once the compressor starts.
+    """
+    unit.values.update(
+        {
+            GreeProp.SENSOR_COMPRESSOR_FREQUENCY.value: 0,
+            GreeProp.SENSOR_COMPRESSOR_TEMPERATURE.value: 62,
+        }
+    )
+    device, transport = await bind(unit)
+
+    try:
+        assert device.has_compressor_data
+        assert device.compressor_frequency == 0
+        assert device.compressor_running is False
+        assert device.supports_property(GreeProp.SENSOR_COMPRESSOR_TEMPERATURE)
+        assert not device.supports_property(GreeProp.SENSOR_INDOOR_COIL_TEMPERATURE)
+
+        unit.values[GreeProp.SENSOR_COMPRESSOR_FREQUENCY.value] = 40
+        await device.fetch_device_status()
+        assert device.compressor_running is True
+    finally:
+        await transport.disconnect()
+
+
+async def test_a_lone_zero_frequency_is_dropped(unit: FakeGreeDevice) -> None:
+    """Without any telemetry temperature, a 0 frequency is not trusted."""
+    unit.values[GreeProp.SENSOR_COMPRESSOR_FREQUENCY.value] = 0
+    device, transport = await bind(unit)
+
+    try:
+        assert not device.has_compressor_data
+        assert device.compressor_running is None
+    finally:
+        await transport.disconnect()
+
+
+async def test_an_outdoor_coil_alone_does_not_keep_a_zero_frequency(
+    unit: FakeGreeDevice,
+) -> None:
+    """Only the compressor temperature proves that the unit has the frequency."""
+    unit.values.update(
+        {
+            GreeProp.SENSOR_COMPRESSOR_FREQUENCY.value: 0,
+            GreeProp.SENSOR_OUTDOOR_COIL_TEMPERATURE.value: 85,
+        }
+    )
+    device, transport = await bind(unit)
+
+    try:
+        assert device.supports_property(GreeProp.SENSOR_OUTDOOR_COIL_TEMPERATURE)
+        assert not device.has_compressor_data
+        assert device.compressor_running is None
+    finally:
+        await transport.disconnect()
+
+
+async def test_telemetry_temperatures_follow_the_room_sensor_offset(
+    unit: FakeGreeDevice,
+) -> None:
+    """An undecided coil value takes the offset decision of the room sensor.
+
+    48 fits the coil window with and without the offset. A room sensor at 20
+    cannot have the offset (that would be -20 degrees), so 48 is 48.
+    """
+    unit.values.update(
+        {
+            GreeProp.SENSOR_INDOOR_TEMPERATURE_2.value: 20,
+            GreeProp.SENSOR_INDOOR_COIL_TEMPERATURE.value: 48,
+        }
+    )
+    device, transport = await bind(unit)
+
+    try:
+        assert device.indoors_temperature_c == 20
+        assert device.indoor_coil_temperature_c == 48
+    finally:
+        await transport.disconnect()
+
+
+async def test_the_indoor_coil_is_not_the_room_temperature(
+    unit: FakeGreeDevice,
+) -> None:
+    """InEvaTem is the coil. The room temperature still comes from TemSen.
+
+    The fake answers the frequency with 0. An indoor coil alone does not prove
+    compressor data, so that 0 is dropped and the action follows the mode.
+    """
+    unit.values[GreeProp.SENSOR_INDOOR_COIL_TEMPERATURE.value] = 48
+    device, transport = await bind(unit)
+
+    try:
+        assert device.indoors_temperature_c == 21
+        assert device.indoor_coil_temperature_c == 8
+        assert not device.has_compressor_data
+        assert device.compressor_running is None
+    finally:
+        await transport.disconnect()
 
 
 async def test_push_sends_only_what_changed(
@@ -648,6 +822,88 @@ async def test_the_plain_feature_switches(bound: GreeDevice) -> None:
     assert bound.feature_anti_direct_blow is True
 
 
+@pytest.mark.parametrize(("on", "sent"), [(True, 2), (False, 0)])
+async def test_quiet_is_sent_as_the_app_sends_it(
+    unit: FakeGreeDevice, bound: GreeDevice, on: bool, sent: int
+) -> None:
+    """The Gree app sends Quiet 2. Many units ignore Quiet 1 (issue #491)."""
+    if not on:
+        # Start from Quiet on, so turning it off is a real change.
+        unit.values[GreeProp.FEAT_QUIET_MODE.value] = 2
+        await bound.fetch_device_status()
+    unit.reset_record()
+
+    bound.set_feature_quiet(on)
+    await bound.push_device_status()
+
+    command = next(pack for pack in unit.packs if pack.get("t") == "cmd")
+    values = dict(zip(command["opt"], command["p"], strict=True))
+    assert values[GreeProp.FEAT_QUIET_MODE.value] == sent
+    assert GreeProp.FAN_SPEED.value not in values
+
+
+@pytest.mark.parametrize(
+    ("turn_on", "sent"),
+    [("quiet", {"Quiet": 2, "Tur": 0}), ("turbo", {"Tur": 1, "Quiet": 0})],
+)
+async def test_quiet_and_turbo_exclude_each_other(
+    unit: FakeGreeDevice, bound: GreeDevice, turn_on: str, sent: dict[str, int]
+) -> None:
+    """As in the Gree app, Quiet on turns Turbo off, and Turbo on turns Quiet off."""
+    # Start with the other mode on.
+    unit.values[GreeProp.FEAT_QUIET_MODE.value] = 2 if turn_on == "turbo" else 0
+    unit.values[GreeProp.FEAT_TURBO_MODE.value] = 1 if turn_on == "quiet" else 0
+    await bound.fetch_device_status()
+    unit.reset_record()
+
+    if turn_on == "quiet":
+        bound.set_feature_quiet(True)
+    else:
+        bound.set_feature_turbo(True)
+    await bound.push_device_status()
+
+    command = next(pack for pack in unit.packs if pack.get("t") == "cmd")
+    values = dict(zip(command["opt"], command["p"], strict=True))
+    assert {key: values[key] for key in sent} == sent
+    assert bound.feature_quiet is (turn_on == "quiet")
+    assert bound.feature_turbo is (turn_on == "turbo")
+
+
+async def test_quiet_off_leaves_turbo_alone(
+    unit: FakeGreeDevice, bound: GreeDevice
+) -> None:
+    """Only switching a mode on clears the other one."""
+    unit.values[GreeProp.FEAT_QUIET_MODE.value] = 0
+    unit.values[GreeProp.FEAT_TURBO_MODE.value] = 1
+    await bound.fetch_device_status()
+
+    bound.set_feature_quiet(False)
+
+    assert bound.feature_turbo is True
+
+
+@pytest.mark.parametrize(("reported", "quiet"), [(0, False), (1, True), (2, True)])
+async def test_quiet_reads_as_on_for_any_value_but_0(
+    reported: int, quiet: bool
+) -> None:
+    """Units report Quiet as 1 or 2, and both mean on.
+
+    The value comes from a poll only. Right after a push the sent value is
+    held, so a read then would not test the reported value.
+    """
+    unit = FakeGreeDevice()
+    unit.values.update(LIVE_VALUES)
+    unit.values[GreeProp.FEAT_QUIET_MODE.value] = reported
+    await unit.start()
+    device, transport = await bind(unit)
+
+    try:
+        assert device.feature_quiet is quiet
+    finally:
+        await transport.disconnect()
+        unit.close()
+
+
 async def test_target_dry_reads_back_as_target_dry(bound: GreeDevice) -> None:
     """Target dry is stored as 0 and disabled as 15, so a 0 must not read as off.
 
@@ -813,3 +1069,111 @@ async def test_a_firmware_check_that_the_server_cannot_answer(
 async def test_the_device_model_comes_from_the_info_columns(bound: GreeDevice) -> None:
     """The model is what the entity shows in the device registry."""
     assert bound.device_model_id == "32768 (1)"
+
+
+#
+# Auxiliary heat
+#
+
+
+async def test_auxiliary_heat_reads_the_reported_mode(
+    unit: FakeGreeDevice,
+) -> None:
+    """A unit that answers AssHt keeps it, and 0 reads as off, not as missing."""
+    unit.values[GreeProp.FEAT_AUXILIARY_HEAT.value] = 0
+    device, transport = await bind(unit)
+
+    try:
+        assert device.supports_property(GreeProp.FEAT_AUXILIARY_HEAT)
+        assert device.feature_auxiliary_heat is AuxiliaryHeatMode.off
+    finally:
+        await transport.disconnect()
+
+
+@pytest.mark.parametrize(
+    ("mode", "wire_value"),
+    [
+        (AuxiliaryHeatMode.off, 0),
+        (AuxiliaryHeatMode.always_on, 1),
+        (AuxiliaryHeatMode.auto, 2),
+    ],
+)
+async def test_each_auxiliary_heat_mode_sends_its_value(
+    unit: FakeGreeDevice,
+    mode: AuxiliaryHeatMode,
+    wire_value: int,
+) -> None:
+    """The values are the ones 4.x sends, so a migrated unit acts the same."""
+    # Start from another mode, so every mode is a change that gets sent.
+    unit.values[GreeProp.FEAT_AUXILIARY_HEAT.value] = (wire_value + 1) % 3
+    device, transport = await bind(unit)
+
+    try:
+        unit.reset_record()
+        device.set_feature_auxiliary_heat(mode)
+        await device.push_device_status()
+
+        commands = [pack for pack in unit.packs if pack.get("t") == "cmd"]
+        assert len(commands) == 1
+        sent = dict(zip(commands[0]["opt"], commands[0]["p"], strict=True))
+        assert sent[GreeProp.FEAT_AUXILIARY_HEAT.value] == wire_value
+        assert unit.values[GreeProp.FEAT_AUXILIARY_HEAT.value] == wire_value
+        assert device.feature_auxiliary_heat is mode
+    finally:
+        await transport.disconnect()
+
+
+async def test_a_unit_without_auxiliary_heat_drops_it(unit: FakeGreeDevice) -> None:
+    """The first poll drops AssHt, so it is never polled or sent again."""
+    unit.unsupported_props = {GreeProp.FEAT_AUXILIARY_HEAT.value}
+    device, transport = await bind(unit)
+
+    try:
+        assert not device.supports_property(GreeProp.FEAT_AUXILIARY_HEAT)
+        assert device.feature_auxiliary_heat is None
+
+        unit.reset_record()
+        await device.fetch_device_status()
+
+        polled = [
+            col
+            for pack in unit.packs
+            if pack.get("t") == "status"
+            for col in pack["cols"]
+        ]
+        assert GreeProp.POWER.value in polled
+        assert GreeProp.FEAT_AUXILIARY_HEAT.value not in polled
+    finally:
+        await transport.disconnect()
+
+
+async def test_an_empty_auxiliary_heat_answer_drops_it(unit: FakeGreeDevice) -> None:
+    """Some VRF gateways answer an empty string for a column they lack."""
+    unit.values[GreeProp.FEAT_AUXILIARY_HEAT.value] = ""
+    device, transport = await bind(unit)
+
+    try:
+        assert not device.supports_property(GreeProp.FEAT_AUXILIARY_HEAT)
+        assert device.feature_auxiliary_heat is None
+    finally:
+        await transport.disconnect()
+
+
+async def test_an_unknown_auxiliary_heat_value_reads_as_no_mode(
+    unit: FakeGreeDevice,
+) -> None:
+    """A model with other values shows no mode instead of failing the poll."""
+    unit.values[GreeProp.FEAT_AUXILIARY_HEAT.value] = 7
+    device, transport = await bind(unit)
+
+    try:
+        assert device.supports_property(GreeProp.FEAT_AUXILIARY_HEAT)
+        assert device.feature_auxiliary_heat is None
+    finally:
+        await transport.disconnect()
+
+
+def test_auxiliary_heat_is_asked_only_once_in_a_full_sweep() -> None:
+    """AssHt moved from the unknown props to the polled props, not into both."""
+    assert GreeProp.FEAT_AUXILIARY_HEAT.value == "AssHt"
+    assert "AssHt" not in {prop.value for prop in OtherProps}

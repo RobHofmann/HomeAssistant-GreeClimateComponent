@@ -1,6 +1,7 @@
 {
     "domain": "gree_custom",
     "name": "Gree A/C",
+    "categories": ["climate.heat_pumps_air_conditioning"],
     "codeowners": ["@robhofmann"],
     "config_flow": true,
     "dependencies": ["network"],
@@ -32,5 +33,5 @@
     "iot_class": "local_polling",
     "issue_tracker": "https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/issues",
     "requirements": ["asyncio_dgram", "aiomqtt", "pydantic"],
-    "version": "5.0.0-alpha.108"
+    "version": "5.0.0-alpha.110"
 }

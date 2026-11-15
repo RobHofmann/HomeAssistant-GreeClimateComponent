@@ -178,6 +178,7 @@ LEGACY_SAME_KEYS = {
     "auto_light",
     "beeper",
     "room_humidity",
+    "auxiliary_heat",
 }
 LEGACY_CLIMATE_PREFIX = f"{LEGACY_DOMAIN}_"
 CLIMATE_KEY = "hvac"

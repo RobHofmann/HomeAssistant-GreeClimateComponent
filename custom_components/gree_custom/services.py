@@ -76,27 +76,20 @@ def async_get_device_from_service_call(
             translation_key="invalid_device_id",
         )
 
-    config_entry: GreeConfigEntry | None = None
-    for entry_id in device_entry.config_entries:
-        entry = call.hass.config_entries.async_get_entry(entry_id)
-
-        if TYPE_CHECKING:
-            assert entry
-
-        if entry.domain != DOMAIN:
-            continue
-        if entry.state is not ConfigEntryState.LOADED:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="entry_not_loaded",
-            )
-
-        config_entry = entry
-
-    if not config_entry:
+    # A device belongs to one config entry. DeviceEntry.config_entries is
+    # deprecated and stops working in Home Assistant 2027.10.
+    config_entry: GreeConfigEntry | None = call.hass.config_entries.async_get_entry(
+        device_entry.config_entry_id
+    )
+    if config_entry is None or config_entry.domain != DOMAIN:
         raise ServiceValidationError(
             translation_domain=DOMAIN,
             translation_key="config_entry_not_found",
+        )
+    if config_entry.state is not ConfigEntryState.LOADED:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="entry_not_loaded",
         )
 
     runtime_data: GreeCoordinator | None = config_entry.runtime_data.get(mac, None)

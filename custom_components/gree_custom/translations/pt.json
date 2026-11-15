@@ -171,6 +171,9 @@
         "binary_sensor": {
             "faults": {
                 "name": "Falha de Operação"
+            },
+            "compressor_running": {
+                "name": "Compressor em Funcionamento"
             }
         },
         "climate": {
@@ -227,6 +230,14 @@
             }
         },
         "select": {
+            "auxiliary_heat": {
+                "name": "Aquecimento Auxiliar",
+                "state": {
+                    "off": "Desligado",
+                    "always_on": "Sempre Ligado",
+                    "auto": "Automático"
+                }
+            },
             "humidity_control": {
                 "name": "Controle de Humidade",
                 "state": {
@@ -249,6 +260,18 @@
             },
             "room_humidity": {
                 "name": "Humidade Interior"
+            },
+            "compressor_frequency": {
+                "name": "Frequência do Compressor"
+            },
+            "compressor_temperature": {
+                "name": "Temperatura do Compressor"
+            },
+            "indoor_coil_temperature": {
+                "name": "Temperatura da Serpentina Interior"
+            },
+            "outdoor_coil_temperature": {
+                "name": "Temperatura da Serpentina Exterior"
             }
         },
         "switch": {
@@ -373,7 +396,8 @@
                 "powersave": "Poupança de Energia",
                 "light_sensor": "Brilho Automático do Visor",
                 "faults": "Falha de Operação",
-                "humidity_control": "Controlo de Humidade"
+                "humidity_control": "Controlo de Humidade",
+                "auxiliary_heat": "Aquecimento Auxiliar"
             }
         },
         "hvac_modes": {

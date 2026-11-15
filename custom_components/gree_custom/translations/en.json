@@ -242,6 +242,7 @@
                 "light_sensor": "Display Auto Brightness",
                 "faults": "Fault Detection",
                 "humidity_control": "Humidity Control",
+                "auxiliary_heat": "Auxiliary Heat",
                 "zone": "Zone Switch"
             }
         }
@@ -264,11 +265,26 @@
             },
             "room_humidity": {
                 "name": "Indoor Humidity"
+            },
+            "compressor_frequency": {
+                "name": "Compressor Frequency"
+            },
+            "compressor_temperature": {
+                "name": "Compressor Temperature"
+            },
+            "indoor_coil_temperature": {
+                "name": "Indoor Coil Temperature"
+            },
+            "outdoor_coil_temperature": {
+                "name": "Outdoor Coil Temperature"
             }
         },
         "binary_sensor": {
             "faults": {
                 "name": "Fault Detection"
+            },
+            "compressor_running": {
+                "name": "Compressor Running"
             }
         },
         "climate": {
@@ -330,6 +346,14 @@
         "select": {
             "temperature_units": {
                 "name": "Temperature Units"
+            },
+            "auxiliary_heat": {
+                "name": "Auxiliary Heat",
+                "state": {
+                    "off": "Off",
+                    "always_on": "Always On",
+                    "auto": "Auto"
+                }
             },
             "humidity_control": {
                 "name": "Humidity Control",

@@ -238,7 +238,8 @@
                 "powersave": "Energiebesparing",
                 "light_sensor": "Automatische displayhelderheid",
                 "faults": "Storingsdetectie",
-                "humidity_control": "Vochtigheidsregeling"
+                "humidity_control": "Vochtigheidsregeling",
+                "auxiliary_heat": "Elektrische bijverwarming"
             }
         }
     },
@@ -257,11 +258,26 @@
             },
             "room_humidity": {
                 "name": "Luchtvochtigheid binnen"
+            },
+            "compressor_frequency": {
+                "name": "Compressorfrequentie"
+            },
+            "compressor_temperature": {
+                "name": "Compressortemperatuur"
+            },
+            "indoor_coil_temperature": {
+                "name": "Temperatuur binnenunitbatterij"
+            },
+            "outdoor_coil_temperature": {
+                "name": "Temperatuur buitenunitbatterij"
             }
         },
         "binary_sensor": {
             "faults": {
                 "name": "Storingsdetectie"
+            },
+            "compressor_running": {
+                "name": "Compressor actief"
             }
         },
         "climate": {
@@ -320,6 +336,14 @@
         "select": {
             "temperature_units": {
                 "name": "Temperatuureenheid"
+            },
+            "auxiliary_heat": {
+                "name": "Elektrische bijverwarming",
+                "state": {
+                    "off": "Uit",
+                    "always_on": "Altijd aan",
+                    "auto": "Automatisch"
+                }
             },
             "humidity_control": {
                 "name": "Vochtigheidsregeling",

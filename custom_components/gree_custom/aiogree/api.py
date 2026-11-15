@@ -77,12 +77,13 @@ class GreeProp(StrEnum):
     FEATURE_HUMIDITY_CONTROL = "Dmod"
     # humidity control mode. sets the humidity target for the humidity control mode. (HUM% - 15) / 5
     FEATURE_HUMIDITY_TARGET = "Dwet"
+    # auxiliary electric heating, see AuxiliaryHeatMode for the values
+    FEAT_AUXILIARY_HEAT = "AssHt"
 
     # SENSORS
     # indoor temperature sensors, used to read the current room temperature, if available, ordered by preference
     SENSOR_INDOOR_TEMPERATURE_1 = "EnvTem"
-    SENSOR_INDOOR_TEMPERATURE_2 = "InEvaTem"
-    SENSOR_INDOOR_TEMPERATURE_3 = "TemSen"  # value heavily varies with operation mode
+    SENSOR_INDOOR_TEMPERATURE_2 = "TemSen"  # value heavily varies with operation mode
     # outside temperature sensors, used to read the current outdoors temperature, if available, ordered by preference
     SENSOR_OUTSIDE_TEMPERATURE_1 = "OutEnvTem"
     SENSOR_OUTSIDE_TEMPERATURE_2 = "TemsSenOut"
@@ -91,6 +92,14 @@ class GreeProp(StrEnum):
     SENSOR_HUMIDITY_2 = "HumSen"
     # error display. 0 if no error, otherwise error
     SENSOR_FAULT = "FaultDisplay"
+    # compressor telemetry, only on some units. A unit without it leaves the
+    # columns out or answers 0, so each one is only kept when it is not 0.
+    # The frequency is 0 while the compressor is stopped, see
+    # GreeDevice._remove_unsupported_props for how that case is kept.
+    SENSOR_COMPRESSOR_FREQUENCY = "CompressorFqy"
+    SENSOR_COMPRESSOR_TEMPERATURE = "CompressorTem"
+    SENSOR_INDOOR_COIL_TEMPERATURE = "InEvaTem"
+    SENSOR_OUTDOOR_COIL_TEMPERATURE = "OutEvaTem"
 
     # If set to 0 the unit will beep on every command
     BEEPER = "Buzzer_ON_OFF"
@@ -141,7 +150,6 @@ class OtherProps(StrEnum):
     UNKN_AllErr = "AllErr"
     UNKN_Antifreeze = "Antifreeze"
     UNKN_AppTimer = "AppTimer"
-    UNKN_AssHt = "AssHt"
     UNKN_AutoClean = "AutoClean"
     UNKN_AutoCleanSta = "AutoCleanSta"
     UNKN_AutoCleanStaEx = "AutoCleanStaEx"
@@ -477,6 +485,19 @@ class HumidityControlMode(IntEnum):
 
 
 @unique
+class AuxiliaryHeatMode(IntEnum):
+    """Enumeration of the auxiliary electric heating modes (AssHt).
+
+    The values were checked against the Gree+ app on one unit with three
+    modes. Other models may use other values.
+    """
+
+    off = 0
+    always_on = 1
+    auto = 2
+
+
+@unique
 class DeviceType(StrEnum):
     """What kind of device a unit is. Known after the first bind.
 
@@ -524,6 +545,8 @@ ZONE_CONTROLLER_FAN_TURBO = 6
 # Added to the raw value of a target temperature column to get degrees
 # Celsius. StTem, the target temperature of a zone, is degrees Celsius minus 16.
 TARGET_TEMPERATURE_OFFSETS: dict[GreeProp, int] = {GreeProp.TARGET_TEMPERATURE_2: 16}
+# The value the Gree app writes to turn Quiet on. Many units ignore 1.
+QUIET_ON = 2
 
 
 class GreeCommand(StrEnum):

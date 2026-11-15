@@ -112,6 +112,8 @@ GATTR_FEAT_TURBO = "turbo"
 GATTR_FEAT_HUMIDITY = "humidity_control"
 # Humidity Control Target. Sets humidity target for humidity control
 GATTR_FEAT_HUMIDITY_TARGET = "humidity_control_target"
+# Auxiliary electric heating: off, always on or auto. Only in Heat and Auto mode
+GATTR_FEAT_AUXILIARY_HEAT = "auxiliary_heat"
 
 # Zone controller. Opens and closes one zone. It is a feature, so it can be left
 # out for a zone that must always stay open.
@@ -123,8 +125,13 @@ GATTR_TEMP_UNITS = "temperature_units"
 GATTR_INDOOR_TEMPERATURE = "indoor_temperature"
 GATTR_OUTDOOR_TEMPERATURE = "outdoor_temperature"
 GATTR_HUMIDITY = "room_humidity"
+GATTR_COMPRESSOR_FREQUENCY = "compressor_frequency"
+GATTR_COMPRESSOR_TEMPERATURE = "compressor_temperature"
+GATTR_INDOOR_COIL_TEMPERATURE = "indoor_coil_temperature"
+GATTR_OUTDOOR_COIL_TEMPERATURE = "outdoor_coil_temperature"
 
 GATTR_FAULTS = "faults"
+GATTR_COMPRESSOR_RUNNING = "compressor_running"
 
 ATTR_EXTERNAL_TEMPERATURE_SENSOR = "external_temperature_sensor"
 ATTR_EXTERNAL_HUMIDITY_SENSOR = "external_humidity_sensor"
@@ -149,6 +156,7 @@ ATTR_FEATURES_TO_PROP_MAP: dict[str, list[GreeProp]] = {
     GATTR_ANTI_DIRECT_BLOW: [GreeProp.FEAT_ANTI_DIRECT_BLOW],
     GATTR_FEAT_ENERGY_SAVING: [GreeProp.FEAT_ENERGY_SAVING],
     GATTR_FEAT_HUMIDITY: [GreeProp.FEATURE_HUMIDITY_CONTROL],
+    GATTR_FEAT_AUXILIARY_HEAT: [GreeProp.FEAT_AUXILIARY_HEAT],
     GATTR_ZONE: [GreeProp.POWER],
 }
 
@@ -156,11 +164,15 @@ ATTR_FEATURES_TO_PROP_MAP: dict[str, list[GreeProp]] = {
 # alone cannot tell.
 ZONE_ONLY_FEATURES: list[str] = [GATTR_ZONE]
 
+# Features the user must turn on. Many units answer the column without having
+# the function, so these are not in DEFAULT_SUPPORTED_FEATURES and are not
+# ticked when a device is added.
+OPT_IN_FEATURES: list[str] = [GATTR_FEAT_AUXILIARY_HEAT]
+
 ATTR_SENSORS_TO_PROP_MAP: dict[str, list[GreeProp]] = {
     GATTR_INDOOR_TEMPERATURE: [
         GreeProp.SENSOR_INDOOR_TEMPERATURE_1,
         GreeProp.SENSOR_INDOOR_TEMPERATURE_2,
-        GreeProp.SENSOR_INDOOR_TEMPERATURE_3,
     ],
     GATTR_OUTDOOR_TEMPERATURE: [
         GreeProp.SENSOR_OUTSIDE_TEMPERATURE_1,
@@ -168,6 +180,11 @@ ATTR_SENSORS_TO_PROP_MAP: dict[str, list[GreeProp]] = {
     ],
     GATTR_HUMIDITY: [GreeProp.SENSOR_HUMIDITY_1, GreeProp.SENSOR_HUMIDITY_2],
     GATTR_FAULTS: [GreeProp.SENSOR_FAULT],
+    GATTR_COMPRESSOR_FREQUENCY: [GreeProp.SENSOR_COMPRESSOR_FREQUENCY],
+    GATTR_COMPRESSOR_RUNNING: [GreeProp.SENSOR_COMPRESSOR_FREQUENCY],
+    GATTR_COMPRESSOR_TEMPERATURE: [GreeProp.SENSOR_COMPRESSOR_TEMPERATURE],
+    GATTR_INDOOR_COIL_TEMPERATURE: [GreeProp.SENSOR_INDOOR_COIL_TEMPERATURE],
+    GATTR_OUTDOOR_COIL_TEMPERATURE: [GreeProp.SENSOR_OUTDOOR_COIL_TEMPERATURE],
 }
 
 CONF_TO_PROP_FEATURE_MAP: dict[str, list[GreeProp]] = {

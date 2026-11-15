@@ -3,7 +3,7 @@
 [![GitHub Release](https://img.shields.io/github/v/release/RobHofmann/HomeAssistant-GreeClimateComponent?sort=semver)](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/releases)
 [![License](https://img.shields.io/github/license/RobHofmann/HomeAssistant-GreeClimateComponent)](LICENSE)
 [![HACS](https://img.shields.io/badge/HACS-Default-orange.svg)](https://hacs.xyz)
-[![Home Assistant](https://img.shields.io/badge/Compatible-Home_Assistant_2026.3+-blue.svg)](https://www.home-assistant.io)
+[![Home Assistant](https://img.shields.io/badge/Compatible-Home_Assistant_2026.11+-blue.svg)](https://www.home-assistant.io)
 
 [![Validate](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/actions/workflows/validate.yaml/badge.svg)](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/actions/workflows/validate.yaml)
 [![Lint](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/actions/workflows/lint.yml/badge.svg)](https://github.com/RobHofmann/HomeAssistant-GreeClimateComponent/actions/workflows/lint.yml)
@@ -62,6 +62,11 @@ Or by hand: **Settings** > **Devices & Services** > **Add Integration** > search
 Your devices are under **Settings** > **Devices & Services** > **Gree Climate**. Each one has a climate entity, sensors and switches. See [entities](docs/entities.md) for what they do, and [automation examples](docs/automation-examples.md) for ideas.
 
 📖 **[Full installation guide](docs/installation.md)** · **[Full configuration guide](docs/configuration.md)**
+
+## ⚠️ Known limitations
+
+- **HVAC action on multi-split units:** when one outdoor unit serves several indoor units, the unit only reports that the compressor runs, not for which indoor unit. So every indoor unit in Heat or Cool shows heating or cooling while only one of them works. See [entities](docs/entities.md).
+- **HVAC action in Auto:** the unit does not report whether it heats or cools, so the action is unknown while the compressor runs. The room temperature cannot tell either, because a unit keeps working a few degrees past its target.
 
 ## ❓ Help and support
 

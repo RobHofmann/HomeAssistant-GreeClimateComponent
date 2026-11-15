@@ -8,6 +8,7 @@ from aiomqtt import MqttError
 from packaging.version import Version
 
 from .api import (
+    QUIET_ON,
     TARGET_TEMPERATURE_OFFSETS,
     ZONE_CONTROLLER_AC_UNIT_SUFFIX,
     ZONE_CONTROLLER_FAN_TURBO,
@@ -15,6 +16,7 @@ from .api import (
     ZONE_CONTROLLER_MODES_TO_RAW,
     ZONE_CONTROLLER_NAME_PREFIX,
     ZONE_CONTROLLER_TYPES,
+    AuxiliaryHeatMode,
     DeviceType,
     EncryptionVersion,
     FanSpeed,
@@ -69,6 +71,21 @@ from .transport_udp import GreeUdpTransport
 
 _LOGGER = logging.getLogger(__name__)
 
+# The compressor and coil temperatures. They are always in Celsius. Like the
+# room and outdoor sensors, they may carry an offset of 40, which is detected
+# from the values seen (TempOffsetResolver). The window is the plausible range
+# in Celsius for each sensor. It is wider than the room window, because a coil
+# runs far below or above the room, and the compressor gets hot. A wide window
+# leaves many values undecided, for example 48 is 48 or 8 degrees. While
+# undecided, these sensors follow the room sensor: a unit whose room sensor has
+# the offset most likely has it here too. When the room sensor is undecided as
+# well, the offset is assumed. See docs/protocol.md.
+TELEMETRY_TEMPERATURE_WINDOWS_C: dict[GreeProp, tuple[float, float]] = {
+    GreeProp.SENSOR_COMPRESSOR_TEMPERATURE: (-30.0, 120.0),
+    GreeProp.SENSOR_INDOOR_COIL_TEMPERATURE: (-10.0, 70.0),
+    GreeProp.SENSOR_OUTDOOR_COIL_TEMPERATURE: (-35.0, 70.0),
+}
+
 
 class GreeDevice:
     """Representation of a Gree device."""
@@ -98,6 +115,14 @@ class GreeDevice:
 
         self._temp_processor_indoors: TempOffsetResolver | None = None
         self._temp_processor_outdoors: TempOffsetResolver | None = None
+        # One resolver per telemetry temperature, because each keeps its own
+        # lowest and highest value.
+        self._temp_processors_telemetry: dict[GreeProp, TempOffsetResolver] = {
+            prop: TempOffsetResolver(
+                indoor_min=low, indoor_max=high, assume_offset=True
+            )
+            for prop, (low, high) in TELEMETRY_TEMPERATURE_WINDOWS_C.items()
+        }
         self._beeper = False
 
         self._firmware_version: str | None = None
@@ -411,7 +436,6 @@ class GreeDevice:
             [
                 GreeProp.SENSOR_INDOOR_TEMPERATURE_1,
                 GreeProp.SENSOR_INDOOR_TEMPERATURE_2,
-                GreeProp.SENSOR_INDOOR_TEMPERATURE_3,
             ]
         )
 
@@ -428,6 +452,26 @@ class GreeDevice:
                 GreeProp.SENSOR_HUMIDITY_2,
             ]
         )
+
+        # Compressor telemetry. A unit without it leaves the columns out or
+        # answers 0, so a temperature is only kept when it is not 0.
+        for prop in TELEMETRY_TEMPERATURE_WINDOWS_C:
+            self._state.invalidate_missing_property_group([prop])
+
+        # Then the frequency, after the temperatures. It is 0 while the
+        # compressor is stopped, so a 0 at bind does not prove that the unit
+        # has no frequency. A 0 is kept when the compressor temperature is
+        # reported, because a unit with that column also has the frequency.
+        # Without it, a 0 frequency is dropped. A frequency above 0 is always
+        # kept. The coil temperatures are not used here: a unit can have them
+        # without any compressor data, and a kept 0 would show idle for ever.
+        frequency = GreeProp.SENSOR_COMPRESSOR_FREQUENCY
+        if (
+            self._state.supports(frequency)
+            and self._state.get(frequency, 0) == 0
+            and not self._state.supports(GreeProp.SENSOR_COMPRESSOR_TEMPERATURE)
+        ):
+            self._state.remove(frequency)
 
         # The ducted unit of a zone controller answers StTem and StFahFlg too,
         # always with 0, the same as a zone set to 16 degrees Celsius. It has
@@ -746,6 +790,61 @@ class GreeDevice:
         return self._state.get(self._humidity_sensor_prop)
 
     @property
+    def has_compressor_data(self) -> bool:
+        """Return True if the device reports the compressor frequency."""
+        return self._state.supports(GreeProp.SENSOR_COMPRESSOR_FREQUENCY)
+
+    @property
+    def compressor_frequency(self) -> int | None:
+        """Return the compressor frequency in Hz, 0 while it is stopped."""
+        if not self.has_compressor_data:
+            return None
+        return self._state.get(GreeProp.SENSOR_COMPRESSOR_FREQUENCY)
+
+    @property
+    def compressor_running(self) -> bool | None:
+        """Return True while the compressor runs, None without compressor data."""
+        frequency = self.compressor_frequency
+        if frequency is None:
+            return None
+        return frequency > 0
+
+    def _telemetry_temperature_c(self, prop: GreeProp) -> int | None:
+        """Return a compressor or coil temperature in Celsius if available."""
+        if not self._state.supports(prop):
+            return None
+
+        raw_c = self._state.get(prop)
+        if raw_c is None:
+            return None
+
+        room_has_offset = (
+            self._temp_processor_indoors.has_offset
+            if self._temp_processor_indoors is not None
+            else None
+        )
+        return int(
+            self._temp_processors_telemetry[prop].evaluate(
+                raw_c, assume_offset=room_has_offset
+            )
+        )
+
+    @property
+    def compressor_temperature_c(self) -> int | None:
+        """Return the compressor temperature if available."""
+        return self._telemetry_temperature_c(GreeProp.SENSOR_COMPRESSOR_TEMPERATURE)
+
+    @property
+    def indoor_coil_temperature_c(self) -> int | None:
+        """Return the indoor unit coil temperature if available."""
+        return self._telemetry_temperature_c(GreeProp.SENSOR_INDOOR_COIL_TEMPERATURE)
+
+    @property
+    def outdoor_coil_temperature_c(self) -> int | None:
+        """Return the outdoor unit coil temperature if available."""
+        return self._telemetry_temperature_c(GreeProp.SENSOR_OUTDOOR_COIL_TEMPERATURE)
+
+    @property
     def power_mode(self) -> bool:
         """Return the current power mode."""
         return self._state.get_bool(GreeProp.POWER)
@@ -1043,7 +1142,10 @@ class GreeDevice:
 
     @property
     def feature_quiet(self) -> bool:
-        """Return the quiet mode state."""
+        """Return the quiet mode state.
+
+        Any value other than 0 means Quiet is on. Units report 1 or 2.
+        """
         return self._state.get_bool(GreeProp.FEAT_QUIET_MODE)
 
     def set_feature_quiet(self, value: bool) -> None:
@@ -1052,7 +1154,14 @@ class GreeDevice:
         This mode is ignored until Energy Saving or Smart Heat features are disabled.
         """
 
-        self._state.set_bool(GreeProp.FEAT_QUIET_MODE, value)
+        # The Gree app sends 2, not 1. Many units ignore Quiet 1 (issue #491),
+        # so do not change this back to set_bool().
+        self._state.set(GreeProp.FEAT_QUIET_MODE, QUIET_ON if value else 0)
+
+        # Quiet and Turbo exclude each other, as in the Gree app: Quiet on turns
+        # Turbo off. Only for a unit that has Turbo, so no unknown column is sent.
+        if value and self.supports_property(GreeProp.FEAT_TURBO_MODE):
+            self.set_feature_turbo(False)
 
         if value and (self.feature_energy_saving or self.feature_smart_heat):
             _LOGGER.info(
@@ -1081,6 +1190,10 @@ class GreeDevice:
             raise GreeTurboUnavailable(
                 "Turbo mode is only available under Cool or Heat modes"
             )
+
+        # Turbo on turns Quiet off, as in the Gree app.
+        if value and self.supports_property(GreeProp.FEAT_QUIET_MODE):
+            self._state.set(GreeProp.FEAT_QUIET_MODE, 0)
 
         if self._device_type in ZONE_CONTROLLER_TYPES:
             # A zone controller has no turbo column. Turbo is fan speed 6, and
@@ -1157,6 +1270,24 @@ class GreeDevice:
     def set_feature_anti_direct_blow(self, value: bool) -> None:
         """Set the anti direct blow mode state."""
         self._state.set_bool(GreeProp.FEAT_ANTI_DIRECT_BLOW, value)
+
+    @property
+    def feature_auxiliary_heat(self) -> AuxiliaryHeatMode | None:
+        """Return the auxiliary electric heating mode.
+
+        Returns None when the device reports no value, or a value that is not
+        a known mode.
+        """
+        raw_value = self._state.get(GreeProp.FEAT_AUXILIARY_HEAT)
+
+        if raw_value is None or raw_value not in AuxiliaryHeatMode:
+            return None
+
+        return AuxiliaryHeatMode(raw_value)
+
+    def set_feature_auxiliary_heat(self, mode: AuxiliaryHeatMode) -> None:
+        """Set the auxiliary electric heating mode."""
+        self._state.set(GreeProp.FEAT_AUXILIARY_HEAT, mode.value)
 
     @property
     def feature_humidity_control(self) -> HumidityControlMode:

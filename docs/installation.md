@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Home Assistant 2026.3 or newer. This release was the first that runs on Python 3.14, which the code needs.
+- Home Assistant 2026.11 or newer. The climate entity uses the native temperature API that this release added.
 - A Gree device that speaks the Gree protocol. Many brands use it. See [supported devices](../supported-devices.md) for units that are known to work.
 - For local control: the device and Home Assistant on the same network, or a route between them that allows UDP port 7000.
 - For cloud control: a Gree account with the device bound to it.

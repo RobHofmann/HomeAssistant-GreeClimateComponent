@@ -18,13 +18,18 @@ The main entity. Its name is the device name.
 |---|---|
 | HVAC mode | Auto, Cool, Dry, Fan only, Heat, Off. You choose the list at setup. Off turns the unit off, every other mode turns it on. |
 | Target temperature | 16 to 30 degrees C, or 61 to 86 degrees F. Available when Heat, Cool or Auto is in the mode list and the unit has a target temperature. The step is the **Temperature Step** option. In Auto mode the unit uses its own factory setting, so a temperature sent with Auto is ignored and logged as a warning. |
-| Current temperature | The unit's room sensor, converted to the unit's temperature scale. Replaced by the **External Temperature Sensor** when one is set. That changes only what Home Assistant shows; the unit keeps regulating on its own sensor. |
+| Current temperature | The unit's room sensor, converted to the unit's temperature scale. Replaced by the **External Temperature Sensor** when one is set, also converted to the unit's scale. That changes only what Home Assistant shows; the unit keeps regulating on its own sensor. |
 | Current humidity | The unit's humidity sensor, when it has one. Replaced by the **External Humidity Sensor** when one is set. Display only, like the temperature. |
 | Fan mode | Auto, Low, Medium-Low, Medium, Medium-High, High, plus Turbo and Quiet when the unit has them. See below. |
 | Swing mode | Vertical positions and swing ranges, when the unit has vertical swing. |
 | Horizontal swing mode | Horizontal positions and swing ranges, when the unit has them. |
+| HVAC action | What the unit does now. Without compressor data it follows the HVAC mode: cooling, heating, drying, fan or off. When the unit reports its compressor, a stopped compressor shows idle. In Auto the unit does not tell whether it cools or heats, so the action is unknown while it runs. See the notes below the table. |
 
-Extra attribute: `current_outside_temperature`, the outdoor sensor value in the unit's temperature scale, when the unit has an outdoor sensor. Read it with `{{ state_attr('climate.your_ac', 'current_outside_temperature') }}`.
+**Multi-split units:** when one outdoor unit serves several indoor units, the unit only reports that the compressor runs, not for which indoor unit. So all indoor units in Heat or Cool show heating or cooling while only one of them works.
+
+**Why the room temperature is not used:** a unit keeps working a few degrees past its target (for example heating to 25 or 26 with a target of 22). So a room above the target does not mean the unit is idle, and in Auto it does not tell whether the unit heats or cools.
+
+Extra attribute: `current_outside_temperature`, the outdoor sensor value in the unit's temperature scale, when the unit has an outdoor sensor. Read it with `{{ state_attr('climate.your_ac', 'current_outside_temperature') }}`. Since Home Assistant 2026.11 the climate entity also has a `temperature_unit` attribute, which Home Assistant itself adds.
 
 ### Target temperature per mode
 
@@ -35,8 +40,9 @@ With the option **Remember Target Temperature per Mode** on, the climate entity 
 Turbo and Quiet are not fan speeds on the unit but separate features. The integration shows them as fan modes because that is how the remote presents them.
 
 - **Turbo** runs the fan at its maximum. Only in Cool and Heat mode. Selecting it in another mode fails with a message.
-- **Quiet** runs the fan at its most quiet speed.
+- **Quiet** runs the fan at its most quiet speed. The integration turns it on the same way as the Gree app. The fan mode shows Quiet whenever the unit reports Quiet as on, also when you turned it on with the remote.
 - The unit ignores both while Power Save or Smart Heat 8°C is on. The integration logs that and leaves the setting for when those are turned off.
+- Turbo and Quiet exclude each other, as in the Gree app: turning one on turns the other off.
 - Selecting a normal speed turns Turbo and Quiet off.
 
 ### Temperature scale
@@ -61,13 +67,19 @@ The wall panel remembers the target temperature of every zone for each mode, and
 
 ## Sensors
 
-Created when the unit has the sensor. Nothing to enable.
+Created when the unit has the sensor. Some are disabled by default: enable them on the device page.
 
-| Entity | Unit | Meaning |
-|---|---|---|
-| Indoor Temperature | °C | The room temperature the unit measures. |
-| Outdoor Temperature | °C | The outdoor unit's temperature sensor. |
-| Indoor Humidity | % | The room humidity the unit measures. |
+| Entity | Unit | Enabled by default | Meaning |
+|---|---|---|---|
+| Indoor Temperature | °C | yes | The room temperature the unit measures. |
+| Outdoor Temperature | °C | no, for a device added from 5.0 on | The outdoor unit's temperature sensor. A device that already had this sensor keeps it as it was. |
+| Indoor Humidity | % | yes | The room humidity the unit measures. |
+| Compressor Frequency | Hz | no | How fast the compressor runs. 0 while it rests. |
+| Compressor Temperature | °C | no | The temperature of the compressor. |
+| Indoor Coil Temperature | °C | no | The temperature of the coil in the indoor unit. |
+| Outdoor Coil Temperature | °C | no | The temperature of the coil in the outdoor unit. |
+
+The three temperature sensors only exist when the unit reports them with a value other than 0. Compressor Frequency and Compressor Running also exist at 0, when the unit reports the compressor temperature, because the frequency is 0 while the compressor rests. Many units do not report any of them over the local connection. The temperatures are in Celsius, see [protocol.md](protocol.md#compressor-telemetry).
 
 Some units report temperatures with an offset of 40. The integration detects that from the values it sees and corrects it.
 
@@ -76,6 +88,7 @@ Some units report temperatures with an offset of 40. The integration detects tha
 | Entity | Meaning |
 |---|---|
 | Fault Detection | On when the unit reports a fault. Diagnostic category. Created when the unit reports the fault property. |
+| Compressor Running | On while the compressor runs. Created when the unit reports its compressor frequency. Disabled by default. |
 
 ## Switches
 
@@ -107,6 +120,7 @@ Two switches are integration features. They do not exist on the unit and their s
 |---|---|---|---|
 | Temperature Units | none, created when the unit answers the property | every mode | ºC, ºF. Changes the scale of the unit itself. Configuration category. |
 | Humidity Control | Humidity Control | Cool, Dry | Disabled, Normal Dry, Smart Dry, Continuous Dry. Smart Dry only in Cool. Continuous Dry only in Dry. The other options fail with a message. |
+| Auxiliary Heat | Auxiliary Heat, off by default | Heat, Auto | Off, Always On, Auto. Controls the electric heater of the unit. Auto lets the unit decide when to use it. Shows unknown when the unit reports a value that is not one of these three. |
 
 ## Numbers
 
@@ -124,11 +138,11 @@ Mode dependent entities, such as X-Fan or Power Save, are unavailable outside th
 
 ## Restoring state after a restart
 
-With **Restore Entities** on, which is the default, the integration sends the last known Home Assistant state to the device when it starts. That covers the climate entity (mode, fan, swing and target temperature) and the feature switches. Turn it off when Home Assistant should take over what the device is doing at that moment. That is useful when you also use the remote.
+With **Restore Entities** on, which is the default, the integration sends the last known Home Assistant state to the device when it starts. That covers the climate entity (mode, fan, swing and target temperature), the feature switches, and the Humidity Control and Auxiliary Heat selects. Turn it off when Home Assistant should take over what the device is doing at that moment. That is useful when you also use the remote.
 
 Three switches are always restored, whatever the option says: Beeper, Auto X-Fan and Auto Display Light. Their state lives in Home Assistant and not on the unit.
 
-Sensors and selects are not restored. They show the device values as soon as the first poll comes in.
+Sensors and the Temperature Units select are not restored. They show the device values as soon as the first poll comes in. A select that was unavailable when Home Assistant stopped, because the unit was in another mode, is not restored either.
 
 ## Polling and pushed updates
 

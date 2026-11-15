@@ -196,14 +196,12 @@ def test_a_sensor_group_keeps_only_the_one_that_reports(state: DeviceState) -> N
     group = [
         GreeProp.SENSOR_INDOOR_TEMPERATURE_1,
         GreeProp.SENSOR_INDOOR_TEMPERATURE_2,
-        GreeProp.SENSOR_INDOOR_TEMPERATURE_3,
     ]
     seed(
         state,
         {
             GreeProp.SENSOR_INDOOR_TEMPERATURE_1: 0,
             GreeProp.SENSOR_INDOOR_TEMPERATURE_2: 61,
-            GreeProp.SENSOR_INDOOR_TEMPERATURE_3: 0,
         },
     )
 
@@ -212,7 +210,6 @@ def test_a_sensor_group_keeps_only_the_one_that_reports(state: DeviceState) -> N
     assert kept is GreeProp.SENSOR_INDOOR_TEMPERATURE_2
     assert GreeProp.SENSOR_INDOOR_TEMPERATURE_2 in state.polled_properties
     assert GreeProp.SENSOR_INDOOR_TEMPERATURE_1 not in state.polled_properties
-    assert GreeProp.SENSOR_INDOOR_TEMPERATURE_3 not in state.polled_properties
 
 
 def test_a_sensor_group_that_reports_nothing_is_dropped_whole(
