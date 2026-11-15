@@ -37,9 +37,11 @@ There are two requirement files:
 
 - `requirements_dev.txt` lists the tools and libraries with no version pins.
   The devcontainer installs it after Home Assistant core from source, so the
-  versions follow that core. It installs `pytest-homeassistant` from
-  `.ha-core/packages/pytest-homeassistant`, because the copy on PyPI pins one
-  Home Assistant release and would replace the core.
+  versions follow that core. `.devcontainer/setup-ha-core.sh` installs
+  `pytest-homeassistant` from `.ha-core/packages/pytest-homeassistant`, right
+  after the core, because the copy on PyPI pins one Home Assistant release and
+  would replace the core. The task "Update Home Assistant to latest dev
+  branch" runs the same script, so the two stay in step.
 - `requirements_test.txt` adds the exact pins: `pytest-homeassistant` and
   Ruff. CI installs it, and so does a plain run outside the devcontainer.
 

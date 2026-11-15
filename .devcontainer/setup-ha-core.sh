@@ -32,3 +32,8 @@ echo "==> Installing Home Assistant core requirements"
 
 echo "==> Installing Home Assistant core"
 "$PYTHON" -m uv pip install --upgrade --no-cache-dir --editable "$HA_SRC_DIR" --config-settings editable_mode=compat
+
+echo "==> Installing pytest-homeassistant from the Home Assistant core checkout"
+# The copy on PyPI pins one Home Assistant release and would replace the
+# core installed above. This copy has no pin, so it matches that core.
+"$PYTHON" -m uv pip install --editable "$HA_SRC_DIR/packages/pytest-homeassistant"
