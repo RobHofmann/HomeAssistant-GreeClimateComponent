@@ -6,31 +6,16 @@ a standalone unit and for the zones of a zone controller, and that the climate
 entity keeps it over a reload and a restart.
 """
 
-import pytest
-
 from custom_components.gree_custom.coordinator import GreeCoordinator
 from custom_components.gree_custom.setpoint_memory import SetpointMemory
 from homeassistant.components.climate import DOMAIN as CLIMATE_DOMAIN
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    ATTR_ENTITY_ID,
-    ATTR_TEMPERATURE,
-    MAJOR_VERSION,
-    MINOR_VERSION,
-)
+from homeassistant.const import ATTR_ENTITY_ID, ATTR_TEMPERATURE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er, restore_state
 from tests.config_flow.conftest import MAC_A, GreeEnv, add_entry
 from tests.fakes.device import FakeGreeDevice
 from tests.fakes.zone import FakeZoneController
-
-# The climate entity uses the native temperature API of Home Assistant 2026.11
-# (#570). The test plugin is still pinned to 2026.10, where the entity cannot
-# be created, so this runs once the pin moves to 2026.11.
-pytestmark = pytest.mark.skipif(
-    (MAJOR_VERSION, MINOR_VERSION) < (2026, 11),
-    reason="the climate entity needs Home Assistant 2026.11",
-)
 
 COOL_24 = {"temperature": 24.0, "unit": "C"}
 HEAT_20 = {"temperature": 20.0, "unit": "C"}

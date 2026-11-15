@@ -10,8 +10,11 @@ does no I/O of its own. See docs/protocol.md.
 
 from typing import Any
 
+from homeassistant.util.unit_conversion import TemperatureConverter
+
 from .aiogree.api import DeviceType, GreeProp, OperationMode, TemperatureUnits
 from .aiogree.device import GreeDevice
+from .const import UNITS_GREE_TO_HA
 
 # {device MAC: {mode name: {"temperature": 20.5, "unit": "C"}}}
 type SetpointMemoryData = dict[str, dict[str, dict[str, Any]]]
@@ -89,10 +92,16 @@ class SetpointMemory:
         temperature = stored["temperature"]
         unit = device.target_temperature_unit
         if stored["unit"] != unit.name:
+            temperature = TemperatureConverter.convert(
+                temperature,
+                UNITS_GREE_TO_HA[TemperatureUnits[stored["unit"]]],
+                UNITS_GREE_TO_HA[unit],
+            )
+            # The steps of the device: whole degrees in °F, half degrees in °C
             temperature = (
-                float(round(temperature * 9 / 5 + 32))
+                float(round(temperature))
                 if unit is TemperatureUnits.F
-                else round((temperature - 32) * 5 / 9 * 2) / 2
+                else round(temperature * 2) / 2
             )
         if temperature == device.target_temperature:
             return False
