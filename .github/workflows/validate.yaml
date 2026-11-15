@@ -48,7 +48,7 @@ jobs:
           python-version: "3.14"
 
       - name: Install dependencies
-        run: pip install -r requirements_dev.txt
+        run: pip install -r requirements_test.txt
 
       - name: Run the tests
         # The tests bind loopback addresses out of 127.0.0.0/8, which needs

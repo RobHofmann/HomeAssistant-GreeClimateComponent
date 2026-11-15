@@ -22,29 +22,45 @@ holds tests for the config flow that run inside a real Home Assistant. One
 `pytest` run does both. Run it from the repo root, on Linux:
 
 ```bash
-pip install -r requirements_dev.txt
+pip install -r requirements_test.txt
 pytest
 ```
 
 It takes about 65 seconds: about 45 for the protocol tests and about 20 for
 the config flow. The first install takes a few minutes, because
-`requirements_dev.txt` pins `pytest-homeassistant-custom-component`, which
-brings one exact Home Assistant release (0.13.371 is Home Assistant 2026.10.0).
-That plugin also pins pytest, pytest-asyncio and pytest-timeout. Bump it on
+`requirements_test.txt` pins `pytest-homeassistant`, which brings one exact
+Home Assistant release. Its version is that release: 2026.11.1 is Home
+Assistant 2026.11.1. It also pins pytest and pytest-asyncio. Bump it on
 purpose, in its own PR.
 
-The pinned release is below the 2026.11 floor, because no release of the
-plugin for Home Assistant 2026.11 exists yet. Bump it in its own PR when one
-exists. Until then, `async_setup_entry` and `async_unload_entry` keep returning
-`bool`: Home Assistant 2026.10 marks an entry as failed when setup returns
-`None`. Since 2026.11 they may return `None`, and `async_unload_entry` can use
-`async_unload_platforms_or_raise`. Make that change together with the bump.
+There are two requirement files:
+
+- `requirements_dev.txt` lists the tools and libraries with no version pins.
+  The devcontainer installs it after Home Assistant core from source, so the
+  versions follow that core. `.devcontainer/setup-ha-core.sh` installs
+  `pytest-homeassistant` from `.ha-core/packages/pytest-homeassistant`, right
+  after the core, because the copy on PyPI pins one Home Assistant release and
+  would replace the core. The task "Update Home Assistant to latest dev
+  branch" runs the same script, so the two stay in step.
+- `requirements_test.txt` adds the exact pins: `pytest-homeassistant` and
+  Ruff. CI installs it, and so does a plain run outside the devcontainer.
+
+The package is published from home-assistant/core, in
+`packages/pytest-homeassistant`, one release for each Home Assistant release.
+It replaces `pytest-homeassistant-custom-component`, which is deprecated and
+stopped at Home Assistant 2026.10. That was below the 2026.11 floor of the
+component. The climate entity uses the native temperature members that came
+in 2026.11, so on 2026.10 no test could check it through Home Assistant.
+
+`async_setup_entry` and `async_unload_entry` still return `bool`. Since 2026.11
+they may return `None`, and `async_unload_entry` can use
+`async_unload_platforms_or_raise`. That change is not made yet.
 
 Without a local Python 3.14, run it in a throwaway container:
 
 ```bash
 docker run --rm -v "$PWD:/src" -w /src python:3.14-slim sh -c \
-  "python -m venv /venv && /venv/bin/pip install -q -r requirements_dev.txt && /venv/bin/pytest -q"
+  "python -m venv /venv && /venv/bin/pip install -q -r requirements_test.txt && /venv/bin/pytest -q"
 ```
 
 Only the config flow tests:
@@ -79,7 +95,7 @@ and says what to report.
 | `config_flow/test_compressor.py` | Compressor entities with and without compressor data, disabled by default, the outdoor sensor of a new and an existing device, `hvac_action` |
 | `config_flow/test_translations.py` | Every config flow key, exception and sensor name has a text in `en`, `nl` and `pt` |
 
-360 tests in all, protocol and config flow together (HA 2026.10 pin, November 2026). The protocol tests cover about 94 percent of `aiogree/`.
+390 tests in all, protocol and config flow together (HA 2026.11.1, November 2026). The protocol tests cover about 94 percent of `aiogree/`.
 One config flow test is a strict `xfail`: it shows a known defect and starts to
 fail as soon as the defect is fixed, so the marker gets removed with the fix.
 Check the coverage of the day with:
@@ -102,10 +118,10 @@ tested.
 ### The config flow tests
 
 They use
-[pytest-homeassistant-custom-component](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component),
-which extracts Home Assistant's own test plugins: the `hass` fixture, the flow
-manager, the config entries and the registries. The component is loaded from
-`custom_components/` through the `enable_custom_integrations` fixture.
+[pytest-homeassistant](https://github.com/home-assistant/core/tree/dev/packages/pytest-homeassistant),
+which ships Home Assistant's own test plugins: the `hass` fixture, the flow
+manager, the config entries and the registries. The `hass` fixture loads the
+component from `custom_components/` by default.
 `tests/config_flow/conftest.py` says per piece what is real:
 
 - The Gree Cloud is `FakeGreeCloud` on real HTTP. Only the server address of
@@ -256,7 +272,7 @@ Never log an encryption key, cloud password or token in clear text.
 
 `lint.yml` runs `ruff check` and `ruff format --check` on every push and PR.
 
-Ruff is pinned to one exact version, in `lint.yml` and in `requirements_dev.txt`. Keep the two the same. New Ruff releases change rules: 0.16 and 0.17 want opposite forms of the same import, so no code passes both. Bump the pin in its own PR and run `ruff check --fix .` with the new version in that PR.
+Ruff is pinned to one exact version, in `lint.yml` and in `requirements_test.txt`. Keep the two the same. The devcontainer does not use that pin, so its Ruff can be newer than the one in CI. New Ruff releases change rules: 0.16 and 0.17 want opposite forms of the same import, so no code passes both. Bump the pin in its own PR and run `ruff check --fix .` with the new version in that PR.
 
 `validate.yaml` runs three jobs on every push and PR:
 
