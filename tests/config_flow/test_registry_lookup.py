@@ -9,7 +9,7 @@ of the given config entry.
 # pytest pattern, not shadowing.
 
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from custom_components.gree_custom.const import DOMAIN
 from custom_components.gree_custom.helpers import get_device_by_identifier

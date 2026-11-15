@@ -80,7 +80,7 @@ class RecordingHandler(logging.Handler):
 def loopback_sockets() -> None:
     """Allow sockets on loopback, and nowhere else.
 
-    pytest-homeassistant-custom-component blocks every socket before each
+    pytest-homeassistant blocks every socket before each
     test, and allows a connect only to 127.0.0.1. The fakes in this suite
     listen on real sockets anywhere in 127.0.0.0/8, so this opens that range
     again. A test that tries to reach a real Gree server or a real device

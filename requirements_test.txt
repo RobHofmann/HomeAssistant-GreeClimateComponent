@@ -1,0 +1,15 @@
+# What CI installs to run the tests, and what to install for a plain run
+# outside the devcontainer. The exact pins make every run test the same
+# versions. Bump them on purpose, in their own PR.
+-r requirements_dev.txt
+
+# The config flow tests run a real Home Assistant. This plugin is published
+# from home-assistant/core (packages/pytest-homeassistant), one release per
+# Home Assistant release, and its version is that release. It pins Home
+# Assistant, pytest and pytest-asyncio. It replaces
+# pytest-homeassistant-custom-component, which is deprecated and stopped at
+# Home Assistant 2026.10.
+pytest-homeassistant==2026.11.1
+
+# Same version as lint.yml. A new Ruff release can add or change rules.
+ruff==0.17.0
