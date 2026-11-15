@@ -355,7 +355,7 @@ async def _async_setup_setpoint_memory(
     option is off. A standalone or VRF unit gets the memory for itself. The
     zones of a zone controller follow the mode of their ducted unit, so the
     ducted unit gets it for them, and a mode change from Home Assistant sets
-    them as the wall panel does. The memory learns from every poll of those
+    them as the wall panel does. The memory learns from every read of those
     devices. See setpoint_memory.py.
     """
     learners = [

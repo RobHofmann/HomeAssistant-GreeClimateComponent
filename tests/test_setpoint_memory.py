@@ -284,6 +284,33 @@ async def test_snapshot_does_not_store_values_of_another_mode(
     assert remembered(memory, zones, OperationMode.fan) == [None] * 4
 
 
+async def test_another_look_at_the_same_read_does_not_count(
+    zones: list[GreeDevice],
+) -> None:
+    """A listener can run more than once per read. Only a new read counts."""
+    memory = SetpointMemory()
+    await poll(memory, zones)
+    for zone in zones:
+        memory.learn(zone)
+    assert memory.data == {}
+
+    await poll(memory, zones)
+    assert remembered(memory, zones, OperationMode.fan) == [18, 18, 18, 18]
+
+
+async def test_a_closed_zone_still_learns(
+    controller: FakeZoneController, zones: list[GreeDevice]
+) -> None:
+    """A zone's Pow is its damper. Its target still belongs to the mode."""
+    controller.units[controller.zone_macs[1]]["Pow"] = 0
+    memory = SetpointMemory()
+
+    await poll(memory, zones)
+    await poll(memory, zones)
+
+    assert remembered(memory, zones, OperationMode.fan) == [18, 18, 18, 18]
+
+
 #
 # A standalone unit that remembers its own target
 #
@@ -374,3 +401,44 @@ async def test_apply_without_a_stored_target_changes_nothing(
     await device.push_device_status()
 
     assert not any(pack.get("t") == "cmd" for pack in fake.packs)
+
+
+async def test_a_target_given_with_the_mode_wins(
+    unit: tuple[FakeGreeDevice, GreeDevice],
+) -> None:
+    """As climate.set_temperature does with a temperature and a mode."""
+    fake, device = unit
+    memory = SetpointMemory()
+    await poll(memory, [device])
+    await poll(memory, [device])
+    fake.values.update({"Mod": 4, "SetTem": 20})
+    await poll(memory, [device])
+    await poll(memory, [device])
+
+    # In Heat at 20, asked for 22 in Cool
+    device.set_target_temperature(22)
+    await memory.snapshot([device], OperationMode.heat)
+    device.set_operation_mode(OperationMode.cool)
+    assert not memory.apply(device, OperationMode.cool)
+    await device.push_device_status()
+
+    assert (fake.values["Mod"], fake.values["SetTem"]) == (1, 22)
+    assert memory.data[fake.mac] == {
+        "cool": {"SetTem": 24, "TemRec": 0},
+        "heat": {"SetTem": 20, "TemRec": 0},
+    }
+
+
+async def test_a_unit_that_is_off_learns_nothing(
+    unit: tuple[FakeGreeDevice, GreeDevice],
+) -> None:
+    """An off unit keeps a mode and a target, but they are not in use."""
+    fake, device = unit
+    fake.values["Pow"] = 0
+    memory = SetpointMemory()
+
+    await poll(memory, [device])
+    await poll(memory, [device])
+    await memory.snapshot([device], OperationMode.cool)
+
+    assert memory.data == {}

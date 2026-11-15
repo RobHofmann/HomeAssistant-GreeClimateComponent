@@ -106,6 +106,9 @@ class GreeDevice:
 
         self._device_type: DeviceType = DeviceType.AC_UNIT
 
+        # Successful status reads, see status_reads.
+        self._status_reads = 0
+
         # The column of each group that the device answers, see
         # _remove_unsupported_props. None until the first bind, or when the
         # device answers none of them.
@@ -320,6 +323,7 @@ class GreeDevice:
             )
 
             self._state.process_new_state(result.prop_values)
+            self._status_reads += 1
 
         except GreeConnectionError, GreeProtocolError:
             _LOGGER.exception(
@@ -680,27 +684,47 @@ class GreeDevice:
         return self._device_type
 
     @property
+    def status_reads(self) -> int:
+        """Return how many times the status was read from the device.
+
+        Tells a new reading from another look at the same one.
+        """
+        return self._status_reads
+
+    @property
     def target_temperature_props(self) -> dict[GreeProp, int] | None:
-        """Return the raw columns that hold the target temperature, to remember it.
+        """Return the raw columns that hold the target temperature, as reported.
 
         Used by `SetpointMemory`. Raw columns need no unit conversion. They
-        are the column the device uses, see _remove_unsupported_props. None
-        means there is nothing to remember.
+        are the column the device uses, see _remove_unsupported_props. These
+        are the values the device last reported: a value that is set and not
+        sent yet is left out, see has_pending_target_temperature. None means
+        there is nothing to remember.
         """
         if self._target_temp_prop is None:
             return None
-        raw = self._state.get(self._target_temp_prop)
-        if raw is None:
+        reported = self._state.raw
+        value = reported.get(self._target_temp_prop)
+        if value is None:
             return None
-        props = {self._target_temp_prop: raw}
+        props = {self._target_temp_prop: value}
         # With the bit, when the device has one: the half degree in Celsius,
         # the table in Fahrenheit. A zone keeps an old bit when only StTem is
         # sent, see set_target_temperature.
         if self._target_temp_bit_prop is not None:
             props[self._target_temp_bit_prop] = (
-                self._state.get(self._target_temp_bit_prop) or 0
+                reported.get(self._target_temp_bit_prop) or 0
             )
         return props
+
+    @property
+    def has_pending_target_temperature(self) -> bool:
+        """Return True if a target temperature is set and not sent yet."""
+        pending = self._state.pending
+        return any(
+            prop is not None and prop in pending
+            for prop in (self._target_temp_prop, self._target_temp_bit_prop)
+        )
 
     def set_state_props(self, props: Mapping[GreeProp, int]) -> None:
         """Set raw column values in the device state, without sending them.
