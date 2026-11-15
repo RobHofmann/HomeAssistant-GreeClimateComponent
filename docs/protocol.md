@@ -127,6 +127,17 @@ A zone controller (seen: LE60-13/GH with a ME31-00/C13 WiFi module, firmware `36
 - The full list of columns is a table in the WiFi module firmware. There is no column for the room temperature of a zone, in any released firmware, so it cannot be shown.
 - The status column limit measured by `probe_device_limits()` is 29. Requests far above the limit (about 40 columns and more) made the module reboot.
 
+### Target temperatures per mode
+
+The wall panel remembers the target temperature of every zone per mode. When the mode is changed on the panel, it sets them again. A `Mod` change over WiFi does not: the zones keep the values of the old mode. `SetpointMemory` in `setpoint_memory.py`, in the Home Assistant layer, keeps the same memory:
+
+- The ducted unit has the memory, and shares it with its zones, as the wall panel sets every zone. The device option `setpoint_memory` of the ducted unit, on by default, turns it off.
+- It learns from every read of a zone: `GreeCoordinator._update_data()` calls `learn()` after each read, and nothing else does. A zone reports its mode and its target temperature in one reply, so the two belong together. A value is stored when the zone reported the same mode on the read before, so a read in the middle of a mode change on the panel is not stored under the wrong mode. A closed zone learns too: a zone's `Pow` is its damper, not the power of the unit.
+- Before the climate entity of the ducted unit changes the mode, it refreshes the coordinators of the zones, so the old mode keeps a value changed on the panel since the last poll. After the change, `apply()` sets the stored value of the new mode on each zone, and the zone's coordinator sends it. A mode with no stored values changes nothing. The memory itself does no I/O.
+- It stores `GreeDevice.target_temperature` with its unit, keyed by device MAC and mode: `{"<zone mac>": {"heat": {"temperature": 19.5, "unit": "C"}}}`. Through `set_target_temperature()`, every target in range comes back as the same temperature, with its bit: `StFahFlg` next to `StTem` for a zone. In °C these are also the same columns. In °F, three values come back with the other encoding of the same °F. A value stored in the other unit is converted.
+- A standalone or VRF unit with a target temperature uses a memory for itself, with the same option. A unit learns only while it is on: an off unit keeps a mode and a target that are not in use. On a mode change from Home Assistant, its coordinator reads the unit once more, so a change made with the remote since the last poll is kept. Then `apply()` sets the stored target without sending it, and it goes out in the same command as the new mode. A target given with the mode, as `climate.set_temperature` does with `hvac_mode`, is set instead of the stored one, in the same command. Nothing is recalled into Auto, where the unit ignores the target temperature.
+- The climate entity keeps the memory in its restore state, the climate entity of the ducted unit for its zones. Home Assistant saves it every 15 minutes, on a stop, and when the entity is removed, for example on a reload. It is restored whether or not `restore_states` is on.
+
 ## MAC addresses
 
 MACs are written in lower case with no separators. Talking to a device needs two MACs: the device MAC (the unit to control) and the controller MAC (the unit that manages it).

@@ -26,6 +26,7 @@ from homeassistant.exceptions import (
 from homeassistant.helpers import device_registry as dr, issue_registry as ir
 from homeassistant.helpers.typing import ConfigType
 
+from .aiogree.api import DeviceType
 from .aiogree.cipher import EncryptionVersion
 from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeConnectionError
@@ -49,6 +50,7 @@ from .const import (
     CONF_MAX_ONLINE_ATTEMPTS,
     CONF_PREFER_CLOUD,
     CONF_RESTORE_STATES,
+    CONF_SETPOINT_MEMORY,
     CONF_UID,
     CONFENTRY_ID_LOCAL_ONLY,
     DEFAULT_CONNECTION_MAX_ATTEMPTS,
@@ -60,6 +62,7 @@ from .const import (
     DEFAULT_PREFER_CLOUD,
     DEFAULT_RESTORE_STATES,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SETPOINT_MEMORY,
     DOMAIN,
     ENCRYPTION_VERSION_AUTO,
     TO_REDACT,
@@ -81,6 +84,7 @@ from .migration import (
     async_unload_legacy_entries,
 )
 from .services import async_setup_services
+from .setpoint_memory import SetpointMemory, offers_setpoint_memory
 
 ISSUE_DEVICE_CONNECTION_FAILED = "device_connection_failed"
 ISSUE_YAML_IMPORT_FAILED = "yaml_import_failed"
@@ -292,6 +296,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool
     entry.runtime_data = {}
     entry.runtime_data = coordinators
 
+    _setup_setpoint_memory(coordinators)
+
     # Move the 4.x registry rows before the entities are created
     moved = await async_migrate_legacy_registry(hass, entry)
 
@@ -332,6 +338,31 @@ async def _async_refresh_entry_token(
         entry, data={**entry.data, CONF_CLOUD: new_cloud_conf}
     )
     return new_cloud_conf
+
+
+def _setup_setpoint_memory(coordinators: dict[str, GreeCoordinator]) -> None:
+    """Give the units with the setpoint_memory option a memory.
+
+    The ducted unit of a zone controller shares it with its zones, as the wall
+    panel does: they learn into it, and its mode change sets them. See
+    setpoint_memory.py.
+    """
+    for coordinator in coordinators.values():
+        device = coordinator.device
+        if not offers_setpoint_memory(device) or not coordinator.device_config.get(
+            CONF_DEVICE_OPTIONS, {}
+        ).get(CONF_SETPOINT_MEMORY, DEFAULT_SETPOINT_MEMORY):
+            continue
+
+        coordinator.setpoint_memory = SetpointMemory()
+        coordinator.zone_coordinators = [
+            zone
+            for zone in coordinators.values()
+            if zone.device.device_type is DeviceType.ZONE
+            and zone.device.mac_address_controller == device.mac_address_controller
+        ]
+        for zone in coordinator.zone_coordinators:
+            zone.setpoint_memory = coordinator.setpoint_memory
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: GreeConfigEntry) -> bool:

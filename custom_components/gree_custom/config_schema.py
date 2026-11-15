@@ -74,6 +74,7 @@ from .const import (
     CONF_MAX_ONLINE_ATTEMPTS,
     CONF_PREFER_CLOUD,
     CONF_RESTORE_STATES,
+    CONF_SETPOINT_MEMORY,
     CONF_SWING_HORIZONTAL_MODES,
     CONF_SWING_MODES,
     CONF_TEMPERATURE_STEP,
@@ -90,6 +91,7 @@ from .const import (
     DEFAULT_PREFER_CLOUD,
     DEFAULT_RESTORE_STATES,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SETPOINT_MEMORY,
     DEFAULT_SWING_HORIZONTAL_MODES,
     DEFAULT_SWING_MODES,
     DEFAULT_TARGET_TEMP_STEP,
@@ -102,6 +104,7 @@ from .const import (
     ZONE_ONLY_FEATURES,
 )
 from .helpers import get_entity_ids_from_unique_ids
+from .setpoint_memory import offers_setpoint_memory
 
 HEX_CHARACTERS = "0123456789abcdef"
 VALID_MAC_LENGTHS = (12, 14)
@@ -246,6 +249,9 @@ OPTIONS_SCHEMA = probatio.Schema(
         probatio.Optional(ATTR_EXTERNAL_HUMIDITY_SENSOR): cv.entity_id,
         probatio.Optional(
             CONF_RESTORE_STATES, default=DEFAULT_RESTORE_STATES
+        ): cv.boolean,
+        probatio.Optional(
+            CONF_SETPOINT_MEMORY, default=DEFAULT_SETPOINT_MEMORY
         ): cv.boolean,
     }
 )
@@ -797,5 +803,16 @@ def setup_device_options_schema(  # noqa: C901
             ): cv.boolean,
         }
     )
+
+    # On the ducted unit of a zone controller it is for all of its zones
+    if offers_setpoint_memory(device):
+        schema.update(
+            {
+                probatio.Required(
+                    CONF_SETPOINT_MEMORY,
+                    default=defaults.get(CONF_SETPOINT_MEMORY, DEFAULT_SETPOINT_MEMORY),
+                ): cv.boolean,
+            }
+        )
 
     return probatio.Schema(schema)

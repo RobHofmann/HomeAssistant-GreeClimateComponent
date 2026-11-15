@@ -15,6 +15,7 @@ from .aiogree.device import GreeDevice
 from .aiogree.errors import GreeBindingError, GreeConnectionError
 from .const import DOMAIN
 from .helpers import try_find_new_ip
+from .setpoint_memory import SetpointMemory
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,6 +61,11 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         self._feature_auto_light: bool = False
         self._unsub_follow_up_refresh: CALLBACK_TYPE | None = None
         self._is_shut_down: bool = False
+        # The memory of the target temperatures per mode, on a unit with the
+        # setpoint_memory option. The ducted unit of a zone controller shares
+        # its memory with its zones, which learn into it.
+        self.setpoint_memory: SetpointMemory | None = None
+        self.zone_coordinators: list[GreeCoordinator] = []
 
     async def _setup(self) -> None:
         """Bind to the device before the first coordinator refresh.
@@ -129,6 +135,10 @@ class GreeCoordinator(DataUpdateCoordinator[None]):
         except Exception as err:
             _LOGGER.exception("Error getting state from device")
             raise UpdateFailed("Error getting state from device") from err
+
+        # Here and only here: each call is then one new read of the device.
+        if self.setpoint_memory is not None:
+            self.setpoint_memory.learn(self.device)
 
     async def push_device_status(self) -> None:
         """Push the current transient state to the device.
