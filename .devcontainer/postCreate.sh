@@ -54,6 +54,11 @@ echo "==> Compiling Home Assistant translations"
     python -m script.translations develop --all
 )
 
+echo "==> Installing pytest-homeassistant from the Home Assistant core checkout"
+# The copy on PyPI pins one Home Assistant release and would replace the
+# core installed above. This copy has no pin, so it matches that core.
+python -m pip install --editable "$HA_SRC_DIR/packages/pytest-homeassistant"
+
 echo "==> Installing dev/lint tooling"
 if [ -f requirements_dev.txt ]; then
   python -m pip install --upgrade -r requirements_dev.txt

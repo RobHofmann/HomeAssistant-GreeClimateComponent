@@ -1,22 +1,18 @@
+# Dev and lint tooling, with no version pins. The devcontainer installs Home
+# Assistant core from source first, and these resolve to whatever that core
+# pins. requirements_test.txt adds the exact pins for CI and plain runs.
+
 # Linting / formatting (same tool HA core uses)
-ruff==0.17.0
+ruff
 
 # Additional static analysis - HA core's CI also runs these
-pylint>=4.0.7
-mypy>=2.3.1
+pylint
+mypy
 
-# Tests
-pytest>=8.4
-pytest-asyncio>=1.0
-pytest-timeout>=2.3
-
-# The config flow tests run a real Home Assistant. This plugin is published
-# from home-assistant/core (packages/pytest-homeassistant), one release per
-# Home Assistant release, and its version is that release. It pins Home
-# Assistant, pytest and pytest-asyncio. It replaces
-# pytest-homeassistant-custom-component, which is deprecated and stopped at
-# Home Assistant 2026.10. Bump it on purpose, in its own PR.
-pytest-homeassistant==2026.11.1
+# Tests. pytest-homeassistant brings pytest and pytest-asyncio, and is not
+# listed here: the devcontainer installs it from the Home Assistant core
+# checkout, and requirements_test.txt pins it for everything else.
+pytest-timeout
 
 # Integration dependencies (from manifest)
 asyncio-dgram

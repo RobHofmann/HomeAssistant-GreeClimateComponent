@@ -24,7 +24,7 @@ This repository includes a DevContainer to improve the development experience. T
 Run the test suite before you open a pull request:
 
 ```bash
-pip install -r requirements_dev.txt
+pip install -r requirements_test.txt
 pytest
 ```
 

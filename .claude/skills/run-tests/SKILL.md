@@ -29,14 +29,14 @@ source .venv/bin/activate
 
 ```bash
 python3.14 -m venv .venv && source .venv/bin/activate
-pip install -r requirements_dev.txt
+pip install -r requirements_test.txt
 ```
 
 **C. A container**, when there is no local 3.14:
 
 ```bash
 docker run --rm -v "$PWD:/src" -w /src python:3.14-slim sh -c \
-  "python -m venv /venv && /venv/bin/pip install -q -r requirements_dev.txt && /venv/bin/pytest -q"
+  "python -m venv /venv && /venv/bin/pip install -q -r requirements_test.txt && /venv/bin/pytest -q"
 ```
 
 The tests bind addresses out of `127.0.0.0/8`, so discovery tests need Linux.
