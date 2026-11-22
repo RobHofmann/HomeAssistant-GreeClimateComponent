@@ -1,0 +1,279 @@
+{
+  "config": {
+    "error": {
+      "cannot_connect": "Cihaza bağlanılamıyor. Lütfen ağ bağlantısını kontrol edip tekrar deneyin.",
+      "invalid_network": "Geçersiz CIDR. Örnek: 192.168.30.0/24",
+      "invalid_host": "Geçersiz IP adresi. Örnek: 192.168.30.50",
+      "network_too_large": "Ağ, maksimum 65536 ana makine sınırını aşıyor (/16). Birden fazla CIDR'a bölün veya belirli IP'leri girin."
+    },
+    "abort": {
+      "already_configured": "Bu MAC adresine sahip bir cihaz zaten yapılandırılmış."
+    },
+    "title": "Gree Klima",
+    "description": "Gree klimanızı yapılandırın",
+    "step": {
+      "user": {
+        "title": "Gree Klima Kurulumu",
+        "description": "Gree klimanızı nasıl eklemek istediğinizi seçin",
+        "data": {
+          "discovery": "Kurulum Yöntemi"
+        }
+      },
+      "discovery_options": {
+        "title": "VLAN'lar Arası Keşif",
+        "description": "Cihazlar farklı bir alt ağda veya VLAN'da mı? Unicast ile taranacak bir veya daha fazla ağ ve/veya belirli IP adreslerini girin. VLAN arası yönlendirme ve güvenlik duvarı kuralları, Home Assistant'tan hedef alt ağa UDP 7000 portuna izin vermelidir.",
+        "data": {
+          "extra_scan_networks": "Ağlar (virgülle ayrılmış CIDR'lar, örn: 192.168.30.0/24)",
+          "extra_scan_hosts": "Ana Makineler (virgülle ayrılmış IP'ler, örn: 192.168.30.50,192.168.30.51)"
+        }
+      },
+      "discovery": {
+        "title": "Bulunan Cihazlar",
+        "description": "{devices_found} adet Gree cihazı bulundu. Eklemek için birini seçin veya manuel kurulumu belirleyin.",
+        "data": {
+          "device": "Cihaz"
+        }
+      },
+      "detect_encryption": {
+        "title": "Cihazı Yapılandır",
+        "description": "Cihaz bağlantısı başarılı. Bu cihaz için bir ad girin.",
+        "data": {
+          "name": "Cihaz Adı"
+        }
+      },
+      "manual": {
+        "title": "Manuel Kurulum",
+        "description": "Gree klimanızın ayrıntılarını girin",
+        "data": {
+          "name": "Ad",
+          "host": "IP Adresi",
+          "port": "Port",
+          "mac": "MAC Adresi",
+          "encryption_key": "Şifreleme Anahtarı (Encryption Key)",
+          "uid": "UID",
+          "encryption_version": "Şifreleme Sürümü"
+        }
+      }
+    },
+    "data": {
+      "name": "Ad",
+      "host": "IP Adresi",
+      "port": "Port",
+      "mac": "MAC Adresi",
+      "hvac_modes": "HVAC Modları",
+      "fan_modes": "Fan Modları",
+      "swing_modes": "Dikey Salınım Modları",
+      "swing_horizontal_modes": "Yatay Salınım Modları",
+      "encryption_key": "Şifreleme Anahtarı",
+      "uid": "UID",
+      "encryption_version": "Şifreleme Sürümü",
+      "disable_available_check": "Erişilebilirlik Kontrolünü Devre Dışı Bırak",
+      "temp_sensor_offset": "Sıcaklık Sensörü Sapması (Offset)"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Gree Klima Seçenekleri",
+        "data": {
+          "hvac_modes": "HVAC Modları",
+          "fan_modes": "Fan Modları",
+          "swing_modes": "Dikey Salınım Modları",
+          "swing_horizontal_modes": "Yatay Salınım Modları",
+          "disable_available_check": "Erişilebilirlik Kontrolünü Devre Dışı Bırak",
+          "temp_sensor_offset": "Sıcaklık Sensörü Sapması (Offset)"
+        }
+      }
+    }
+  },
+  "selector": {
+    "discovery_method": {
+      "options": {
+        "discover": "Yerel ağdaki cihazları keşfet",
+        "discover_extended": "Diğer VLAN/alt ağlardaki cihazları keşfet",
+        "manual": "Cihazı manuel olarak ekle"
+      }
+    },
+    "hvac_modes": {
+      "options": {
+        "auto": "Otomatik",
+        "cool": "Soğutma",
+        "dry": "Nem Alma",
+        "fan_only": "Sadece Fan",
+        "heat": "Isıtma",
+        "off": "Kapalı"
+      }
+    },
+    "fan_modes": {
+      "options": {
+        "auto": "Otomatik",
+        "low": "Düşük",
+        "medium_low": "Orta-Düşük",
+        "medium": "Orta",
+        "medium_high": "Orta-Yüksek",
+        "high": "Yüksek",
+        "turbo": "Turbo",
+        "quiet": "Sessiz"
+      }
+    },
+    "swing_modes": {
+      "options": {
+        "default": "Varsayılan",
+        "swing_full": "Tam aralıkta salınım",
+        "fixed_upmost": "Sabit: En üst",
+        "fixed_middle_up": "Sabit: Orta-üst",
+        "fixed_middle": "Sabit: Orta",
+        "fixed_middle_low": "Sabit: Orta-alt",
+        "fixed_lowest": "Sabit: En alt",
+        "swing_downmost": "Salınım: En alt bölge",
+        "swing_middle_low": "Salınım: Orta-alt bölge",
+        "swing_middle": "Salınım: Orta bölge",
+        "swing_middle_up": "Salınım: Orta-üst bölge",
+        "swing_upmost": "Salınım: En üst bölge"
+      }
+    },
+    "swing_horizontal_modes": {
+      "options": {
+        "default": "Varsayılan",
+        "swing_full": "Tam aralıkta salınım",
+        "fixed_leftmost": "Sabit: En sol",
+        "fixed_middle_left": "Sabit: Orta-sol",
+        "fixed_middle": "Sabit: Orta",
+        "fixed_middle_right": "Sabit: Orta-sağ",
+        "fixed_rightmost": "Sabit: En sağ"
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "gree": {
+        "state_attributes": {
+          "fan_mode": {
+            "state": {
+              "auto": "Otomatik",
+              "low": "Düşük",
+              "medium_low": "Orta-Düşük",
+              "medium": "Orta",
+              "medium_high": "Orta-Yüksek",
+              "high": "Yüksek",
+              "turbo": "Turbo",
+              "quiet": "Sessiz"
+            }
+          },
+          "swing_mode": {
+            "state": {
+              "default": "Varsayılan",
+              "swing_full": "Tam aralıkta salınım",
+              "fixed_upmost": "Sabit: En üst",
+              "fixed_middle_up": "Sabit: Orta-üst",
+              "fixed_middle": "Sabit: Orta",
+              "fixed_middle_low": "Sabit: Orta-alt",
+              "fixed_lowest": "Sabit: En alt",
+              "swing_downmost": "Salınım: En alt bölge",
+              "swing_middle_low": "Salınım: Orta-alt bölge",
+              "swing_middle": "Salınım: Orta bölge",
+              "swing_middle_up": "Salınım: Orta-üst bölge",
+              "swing_upmost": "Salınım: En üst bölge"
+            }
+          },
+          "swing_horizontal_mode": {
+            "state": {
+              "default": "Varsayılan",
+              "swing_full": "Tam aralıkta salınım",
+              "fixed_leftmost": "Sabit: En sol",
+              "fixed_middle_left": "Sabit: Orta-sol",
+              "fixed_middle": "Sabit: Orta",
+              "fixed_middle_right": "Sabit: Orta-sağ",
+              "fixed_rightmost": "Sabit: En sağ"
+            }
+          }
+        }
+      }
+    },
+    "number": {
+      "target_temp_step": {
+        "name": "Sıcaklık Adımı",
+        "description": "Hedef sıcaklığı ayarlamak için artış/azalış adımını belirler."
+      }
+    },
+    "select": {
+      "auxiliary_heat": {
+        "name": "Ek Isıtıcı",
+        "description": "Elektrikli ek ısıtma modunu seçin. Desteklenen cihazlarda yalnızca ısıtma veya otomatik modda kullanılabilir.",
+        "state": {
+          "off": "Kapalı",
+          "always_on": "Her zaman açık",
+          "auto": "Otomatik"
+        }
+      },
+      "external_temperature_sensor": {
+        "name": "Harici Sıcaklık Sensörü",
+        "description": "Dahili klima sensörü yerine kullanılacak harici bir sıcaklık sensörü seçin. Dahili sensörü kullanmak için 'Yok' seçeneğini belirleyin."
+      }
+    },
+    "sensor": {
+      "outside_temperature": {
+        "name": "Dış Ortam Sıcaklığı",
+        "description": "Klimanın dış ünitesindeki sensör tarafından ölçülen dış ortam sıcaklığını gösterir."
+      },
+      "room_humidity": {
+        "name": "Oda Nemi",
+        "description": "Klimanın dahili sensörü tarafından ölçülen oda nem seviyesini gösterir."
+      }
+    },
+    "switch": {
+      "half_degree_control": {
+        "name": "Add0.5 ile Yarım Derece Kontrolü",
+        "description": "Celsius yarım derece kontrolü için Add0.5 kullanmak üzere açın, TemRec kullanmak için kapatın. Varsayılan kapalıdır. Değiştirilmesi klimanın sıcaklık ayarını etkilemez. Seçim yeniden başlatma sonrası korunur. Sıcaklık Adımını ayrıca 0.5 olarak ayarlayın."
+      },
+      "xfan": {
+        "name": "X-Fan (İç Ünite Kurutma)",
+        "description": "Klima kapatıldığında ek kurutma sağlayan X-Fan modunu etkinleştirir veya devre dışı bırakır."
+      },
+      "lights": {
+        "name": "Gösterge Işıkları",
+        "description": "Klima ünitesinin ekran ışıklarını kontrol eder."
+      },
+      "health": {
+        "name": "Sağlık (İyonizer)",
+        "description": "Hava iyonizasyonu ve hava temizleme için Sağlık (Health) modunu etkinleştirir veya devre dışı bırakır."
+      },
+      "powersave": {
+        "name": "Güç Tasarrufu",
+        "description": "Enerji verimliliği için güç tasarrufu modunu açar veya kapatır. Yalnızca soğutma modunda kullanılabilir."
+      },
+      "eightdegheat": {
+        "name": "8°C Don Koruma Isıtması",
+        "description": "Donmaya karşı koruma için 8°C ısıtma modunu açar veya kapatır. Yalnızca ısıtma modunda kullanılabilir."
+      },
+      "sleep": {
+        "name": "Uyku Modu",
+        "description": "Gece boyunca konforlu çalışma için uyku modunu etkinleştirir veya devre dışı bırakır. Yalnızca soğutma veya ısıtma modunda kullanılabilir."
+      },
+      "air": {
+        "name": "Taze Hava",
+        "description": "Taze hava sirkülasyon modunu açar veya kapatır."
+      },
+      "auto_xfan": {
+        "name": "Otomatik X-Fan",
+        "description": "X-Fan modunu klimanın çalışmasına göre otomatik yönetir. Açık olduğunda, soğutma ve nem alma modlarında X-Fan otomatik olarak devreye girer."
+      },
+      "auto_light": {
+        "name": "Otomatik Gösterge Işığı",
+        "description": "Ekran ışıklarını klima durumuna göre otomatik yönetir. Açık olduğunda ışıklar klima açıldığında açılır, kapandığında kapanır."
+      },
+      "anti_direct_blow": {
+        "name": "Doğrudan Üflemeyi Engelle",
+        "description": "Hava yönlendiricisinin açısını ayarlayarak havanın doğrudan insanların üzerine esmesini engeller."
+      },
+      "light_sensor": {
+        "name": "Işık Sensörü",
+        "description": "Otomatik parlaklık için ışık sensörünü etkinleştirir veya devre dışı bırakır. Gösterge ışıklarının açık olmasını gerektirir."
+      },
+      "beeper": {
+        "name": "Bip Sesi (Uyarı Sesi)",
+        "description": "Klima ünitesinin bip seslerini kontrol eder. Açık olduğunda düğmeye basmalarda ve durum değişikliklerinde ses çıkarır."
+      }
+    }
+  }
+}
