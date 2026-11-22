@@ -1,0 +1,402 @@
+"""Tests for the target temperature remembered per mode.
+
+The wall panel of a zone controller recalls the target temperature of every
+zone per mode when the mode is changed on the panel. A mode change over WiFi
+does not, so `SetpointMemory` does it. See docs/protocol.md.
+"""
+
+# pylint: disable=redefined-outer-name
+# A test takes a fixture as an argument with the same name. That is the
+# pytest pattern, not shadowing.
+
+from collections.abc import AsyncIterator
+
+import pytest
+
+# SetpointMemory is on the Home Assistant side, so it imports the protocol
+# layer as custom_components.gree_custom.aiogree. The devices must come from
+# the same import, not the top level "aiogree" the protocol tests use: two
+# imports are two copies, and their enums would not compare equal.
+from custom_components.gree_custom.aiogree.api import DeviceType, OperationMode
+from custom_components.gree_custom.aiogree.device import GreeDevice
+from custom_components.gree_custom.aiogree.transport_udp import GreeUdpTransport
+from custom_components.gree_custom.setpoint_memory import (
+    SetpointMemory,
+    offers_setpoint_memory,
+)
+
+from .fakes.device import FakeGreeDevice
+from .fakes.zone import FakeZoneController
+
+HEAT = 2
+
+
+@pytest.fixture
+async def controller() -> AsyncIterator[FakeZoneController]:
+    """Start a fake zone controller with four zones."""
+    fake = FakeZoneController()
+    await fake.start()
+    try:
+        yield fake
+    finally:
+        fake.close()
+
+
+@pytest.fixture
+async def transport(
+    controller: FakeZoneController,
+) -> AsyncIterator[GreeUdpTransport]:
+    """One transport for all units of the controller, as Home Assistant does."""
+    shared = GreeUdpTransport(
+        controller.host, controller.port, max_retries=1, timeout=0.3
+    )
+    try:
+        yield shared
+    finally:
+        await shared.disconnect()
+
+
+async def bind(
+    controller: FakeZoneController, transport: GreeUdpTransport, mac: str
+) -> GreeDevice:
+    """Bind one sub-unit of the controller."""
+    device = GreeDevice(name=mac[-2:], mac_addr=mac)
+    await device.bind_with_transport(
+        local_controller_mac=controller.mac, local_transport=transport
+    )
+    return device
+
+
+@pytest.fixture
+async def zones(
+    controller: FakeZoneController, transport: GreeUdpTransport
+) -> list[GreeDevice]:
+    """Bind the four zones."""
+    return [await bind(controller, transport, mac) for mac in controller.zone_macs]
+
+
+def panel_mode(
+    controller: FakeZoneController, mode: int, temperatures: list[int]
+) -> None:
+    """Change the mode on the wall panel. The panel sets its stored temperatures."""
+    for unit in controller.units.values():
+        unit["Mod"] = mode
+    for zone_mac, temperature in zip(controller.zone_macs, temperatures, strict=True):
+        controller.units[zone_mac]["StTem"] = temperature - 16
+
+
+def set_on_panel(controller: FakeZoneController, temperatures: list[int]) -> None:
+    """Change the target temperatures on the wall panel, in the current mode."""
+    for zone_mac, temperature in zip(controller.zone_macs, temperatures, strict=True):
+        controller.units[zone_mac]["StTem"] = temperature - 16
+
+
+async def poll(memory: SetpointMemory, devices: list[GreeDevice]) -> None:
+    """One poll of every device, as the coordinators do: a read, then learn()."""
+    for device in devices:
+        await device.fetch_device_status()
+        memory.learn(device)
+
+
+def remembered(
+    memory: SetpointMemory, zones: list[GreeDevice], mode: OperationMode
+) -> list[float | None]:
+    """Return what the memory has for each zone in one mode."""
+    data = memory.data
+    return [
+        data.get(zone.mac_address, {}).get(mode.name, {}).get("temperature")
+        for zone in zones
+    ]
+
+
+async def recall(
+    memory: SetpointMemory, zones: list[GreeDevice], mode: OperationMode
+) -> list[GreeDevice]:
+    """Set and send the stored targets of a mode, as the climate entity does."""
+    changed = [zone for zone in zones if memory.apply(zone, mode)]
+    for zone in changed:
+        await zone.push_device_status()
+    return changed
+
+
+def temperatures(controller: FakeZoneController) -> list[int]:
+    """Return the target temperatures the controller has now."""
+    return [controller.units[z]["StTem"] + 16 for z in controller.zone_macs]
+
+
+async def test_a_value_is_stored_once_the_mode_is_seen_twice(
+    zones: list[GreeDevice],
+) -> None:
+    """The first poll after start only notes the mode."""
+    memory = SetpointMemory()
+
+    await poll(memory, zones)
+    assert memory.data == {}
+
+    await poll(memory, zones)
+    assert remembered(memory, zones, OperationMode.fan) == [18, 18, 18, 18]
+
+
+async def test_the_temperature_is_stored_with_its_unit(
+    controller: FakeZoneController, zones: list[GreeDevice]
+) -> None:
+    """Keyed by device and mode."""
+    memory = SetpointMemory()
+    await poll(memory, zones)
+    await poll(memory, zones)
+
+    assert memory.data[controller.zone_macs[0]] == {
+        "fan": {"temperature": 18.0, "unit": "C"}
+    }
+
+
+async def test_a_unit_without_a_target_temperature_is_ignored(
+    controller: FakeZoneController, transport: GreeUdpTransport
+) -> None:
+    """The ducted unit has no target temperature, so there is nothing to remember."""
+    ac_unit = await bind(controller, transport, controller.ac_unit)
+    memory = SetpointMemory()
+
+    await poll(memory, [ac_unit])
+    await poll(memory, [ac_unit])
+
+    assert memory.data == {}
+
+
+async def test_a_mode_change_on_the_panel_is_stored_under_the_new_mode(
+    controller: FakeZoneController, zones: list[GreeDevice]
+) -> None:
+    """The poll that first sees the new mode stores nothing, the next one does."""
+    memory = SetpointMemory()
+    set_on_panel(controller, [19, 20, 18, 20])
+    await poll(memory, zones)
+    await poll(memory, zones)
+
+    panel_mode(controller, HEAT, [19, 18, 17, 20])
+    await poll(memory, zones)
+
+    assert remembered(memory, zones, OperationMode.heat) == [None] * 4
+
+    await poll(memory, zones)
+
+    assert remembered(memory, zones, OperationMode.heat) == [19, 18, 17, 20]
+    assert remembered(memory, zones, OperationMode.fan) == [19, 20, 18, 20]
+
+
+async def test_recall_sends_the_stored_values_of_the_new_mode(
+    controller: FakeZoneController, zones: list[GreeDevice]
+) -> None:
+    """A mode change over WiFi keeps the old values. Recall puts the stored ones back."""
+    memory = SetpointMemory()
+    memory.restore(
+        {
+            controller.zone_macs[0]: {"heat": {"temperature": 19.0, "unit": "C"}},
+            controller.zone_macs[2]: {"heat": {"temperature": 17.0, "unit": "C"}},
+        }
+    )
+    await poll(memory, zones)
+
+    changed = await recall(memory, zones, OperationMode.heat)
+
+    assert temperatures(controller) == [19, 18, 17, 18]
+    assert [zone.mac_address for zone in changed] == [
+        controller.zone_macs[0],
+        controller.zone_macs[2],
+    ]
+
+
+async def test_recall_of_a_mode_without_values_changes_nothing(
+    controller: FakeZoneController, zones: list[GreeDevice]
+) -> None:
+    """Nothing is known about Dry yet, so the zones keep what they have."""
+    memory = SetpointMemory()
+    await poll(memory, zones)
+    controller.reset_record()
+
+    changed = await recall(memory, zones, OperationMode.dry)
+
+    assert changed == []
+    assert not any(pack.get("t") == "cmd" for pack in controller.packs)
+
+
+async def test_a_fahrenheit_target_comes_back_with_its_bit(
+    controller: FakeZoneController, zones: list[GreeDevice]
+) -> None:
+    """67 F is StTem 3 with StFahFlg 1. It is stored as 67 F and set as 67 F."""
+    for values in controller.units.values():
+        values["TemUnit"] = 1
+    first = controller.units[controller.zone_macs[0]]
+    first.update({"StTem": 3, "StFahFlg": 1})
+    memory = SetpointMemory()
+    await poll(memory, zones)
+    await poll(memory, zones)
+
+    panel_mode(controller, HEAT, [19, 18, 18, 18])
+    first["StFahFlg"] = 0
+    await poll(memory, zones)
+    await recall(memory, zones, OperationMode.fan)
+
+    assert (first["StTem"], first["StFahFlg"]) == (3, 1)
+    assert zones[0].target_temperature == 67
+
+
+async def test_a_value_from_celsius_comes_back_right_in_fahrenheit(
+    controller: FakeZoneController, zones: list[GreeDevice]
+) -> None:
+    """A stored value is converted to the unit the device uses now.
+
+    18.5 C is StTem 2 with the bit. After the unit is switched to Fahrenheit
+    between the modes, it is set as 65 F, which is the same columns.
+    """
+    first = controller.units[controller.zone_macs[0]]
+    first.update({"StTem": 2, "StFahFlg": 1})
+    memory = SetpointMemory()
+    await poll(memory, zones)
+    await poll(memory, zones)
+    assert zones[0].target_temperature == 18.5
+
+    panel_mode(controller, HEAT, [21, 18, 18, 18])
+    first["StFahFlg"] = 0
+    for values in controller.units.values():
+        values["TemUnit"] = 1
+    await poll(memory, zones)
+    await recall(memory, zones, OperationMode.fan)
+
+    assert (first["StTem"], first["StFahFlg"]) == (2, 1)
+    await zones[0].fetch_device_status()
+    assert zones[0].target_temperature == 65
+
+
+async def test_a_change_in_the_same_mode_is_stored_on_the_next_read(
+    controller: FakeZoneController, zones: list[GreeDevice]
+) -> None:
+    """The climate entity reads once more before a mode change, so this keeps it."""
+    memory = SetpointMemory()
+    await poll(memory, zones)
+    await poll(memory, zones)
+
+    set_on_panel(controller, [22, 18, 18, 18])
+    await poll(memory, zones)
+
+    assert remembered(memory, zones, OperationMode.fan) == [22, 18, 18, 18]
+
+
+async def test_a_closed_zone_still_learns(
+    controller: FakeZoneController, zones: list[GreeDevice]
+) -> None:
+    """A zone's Pow is its damper. Its target still belongs to the mode."""
+    controller.units[controller.zone_macs[1]]["Pow"] = 0
+    memory = SetpointMemory()
+
+    await poll(memory, zones)
+    await poll(memory, zones)
+
+    assert remembered(memory, zones, OperationMode.fan) == [18, 18, 18, 18]
+
+
+async def test_the_option_is_on_the_ducted_unit_for_all_zones(
+    controller: FakeZoneController,
+    transport: GreeUdpTransport,
+    zones: list[GreeDevice],
+) -> None:
+    """As on the wall panel, the mode of the ducted unit sets every zone."""
+    ac_unit = await bind(controller, transport, controller.ac_unit)
+
+    assert offers_setpoint_memory(ac_unit)
+    assert not any(offers_setpoint_memory(zone) for zone in zones)
+
+
+#
+# A standalone unit that remembers its own target
+#
+
+
+@pytest.fixture
+async def unit() -> AsyncIterator[tuple[FakeGreeDevice, GreeDevice]]:
+    """Bind a standalone unit that is in Cool at 24 degrees."""
+    fake = FakeGreeDevice()
+    fake.values.update({"Pow": 1, "Mod": 1, "SetTem": 24, "TemRec": 0, "TemUn": 0})
+    await fake.start()
+    transport = GreeUdpTransport(fake.host, fake.port, max_retries=1, timeout=0.3)
+    device = GreeDevice(name="Zolderkamer", mac_addr=fake.mac)
+    await device.bind_with_transport(
+        local_controller_mac=fake.mac, local_transport=transport
+    )
+    try:
+        yield fake, device
+    finally:
+        await transport.disconnect()
+        fake.close()
+
+
+async def test_a_unit_learns_its_target_and_sends_it_with_the_mode(
+    unit: tuple[FakeGreeDevice, GreeDevice],
+) -> None:
+    """The stored target of the new mode goes out in the same command as the mode."""
+    fake, device = unit
+    memory = SetpointMemory()
+    await poll(memory, [device])
+    await poll(memory, [device])
+    fake.values.update({"Mod": 4, "SetTem": 20})
+    await poll(memory, [device])
+    await poll(memory, [device])
+
+    assert memory.data[fake.mac] == {
+        "cool": {"temperature": 24.0, "unit": "C"},
+        "heat": {"temperature": 20.0, "unit": "C"},
+    }
+    assert device.device_type is DeviceType.AC_UNIT
+    assert offers_setpoint_memory(device)
+
+    device.set_operation_mode(OperationMode.cool)
+    assert memory.apply(device, OperationMode.cool)
+    fake.reset_record()
+    await device.push_device_status()
+
+    commands = [pack for pack in fake.packs if pack.get("t") == "cmd"]
+    assert len(commands) == 1
+    assert {"Mod", "SetTem"} <= set(commands[0]["opt"])
+    assert (fake.values["Mod"], fake.values["SetTem"]) == (1, 24)
+
+
+async def test_a_fahrenheit_target_is_stored_in_fahrenheit(
+    unit: tuple[FakeGreeDevice, GreeDevice],
+) -> None:
+    """SetTem 24 with TemRec 1 is 76 F."""
+    fake, device = unit
+    fake.values.update({"TemUn": 1, "SetTem": 24, "TemRec": 1})
+    memory = SetpointMemory()
+
+    await poll(memory, [device])
+    await poll(memory, [device])
+
+    assert memory.data[fake.mac] == {"cool": {"temperature": 76.0, "unit": "F"}}
+
+
+async def test_apply_without_a_stored_target_changes_nothing(
+    unit: tuple[FakeGreeDevice, GreeDevice],
+) -> None:
+    """Nothing is known about Heat, so the unit keeps its target."""
+    fake, device = unit
+    memory = SetpointMemory()
+
+    assert not memory.apply(device, OperationMode.heat)
+    fake.reset_record()
+    await device.push_device_status()
+
+    assert not any(pack.get("t") == "cmd" for pack in fake.packs)
+
+
+async def test_a_unit_that_is_off_learns_nothing(
+    unit: tuple[FakeGreeDevice, GreeDevice],
+) -> None:
+    """An off unit keeps a mode and a target, but they are not in use."""
+    fake, device = unit
+    fake.values["Pow"] = 0
+    memory = SetpointMemory()
+
+    await poll(memory, [device])
+    await poll(memory, [device])
+    await poll(memory, [device])
+
+    assert memory.data == {}
