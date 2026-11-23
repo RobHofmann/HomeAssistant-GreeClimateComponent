@@ -77,6 +77,10 @@ A transport binds once per controller MAC, not once per device. It keeps the res
 - `rebind(force_bind=True)` on any device of the controller binds again and replaces the `BindingInfo` for all of them. This is how a new key after a key rotation reaches every sub-unit.
 - When the last device of a controller leaves the transport, its `BindingInfo` is dropped. The next device of that controller binds again.
 
+### One socket per request
+
+A VRF gateway can answer only the first request it gets from a client port. Seen in issue 545: on a new socket the gateway answered in about 25 ms, and the next request on the same socket never got an answer. So `GreeUdpTransport.request()` closes its socket after every answer, and the next request opens a new one with a new port. The 4.x line did the same. Before this, every second request waited for the full timeout and was then sent again. The sub-units of one gateway share one transport, so they waited for each other and polls ran late. The column probe at bind was fooled too: it measured the socket, not the unit.
+
 ### The sub-device list request
 
 There are three forms of the request. Different WiFi module firmwares answer different forms, and some gateways return a different subset of units in each form. All three were seen on real hardware in PR 507 of the 4.x line.

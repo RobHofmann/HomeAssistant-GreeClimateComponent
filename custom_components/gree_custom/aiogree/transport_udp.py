@@ -130,6 +130,9 @@ class GreeUdpTransport(GreeBaseTransport):
                     self._reset_stream()
 
                 else:
+                    # A fresh socket per request: a VRF gateway answers only
+                    # the first request per client port (issue 545)
+                    self._reset_stream()
                     return received_data.decode()
 
                 # Apply backoff before retrying
