@@ -105,7 +105,7 @@
             },
             "device_options": {
                 "title": "Device Features {device_idx} of {device_cnt}",
-                "description": "The Gree API doesn't have a reliable method of getting the supported features of a device. Please use the options bellow to the best of your knowledge about your device:\n\n {device_name}",
+                "description": "The Gree API doesn't have a reliable method of getting the supported features of a device. Please use the options below to the best of your knowledge about your device. Only add or turn on features that the unit's remote or the Gree app can set for your device.\n\n {device_name}",
                 "data": {
                     "name": "Device Name",
                     "hvac_modes": "HVAC Modes",

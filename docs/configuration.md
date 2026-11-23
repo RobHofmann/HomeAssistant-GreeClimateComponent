@@ -84,7 +84,7 @@ Cloud connection settings, shown when the device is in a cloud account:
 
 ### Device features
 
-One page per device. Gree devices do not report reliably which features they have. The integration checks which properties the device answers and offers only those. You then choose what to enable, to the best of your knowledge of the unit.
+One page per device. Gree devices do not report reliably which features they have. The integration checks which properties the device answers and offers only those. You then choose what to enable, to the best of your knowledge of the unit. Only add or turn on features that the unit's remote or the Gree app can set.
 
 | Field | Default | Meaning |
 |---|---|---|

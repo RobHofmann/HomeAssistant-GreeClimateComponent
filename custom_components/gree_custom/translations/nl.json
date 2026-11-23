@@ -105,7 +105,7 @@
             },
             "device_options": {
                 "title": "Apparaatfuncties {device_idx} van {device_cnt}",
-                "description": "De Gree API heeft geen betrouwbare manier om de ondersteunde functies van een apparaat op te vragen. Vul de opties hieronder zo goed mogelijk in op basis van wat je van je apparaat weet:\n\n {device_name}",
+                "description": "De Gree API heeft geen betrouwbare manier om de ondersteunde functies van een apparaat op te vragen. Vul de opties hieronder zo goed mogelijk in op basis van wat je van je apparaat weet. Voeg alleen functies toe of zet ze alleen aan als de afstandsbediening of de Gree-app ze voor je apparaat kan instellen.\n\n {device_name}",
                 "data": {
                     "name": "Apparaatnaam",
                     "hvac_modes": "HVAC-modi",

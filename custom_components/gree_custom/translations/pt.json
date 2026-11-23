@@ -105,7 +105,7 @@
             },
             "device_options": {
                 "title": "Funcionalidades do Dispositivo {device_idx} de {device_cnt}",
-                "description": "A API da Gree não fornece um método robusto para obter as funcionalidades de um dispositivo. Por favor, use as opções abaixo com base nos seus conhecimentos sobre o dispositivo:\n\n{device_name}",
+                "description": "A API da Gree não fornece um método robusto para obter as funcionalidades de um dispositivo. Por favor, use as opções abaixo com base nos seus conhecimentos sobre o dispositivo. Adicione ou ative apenas as funcionalidades que o comando ou a app Gree conseguem definir no seu dispositivo.\n\n{device_name}",
                 "data": {
                     "name": "Nome do Dispositivo",
                     "hvac_modes": "Modos de Climatização",
