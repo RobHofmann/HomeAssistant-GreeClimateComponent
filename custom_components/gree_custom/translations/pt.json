@@ -122,7 +122,7 @@
                     "external_temperature_sensor": "Se definido, substitui o sensor integrado de temperatura interior do dispositivo",
                     "external_humidity_sensor": "Se definido, substitui o sensor integrado de humidade interior do dispositivo",
                     "restore_states": "Se ativo, quando a integração é iniciada, o estado do dispositivo será reposto para o último estado observado na integração.",
-                    "half_degrees": "Define a temperatura alvo em incrementos de 0,5 °C. Aparece porque o dispositivo responde a TemRec, StFahFlg, Add0.5 ou Add0.1, mas alguns dispositivos respondem a estas e só aceitam graus inteiros. Fahrenheit é sempre em graus inteiros."
+                    "half_degrees": "Define a temperatura alvo em incrementos de 0,5 °C. Ative apenas se o comando ou a app Gree conseguirem definir meios graus. Alguns dispositivos respondem a TemRec, StFahFlg, Add0.5 ou Add0.1 e guardam o meio grau, mas funcionam no grau inteiro: o Home Assistant mostra então 22,5 enquanto o dispositivo funciona a 22. Fahrenheit é sempre em graus inteiros."
                 }
             },
             "reconfigure": {

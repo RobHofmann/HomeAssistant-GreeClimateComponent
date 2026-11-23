@@ -122,7 +122,7 @@
                     "external_temperature_sensor": "Als deze is ingesteld, vervangt hij de ingebouwde temperatuursensor van de airco voor de gegevens van de climate-entiteit",
                     "external_humidity_sensor": "Als deze is ingesteld, vervangt hij de ingebouwde vochtigheidssensor van de airco voor de gegevens van de climate-entiteit",
                     "restore_states": "Als dit is aangevinkt, krijgt het apparaat bij het starten van de integratie de eerder opgeslagen toestand terug in plaats van de huidige toestand van het apparaat.",
-                    "half_degrees": "Stel de doeltemperatuur in met stappen van 0,5 °C. Je ziet dit omdat het apparaat TemRec, StFahFlg, Add0.5 of Add0.1 beantwoordt, maar sommige apparaten beantwoorden die en kennen toch alleen hele graden. Fahrenheit is altijd in hele graden."
+                    "half_degrees": "Stel de doeltemperatuur in met stappen van 0,5 °C. Zet dit alleen aan als de afstandsbediening of de Gree-app halve graden kan instellen. Sommige apparaten beantwoorden TemRec, StFahFlg, Add0.5 of Add0.1 en bewaren een halve graad, maar werken toch op de hele graad: Home Assistant toont dan 22,5 terwijl het apparaat op 22 werkt. Fahrenheit is altijd in hele graden."
                 }
             },
             "reconfigure": {
