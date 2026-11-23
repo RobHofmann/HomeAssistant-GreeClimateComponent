@@ -81,6 +81,8 @@ Created when the unit has the sensor. Some are disabled by default: enable them 
 
 The three temperature sensors only exist when the unit reports them with a value other than 0. Compressor Frequency and Compressor Running also exist at 0, when the unit reports the compressor temperature, because the frequency is 0 while the compressor rests. Many units do not report any of them over the local connection. The temperatures are in Celsius, see [protocol.md](protocol.md#compressor-telemetry).
 
+The four compressor and coil sensors are in the Diagnostic category. The area card of Home Assistant averages every temperature sensor in an area that has no category, so a coil or compressor temperature would pull the room temperature far off. Outdoor Temperature has no category. If you enable it, set the temperature sensor of the area in the area settings, and the area card uses only that sensor.
+
 Some units report temperatures with an offset of 40. The integration detects that from the values it sees and corrects it.
 
 ## Binary sensor
@@ -88,7 +90,7 @@ Some units report temperatures with an offset of 40. The integration detects tha
 | Entity | Meaning |
 |---|---|
 | Fault Detection | On when the unit reports a fault. Diagnostic category. Created when the unit reports the fault property. |
-| Compressor Running | On while the compressor runs. Created when the unit reports its compressor frequency. Disabled by default. |
+| Compressor Running | On while the compressor runs. Diagnostic category. Created when the unit reports its compressor frequency. Disabled by default. |
 
 ## Switches
 

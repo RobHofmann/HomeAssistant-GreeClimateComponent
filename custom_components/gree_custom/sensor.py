@@ -12,7 +12,12 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import PERCENTAGE, UnitOfFrequency, UnitOfTemperature
+from homeassistant.const import (
+    PERCENTAGE,
+    EntityCategory,
+    UnitOfFrequency,
+    UnitOfTemperature,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
@@ -78,7 +83,8 @@ SENSOR_TYPES: list[GreeSensorDescription] = [
         value_func=lambda device: device.humidity,
     ),
     # Compressor telemetry. Created only when the unit reports it, and
-    # disabled by default.
+    # disabled by default. Diagnostic, so the area card leaves the coil and
+    # compressor temperatures out of the area temperature (issue 579).
     GreeSensorDescription(
         auto_device_support=True,
         key=GATTR_COMPRESSOR_FREQUENCY,
@@ -88,6 +94,7 @@ SENSOR_TYPES: list[GreeSensorDescription] = [
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
         suggested_display_precision=0,
         entity_registry_enabled_default=False,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_func=lambda device: device.compressor_frequency,
     ),
     GreeSensorDescription(
@@ -99,6 +106,7 @@ SENSOR_TYPES: list[GreeSensorDescription] = [
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_display_precision=0,
         entity_registry_enabled_default=False,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_func=lambda device: device.compressor_temperature_c,
     ),
     GreeSensorDescription(
@@ -110,6 +118,7 @@ SENSOR_TYPES: list[GreeSensorDescription] = [
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_display_precision=0,
         entity_registry_enabled_default=False,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_func=lambda device: device.indoor_coil_temperature_c,
     ),
     GreeSensorDescription(
@@ -121,6 +130,7 @@ SENSOR_TYPES: list[GreeSensorDescription] = [
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_display_precision=0,
         entity_registry_enabled_default=False,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_func=lambda device: device.outdoor_coil_temperature_c,
     ),
 ]

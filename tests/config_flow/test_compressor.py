@@ -14,7 +14,7 @@ from custom_components.gree_custom.aiogree.api import GreeProp
 from custom_components.gree_custom.climate import gree_hvac_action
 from custom_components.gree_custom.const import DOMAIN
 from homeassistant.components.climate import HVACAction, HVACMode  # pyright: ignore[reportPrivateImportUsage]
-from homeassistant.const import MAJOR_VERSION, MINOR_VERSION
+from homeassistant.const import MAJOR_VERSION, MINOR_VERSION, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from tests.config_flow.conftest import MAC_A, GreeEnv, add_entry
@@ -79,7 +79,7 @@ async def test_a_unit_with_compressor_data_gets_disabled_sensors(
         for key in keys:
             row = registry_row(hass, platform, key)
             assert row.disabled_by is er.RegistryEntryDisabler.INTEGRATION, key
-            assert row.entity_category is None, key
+            assert row.entity_category is EntityCategory.DIAGNOSTIC, key
 
     outdoor = registry_row(hass, "sensor", "outdoor_temperature")
     assert outdoor.disabled_by is er.RegistryEntryDisabler.INTEGRATION
