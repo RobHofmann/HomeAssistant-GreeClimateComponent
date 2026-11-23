@@ -55,7 +55,7 @@ from homeassistant.helpers import (
 )
 from homeassistant.helpers.entity import entity_sources
 from homeassistant.helpers.restore_state import async_get as async_get_restore_data
-from homeassistant.helpers.typing import UNDEFINED, ConfigType
+from homeassistant.helpers.typing import ConfigType
 from homeassistant.setup import async_setup_component
 from homeassistant.util.yaml import dump as yaml_dump
 
@@ -91,7 +91,7 @@ from .const import (
     DEFAULT_TARGET_TEMP_STEP,
     DOMAIN,
 )
-from .helpers import get_device_by_identifier
+from .helpers import Undefined, get_device_by_identifier
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -1088,7 +1088,7 @@ def _async_move_entities(
             DOMAIN,
             new_config_entry_id=entry.entry_id,
             new_unique_id=(
-                new_unique_id if new_unique_id != row.unique_id else UNDEFINED
+                new_unique_id if new_unique_id != row.unique_id else Undefined
             ),
             new_device_id=target_device_id,
         )
