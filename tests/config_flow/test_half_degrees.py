@@ -8,7 +8,7 @@ option: an entry of minor version 1, a YAML block and a 4.x migration.
 from types import SimpleNamespace
 from typing import Any, cast
 
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 import custom_components.gree_custom as gree_component
 from custom_components.gree_custom.aiogree.api import DeviceType
