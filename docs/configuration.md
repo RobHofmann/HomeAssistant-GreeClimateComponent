@@ -84,7 +84,7 @@ Cloud connection settings, shown when the device is in a cloud account:
 
 ### Device features
 
-One page per device. Gree devices do not report reliably which features they have. The integration checks which properties the device answers and offers only those. You then choose what to enable, to the best of your knowledge of the unit.
+One page per device. Gree devices do not report reliably which features they have. The integration checks which properties the device answers and offers only those. You then choose what to enable, to the best of your knowledge of the unit. Only add or turn on features that the unit's remote or the Gree app can set.
 
 | Field | Default | Meaning |
 |---|---|---|
@@ -94,7 +94,7 @@ One page per device. Gree devices do not report reliably which features they hav
 | Vertical Swing Modes | all | The vertical positions and swing ranges. |
 | Horizontal Swing Modes | all | The horizontal positions and swing ranges. Only shown when the unit has horizontal swing. |
 | Device Features and Modes | all the unit supports, except Auxiliary Heat | Which switches and selects to create. See [entities.md](entities.md). Auxiliary Heat is not ticked for a new device, because many units answer its property without having the heater; tick it yourself when the unit has one. On a zone of a zone controller, leave out **Zone Switch** if the zone must always stay open. |
-| Temperature Step | 1 | The step of the target temperature, 0.5 to 5 in steps of 0.5. In Fahrenheit the step is rounded to a whole degree. |
+| Use half-degrees °C | off, on for a zone | Set the target temperature in steps of 0.5 °C instead of 1 °C. Only shown when the unit answers one of the half degree properties (`TemRec`, `StFahFlg`, `Add0.5`, `Add0.1`). Only turn it on when the unit's remote or the Gree app can set half degrees. Some units answer these properties and store a half degree, but still run at the whole degree. Home Assistant then shows 22.5 while the unit runs at 22, and nothing jumps back to warn you. Seen on a unit with firmware `U-CS532Z(LT)V3.75`, whose remote only has whole degrees. A zone of a zone controller has it on by default, because zones take the half degree in `StFahFlg` and always used it before this option existed. The value you pick carries over to the next device in the same setup. Fahrenheit is always in whole degrees. The step of the climate entity follows this option and the unit's scale. |
 | External Temperature Sensor | none | A Home Assistant sensor that replaces the unit's own room temperature in the climate entity. |
 | External Humidity Sensor | none | A Home Assistant sensor that replaces the unit's own humidity in the climate entity. |
 | Restore Entities | on | After a restart, send the last known Home Assistant state to the device instead of taking over the device state. See [Restoring state](entities.md#restoring-state-after-a-restart). |

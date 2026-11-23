@@ -2,7 +2,7 @@
 
 One config entry is a hub. There is one entry per Gree Cloud account, plus one entry for all local-only devices. The local-only entry has `unique_id` `local_only`.
 
-The entry version is `CURRENT_CONF_VERSION` in `const.py` (3 at the time of writing).
+The entry version is `CURRENT_CONF_VERSION` in `const.py` (3 at the time of writing), and the minor version is `CURRENT_CONF_MINOR_VERSION` (2).
 
 ## Shape
 
@@ -54,6 +54,7 @@ For a cloud entry, `cloud` holds the account email, region, user id and token. T
 | `options.features` | Which optional switches to create. Only features the unit reported as supported are offered. |
 | `options.restore_states` | Restore the last known entity states after a restart. |
 | `options.setpoint_memory` | Remember the target temperature per mode, for a unit with a target temperature, or on the AC unit of a zone controller for all its zones. On by default. |
+| `options.half_degrees` | "Use half-degrees °C". Only offered when the unit answers a half degree column, see [protocol.md](protocol.md#half-degrees-celsius). Missing means off, except on a zone of a zone controller, where it means on. So an existing zone keeps its 0.5 step after the upgrade. It replaced `options.target_temp_step` in minor version 2. |
 
 ## YAML import
 
@@ -131,7 +132,8 @@ After the first run `gree_custom` has its own entry and starts by itself.
 | `hvac_modes`, `fan_modes` | the same names |
 | `swing_modes`, `swing_horizontal_modes` | other names, matched on the value sent to the unit (4.x `swing_downmost` and 5.0 `swing_upper` both send 7) |
 | `temp_sensor_offset` | dropped, the offset is detected here |
-| state of the 4.x `target_temp_step` number and the two external sensor selects | `options.target_temp_step`, `options.external_temperature_sensor`, `options.external_humidity_sensor` |
+| state of the 4.x `target_temp_step` number and of the `half_degree_control` switch (4.0.13 and later) | `options.half_degrees`: on when the step is not a whole number or the switch is on. Otherwise left out |
+| state of the two 4.x external sensor selects | `options.external_temperature_sensor`, `options.external_humidity_sensor` |
 
 A missing mode list counts as the 4.x default list, because 4.x used that list at runtime. Values that equal the defaults here are left out. A mode list that holds every mode is left out too, except `fan_modes`: the 4.x default holds `turbo` and `quiet`, the default here does not, so that list is written out. Every converted device then goes through `ITEM_SCHEMA`, so a device that is not valid here is skipped with an error in the log.
 
@@ -204,9 +206,13 @@ What to expect:
 
 If you change this shape:
 
-1. Bump `CURRENT_CONF_VERSION` in `const.py`.
-2. Add `async_migrate_entry` in `__init__.py`. There is no migration code yet, and Home Assistant refuses to load an entry whose version is older than the flow's version unless that function exists.
+1. For a change that older code can still read, bump `CURRENT_CONF_MINOR_VERSION` in `const.py`. Home Assistant then calls `async_migrate_entry` in `__init__.py`, and a downgrade still loads the entry. For a change that older code cannot read, bump `CURRENT_CONF_VERSION`.
+2. Add a step to `async_migrate_entry`. It refuses an entry of another major version, as Home Assistant did before the function existed. `get_config_entries()` in `helpers.py` compares only the major version.
 3. Update the example above and `manual-configuration.yaml`.
+
+Minor versions so far:
+
+- 2: the device option `target_temp_step` became `half_degrees`. A step that is not a whole number turns it on (`options_without_temperature_step()` in `config_schema.py`). The step is removed. A YAML block may still hold `target_temp_step`: `OPTIONS_SCHEMA` converts it the same way and logs a warning, because the import runs at every start.
 
 ## Discovery preferences
 

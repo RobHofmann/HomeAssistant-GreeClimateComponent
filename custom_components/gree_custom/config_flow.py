@@ -87,6 +87,7 @@ from .const import (
     CONF_EXTRA_SCAN_NETWORKS,
     CONF_FAN_MODES,
     CONF_FEATURES,
+    CONF_HALF_DEGREES,
     CONF_HVAC_MODES,
     CONF_MAC_CONTROLLER_CLOUD,
     CONF_MAC_CONTROLLER_LOCAL,
@@ -95,6 +96,7 @@ from .const import (
     CONF_SWING_MODES,
     CONF_UID,
     CONFENTRY_ID_LOCAL_ONLY,
+    CURRENT_CONF_MINOR_VERSION,
     CURRENT_CONF_VERSION,
     DATA_YAML_UNIQUE_IDS,
     DEFAULT_DEVICE_UID,
@@ -132,6 +134,7 @@ _COPIED_OPTIONS = (
     CONF_SWING_MODES,
     CONF_SWING_HORIZONTAL_MODES,
     CONF_FEATURES,
+    CONF_HALF_DEGREES,
 )
 
 
@@ -140,9 +143,10 @@ def _copied_options(
 ) -> dict[str, Any] | None:
     """Take the options of another device as defaults for this one.
 
-    Only the mode and feature lists carry over, not the name. The Zone Switch
-    is chosen per zone, because only an always open zone goes without it, so
-    it never carries over: a zone starts with it, any other device without it.
+    The mode and feature lists and the half degree option carry over, not the
+    name. The Zone Switch is chosen per zone, because only an always open zone
+    goes without it, so it never carries over: a zone starts with it, any other
+    device without it.
     """
     if not options:
         return None
@@ -229,6 +233,7 @@ class SetupConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle the config flow for the integration."""
 
     VERSION = CURRENT_CONF_VERSION
+    MINOR_VERSION = CURRENT_CONF_MINOR_VERSION
 
     def __init__(self) -> None:
         """Initialize the flow."""

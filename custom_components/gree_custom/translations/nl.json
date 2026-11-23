@@ -105,7 +105,7 @@
             },
             "device_options": {
                 "title": "Apparaatfuncties {device_idx} van {device_cnt}",
-                "description": "De Gree API heeft geen betrouwbare manier om de ondersteunde functies van een apparaat op te vragen. Vul de opties hieronder zo goed mogelijk in op basis van wat je van je apparaat weet:\n\n {device_name}",
+                "description": "De Gree API heeft geen betrouwbare manier om de ondersteunde functies van een apparaat op te vragen. Vul de opties hieronder zo goed mogelijk in op basis van wat je van je apparaat weet. Voeg alleen functies toe of zet ze alleen aan als de afstandsbediening of de Gree-app ze voor je apparaat kan instellen.\n\n {device_name}",
                 "data": {
                     "name": "Apparaatnaam",
                     "hvac_modes": "HVAC-modi",
@@ -113,7 +113,7 @@
                     "swing_modes": "Verticale swingmodi",
                     "swing_horizontal_modes": "Horizontale swingmodi",
                     "features": "Apparaatfuncties en -modi",
-                    "target_temp_step": "Temperatuurstap",
+                    "half_degrees": "Halve graden °C gebruiken",
                     "external_temperature_sensor": "Externe temperatuursensor",
                     "external_humidity_sensor": "Externe vochtigheidssensor",
                     "restore_states": "Entiteiten herstellen"
@@ -122,7 +122,7 @@
                     "external_temperature_sensor": "Als deze is ingesteld, vervangt hij de ingebouwde temperatuursensor van de airco voor de gegevens van de climate-entiteit",
                     "external_humidity_sensor": "Als deze is ingesteld, vervangt hij de ingebouwde vochtigheidssensor van de airco voor de gegevens van de climate-entiteit",
                     "restore_states": "Als dit is aangevinkt, krijgt het apparaat bij het starten van de integratie de eerder opgeslagen toestand terug in plaats van de huidige toestand van het apparaat.",
-                    "target_temp_step": "Stelt de stapgrootte in voor het aanpassen van de doeltemperatuur. Graden Fahrenheit worden afgerond op een geheel getal."
+                    "half_degrees": "Stel de doeltemperatuur in met stappen van 0,5 °C. Zet dit alleen aan als de afstandsbediening of de Gree-app halve graden kan instellen. Sommige apparaten beantwoorden TemRec, StFahFlg, Add0.5 of Add0.1 en bewaren een halve graad, maar werken toch op de hele graad: Home Assistant toont dan 22,5 terwijl het apparaat op 22 werkt. Fahrenheit is altijd in hele graden."
                 }
             },
             "reconfigure": {

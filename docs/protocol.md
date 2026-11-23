@@ -59,6 +59,28 @@ Facts about how Gree devices behave on the wire. Most of these are not visible f
 - `AssHt` (`FEAT_AUXILIARY_HEAT`) holds the mode of the electric heater: 0 off, 1 always on, 2 auto. These values were checked against the Gree+ app on one unit, in 4.x PR #539. Other models may use other values. A value outside 0 to 2 reads as no mode.
 - 4.x asked for `AssHt` once before it added it to the poll, because 4.x matched values to columns by position, and a unit that left the column out shifted every value after it. Here no probe is needed: values are matched by name inside one response, and the first poll drops the column on a unit that does not answer it. A gateway that answers an empty string is dropped too, because the value is not a number.
 
+### Half degrees Celsius
+
+Units carry the half degree in different columns. Seen so far:
+
+- The bit (`TemRec`, or `StFahFlg` on a zone). In Fahrenheit it picks the value from the table, see below. Many units take it as the half degree in Celsius.
+- `Add0.5` (`TARGET_TEMPERATURE_HALF_C`), 0 or 1. Seen on a split unit that ignores `TemRec` writes (PR 537).
+- `Add0.1` (`TARGET_TEMPERATURE_TENTHS_C`), a tenths digit 0 to 9. The unit rounds it to the nearest half degree: 1 gives .0, 3 gives .5, 8 carries into `SetTem`. Seen on a GR-Gcloud VRF gateway, which answers `TemRec` with `""` and makes `Add0.5` follow `Add0.1` (PR 568).
+
+Answering a column is no proof that the unit uses it. One unit answers all three with 0 but does not support all of them (issue 569). So no single preferred column works for every known unit, and the code writes all of them:
+
+- `Add0.5` and `Add0.1` are normal `GreeProp` columns. They are polled, and the first poll drops them on a unit that does not answer them (an empty answer counts as not answered).
+- `set_target_temperature()` writes every half degree column the unit answers, in the same command as `SetTem`. A half degree in Celsius is the bit 1, `Add0.5` 1 and `Add0.1` 5. A whole degree is 0 in all of them, so a half degree set with a remote is cleared. In Fahrenheit the bit comes from the table and `Add0.5` and `Add0.1` are 0.
+- `target_temperature` reads a half degree in Celsius when any answered column is not 0. A column the unit ignores reads 0, so it does no harm. In Fahrenheit only the bit is read.
+- `GreeDevice.set_half_degrees()` is the user option "Use half-degrees °C" (`half_degrees` in the device options). Without a stored choice, `default_half_degrees` decides: on for a zone of a zone controller, which takes the half degree in `StFahFlg`, and off for every other unit. Off, Celsius goes to the nearest whole degree, with a half going up (22.5 gives 23). The read side does not change, so a half degree set with a remote still shows.
+- `supports_half_degrees` is true when the unit answers one of the columns. The options form only offers the checkbox then. `target_temperature_step` is 0.5 in Celsius with the option on, and 1 otherwise. The climate entity and the zone number take their step from it.
+- No retry loop: nothing resends a value the unit did not take. A sub-unit holds the sent values for at most `HELD_VALUE_TTL`, see [Stale state after a command](#stale-state-after-a-command), then shows what the unit reports. A column the unit ignores is only sent again with the next temperature command. `has_pending_updates` compares with the reported value, so it does not cause a push by itself.
+- A unit can store a column it ignores. Measured on `U-CS532Z(LT)V3.75`, whose remote only has whole degrees: it answers `TemRec`, `Add0.5` and `Add0.1` with 0. After 22.5 is sent, it keeps `TemRec` 1 and `Add0.5` 1 and sets `Add0.1` back to 0 itself. Its display shows 22. A whole degree clears all three again. So on such a unit, with the option on, Home Assistant shows 22.5 while the unit most likely runs at 22. The read side cannot tell, because the unit reports the half itself. This is why the option is off by default and the user docs say to turn it on only when the remote or the Gree app has half degrees. When the option goes off again, the stored half stays until Home Assistant sends the next whole degree. It is still not tested whether the unit of PR 537 accepts `TemRec` 1 together with `Add0.5` 1.
+
+### Temperature unit
+
+`TemUn` (or `TemUnit`) switches the unit between Celsius and Fahrenheit, but `SetTem` is always whole degrees Celsius. Only the bit picks the Fahrenheit degree from the table. So `supports_temperature_unit_change` needs the unit column and a bit column. Without a bit the unit is Celsius only: `target_temperature_unit` is always Celsius, and the **Temperature Units** select is not created. Home Assistant converts the value for a user who shows Fahrenheit. The AC unit of a zone controller is the exception: it has no bit of its own (it drops `StFahFlg`, see [Zone controllers](#zone-controllers)), but its `TemUnit` switches the whole system and the zones do have the bit.
+
 ## Discovery and network
 
 - Local discovery is a plain text `{"t": "scan"}` UDP broadcast. The device answers with a `dev` pack encrypted with the generic key.

@@ -105,7 +105,7 @@
             },
             "device_options": {
                 "title": "Device Features {device_idx} of {device_cnt}",
-                "description": "The Gree API doesn't have a reliable method of getting the supported features of a device. Please use the options bellow to the best of your knowledge about your device:\n\n {device_name}",
+                "description": "The Gree API doesn't have a reliable method of getting the supported features of a device. Please use the options below to the best of your knowledge about your device. Only add or turn on features that the unit's remote or the Gree app can set for your device.\n\n {device_name}",
                 "data": {
                     "name": "Device Name",
                     "hvac_modes": "HVAC Modes",
@@ -113,7 +113,7 @@
                     "swing_modes": "Vertical Swing Modes",
                     "swing_horizontal_modes": "Horizontal Swing Modes",
                     "features": "Device Features and Modes",
-                    "target_temp_step": "Temperature Step",
+                    "half_degrees": "Use half-degrees °C",
                     "external_temperature_sensor": "External Temperature Sensor",
                     "external_humidity_sensor": "External Humidity Sensor",
                     "restore_states": "Restore Entities",
@@ -125,7 +125,7 @@
                     "external_humidity_sensor": "If set will replace the built-in HVAC humidity sensor for the Climate entity data",
                     "restore_states": "If checked, when the integration is started the device will be overridden by previous states of the integration instead of using the current device state.",
                     "setpoint_memory": "If checked, the target temperature of each mode is remembered and set again when the mode is changed from Home Assistant. On the AC unit of a zone controller it covers every zone, as the wall panel does. A unit keeps its own setting in Auto.",
-                    "target_temp_step": "Sets the increment step for adjusting the target temperature. Fahrenheit degrees are clamped to the nearest integer."
+                    "half_degrees": "Set the target temperature in steps of 0.5 °C. Only turn this on when the unit's remote or the Gree app can set half degrees. Some units answer TemRec, StFahFlg, Add0.5 or Add0.1 and store a half degree, but still run at the whole degree: Home Assistant then shows 22.5 while the unit runs at 22. Fahrenheit is always in whole degrees."
                 }
             },
             "reconfigure": {

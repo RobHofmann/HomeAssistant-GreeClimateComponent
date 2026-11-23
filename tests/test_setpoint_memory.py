@@ -359,6 +359,31 @@ async def test_a_unit_learns_its_target_and_sends_it_with_the_mode(
     assert (fake.values["Mod"], fake.values["SetTem"]) == (1, 24)
 
 
+async def test_a_stored_half_degree_goes_out_whole_with_half_degrees_off(
+    unit: tuple[FakeGreeDevice, GreeDevice],
+) -> None:
+    """A 19.5 stored while half degrees were on comes back as 20 once they are off.
+
+    Recall goes through set_target_temperature(), which rounds to a whole
+    degree, a half going up, and clears every half degree column.
+    """
+    fake, device = unit
+    memory = SetpointMemory()
+    memory.restore({fake.mac: {"heat": {"temperature": 19.5, "unit": "C"}}})
+    assert not device.half_degrees
+
+    device.set_operation_mode(OperationMode.heat)
+    assert memory.apply(device, OperationMode.heat)
+    fake.reset_record()
+    await device.push_device_status()
+
+    (command,) = [pack for pack in fake.packs if pack.get("t") == "cmd"]
+    sent = dict(zip(command["opt"], command["p"], strict=True))
+    assert sent["SetTem"] == 20
+    assert sent.get("TemRec", 0) == 0
+    assert device.target_temperature == 20
+
+
 async def test_a_fahrenheit_target_is_stored_in_fahrenheit(
     unit: tuple[FakeGreeDevice, GreeDevice],
 ) -> None:
