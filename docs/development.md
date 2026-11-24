@@ -93,7 +93,7 @@ and says what to report.
 | `config_flow/test_reconfigure.py` | The reconfigure menu: finish at once, rediscover with and without new units, edit with and without a new bind, remove, a local-only entry, a VRF host change, closing the flow after a login |
 | `config_flow/test_registry_lookup.py` | `get_device_by_identifier` finds only the device of its own config entry |
 | `config_flow/test_compressor.py` | Compressor entities with and without compressor data, disabled by default and in the Diagnostic category, the outdoor sensor of a new and an existing device, `hvac_action` |
-| `config_flow/test_translations.py` | Every config flow key, exception and sensor name has a text in `en`, `nl` and `pt` |
+| `config_flow/test_translations.py` | Every config flow key, exception and sensor name has a text in `en`, `nl` and `pt`; `nl` and `pt` have exactly the keys of `en` |
 
 390 tests in all, protocol and config flow together (HA 2026.11.1, November 2026). The protocol tests cover about 94 percent of `aiogree/`.
 One config flow test is a strict `xfail`: it shows a known defect and starts to
@@ -260,6 +260,7 @@ Never log an encryption key, cloud password or token in clear text.
 ## Translations
 
 - `translations/` holds files that ship. Only edit these when you change the flow or an entity name, and keep `en.json` complete.
+- `nl.json` and `pt.json` must have the same keys as `en.json`. A test checks this, so a new key in `en.json` needs a text in both.
 - `translation-to-review/` holds files that are not checked yet. Do not move a file out of it unless a native speaker reviewed it.
 
 ## Versions and releases

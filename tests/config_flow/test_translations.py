@@ -108,3 +108,27 @@ def test_every_sensor_name_has_a_text(language: str, platform: str) -> None:
 
     assert sorted(ENTITY_NAMES[platform] - set(names)) == []
     assert all("name" in names[key] for key in ENTITY_NAMES[platform])
+
+
+def key_paths(texts: dict, prefix: str = "") -> set[str]:
+    """Return the path of every text in a translation file, such as a/b/c."""
+    paths = set()
+    for key, value in texts.items():
+        if isinstance(value, dict):
+            paths |= key_paths(value, f"{prefix}{key}/")
+        else:
+            paths.add(f"{prefix}{key}")
+    return paths
+
+
+@pytest.mark.parametrize("language", [lang for lang in LANGUAGES if lang != "en"])
+def test_every_language_has_the_keys_of_english(language: str) -> None:
+    """A key that is only in en.json shows in English to a user of this language.
+
+    A key that is only in this language is a text that nothing uses any more.
+    """
+    english = key_paths(translations("en"))
+    other = key_paths(translations(language))
+
+    assert sorted(english - other) == []
+    assert sorted(other - english) == []

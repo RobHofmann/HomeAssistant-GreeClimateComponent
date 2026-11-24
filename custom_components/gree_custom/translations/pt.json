@@ -116,12 +116,15 @@
                     "half_degrees": "Usar meios graus °C",
                     "external_temperature_sensor": "Sensor de Temperatura",
                     "external_humidity_sensor": "Sensor de Humidade",
-                    "restore_states": "Restaurar Entidades"
+                    "restore_states": "Restaurar Entidades",
+                    "setpoint_memory": "Memorizar Temperatura Alvo por Modo"
                 },
                 "data_description": {
+                    "features": "Numa zona de um controlador de zonas, deixe de fora o Interruptor de Zona se a zona tiver de ficar sempre aberta.",
                     "external_temperature_sensor": "Se definido, substitui o sensor integrado de temperatura interior do dispositivo",
                     "external_humidity_sensor": "Se definido, substitui o sensor integrado de humidade interior do dispositivo",
                     "restore_states": "Se ativo, quando a integração é iniciada, o estado do dispositivo será reposto para o último estado observado na integração.",
+                    "setpoint_memory": "Se ativo, a temperatura alvo de cada modo é memorizada e definida novamente quando o modo é alterado a partir do Home Assistant. Na unidade de AC de um controlador de zonas abrange todas as zonas, tal como o painel de parede. Em Automático, a unidade mantém a sua própria definição.",
                     "half_degrees": "Define a temperatura alvo em incrementos de 0,5 °C. Ative apenas se o comando ou a app Gree conseguirem definir meios graus. Alguns dispositivos respondem a TemRec, StFahFlg, Add0.5 ou Add0.1 e guardam o meio grau, mas funcionam no grau inteiro: o Home Assistant mostra então 22,5 enquanto o dispositivo funciona a 22. Fahrenheit é sempre em graus inteiros."
                 }
             },
@@ -165,6 +168,9 @@
     "device": {
         "vrf_controller": {
             "name": "Gateway VRF {mac}"
+        },
+        "zone_controller": {
+            "name": "Controlador de zonas {mac}"
         }
     },
     "entity": {
@@ -227,6 +233,9 @@
             },
             "target_temp_step": {
                 "name": "Incremento de Temperatura"
+            },
+            "zone_target_temperature": {
+                "name": "Temperatura Alvo"
             }
         },
         "select": {
@@ -397,7 +406,8 @@
                 "light_sensor": "Brilho Automático do Visor",
                 "faults": "Falha de Operação",
                 "humidity_control": "Controlo de Humidade",
-                "auxiliary_heat": "Aquecimento Auxiliar"
+                "auxiliary_heat": "Aquecimento Auxiliar",
+                "zone": "Interruptor de Zona"
             }
         },
         "hvac_modes": {
