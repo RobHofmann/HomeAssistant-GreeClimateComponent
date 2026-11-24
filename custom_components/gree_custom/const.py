@@ -101,6 +101,8 @@ GATTR_FEAT_SMART_HEAT_8C = "eightdegheat"
 GATTR_FEAT_LIGHT = "lights"
 # controls Health ("Cold plasma") mode
 GATTR_FEAT_HEALTH = "health"
+# turns the UV lamp on or off (not available on all units)
+GATTR_FEAT_UV_LAMP = "uv_lamp"
 # prevents the wind from blowing directly on people
 GATTR_ANTI_DIRECT_BLOW = "anti_direct_blow"
 # energy saving mode
@@ -156,6 +158,7 @@ ATTR_FEATURES_TO_PROP_MAP: dict[str, list[GreeProp]] = {
     GATTR_FEAT_LIGHT: [GreeProp.FEAT_LIGHT],
     GATTR_FEAT_SENSOR_LIGHT: [GreeProp.FEAT_LIGHT, GreeProp.FEAT_SENSOR_LIGHT],
     GATTR_FEAT_HEALTH: [GreeProp.FEAT_HEALTH],
+    GATTR_FEAT_UV_LAMP: [GreeProp.FEAT_UV_LAMP],
     GATTR_ANTI_DIRECT_BLOW: [GreeProp.FEAT_ANTI_DIRECT_BLOW],
     GATTR_FEAT_ENERGY_SAVING: [GreeProp.FEAT_ENERGY_SAVING],
     GATTR_FEAT_HUMIDITY: [GreeProp.FEATURE_HUMIDITY_CONTROL],
@@ -275,6 +278,7 @@ DEFAULT_SUPPORTED_FEATURES = [
     GATTR_FEAT_SMART_HEAT_8C,
     GATTR_FEAT_LIGHT,
     GATTR_FEAT_HEALTH,
+    GATTR_FEAT_UV_LAMP,
     GATTR_ANTI_DIRECT_BLOW,
     GATTR_FEAT_ENERGY_SAVING,
     GATTR_FEAT_SENSOR_LIGHT,

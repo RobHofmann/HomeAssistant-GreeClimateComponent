@@ -27,7 +27,7 @@ Gree integration for Home Assistant. It controls Gree air conditioners, and the 
 Home Assistant ships a `gree` integration that works on the local network only. This one goes further.
 
 - **Local first, cloud when you need it.** Devices are controlled over UDP on your own network. The Gree cloud is there for devices you cannot reach, and to fetch device names and encryption keys during setup. See [connection methods](docs/connection-methods.md).
-- **The features on the remote.** X-Fan, Health, Sleep, 8°C Smart Heat, Power Save, Anti Direct Blow, Fresh Air, Humidity Control, display light and brightness, beeper, Turbo and Quiet. Each one is a switch, select or fan mode. See [entities](docs/entities.md).
+- **The features on the remote.** X-Fan, Health, UV Lamp, Sleep, 8°C Smart Heat, Power Save, Anti Direct Blow, Fresh Air, Humidity Control, display light and brightness, beeper, Turbo and Quiet. Each one is a switch, select or fan mode. See [entities](docs/entities.md).
 - **Swing positions.** Twelve vertical and seven horizontal modes: fixed positions and partial swing ranges, not just on and off.
 - **Sensors.** Indoor and outdoor temperature, humidity and fault detection, when the unit has them. An external sensor can replace the unit's own reading in the climate entity. That changes only what Home Assistant shows; the unit keeps using its own sensor.
 - **Works across VLANs.** Add networks or hosts to the discovery, and they are probed with unicast. See [local discovery](docs/configuration.md#local-discovery).

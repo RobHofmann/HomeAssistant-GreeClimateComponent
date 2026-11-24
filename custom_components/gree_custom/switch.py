@@ -31,6 +31,7 @@ from .const import (
     GATTR_FEAT_SENSOR_LIGHT,
     GATTR_FEAT_SLEEP_MODE,
     GATTR_FEAT_SMART_HEAT_8C,
+    GATTR_FEAT_UV_LAMP,
     GATTR_FEAT_XFAN,
     GATTR_ZONE,
 )
@@ -120,6 +121,12 @@ SWITCH_TYPES: list[GreeSwitchDescription] = [
         translation_key=GATTR_FEAT_HEALTH,
         value_func=lambda device, _: device.feature_health,
         set_func=lambda device, _, value: device.set_feature_health(value),
+    ),
+    GreeSwitchDescription(
+        key=GATTR_FEAT_UV_LAMP,
+        translation_key=GATTR_FEAT_UV_LAMP,
+        value_func=lambda device, _: device.feature_uv_lamp,
+        set_func=lambda device, _, value: device.set_feature_uv_lamp(value),
     ),
     GreeSwitchDescription(
         key=GATTR_ANTI_DIRECT_BLOW,

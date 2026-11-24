@@ -81,6 +81,12 @@ Answering a column is no proof that the unit uses it. One unit answers all three
 
 `TemUn` (or `TemUnit`) switches the unit between Celsius and Fahrenheit, but `SetTem` is always whole degrees Celsius. Only the bit picks the Fahrenheit degree from the table. So `supports_temperature_unit_change` needs the unit column and a bit column. Without a bit the unit is Celsius only: `target_temperature_unit` is always Celsius, and the **Temperature Units** select is not created. Home Assistant converts the value for a user who shows Fahrenheit. The AC unit of a zone controller is the exception: it has no bit of its own (it drops `StFahFlg`, see [Zone controllers](#zone-controllers)), but its `TemUnit` switches the whole system and the zones do have the bit.
 
+## UV lamp
+
+- `UvcControl` (`FEAT_UV_LAMP`) turns the UV lamp on (1) or off (0). It is separate from `Health` (cold plasma). On a Gree Smart One unit (issue 585), the remote button cycles plasma, UV, both and off, and the Gree+ app shows the two as separate controls.
+- A unit without a UV lamp can leave the column out: the dev unit (`U-CS532Z(LT)V3.75`) does. The first poll then drops it, and no switch is created.
+- The reporter of issue 585 saw a delay of 10 to 20 s before the unit showed the change, but only with a separate test script that bound again for every command. Through the integration the change was not tested yet.
+
 ## Discovery and network
 
 - Local discovery is a plain text `{"t": "scan"}` UDP broadcast. The device answers with a `dev` pack encrypted with the generic key.

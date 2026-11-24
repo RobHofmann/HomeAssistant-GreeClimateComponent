@@ -64,6 +64,9 @@ class GreeProp(StrEnum):
     FEAT_XFAN = "Blo"
     # controls Health ("Cold plasma") mode, only for devices equipped with "anion generator", which absorbs dust and kills bacteria
     FEAT_HEALTH = "Health"
+    # turns the UV lamp on or off, only on units that have one. Separate from Health:
+    # on some units the remote button cycles plasma, UV, both and off
+    FEAT_UV_LAMP = "UvcControl"
     # sleep mode enabled, which gradually changes the temperature in Cool and Heat modes
     FEAT_SLEEP_MODE = "SlpMod"
     # sleep mode setting, controls different sleep modes
@@ -365,7 +368,6 @@ class OtherProps(StrEnum):
     UNKN_UnmanedOffTime = "UnmanedOffTime"
     UNKN_UnmanedSetting = "UnmanedSetting"
     UNKN_UnmanedShutDown = "UnmanedShutDown"
-    UNKN_UvcControl = "UvcControl"
     UNKN_Video = "Video"
     UNKN_VitiGr = "VitiGr"
     UNKN_VOC = "VOC"

@@ -296,6 +296,9 @@
             "health": {
                 "name": "Saúde"
             },
+            "uv_lamp": {
+                "name": "Lâmpada UV"
+            },
             "light_sensor": {
                 "name": "Brilho Automático do Visor"
             },
@@ -392,6 +395,7 @@
                 "eightdegheat": "Fora de Casa",
                 "lights": "Visor",
                 "health": "Saúde",
+                "uv_lamp": "Lâmpada UV",
                 "anti_direct_blow": "Anti Sopro Direto",
                 "powersave": "Poupança de Energia",
                 "light_sensor": "Brilho Automático do Visor",
