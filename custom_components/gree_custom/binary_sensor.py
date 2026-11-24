@@ -46,6 +46,7 @@ SENSOR_TYPES: list[GreeBinarySensorDescription] = [
         translation_key=GATTR_COMPRESSOR_RUNNING,
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_registry_enabled_default=False,
+        entity_category=EntityCategory.DIAGNOSTIC,
         value_func=lambda device: device.compressor_running,
         auto_device_support=True,
     ),
