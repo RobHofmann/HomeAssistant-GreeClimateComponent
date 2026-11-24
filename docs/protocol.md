@@ -27,6 +27,7 @@ Facts about how Gree devices behave on the wire. Most of these are not visible f
 - A normal poll does not use `error_as_missing`, so it sends no canary. A request that gets no answer raises at once and marks the device unavailable. A canary there would only add up to 10 s and a warning to every poll of a unit that is switched off.
 - Request rate is not a problem. 600 back-to-back single-prop requests were answered without a drop.
 - The device does not type its values. `InfoProp` values can come back as `int` (seen: `ModelType` as `32768`) while others are `str`. `gree_process_status_pack()` casts every column and value to `str` for that reason.
+- A device may name more columns than it sends values for. Seen on a GCM unit (Smart One, firmware V2.11) for the `InfoProp` request: `cols=10`, `dat=9`. The values are matched to the names by position, so a gap moves every value after it to the wrong name. `gree_process_status_pack()` raises `GreeProtocolError` ("Malformed response") for that reason and does not guess. `fetch_device_info()` then asks for the info columns again, one column per request, with `error_as_missing` and `max_attempts=1`. A column without a value comes back alone with an empty `dat`, and is reported missing.
 
 ## Temperature
 

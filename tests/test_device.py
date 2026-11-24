@@ -219,6 +219,41 @@ async def test_a_property_the_unit_does_not_answer_is_dropped(
         await transport.disconnect()
 
 
+async def test_an_info_reply_with_a_value_missing_still_binds(
+    unit: FakeGreeDevice,
+) -> None:
+    """Some GCM units name more info columns than they send values for.
+
+    The values cannot be matched to the names, so the device asks for the info
+    again, one column at a time. The column without a value is left out, and
+    the other columns keep their own values.
+    """
+    unit.unsupported_props = {
+        InfoProp.BC.value,
+        InfoProp.MODEL_NEW.value,
+        InfoProp.MID_TYPE.value,
+        InfoProp.BUS.value,
+    }
+    unit.valueless_props = {InfoProp.SERVER.value}
+    device, transport = await bind(unit)
+
+    try:
+        assert device.is_bound
+        assert device.firmware_version == "3.75 (Protocol: 1.2.1)"
+        assert device.firmware_code == "362001065279 (UDP)"
+        assert InfoProp.SERVER not in device._state.info  # noqa: SLF001
+
+        info_requests = [
+            pack["cols"]
+            for pack in unit.packs
+            if pack.get("t") == "status" and InfoProp.HID.value in pack["cols"]
+        ]
+        assert len(info_requests[0]) == len(InfoProp)
+        assert info_requests[1:] == [[InfoProp.HID.value]]
+    finally:
+        await transport.disconnect()
+
+
 async def test_only_the_sensor_that_reports_is_kept(unit: FakeGreeDevice) -> None:
     """A unit exposes the same sensor under several names, most of them zero."""
     device, transport = await bind(unit)
