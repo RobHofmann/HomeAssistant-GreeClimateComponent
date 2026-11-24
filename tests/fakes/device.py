@@ -64,6 +64,7 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
         stale_reads_after_cmd: int = 0,
         apply_commands: bool = True,
         read_only_props: set[str] | None = None,
+        valueless_props: set[str] | None = None,
     ) -> None:
         """Set up the device.
 
@@ -101,6 +102,10 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
             read_only_props: Columns the device answers but never changes on a
                 command, while it applies the rest of the command. Some units
                 answer a half degree column such as Add0.5 that they ignore.
+            valueless_props: Columns the device names in its reply but gives
+                no value for, so the reply has fewer values than names. Seen on
+                a GCM unit for the info columns (cols=10, dat=9). Asked alone,
+                such a column comes back with an empty value list.
 
         """
         self.mac = mac
@@ -122,6 +127,7 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
         self.reply_key = reply_key
         self.scan_info = scan_info
         self.stale_reads_after_cmd = stale_reads_after_cmd
+        self.valueless_props = valueless_props or set()
         self.apply_commands = apply_commands
         self.read_only_props = read_only_props or set()
 
@@ -372,7 +378,11 @@ class FakeGreeDevice(asyncio.DatagramProtocol):
             "mac": self.mac,
             "r": 200,
             "cols": answered,
-            "dat": [values.get(col, 0) for col in answered],
+            "dat": [
+                values.get(col, 0)
+                for col in answered
+                if col not in self.valueless_props
+            ],
         }
 
     def build_command_result(self, pack: dict[str, Any]) -> dict[str, Any]:
