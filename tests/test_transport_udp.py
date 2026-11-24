@@ -10,6 +10,8 @@ is not about retrying, because a full failure costs a few seconds.
 # pytest pattern, not shadowing.
 
 from collections.abc import AsyncIterator
+import json
+from typing import Any, override
 
 from aiogree.api import gree_get_response_pack, gree_get_status, gree_set_status
 from aiogree.cipher import EncryptionVersion, get_cipher
@@ -216,3 +218,42 @@ async def test_a_bind_gets_the_session_key(device: FakeGreeDevice) -> None:
 
     assert pack["key"] == DEFAULT_SESSION_KEY
     assert device.keys_used == ["generic"]
+
+
+class OneReplyPerPortDevice(FakeGreeDevice):
+    """A gateway that answers only the first packet from each client port.
+
+    Seen on a VRF gateway in issue 545: the second request on one socket got
+    no answer.
+    """
+
+    def __init__(self) -> None:
+        """Start with no ports seen."""
+        super().__init__()
+        self.ports_seen: set[tuple[str | Any, int]] = set()
+
+    @override
+    def datagram_received(self, data: bytes, addr: tuple[str | Any, int]) -> None:
+        """Record every packet, answer only the first one per port."""
+        if addr in self.ports_seen:
+            self.requests.append(json.loads(data))
+            return
+        self.ports_seen.add(addr)
+        super().datagram_received(data, addr)
+
+
+async def test_a_gateway_that_answers_once_per_port() -> None:
+    """Each request goes out on a new socket, so no poll waits for a timeout."""
+    device = OneReplyPerPortDevice()
+    await device.start()
+    transport = GreeUdpTransport(device.host, device.port, max_retries=1, timeout=0.5)
+
+    try:
+        for _ in range(3):
+            assert await get_power(transport) == {"Pow": "1"}
+    finally:
+        await transport.disconnect()
+        device.close()
+
+    assert len(device.requests) == 3
+    assert len(device.ports_seen) == 3

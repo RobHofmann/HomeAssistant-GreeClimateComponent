@@ -11,7 +11,7 @@ No Home Assistant imports here.
 | `api.py` | Wire protocol. `GreeProp`, `InfoProp` and `OtherProps` enums, pack builders, status and command requests, discovery, `StatusResult`. |
 | `cipher.py` | `CipherV1` (AES-128 ECB) and `CipherV2` (AES-128 GCM). `EncryptionVersion` enum. |
 | `transport.py` | `GreeBaseTransport` and `BindingInfo`. Shared request and listener logic. `request_json()` encrypts, sends, decrypts. Owns the binding: one `BindingInfo` (key, version, cipher) per controller MAC, shared by every device of that controller, see [protocol.md](protocol.md#one-bind-per-controller). `add_device()` and `remove_device()` track which devices use it. |
-| `transport_udp.py` | Local UDP transport. Port 7000. One socket, one request at a time, retries with backoff. |
+| `transport_udp.py` | Local UDP transport. Port 7000. A new socket per request, one request at a time, retries with backoff. |
 | `transport_mqtt.py` | Gree Cloud MQTT transport, one broker per region. |
 | `cloud_api.py` | Gree Cloud REST login and device list, one host per region. |
 | `device.py` | `GreeDevice`. Binds, fetches info and status, pushes changes, exposes typed properties. |
