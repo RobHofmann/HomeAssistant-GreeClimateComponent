@@ -237,6 +237,7 @@
                 "eightdegheat": "8ºC Akıllı Isıtma",
                 "lights": "Ekran Işığı",
                 "health": "Sağlık (İyonizer)",
+                "uv_lamp": "UV Lambası",
                 "anti_direct_blow": "Doğrudan Üflemeyi Engelle",
                 "powersave": "Enerji Tasarrufu",
                 "light_sensor": "Ekran Otomatik Parlaklık",
@@ -380,6 +381,9 @@
             },
             "health": {
                 "name": "Sağlık (İyonizer)"
+            },
+            "uv_lamp": {
+                "name": "UV Lambası"
             },
             "powersave": {
                 "name": "Güç Tasarrufu"
