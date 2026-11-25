@@ -9,6 +9,7 @@ CONF_SWING_HORIZONTAL_MODES = 'swing_horizontal_modes'
 CONF_ENCRYPTION_VERSION = 'encryption_version'
 CONF_DISABLE_AVAILABLE_CHECK  = 'disable_available_check'
 CONF_TEMP_SENSOR_OFFSET = 'temp_sensor_offset'
+CONF_MIN_TEMP = 'min_temp'
 CONF_EXTRA_SCAN_NETWORKS = 'extra_scan_networks'
 CONF_EXTRA_SCAN_HOSTS = 'extra_scan_hosts'
 
@@ -43,6 +44,7 @@ OPTION_KEYS = {
     CONF_SWING_HORIZONTAL_MODES,
     CONF_DISABLE_AVAILABLE_CHECK,
     CONF_TEMP_SENSOR_OFFSET,
+    CONF_MIN_TEMP,
 }
 
 MODES_MAPPING = {

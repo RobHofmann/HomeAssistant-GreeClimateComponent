@@ -1,7 +1,7 @@
 # Gree Climate Integration - Manual Configuration Example
 # 
 # This file contains all possible configuration options for the Gree Climate integration
-# when using YAML configuration instead of the UI config flow.
+# when using YAML confback to iguration instead of the UI config flow.
 #
 # Copy the sections you need to your configuration.yaml file.
 
@@ -89,6 +89,11 @@ gree:
     # Display offset for temp sensor (optional, auto-detected if not set)
     # Set to true to apply -40°C offset, false for no offset, or leave unset for auto-detection
     # temp_sensor_offset: true
+
+    # Minimum value in °C to which temperature can be set (optional, defaults to 16°C).
+    # E.g. some units allows going down to 8 °C degree by degree instead of having separate 
+    # 8 °C mode. Can be set higher too.
+    # min_temp: 8
 
 # Example for multiple AC units:
 # gree:

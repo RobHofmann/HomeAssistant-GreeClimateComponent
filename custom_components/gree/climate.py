@@ -54,6 +54,7 @@ from .const import (
     CONF_ENCRYPTION_VERSION,
     CONF_DISABLE_AVAILABLE_CHECK,
     CONF_TEMP_SENSOR_OFFSET,
+    CONF_MIN_TEMP,
 )
 from .gree_protocol import Pad, FetchResult, GetDeviceKey, GetGCMCipher, EncryptGCM, GetDeviceKeyGCM
 from .helpers import TempOffsetResolver, gree_f_to_c, gree_c_to_f, encode_temp_c, decode_temp_c
@@ -86,6 +87,7 @@ async def create_gree_device(hass, config):
     encryption_version = config.get(CONF_ENCRYPTION_VERSION, 1)
     disable_available_check = config.get(CONF_DISABLE_AVAILABLE_CHECK, False)
     temp_sensor_offset = config.get(CONF_TEMP_SENSOR_OFFSET)
+    min_temp_override = config.get(CONF_MIN_TEMP)
 
     return GreeClimate(
         hass,
@@ -102,6 +104,7 @@ async def create_gree_device(hass, config):
         encryption_key,
         uid,
         temp_sensor_offset,
+        min_temp_override,
     )
 
 
@@ -151,6 +154,7 @@ class GreeClimate(ClimateEntity):
         encryption_key=None,
         uid=None,
         temp_sensor_offset=None,
+        min_temp_override=None,
     ):
         _LOGGER.info(f"{name}: Initializing Gree climate device")
 
@@ -188,6 +192,7 @@ class GreeClimate(ClimateEntity):
         self._swing_horizontal_mode = None
 
         self._temp_sensor_offset = temp_sensor_offset
+        self._min_temp_override = min_temp_override
 
         # Store for external temp sensor entity (set by sensor entity)
         self._external_temperature_sensor = None
@@ -847,9 +852,9 @@ class GreeClimate(ClimateEntity):
     @property
     def min_temp(self):
         if self._unit_of_measurement == "°C":
-            MIN_TEMP = MIN_TEMP_C
+            MIN_TEMP = MIN_TEMP_C if self._min_temp_override is None else self._min_temp_override
         else:
-            MIN_TEMP = MIN_TEMP_F
+            MIN_TEMP = MIN_TEMP_F if self._min_temp_override is None else round(self._min_temp_override * 9.0 / 5.0 + 32.0)
 
         _LOGGER.debug(f"{self._name}: min_temp() = {MIN_TEMP}")
         # Return the minimum temperature.
