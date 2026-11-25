@@ -237,6 +237,7 @@
                 "eightdegheat": "Inteligentne ogrzewanie 8ºC",
                 "lights": "Podświetlenie wyświetlacza",
                 "health": "Jonizacja",
+                "uv_lamp": "Lampa UV",
                 "anti_direct_blow": "Ochrony przed bezpośrednim nawiewem",
                 "powersave": "Oszczędzanie energii",
                 "light_sensor": "Automatyczna jasność wyświetlacza",
@@ -380,6 +381,9 @@
             },
             "health": {
                 "name": "Jonizacja"
+            },
+            "uv_lamp": {
+                "name": "Lampa UV"
             },
             "powersave": {
                 "name": "Oszczędzanie energii"

@@ -237,6 +237,7 @@
                 "eightdegheat": "8ºC intelligens fűtés",
                 "lights": "Kijelző világítás",
                 "health": "Egészség",
+                "uv_lamp": "UV-lámpa",
                 "anti_direct_blow": "Közvetlen fújás ellen",
                 "powersave": "Energiatakarékosság",
                 "light_sensor": "Kijelző automatikus fényereje",
@@ -380,6 +381,9 @@
             },
             "health": {
                 "name": "Egészség"
+            },
+            "uv_lamp": {
+                "name": "UV-lámpa"
             },
             "powersave": {
                 "name": "Energiatakarékosság"

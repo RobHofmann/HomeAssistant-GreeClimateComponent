@@ -237,6 +237,7 @@
                 "eightdegheat": "Chauffage intelligent 8ºC",
                 "lights": "Éclairage de l'écran",
                 "health": "Santé",
+                "uv_lamp": "Lampe UV",
                 "anti_direct_blow": "Anti-Jet direct",
                 "powersave": "Économie d'énergie",
                 "light_sensor": "Luminosité auto de l'écran",
@@ -380,6 +381,9 @@
             },
             "health": {
                 "name": "Santé"
+            },
+            "uv_lamp": {
+                "name": "Lampe UV"
             },
             "powersave": {
                 "name": "Économie d'énergie"

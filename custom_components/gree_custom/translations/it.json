@@ -237,6 +237,7 @@
                 "eightdegheat": "Riscaldamento smart 8ºC",
                 "lights": "Luce del display",
                 "health": "Salute",
+                "uv_lamp": "Lampada UV",
                 "anti_direct_blow": "Anti-soffio diretto",
                 "powersave": "Risparmio energetico",
                 "light_sensor": "Luminosità automatica del display",
@@ -380,6 +381,9 @@
             },
             "health": {
                 "name": "Salute"
+            },
+            "uv_lamp": {
+                "name": "Lampada UV"
             },
             "powersave": {
                 "name": "Risparmio energetico"

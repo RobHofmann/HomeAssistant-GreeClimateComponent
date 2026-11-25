@@ -237,6 +237,7 @@
                 "eightdegheat": "8ºC 智能制热",
                 "lights": "显示屏灯光",
                 "health": "健康模式",
+                "uv_lamp": "紫外线灯",
                 "anti_direct_blow": "防直吹",
                 "powersave": "节能",
                 "light_sensor": "显示屏自动亮度",
@@ -380,6 +381,9 @@
             },
             "health": {
                 "name": "健康模式"
+            },
+            "uv_lamp": {
+                "name": "紫外线灯"
             },
             "powersave": {
                 "name": "节能模式"
