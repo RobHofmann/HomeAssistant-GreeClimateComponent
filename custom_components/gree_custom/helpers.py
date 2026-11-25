@@ -20,7 +20,11 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.storage import Store
-from homeassistant.helpers.typing import UNDEFINED, UndefinedType
+
+try:
+    from homeassistant.helpers.typing import Undefined  # type: ignore[attr-defined]
+except ImportError:  # Home Assistant 2026.11 has no Undefined yet
+    from homeassistant.helpers.typing import UNDEFINED as Undefined
 
 from .aiogree.api import (
     ZONE_CONTROLLER_TYPES,
@@ -505,10 +509,10 @@ def get_vrf_controller_mac(device_entry: dr.DeviceEntry) -> str | None:
 class _ControllerInfo(NamedTuple):
     """What a controller device shows, taken from one of its sub-units."""
 
-    sw_version: str | UndefinedType | None
-    hw_version: str | UndefinedType | None
-    model: str | UndefinedType
-    translation_key: str | UndefinedType
+    sw_version: str | Undefined | None
+    hw_version: str | Undefined | None
+    model: str | Undefined
+    translation_key: str | Undefined
 
 
 def _controller_info(entry: ConfigEntry, sub_macs: set[str]) -> _ControllerInfo:
@@ -516,7 +520,7 @@ def _controller_info(entry: ConfigEntry, sub_macs: set[str]) -> _ControllerInfo:
 
     The firmware belongs to the WiFi module of the gateway. A zone controller
     is a gateway too, with zones instead of indoor units, and only a bound
-    sub-unit knows its type. Without a bound sub-unit everything is UNDEFINED,
+    sub-unit knows its type. Without a bound sub-unit everything is Undefined,
     so the registry keeps what it has.
     """
     for sub_mac in sorted(sub_macs):
@@ -539,7 +543,7 @@ def _controller_info(entry: ConfigEntry, sub_macs: set[str]) -> _ControllerInfo:
             VRF_CONTROLLER_TRANSLATION_KEY,
         )
 
-    return _ControllerInfo(UNDEFINED, UNDEFINED, UNDEFINED, UNDEFINED)
+    return _ControllerInfo(Undefined, Undefined, Undefined, Undefined)
 
 
 def _controller_label(
@@ -550,10 +554,13 @@ def _controller_label(
     A bound sub-unit tells the kind of controller. Without one, an existing
     device keeps the model and name the registry has, so nothing is returned,
     and a new device gets the VRF label. translation_key does not take
-    UNDEFINED, so it is left out rather than passed as UNDEFINED.
+    Undefined, so it is left out rather than passed as Undefined.
+
+    Compare by identity: from Home Assistant 2026.12 on, Undefined is a
+    sentinel object and not a type, so isinstance() raises TypeError.
     """
     model, translation_key = info.model, info.translation_key
-    if isinstance(translation_key, UndefinedType):
+    if translation_key is Undefined:
         if exists:
             return {}
         model, translation_key = VRF_CONTROLLER_MODEL, VRF_CONTROLLER_TRANSLATION_KEY
