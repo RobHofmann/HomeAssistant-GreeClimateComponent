@@ -72,20 +72,30 @@ from .transport_udp import GreeUdpTransport
 
 _LOGGER = logging.getLogger(__name__)
 
-# The compressor and coil temperatures. They are always in Celsius. Like the
-# room and outdoor sensors, they may carry an offset of 40, which is detected
-# from the values seen (TempOffsetResolver). The window is the plausible range
-# in Celsius for each sensor. It is wider than the room window, because a coil
-# runs far below or above the room, and the compressor gets hot. A wide window
-# leaves many values undecided, for example 48 is 48 or 8 degrees. While
-# undecided, these sensors follow the room sensor: a unit whose room sensor has
-# the offset most likely has it here too. When the room sensor is undecided as
-# well, the offset is assumed. See docs/protocol.md.
+# The outdoor, compressor and coil temperatures. Like the room sensor, they
+# may carry an offset of 40, which is detected from the values seen
+# (TempOffsetResolver). The window is the plausible range in Celsius for each
+# sensor. It is wider than the room window, because the outdoor air, a coil and
+# the compressor go far below or above the room. A wide window leaves many
+# values undecided, for example 48 is 48 or 8 degrees. While undecided, these
+# sensors follow the room sensor: a unit whose room sensor has the offset most
+# likely has it here too. When the room sensor is undecided as well, the offset
+# is assumed. The room sensor itself assumes no offset while undecided, because
+# some units send TemSen without it (issue 246). See docs/protocol.md.
 TELEMETRY_TEMPERATURE_WINDOWS_C: dict[GreeProp, tuple[float, float]] = {
     GreeProp.SENSOR_COMPRESSOR_TEMPERATURE: (-30.0, 120.0),
     GreeProp.SENSOR_INDOOR_COIL_TEMPERATURE: (-10.0, 70.0),
     GreeProp.SENSOR_OUTDOOR_COIL_TEMPERATURE: (-35.0, 70.0),
 }
+
+# The outdoor air. The resolver keeps the lowest and highest value until the
+# next start, so one value outside the window decides for good. The window is
+# wide, so that only a value that cannot be real decides. -40 is the lowest
+# value that the offset can carry (raw 0), so a raw 0 stays undecided. 60
+# covers a sensor in full sun on a hot day. The offset is then only decided by
+# a raw value above 62 (above 22 degrees on a unit with the offset), and "no
+# offset" only by a raw value below -2.
+OUTDOOR_TEMPERATURE_WINDOW_C: tuple[float, float] = (-40.0, 60.0)
 
 
 class GreeDevice:
@@ -789,17 +799,36 @@ class GreeDevice:
         """Return the current outside temperature if available."""
 
         if self._temp_processor_outdoors is None:
-            self._temp_processor_outdoors = TempOffsetResolver()
+            low, high = OUTDOOR_TEMPERATURE_WINDOW_C
+            self._temp_processor_outdoors = TempOffsetResolver(
+                indoor_min=low, indoor_max=high, assume_offset=True
+            )
 
         if self._outdoor_temp_sensor_prop is None:
             return None
 
         raw_c = self._state.get(self._outdoor_temp_sensor_prop)
         return (
-            int(self._temp_processor_outdoors.evaluate(raw_c))
+            int(
+                self._temp_processor_outdoors.evaluate(
+                    raw_c, assume_offset=self._room_has_offset()
+                )
+            )
             if raw_c is not None
             else None
         )
+
+    def _room_has_offset(self) -> bool | None:
+        """Return the offset decision of the room sensor, or None if undecided.
+
+        The room temperature is read first, so its resolver has seen the latest
+        value. Each sensor entity reads its own property, so the outdoor or a
+        coil value can be read before the room value in a poll.
+        """
+        _ = self.indoors_temperature_c
+        if self._temp_processor_indoors is None:
+            return None
+        return self._temp_processor_indoors.has_offset
 
     @property
     def humidity(self) -> int | None:
@@ -839,14 +868,9 @@ class GreeDevice:
         if raw_c is None:
             return None
 
-        room_has_offset = (
-            self._temp_processor_indoors.has_offset
-            if self._temp_processor_indoors is not None
-            else None
-        )
         return int(
             self._temp_processors_telemetry[prop].evaluate(
-                raw_c, assume_offset=room_has_offset
+                raw_c, assume_offset=self._room_has_offset()
             )
         )
 

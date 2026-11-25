@@ -275,6 +275,103 @@ async def test_a_sensor_that_reports_celsius_plus_forty_is_corrected(
 
 
 #
+# Outdoor temperature offset
+#
+# The outdoor sensor has a wide window (-40 to 60 degrees), so most values fit
+# both readings. While undecided, it follows the room sensor, and assumes the
+# offset when the room sensor is undecided too. Each test reads the outdoor
+# value first, because each sensor entity reads its own property and the order
+# in a poll is not fixed.
+
+
+async def outdoor_unit(
+    unit: FakeGreeDevice, room_raw: int, outdoor_raw: int
+) -> tuple[GreeDevice, GreeUdpTransport]:
+    """Bind a unit with the given raw room and outdoor values."""
+    unit.values.update(
+        {
+            GreeProp.SENSOR_INDOOR_TEMPERATURE_2.value: room_raw,
+            GreeProp.SENSOR_OUTSIDE_TEMPERATURE_1.value: outdoor_raw,
+        }
+    )
+    return await bind(unit)
+
+
+async def test_outdoor_follows_a_room_sensor_with_the_offset(
+    unit: FakeGreeDevice,
+) -> None:
+    """The report on PR 587: raw 39 outdoors is -1 degrees, not 39.
+
+    39 fits the outdoor window with and without the offset. The room sensor at
+    62 can only have the offset (62 degrees indoors is not real).
+    """
+    device, transport = await outdoor_unit(unit, room_raw=62, outdoor_raw=39)
+
+    try:
+        assert device.outdoors_temperature_c == -1
+        assert device.indoors_temperature_c == 22
+    finally:
+        await transport.disconnect()
+
+
+async def test_outdoor_follows_a_room_sensor_without_the_offset(
+    unit: FakeGreeDevice,
+) -> None:
+    """A unit like the one in issue 246 sends plain Celsius.
+
+    A room sensor at 22 cannot have the offset (that would be -18 degrees
+    indoors), so outdoor 30 is 30, also on a hot day with 55.
+    """
+    device, transport = await outdoor_unit(unit, room_raw=22, outdoor_raw=30)
+
+    try:
+        assert device.outdoors_temperature_c == 30
+        assert device.indoors_temperature_c == 22
+
+        unit.values[GreeProp.SENSOR_OUTSIDE_TEMPERATURE_1.value] = 55
+        await device.fetch_device_status()
+        assert device.outdoors_temperature_c == 55
+    finally:
+        await transport.disconnect()
+
+
+async def test_outdoor_assumes_the_offset_while_the_room_is_undecided(
+    unit: FakeGreeDevice,
+) -> None:
+    """Room 30 fits both readings, so the room keeps "no offset".
+
+    The outdoor sensor assumes the offset instead, so outdoor 30 is -10.
+    """
+    device, transport = await outdoor_unit(unit, room_raw=30, outdoor_raw=30)
+
+    try:
+        assert device.outdoors_temperature_c == -10
+        assert device.indoors_temperature_c == 30
+    finally:
+        await transport.disconnect()
+
+
+async def test_an_outdoor_zero_does_not_decide(unit: FakeGreeDevice) -> None:
+    """Raw 0 is -40 degrees with the offset, so it fits the window both ways.
+
+    The resolver keeps its lowest value until the next start. If raw 0 decided
+    "no offset", raw 39 would show 39 again.
+    """
+    device, transport = await outdoor_unit(unit, room_raw=62, outdoor_raw=39)
+
+    try:
+        unit.values[GreeProp.SENSOR_OUTSIDE_TEMPERATURE_1.value] = 0
+        await device.fetch_device_status()
+        assert device.outdoors_temperature_c == -40
+
+        unit.values[GreeProp.SENSOR_OUTSIDE_TEMPERATURE_1.value] = 39
+        await device.fetch_device_status()
+        assert device.outdoors_temperature_c == -1
+    finally:
+        await transport.disconnect()
+
+
+#
 # Compressor telemetry
 #
 

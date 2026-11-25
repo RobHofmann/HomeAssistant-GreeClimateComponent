@@ -83,7 +83,7 @@ The three temperature sensors only exist when the unit reports them with a value
 
 The four compressor and coil sensors are in the Diagnostic category. The area card of Home Assistant averages every temperature sensor in an area that has no category, so a coil or compressor temperature would pull the room temperature far off. Outdoor Temperature has no category. If you enable it, set the temperature sensor of the area in the area settings, and the area card uses only that sensor.
 
-Some units report temperatures with an offset of 40. The integration detects that from the values it sees and corrects it.
+Some units report temperatures with an offset of 40. The integration detects that from the values it sees and corrects it. Most outdoor values fit both readings, so the outdoor sensor follows what the integration found for the room sensor. When that is not clear yet, the outdoor sensor assumes the offset.
 
 ## Binary sensor
 
