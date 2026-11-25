@@ -1,0 +1,504 @@
+{
+    "config": {
+        "error": {
+            "unknown": "出现问题，请重试。如果问题仍然存在，请查看日志。",
+            "cannot_connect": "无法连接到设备。请检查设备配置和网络连接，然后重试。如果问题仍然存在，请查看日志。",
+            "cannot_bind": "无法绑定设备。未能找到设备的加密版本或密钥。如果问题仍然存在，请查看日志。",
+            "invalid_network": "CIDR 无效。示例：192.168.30.0/24",
+            "invalid_host": "IP 地址无效。示例：192.168.30.50",
+            "network_too_large": "网络超过 65536 个主机的最大值（/16）。请拆分为多个 CIDR 或列出特定主机。",
+            "too_many_targets": "指定的网络和主机超过 65536 个主机的最大值（/16）。请拆分为多个 CIDR 或列出特定主机。",
+            "cloud_bad_login": "登录失败。请确认信息正确后重试。",
+            "cloud_unknown": "登录时出错。请查看日志并联系开发者",
+            "no_devices_selected": "请至少选择一个设备以继续",
+            "no_methods_selected": "请至少选择一种发现方式",
+            "cannot_connect_mqtt": "无法连接到 Gree 云（MQTT）。请检查账户信息。如果错误仍然存在，请在日志中查看服务器给出的原因。"
+        },
+        "abort": {
+            "reconfigure_successful": "设备已成功重新配置。",
+            "already_configured": "具有此 MAC 地址的设备已配置。",
+            "unique_id_mismatch": "正在配置的条目与配置意图不匹配。",
+            "no_devices_to_add": "未发现新设备。请调整发现选项后重试。",
+            "import_failed": "无法导入 YAML 配置。请查看修复问题和日志以了解原因。",
+            "legacy_migration_started": "您的 Gree 4.x 设备正在迁移到此集成。它们将在几秒钟后出现，实体 ID 保持不变。",
+            "yaml_managed": "此条目由 configuration.yaml 管理。请修改 YAML 并重启 Home Assistant。在此处所做的更改将在下次启动时被覆盖。",
+            "reauth_successful": "Gree 账户已重新登录。",
+            "already_in_progress": "此 Gree 账户的设置已在进行中。"
+        },
+        "step": {
+            "user": {
+                "title": "Gree 空调设置",
+                "description": "选择发现 Gree 设备的方式",
+                "data": {
+                    "discovery": "发现方式"
+                }
+            },
+            "cloud_add": {
+                "title": "Gree 账户",
+                "description": "输入信息以连接到您的 Gree 账户",
+                "data": {
+                    "email": "电子邮件",
+                    "password": "密码",
+                    "region": "区域"
+                }
+            },
+            "local_add": {
+                "title": "本地发现",
+                "description": "将通过扫描可用网络自动发现设备。\n\n如果您的设备位于其他子网或 VLAN，请输入一个或多个网络和/或特定 IP 地址，以通过单播进行探测。VLAN 间路由和防火墙规则必须允许从 Home Assistant 到目标子网的 UDP 端口 7000。",
+                "data": {
+                    "extra_scan_hosts": "额外主机",
+                    "extra_scan_networks": "额外网络"
+                },
+                "data_description": {
+                    "extra_scan_hosts": "（IP，例如 192.168.30.50, 192.168.30.51）",
+                    "extra_scan_networks": "（CIDR，例如 192.168.20.0/24, 192.168.30.0/24）"
+                }
+            },
+            "device_picker": {
+                "title": "已发现的设备",
+                "description": "找到 {devices_found} 个 Gree 设备。请选择要配置的设备。\n\n再次查找设备时，此列表只显示新设备，以及有新的本地或云连接的设备。未选择的设备保持不变。要移除设备，请使用菜单中的“移除设备”。",
+                "data": {
+                    "devices": "设备"
+                }
+            },
+            "connection_options": {
+                "title": "连接选项 {device_idx}/{device_cnt}",
+                "description": "配置此设备将使用的连接选项：\n\n{device_name}\n\n同一控制器（VRF 或区域控制器）下的设备共用 IP 地址、端口和加密版本。重新配置时如果更改这些值，该控制器的其他设备也会获得相同的值。",
+                "data": {
+                    "disable_available_check": "禁用可用性检查",
+                    "encryption_key": "加密密钥",
+                    "scan_interval": "扫描间隔",
+                    "uid": "用户 ID"
+                },
+                "data_description": {
+                    "encryption_key": "留空将自动发现",
+                    "scan_interval": "轮询设备数据的频率（秒）",
+                    "uid": "拥有此设备的用户 ID 编号。如果未知可填 0"
+                },
+                "sections": {
+                    "local": {
+                        "name": "本地连接设置",
+                        "data": {
+                            "encryption_version": "加密版本",
+                            "host": "IP 地址（已发现：{discovered_ip}）",
+                            "mac_controller_local": "本地控制器设备的 MAC（已发现：{discovered_mac_local}）",
+                            "max_online_attempts": "最大连接尝试次数",
+                            "port": "端口",
+                            "timeout": "连接超时"
+                        },
+                        "data_description": {
+                            "max_online_attempts": "设备被标记为不可用之前与其通信的尝试次数",
+                            "timeout": "每次连接尝试的超时时间"
+                        }
+                    },
+                    "cloud": {
+                        "name": "云连接设置",
+                        "data": {
+                            "mac_controller_cloud": "云控制器设备的 MAC（已发现：{discovered_mac_cloud}）",
+                            "prefer_cloud": "优先使用云连接"
+                        },
+                        "data_description": {
+                            "prefer_cloud": "设备默认优先使用本地连接。如果希望此设备通过云连接，请勾选此项"
+                        }
+                    }
+                }
+            },
+            "device_options": {
+                "title": "设备功能 {device_idx}/{device_cnt}",
+                "description": "Gree API 没有可靠的方法获取设备支持的功能。请根据您对设备的了解使用以下选项。只添加或开启该机组的遥控器或 Gree 应用可以为您的设备设置的功能。\n\n {device_name}",
+                "data": {
+                    "name": "设备名称",
+                    "hvac_modes": "空调模式",
+                    "fan_modes": "风速",
+                    "swing_modes": "垂直扫风模式",
+                    "swing_horizontal_modes": "水平扫风模式",
+                    "features": "设备功能和模式",
+                    "half_degrees": "使用 0.5 °C 步进",
+                    "external_temperature_sensor": "外部温度传感器",
+                    "external_humidity_sensor": "外部湿度传感器",
+                    "restore_states": "恢复实体",
+                    "setpoint_memory": "按模式记住目标温度"
+                },
+                "data_description": {
+                    "features": "对于区域控制器的某个区域，如果该区域必须始终保持打开，请不要添加“区域开关”。",
+                    "external_temperature_sensor": "如果设置，将替代空调内置的温度传感器，作为空调实体的数据",
+                    "external_humidity_sensor": "如果设置，将替代空调内置的湿度传感器，作为空调实体的数据",
+                    "restore_states": "如果勾选，集成启动时将使用集成之前的状态覆盖设备，而不是使用设备的当前状态。",
+                    "setpoint_memory": "如果勾选，将记住每种模式的目标温度，并在从 Home Assistant 切换模式时重新设置。对于区域控制器的空调机组，此设置覆盖所有区域，与墙面面板一致。机组在自动模式下保留自己的设置。",
+                    "half_degrees": "以 0.5 °C 为步进设置目标温度。仅当机组的遥控器或 Gree 应用可以设置半度时才开启。有些机组会响应 TemRec、StFahFlg、Add0.5 或 Add0.1 并保存半度，但仍按整数度运行：此时 Home Assistant 显示 22.5，而机组按 22 运行。华氏度始终为整数度。"
+                }
+            },
+            "reconfigure": {
+                "title": "重新配置设备",
+                "description": "此条目包含 {device_cnt} 个设备。请选择要执行的操作。选择“保存并重新加载”后，您的更改才会保存。",
+                "menu_options": {
+                    "edit_device": "编辑设备",
+                    "rediscover": "重新查找设备",
+                    "remove_devices": "移除设备",
+                    "finish": "保存并重新加载"
+                }
+            },
+            "rediscover": {
+                "title": "重新查找设备",
+                "description": "此操作将登录您的 Gree 账户以查找其设备。登录会使 Gree 应用退出登录。\n\n您正在重新配置一个使用云账户的条目。是否要查找与您的云设备匹配的本地设备？",
+                "data": {
+                    "include_local": "包括本地设备"
+                }
+            },
+            "edit_device": {
+                "title": "编辑设备",
+                "description": "选择要编辑的设备。如果不更改其连接方式，集成将使用当前运行的连接，不会登录 Gree 账户。",
+                "data": {
+                    "devices": "设备"
+                }
+            },
+            "no_new_devices": {
+                "title": "没有新设备",
+                "description": "未找到新设备或新连接。已找到的设备的 IP 地址已更新。\n\n提交以返回菜单。选择“保存并重新加载”后，您的更改才会保存。"
+            },
+            "remove_devices": {
+                "title": "移除设备",
+                "description": "选择要从此条目中移除的设备。",
+                "data": {
+                    "devices": "设备"
+                }
+            }
+        }
+    },
+    "selector": {
+        "discovery": {
+            "options": {
+                "cloud": "Gree 云账户",
+                "local": "本地网络"
+            }
+        },
+        "encryption_version": {
+            "options": {
+                "0": "自动检测",
+                "1": "V1",
+                "2": "V2"
+            }
+        },
+        "hvac_modes": {
+            "options": {
+                "auto": "自动",
+                "cool": "制冷",
+                "dry": "除湿",
+                "fan_only": "送风",
+                "heat": "制热",
+                "off": "关闭"
+            }
+        },
+        "fan_modes": {
+            "options": {
+                "auto": "自动",
+                "low": "低速",
+                "medium_low": "中低速",
+                "medium": "中速",
+                "medium_high": "中高速",
+                "high": "高速",
+                "turbo": "强劲",
+                "quiet": "静音"
+            }
+        },
+        "swing_modes": {
+            "options": {
+                "default": "默认",
+                "full_swing": "全范围扫风",
+                "fixed_upper": "固定在最高位置",
+                "fixed_upper_middle": "固定在中上位置",
+                "fixed_middle": "固定在中间位置",
+                "fixed_lower_middle": "固定在中下位置",
+                "fixed_lower": "固定在最低位置",
+                "swing_lower": "在最下区域扫风",
+                "swing_lower_middle": "在中下区域扫风",
+                "swing_middle": "在中间区域扫风",
+                "swing_upper_middle": "在中上区域扫风",
+                "swing_upper": "在最上区域扫风"
+            }
+        },
+        "swing_horizontal_modes": {
+            "options": {
+                "default": "默认",
+                "full_swing": "全范围扫风",
+                "left": "固定在最左位置",
+                "left_center": "固定在中左位置",
+                "center": "固定在中间位置",
+                "right_center": "固定在中右位置",
+                "right": "固定在最右位置"
+            }
+        },
+        "features": {
+            "options": {
+                "beeper": "蜂鸣器",
+                "air": "新风",
+                "xfan": "防霉风",
+                "sleep": "睡眠模式",
+                "eightdegheat": "8ºC 智能制热",
+                "lights": "显示屏灯光",
+                "health": "健康模式",
+                "anti_direct_blow": "防直吹",
+                "powersave": "节能",
+                "light_sensor": "显示屏自动亮度",
+                "faults": "故障检测",
+                "humidity_control": "湿度控制",
+                "auxiliary_heat": "电辅热",
+                "zone": "区域开关"
+            }
+        }
+    },
+    "device": {
+        "vrf_controller": {
+            "name": "VRF 网关 {mac}"
+        },
+        "zone_controller": {
+            "name": "区域控制器 {mac}"
+        }
+    },
+    "entity": {
+        "sensor": {
+            "indoor_temperature": {
+                "name": "室内温度"
+            },
+            "outdoor_temperature": {
+                "name": "室外温度"
+            },
+            "room_humidity": {
+                "name": "室内湿度"
+            },
+            "compressor_frequency": {
+                "name": "压缩机频率"
+            },
+            "compressor_temperature": {
+                "name": "压缩机温度"
+            },
+            "indoor_coil_temperature": {
+                "name": "室内盘管温度"
+            },
+            "outdoor_coil_temperature": {
+                "name": "室外盘管温度"
+            }
+        },
+        "binary_sensor": {
+            "faults": {
+                "name": "故障检测"
+            },
+            "compressor_running": {
+                "name": "压缩机运行"
+            }
+        },
+        "climate": {
+            "hvac": {
+                "state_attributes": {
+                    "fan_mode": {
+                        "state": {
+                            "auto": "自动",
+                            "low": "低速",
+                            "medium_low": "中低速",
+                            "medium": "中速",
+                            "medium_high": "中高速",
+                            "high": "高速",
+                            "turbo": "强劲",
+                            "quiet": "静音"
+                        }
+                    },
+                    "swing_mode": {
+                        "state": {
+                            "default": "默认",
+                            "full_swing": "全范围扫风",
+                            "fixed_upper": "固定在最高位置",
+                            "fixed_upper_middle": "固定在中上位置",
+                            "fixed_middle": "固定在中间位置",
+                            "fixed_lower_middle": "固定在中下位置",
+                            "fixed_lower": "固定在最低位置",
+                            "swing_lower": "在最下区域扫风",
+                            "swing_lower_middle": "在中下区域扫风",
+                            "swing_middle": "在中间区域扫风",
+                            "swing_upper_middle": "在中上区域扫风",
+                            "swing_upper": "在最上区域扫风"
+                        }
+                    },
+                    "swing_horizontal_mode": {
+                        "state": {
+                            "default": "默认",
+                            "full_swing": "全范围扫风",
+                            "left": "固定在最左位置",
+                            "left_center": "固定在中左位置",
+                            "center": "固定在中间位置",
+                            "right_center": "固定在中右位置",
+                            "right": "固定在最右位置"
+                        }
+                    }
+                }
+            }
+        },
+        "number": {
+            "target_temp_step": {
+                "name": "温度步进"
+            },
+            "humidity_control_target": {
+                "name": "目标湿度"
+            },
+            "zone_target_temperature": {
+                "name": "目标温度"
+            }
+        },
+        "select": {
+            "temperature_units": {
+                "name": "温度单位"
+            },
+            "auxiliary_heat": {
+                "name": "电辅热",
+                "state": {
+                    "off": "关闭",
+                    "always_on": "常开",
+                    "auto": "自动"
+                }
+            },
+            "humidity_control": {
+                "name": "湿度控制",
+                "state": {
+                    "disabled": "禁用",
+                    "target_dry": "普通除湿",
+                    "smart_dry": "智能除湿",
+                    "continuous_dry": "连续除湿"
+                }
+            }
+        },
+        "switch": {
+            "auto_light": {
+                "name": "显示屏灯光自动"
+            },
+            "auto_xfan": {
+                "name": "自动防霉风"
+            },
+            "lights": {
+                "name": "显示屏灯光"
+            },
+            "xfan": {
+                "name": "防霉风"
+            },
+            "health": {
+                "name": "健康模式"
+            },
+            "powersave": {
+                "name": "节能模式"
+            },
+            "eightdegheat": {
+                "name": "8ºC 智能制热"
+            },
+            "sleep": {
+                "name": "睡眠模式"
+            },
+            "air": {
+                "name": "新风"
+            },
+            "anti_direct_blow": {
+                "name": "防直吹"
+            },
+            "light_sensor": {
+                "name": "显示屏自动亮度"
+            },
+            "beeper": {
+                "name": "蜂鸣器"
+            }
+        }
+    },
+    "exceptions": {
+        "turbo_availability": {
+            "message": "强劲模式仅在制冷和制热模式下可用。"
+        },
+        "entity_unavailable": {
+            "message": "该实体不可用。"
+        },
+        "generic": {
+            "message": "执行请求的更改时出现问题，请查看集成日志。"
+        },
+        "invalid_device_id": {
+            "message": "执行操作时出现问题。选择了无效的设备。"
+        },
+        "entry_not_loaded": {
+            "message": "执行操作时出现问题。设备的配置条目未加载。"
+        },
+        "config_entry_not_found": {
+            "message": "执行操作时出现问题。未找到设备的配置条目。"
+        },
+        "invalid_config_data": {
+            "message": "执行操作时出现问题。配置条目包含无效数据。"
+        },
+        "humidity_mode_unavailable": {
+            "message": "湿度控制仅在制冷和除湿模式下可用。"
+        },
+        "continuous_dry_unavailable": {
+            "message": "连续除湿仅在除湿模式下可用。"
+        },
+        "smart_dry_unavailable": {
+            "message": "智能除湿仅在制冷模式下可用。"
+        },
+        "remove_vrf_controller": {
+            "message": "这是一个 VRF 控制器。请先删除其子机组，控制器将自动删除。"
+        },
+        "bad_credentials": {
+            "message": "Gree 云拒绝了已保存的登录信息，使用已保存的账户信息重新登录也失败了。请重新登录。"
+        },
+        "no_account_info": {
+            "message": "此条目缺少 Gree 账户信息。请重新登录。"
+        },
+        "device_bind_failed": {
+            "message": "无法绑定 Gree 设备 {mac}。请检查连接和加密密钥。"
+        }
+    },
+    "issues": {
+        "device_connection_failed": {
+            "title": "设备连接失败",
+            "description": "无法连接到设备 {device}。"
+        },
+        "yaml_import_failed": {
+            "title": "YAML 导入失败",
+            "description": "无法导入 {item} 的 YAML 配置：{reason}"
+        },
+        "legacy_yaml": {
+            "title": "更新 Gree 4.x 的配置",
+            "description": "部分 Gree 设备仍来自 Gree 4.x 的配置：`configuration.yaml` 中的 `gree:` 块，或在 YAML 块管理本地设备时您在 4.x 界面中设置的设备。此版本会在每次启动时转换它们，因此它们可以继续工作。此旧版导入将在以后的版本中移除。\n\n请注释掉 `gree:` 块，并保留它，以便您想回到 4.x 时使用。然后粘贴下面的块。如果您已有 `gree_custom:` 块，请改为将下面的设备添加到其 `devices:` 下。然后重启 Home Assistant。当不再有设备依赖 4.x 配置时，此消息将消失。\n\n```yaml\n{yaml}\n```"
+        },
+        "legacy_folder": {
+            "title": "移除旧的 Gree 4.x 文件",
+            "description": "Gree 4.x 的文件夹 `custom_components/gree` 仍已安装。HACS 安装此版本时不会将其移除。Gree 4.x 的设备已迁移到此集成，旧的 4.x 配置条目已禁用。\n\n请删除文件夹 `custom_components/gree` 并重启 Home Assistant。旧的配置条目保持禁用状态，因此您可以回到 4.x。另有一个单独的修复可让您移除它们。"
+        },
+        "legacy_entries": {
+            "title": "移除旧的 Gree 4.x 配置条目",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "移除旧的 Gree 4.x 配置条目",
+                        "description": "您的设备现在运行在此集成上。Gree 4.x 的旧配置条目已保留并禁用，因此您无需重新设置即可回到 4.x。\n\n选择 **移除** 以移除这些旧条目。之后，回到 4.x 就需要重新设置。",
+                        "submit": "移除"
+                    }
+                }
+            }
+        }
+    },
+    "services": {
+        "get_prop_values_all": {
+            "name": "查询所有属性",
+            "description": "查询 Gree 设备的所有属性",
+            "fields": {
+                "device_id": {
+                    "name": "设备 ID"
+                }
+            }
+        },
+        "get_prop_values": {
+            "name": "查询属性",
+            "description": "查询 Gree 设备的属性",
+            "fields": {
+                "device_id": {
+                    "name": "设备 ID"
+                },
+                "prop_list": {
+                    "name": "要查询的属性列表"
+                }
+            }
+        }
+    }
+}

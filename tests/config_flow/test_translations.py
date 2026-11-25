@@ -18,7 +18,9 @@ from custom_components.gree_custom import binary_sensor, sensor
 from custom_components.gree_custom.aiogree.api import AuxiliaryHeatMode
 
 COMPONENT = Path(__file__).parents[2] / "custom_components" / "gree_custom"
-LANGUAGES = ("en", "nl", "pt")
+LANGUAGES = tuple(
+    sorted(path.stem for path in (COMPONENT / "translations").glob("*.json"))
+)
 CONFIG_FLOW = (COMPONENT / "config_flow.py").read_text(encoding="utf-8")
 ALL_SOURCE = "".join(
     path.read_text(encoding="utf-8") for path in sorted(COMPONENT.glob("*.py"))
@@ -108,3 +110,53 @@ def test_every_sensor_name_has_a_text(language: str, platform: str) -> None:
 
     assert sorted(ENTITY_NAMES[platform] - set(names)) == []
     assert all("name" in names[key] for key in ENTITY_NAMES[platform])
+
+
+def flat_texts(texts: dict, prefix: str = "") -> dict[str, str]:
+    """Return every text in a translation file by its path, such as a/b/c."""
+    flat = {}
+    for key, value in texts.items():
+        if isinstance(value, dict):
+            flat |= flat_texts(value, f"{prefix}{key}/")
+        else:
+            flat[f"{prefix}{key}"] = value
+    return flat
+
+
+def key_paths(texts: dict) -> set[str]:
+    """Return the path of every text in a translation file."""
+    return set(flat_texts(texts))
+
+
+@pytest.mark.parametrize("language", [lang for lang in LANGUAGES if lang != "en"])
+def test_every_language_has_the_keys_of_english(language: str) -> None:
+    """A key that is only in en.json shows in English to a user of this language.
+
+    A key that is only in this language is a text that nothing uses any more.
+    """
+    english = key_paths(translations("en"))
+    other = key_paths(translations(language))
+
+    assert sorted(english - other) == []
+    assert sorted(other - english) == []
+
+
+def test_the_languages_are_found() -> None:
+    """The language list comes from the files, so it must not be empty."""
+    assert {"en", "nl", "pt", "de", "zh-Hans"} <= set(LANGUAGES)
+
+
+@pytest.mark.parametrize("language", [lang for lang in LANGUAGES if lang != "en"])
+def test_every_text_keeps_the_placeholders_of_english(language: str) -> None:
+    """A placeholder such as {mac} that a translation drops or renames breaks the text."""
+    english = flat_texts(translations("en"))
+    other = flat_texts(translations(language))
+
+    wrong = sorted(
+        path
+        for path, text in other.items()
+        if path in english
+        and sorted(re.findall(r"{(\w+)}", text))
+        != sorted(re.findall(r"{(\w+)}", english[path]))
+    )
+    assert wrong == []

@@ -1,0 +1,504 @@
+{
+    "config": {
+        "error": {
+            "unknown": "Hiba történt, próbálja újra. Ha a probléma továbbra is fennáll, nézze meg a naplókat.",
+            "cannot_connect": "Nem sikerült csatlakozni az eszközhöz. Ellenőrizze az eszköz beállításait és a hálózati kapcsolatot, majd próbálja újra. Ha a probléma továbbra is fennáll, nézze meg a naplókat.",
+            "cannot_bind": "Nem sikerült párosítani az eszközt. Nem sikerült megállapítani az eszköz titkosítási verzióját vagy kulcsát. Ha a probléma továbbra is fennáll, nézze meg a naplókat.",
+            "invalid_network": "Érvénytelen CIDR. Példa: 192.168.30.0/24",
+            "invalid_host": "Érvénytelen IP-cím. Példa: 192.168.30.50",
+            "network_too_large": "A hálózat meghaladja a 65536 hoszt (/16) maximumot. Ossza több CIDR-re, vagy soroljon fel konkrét hosztokat.",
+            "too_many_targets": "A megadott hálózatok és hosztok meghaladják a 65536 hoszt (/16) maximumot. Ossza több CIDR-re, vagy soroljon fel konkrét hosztokat.",
+            "cloud_bad_login": "A bejelentkezés sikertelen. Ellenőrizze az adatokat, és próbálja újra.",
+            "cloud_unknown": "Hiba a bejelentkezés során. Nézze meg a naplókat, és vegye fel a kapcsolatot a fejlesztőkkel",
+            "no_devices_selected": "A folytatáshoz válasszon ki legalább egy eszközt",
+            "no_methods_selected": "Válasszon ki legalább egy felderítési módot",
+            "cannot_connect_mqtt": "Nem sikerült csatlakozni a Gree felhőhöz (MQTT). Ellenőrizze a fiókadatokat. Ha a hiba továbbra is fennáll, a naplókban nézze meg, milyen okot adott meg a szerver."
+        },
+        "abort": {
+            "reconfigure_successful": "Az eszközök újrakonfigurálása sikerült.",
+            "already_configured": "Egy ezzel a MAC-címmel rendelkező eszköz már be van állítva.",
+            "unique_id_mismatch": "A konfigurált bejegyzés nem egyezik a konfiguráció céljával.",
+            "no_devices_to_add": "Nem található új eszköz. Módosítsa a felderítési beállításokat, és próbálja újra.",
+            "import_failed": "A YAML konfigurációt nem sikerült importálni. Az okot a javítási értesítésben és a naplóban találja.",
+            "legacy_migration_started": "A Gree 4.x eszközei átkerülnek ebbe az integrációba. Néhány másodperc múlva megjelennek, ugyanazokkal az entitásazonosítókkal.",
+            "yaml_managed": "Ezt a bejegyzést a configuration.yaml kezeli. Módosítsa a YAML-t, és indítsa újra a Home Assistantot. Az itt végzett módosításokat a következő indításkor felülírja a rendszer.",
+            "reauth_successful": "Újra bejelentkezett a Gree fiókba.",
+            "already_in_progress": "Ennek a Gree fióknak a beállítása már folyamatban van."
+        },
+        "step": {
+            "user": {
+                "title": "Gree Climate beállítása",
+                "description": "Válassza ki, hogyan keresse meg a Gree eszközt",
+                "data": {
+                    "discovery": "Felderítési mód"
+                }
+            },
+            "cloud_add": {
+                "title": "Gree fiók",
+                "description": "Adja meg az adatokat a Gree fiókhoz való csatlakozáshoz",
+                "data": {
+                    "email": "E-mail",
+                    "password": "Jelszó",
+                    "region": "Régió"
+                }
+            },
+            "local_add": {
+                "title": "Helyi felderítés",
+                "description": "Az eszközöket a rendszer automatikusan megkeresi az elérhető hálózatok átvizsgálásával.\n\nHa vannak eszközei másik alhálózaton vagy VLAN-on, adjon meg egy vagy több hálózatot és/vagy konkrét IP-címet, amelyeket unicast módon kell lekérdezni. A VLAN-ok közötti útválasztásnak és a tűzfalszabályoknak engedélyezniük kell a 7000-es UDP-portot a Home Assistanttól a célalhálózat felé.",
+                "data": {
+                    "extra_scan_hosts": "További hosztok",
+                    "extra_scan_networks": "További hálózatok"
+                },
+                "data_description": {
+                    "extra_scan_hosts": "(IP-címek, pl. 192.168.30.50, 192.168.30.51)",
+                    "extra_scan_networks": "(CIDR-ek, pl. 192.168.20.0/24, 192.168.30.0/24)"
+                }
+            },
+            "device_picker": {
+                "title": "Felderített eszközök",
+                "description": "{devices_found} Gree eszköz található. Válassza ki a beállítani kívánt eszközöket.\n\nÚjabb keresésnél ez a lista csak az új eszközöket és az új helyi vagy felhőkapcsolattal rendelkező eszközöket mutatja. A ki nem választott eszközök változatlanok maradnak. Eszköz eltávolításához használja a menü Eszközök eltávolítása pontját.",
+                "data": {
+                    "devices": "Eszközök"
+                }
+            },
+            "connection_options": {
+                "title": "Kapcsolati beállítások ({device_idx}/{device_cnt})",
+                "description": "Állítsa be az eszköz kapcsolati beállításait:\n\n{device_name}\n\nAz ugyanazon vezérlő (VRF vagy zónavezérlő) mögötti eszközök közös IP-címet, portot és titkosítási verziót használnak. Ha ezeket újrakonfiguráláskor módosítja, a vezérlő többi eszköze is ugyanezeket az értékeket kapja.",
+                "data": {
+                    "disable_available_check": "Elérhetőség ellenőrzésének letiltása",
+                    "encryption_key": "Titkosítási kulcs",
+                    "scan_interval": "Lekérdezési időköz",
+                    "uid": "Felhasználói azonosító"
+                },
+                "data_description": {
+                    "encryption_key": "Ha üresen hagyja, automatikusan felderíti a rendszer",
+                    "scan_interval": "Az eszközadatok lekérdezésének gyakorisága (másodpercben)",
+                    "uid": "Az eszköz tulajdonosának felhasználói azonosítója. Lehet 0, ha nem ismert"
+                },
+                "sections": {
+                    "local": {
+                        "name": "Helyi kapcsolat beállításai",
+                        "data": {
+                            "encryption_version": "Titkosítási verzió",
+                            "host": "IP-cím (felderítve: {discovered_ip})",
+                            "mac_controller_local": "A helyi vezérlőeszköz MAC-címe (felderítve: {discovered_mac_local})",
+                            "max_online_attempts": "Csatlakozási kísérletek max. száma",
+                            "port": "Port",
+                            "timeout": "Csatlakozási időtúllépés"
+                        },
+                        "data_description": {
+                            "max_online_attempts": "Az eszközzel való kommunikációs kísérletek száma, mielőtt elérhetetlennek jelöli a rendszer",
+                            "timeout": "Az időtúllépés minden egyes csatlakozási kísérletnél"
+                        }
+                    },
+                    "cloud": {
+                        "name": "Felhőkapcsolat beállításai",
+                        "data": {
+                            "mac_controller_cloud": "A felhővezérlő eszköz MAC-címe (felderítve: {discovered_mac_cloud})",
+                            "prefer_cloud": "Felhőkapcsolat előnyben részesítése"
+                        },
+                        "data_description": {
+                            "prefer_cloud": "Az eszközök a helyi kapcsolatot részesítik előnyben. Jelölje be, ha azt szeretné, hogy ez az eszköz a felhőn keresztül csatlakozzon"
+                        }
+                    }
+                }
+            },
+            "device_options": {
+                "title": "Eszközfunkciók ({device_idx}/{device_cnt})",
+                "description": "A Gree API nem tudja megbízhatóan lekérdezni, mely funkciókat támogatja egy eszköz. Az alábbi beállításokat töltse ki legjobb tudása szerint. Csak azokat a funkciókat adja hozzá vagy kapcsolja be, amelyeket a készülék távirányítója vagy a Gree alkalmazás be tud állítani.\n\n {device_name}",
+                "data": {
+                    "name": "Eszköz neve",
+                    "hvac_modes": "HVAC módok",
+                    "fan_modes": "Ventilátor-sebességek",
+                    "swing_modes": "Függőleges lengési módok",
+                    "swing_horizontal_modes": "Vízszintes lengési módok",
+                    "features": "Eszközfunkciók és módok",
+                    "half_degrees": "Fél fokok használata (°C)",
+                    "external_temperature_sensor": "Külső hőmérséklet érzékelő",
+                    "external_humidity_sensor": "Külső páratartalom-érzékelő",
+                    "restore_states": "Entitások visszaállítása",
+                    "setpoint_memory": "Célhőmérséklet megjegyzése módonként"
+                },
+                "data_description": {
+                    "features": "Zónavezérlő zónájánál hagyja ki a Zónakapcsolót, ha a zónának mindig nyitva kell maradnia.",
+                    "external_temperature_sensor": "Ha be van állítva, a klíma entitás adataiban ez helyettesíti a klímaberendezés beépített hőmérséklet-érzékelőjét",
+                    "external_humidity_sensor": "Ha be van állítva, a klíma entitás adataiban ez helyettesíti a klímaberendezés beépített páratartalom-érzékelőjét",
+                    "restore_states": "Ha be van jelölve, az integráció indításakor az eszköz az integráció korábbi állapotait kapja meg az eszköz aktuális állapota helyett.",
+                    "setpoint_memory": "Ha be van jelölve, a rendszer minden módhoz megjegyzi a célhőmérsékletet, és újra beállítja, amikor a módot a Home Assistantból váltja. Zónavezérlő klímaegységénél ez minden zónára vonatkozik, ahogy a fali panelnél is. Auto módban a készülék a saját beállítását használja.",
+                    "half_degrees": "A célhőmérséklet 0,5 °C-os lépésekben állítható. Csak akkor kapcsolja be, ha a készülék távirányítója vagy a Gree alkalmazás be tud állítani fél fokot. Egyes készülékek válaszolnak a TemRec, StFahFlg, Add0.5 vagy Add0.1 értékre, és eltárolják a fél fokot, de egész fokon működnek: ilyenkor a Home Assistant 22,5-öt mutat, a készülék pedig 22 fokon működik. Fahrenheitben mindig egész fokok vannak."
+                }
+            },
+            "reconfigure": {
+                "title": "Eszközök újrakonfigurálása",
+                "description": "Ebben a bejegyzésben {device_cnt} eszköz van. Válassza ki, mit szeretne tenni. A módosítások a Mentés és újratöltés választásakor mentődnek.",
+                "menu_options": {
+                    "edit_device": "Eszköz szerkesztése",
+                    "rediscover": "Eszközök újbóli keresése",
+                    "remove_devices": "Eszközök eltávolítása",
+                    "finish": "Mentés és újratöltés"
+                }
+            },
+            "rediscover": {
+                "title": "Eszközök újbóli keresése",
+                "description": "A rendszer bejelentkezik a Gree fiókjába, hogy megtalálja az eszközeit. A bejelentkezés kilépteti a Gree alkalmazást.\n\nEgy felhőfiókkal rendelkező bejegyzést konfigurál újra. Szeretne a felhőeszközeinek megfelelő helyi eszközöket keresni?",
+                "data": {
+                    "include_local": "Helyi eszközök bevonása"
+                }
+            },
+            "edit_device": {
+                "title": "Eszköz szerkesztése",
+                "description": "Válassza ki a szerkesztendő eszközt. Ha nem módosítja a csatlakozás módját, az integráció a meglévő kapcsolatot használja, és nem jelentkezik be a Gree fiókba.",
+                "data": {
+                    "devices": "Eszköz"
+                }
+            },
+            "no_new_devices": {
+                "title": "Nincs új eszköz",
+                "description": "Nem található új eszköz vagy új kapcsolat. A megtalált eszközök IP-címei frissültek.\n\nKüldje el a visszalépéshez a menübe. A módosítások a Mentés és újratöltés választásakor mentődnek."
+            },
+            "remove_devices": {
+                "title": "Eszközök eltávolítása",
+                "description": "Válassza ki a bejegyzésből eltávolítandó eszközöket.",
+                "data": {
+                    "devices": "Eszközök"
+                }
+            }
+        }
+    },
+    "selector": {
+        "discovery": {
+            "options": {
+                "cloud": "Gree felhőfiók",
+                "local": "Helyi hálózat"
+            }
+        },
+        "encryption_version": {
+            "options": {
+                "0": "Automatikus felismerés",
+                "1": "V1",
+                "2": "V2"
+            }
+        },
+        "hvac_modes": {
+            "options": {
+                "auto": "Auto",
+                "cool": "Hűtés",
+                "dry": "Szárítás",
+                "fan_only": "Csak ventilátor",
+                "heat": "Fűtés",
+                "off": "Ki"
+            }
+        },
+        "fan_modes": {
+            "options": {
+                "auto": "Auto",
+                "low": "Alacsony",
+                "medium_low": "Közepesen alacsony",
+                "medium": "Közepes",
+                "medium_high": "Közepesen magas",
+                "high": "Magas",
+                "turbo": "Turbó",
+                "quiet": "Csendes"
+            }
+        },
+        "swing_modes": {
+            "options": {
+                "default": "Alapértelmezett",
+                "full_swing": "Lengés teljes tartományban",
+                "fixed_upper": "Rögzített legfelső pozíció",
+                "fixed_upper_middle": "Rögzített közép-felső pozíció",
+                "fixed_middle": "Rögzített középső pozíció",
+                "fixed_lower_middle": "Rögzített közép-alsó pozíció",
+                "fixed_lower": "Rögzített legalsó pozíció",
+                "swing_lower": "Lengés a legalsó régióban",
+                "swing_lower_middle": "Lengés a közép-alsó régióban",
+                "swing_middle": "Lengés a középső régióban",
+                "swing_upper_middle": "Lengés a közép-felső régióban",
+                "swing_upper": "Lengés a legfelső régióban"
+            }
+        },
+        "swing_horizontal_modes": {
+            "options": {
+                "default": "Alapértelmezett",
+                "full_swing": "Teljes lengés",
+                "left": "Rögzített bal szélső pozíció",
+                "left_center": "Rögzített közép-bal pozíció",
+                "center": "Rögzített középső pozíció",
+                "right_center": "Rögzített közép-jobb pozíció",
+                "right": "Rögzített jobb szélső pozíció"
+            }
+        },
+        "features": {
+            "options": {
+                "beeper": "Csipogó",
+                "air": "Friss levegő",
+                "xfan": "X-Fan",
+                "sleep": "Alvás",
+                "eightdegheat": "8ºC intelligens fűtés",
+                "lights": "Kijelző világítás",
+                "health": "Egészség",
+                "anti_direct_blow": "Közvetlen fújás ellen",
+                "powersave": "Energiatakarékosság",
+                "light_sensor": "Kijelző automatikus fényereje",
+                "faults": "Hibafelismerés",
+                "humidity_control": "Páratartalom-szabályozás",
+                "auxiliary_heat": "Kiegészítő fűtés",
+                "zone": "Zónakapcsoló"
+            }
+        }
+    },
+    "device": {
+        "vrf_controller": {
+            "name": "VRF átjáró {mac}"
+        },
+        "zone_controller": {
+            "name": "Zónavezérlő {mac}"
+        }
+    },
+    "entity": {
+        "sensor": {
+            "indoor_temperature": {
+                "name": "Beltéri hőmérséklet"
+            },
+            "outdoor_temperature": {
+                "name": "Kültéri hőmérséklet"
+            },
+            "room_humidity": {
+                "name": "Beltéri páratartalom"
+            },
+            "compressor_frequency": {
+                "name": "Kompresszor frekvencia"
+            },
+            "compressor_temperature": {
+                "name": "Kompresszor hőmérséklet"
+            },
+            "indoor_coil_temperature": {
+                "name": "Beltéri hőcserélő hőmérséklete"
+            },
+            "outdoor_coil_temperature": {
+                "name": "Kültéri hőcserélő hőmérséklete"
+            }
+        },
+        "binary_sensor": {
+            "faults": {
+                "name": "Hibafelismerés"
+            },
+            "compressor_running": {
+                "name": "Kompresszor működik"
+            }
+        },
+        "climate": {
+            "hvac": {
+                "state_attributes": {
+                    "fan_mode": {
+                        "state": {
+                            "auto": "Auto",
+                            "low": "Alacsony",
+                            "medium_low": "Közepesen alacsony",
+                            "medium": "Közepes",
+                            "medium_high": "Közepesen magas",
+                            "high": "Magas",
+                            "turbo": "Turbó",
+                            "quiet": "Csendes"
+                        }
+                    },
+                    "swing_mode": {
+                        "state": {
+                            "default": "Alapértelmezett",
+                            "full_swing": "Lengés teljes tartományban",
+                            "fixed_upper": "Rögzített legfelső pozíció",
+                            "fixed_upper_middle": "Rögzített közép-felső pozíció",
+                            "fixed_middle": "Rögzített középső pozíció",
+                            "fixed_lower_middle": "Rögzített közép-alsó pozíció",
+                            "fixed_lower": "Rögzített legalsó pozíció",
+                            "swing_lower": "Lengés a legalsó régióban",
+                            "swing_lower_middle": "Lengés a közép-alsó régióban",
+                            "swing_middle": "Lengés a középső régióban",
+                            "swing_upper_middle": "Lengés a közép-felső régióban",
+                            "swing_upper": "Lengés a legfelső régióban"
+                        }
+                    },
+                    "swing_horizontal_mode": {
+                        "state": {
+                            "default": "Alapértelmezett",
+                            "full_swing": "Teljes lengés",
+                            "left": "Rögzített bal szélső pozíció",
+                            "left_center": "Rögzített közép-bal pozíció",
+                            "center": "Rögzített középső pozíció",
+                            "right_center": "Rögzített közép-jobb pozíció",
+                            "right": "Rögzített jobb szélső pozíció"
+                        }
+                    }
+                }
+            }
+        },
+        "number": {
+            "target_temp_step": {
+                "name": "Hőmérséklet lépés"
+            },
+            "humidity_control_target": {
+                "name": "Cél páratartalom"
+            },
+            "zone_target_temperature": {
+                "name": "Célhőmérséklet"
+            }
+        },
+        "select": {
+            "temperature_units": {
+                "name": "Hőmérséklet mértékegysége"
+            },
+            "auxiliary_heat": {
+                "name": "Kiegészítő fűtés",
+                "state": {
+                    "off": "Ki",
+                    "always_on": "Mindig be",
+                    "auto": "Auto"
+                }
+            },
+            "humidity_control": {
+                "name": "Páratartalom-szabályozás",
+                "state": {
+                    "disabled": "Letiltva",
+                    "target_dry": "Normál szárítás",
+                    "smart_dry": "Intelligens szárítás",
+                    "continuous_dry": "Folyamatos szárítás"
+                }
+            }
+        },
+        "switch": {
+            "auto_light": {
+                "name": "Automatikus kijelző világítás"
+            },
+            "auto_xfan": {
+                "name": "Automatikus X-Fan"
+            },
+            "lights": {
+                "name": "Kijelző világítás"
+            },
+            "xfan": {
+                "name": "X-Fan"
+            },
+            "health": {
+                "name": "Egészség"
+            },
+            "powersave": {
+                "name": "Energiatakarékosság"
+            },
+            "eightdegheat": {
+                "name": "Intelligens fűtés 8ºC"
+            },
+            "sleep": {
+                "name": "Alvás"
+            },
+            "air": {
+                "name": "Friss levegő"
+            },
+            "anti_direct_blow": {
+                "name": "Közvetlen fújás ellen"
+            },
+            "light_sensor": {
+                "name": "Kijelző automatikus fényereje"
+            },
+            "beeper": {
+                "name": "Csipogó"
+            }
+        }
+    },
+    "exceptions": {
+        "turbo_availability": {
+            "message": "A Turbó mód csak Hűtés és Fűtés módban érhető el."
+        },
+        "entity_unavailable": {
+            "message": "Az entitás nem érhető el."
+        },
+        "generic": {
+            "message": "Hiba történt a kért módosítás végrehajtása közben, nézze meg az integráció naplóját."
+        },
+        "invalid_device_id": {
+            "message": "Hiba történt a művelet végrehajtása közben. Érvénytelen eszköz lett kiválasztva."
+        },
+        "entry_not_loaded": {
+            "message": "Hiba történt a művelet végrehajtása közben. Az eszköz konfigurációs bejegyzése nincs betöltve."
+        },
+        "config_entry_not_found": {
+            "message": "Hiba történt a művelet végrehajtása közben. Az eszköz konfigurációs bejegyzése nem található."
+        },
+        "invalid_config_data": {
+            "message": "Hiba történt a művelet végrehajtása közben. A konfigurációs bejegyzés érvénytelen adatokat tartalmaz."
+        },
+        "humidity_mode_unavailable": {
+            "message": "A páratartalom-szabályozás csak Hűtés és Szárítás módban érhető el."
+        },
+        "continuous_dry_unavailable": {
+            "message": "A folyamatos szárítás csak Szárítás módban érhető el."
+        },
+        "smart_dry_unavailable": {
+            "message": "Az intelligens szárítás csak Hűtés módban érhető el."
+        },
+        "remove_vrf_controller": {
+            "message": "Ez egy VRF vezérlő. Először törölje a beltéri egységeit, a vezérlő ezután automatikusan törlődik."
+        },
+        "bad_credentials": {
+            "message": "A Gree felhő elutasította a tárolt bejelentkezést, és a tárolt fiókadatokkal történő új bejelentkezés sem sikerült. Jelentkezzen be újra."
+        },
+        "no_account_info": {
+            "message": "Ennek a bejegyzésnek hiányoznak a Gree fiókadatai. Jelentkezzen be újra."
+        },
+        "device_bind_failed": {
+            "message": "Nem sikerült párosítani a(z) {mac} Gree eszközt. Ellenőrizze a kapcsolatot és a titkosítási kulcsot."
+        }
+    },
+    "issues": {
+        "device_connection_failed": {
+            "title": "Sikertelen csatlakozás az eszközhöz",
+            "description": "Nem sikerült csatlakozni a(z) {device} eszközhöz."
+        },
+        "yaml_import_failed": {
+            "title": "Sikertelen YAML importálás",
+            "description": "A(z) {item} YAML konfigurációját nem sikerült importálni: {reason}"
+        },
+        "legacy_yaml": {
+            "title": "Frissítse a Gree 4.x konfigurációját",
+            "description": "Egyes Gree eszközök még a Gree 4.x konfigurációjából származnak: a `configuration.yaml` `gree:` blokkjából, vagy olyan eszközök, amelyeket a 4.x felületén állított be, miközben egy YAML blokk kezeli a helyi eszközöket. Ez a verzió minden indításkor átalakítja őket, így továbbra is működnek. Ez a régi importálás egy későbbi verzióban megszűnik.\n\nTegye megjegyzésbe a `gree:` blokkot, és őrizze meg arra az esetre, ha vissza szeretne térni a 4.x-hez. Ezután illessze be az alábbi blokkot. Ha már van `gree_custom:` blokkja, inkább annak `devices:` részébe vegye fel az alábbi eszközöket. Ezután indítsa újra a Home Assistantot. Ez az üzenet eltűnik, amikor már egyetlen eszköz sem függ a 4.x konfigurációtól.\n\n```yaml\n{yaml}\n```"
+        },
+        "legacy_folder": {
+            "title": "Távolítsa el a régi Gree 4.x fájlokat",
+            "description": "A Gree 4.x `custom_components/gree` mappája még telepítve van. A HACS nem távolítja el, amikor ezt a verziót telepíti. A Gree 4.x eszközei átkerültek ebbe az integrációba, a régi 4.x konfigurációs bejegyzések pedig le vannak tiltva.\n\nTörölje a `custom_components/gree` mappát, és indítsa újra a Home Assistantot. A régi konfigurációs bejegyzések letiltva maradnak, így visszatérhet a 4.x-hez. Egy külön javítással eltávolíthatja őket."
+        },
+        "legacy_entries": {
+            "title": "Távolítsa el a régi Gree 4.x konfigurációs bejegyzéseket",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Távolítsa el a régi Gree 4.x konfigurációs bejegyzéseket",
+                        "description": "Az eszközei most már ezen az integráción futnak. A Gree 4.x régi konfigurációs bejegyzései letiltva megmaradnak, így újbóli beállítás nélkül visszatérhet a 4.x-hez.\n\nVálassza az **Eltávolítás** lehetőséget a régi bejegyzések eltávolításához. Ezután a 4.x-hez való visszatéréshez újra be kell állítania azt.",
+                        "submit": "Eltávolítás"
+                    }
+                }
+            }
+        }
+    },
+    "services": {
+        "get_prop_values_all": {
+            "name": "Összes tulajdonság lekérdezése",
+            "description": "Egy Gree eszköz összes tulajdonságának lekérdezése",
+            "fields": {
+                "device_id": {
+                    "name": "Eszközazonosító"
+                }
+            }
+        },
+        "get_prop_values": {
+            "name": "Tulajdonságok lekérdezése",
+            "description": "Egy Gree eszköz tulajdonságainak lekérdezése",
+            "fields": {
+                "device_id": {
+                    "name": "Eszközazonosító"
+                },
+                "prop_list": {
+                    "name": "Lekérdezendő tulajdonságok listája"
+                }
+            }
+        }
+    }
+}
