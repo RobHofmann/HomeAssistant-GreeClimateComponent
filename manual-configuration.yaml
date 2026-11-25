@@ -1,7 +1,7 @@
 # Gree Climate Integration - Manual Configuration Example
 # 
 # This file contains all possible configuration options for the Gree Climate integration
-# when using YAML confback to iguration instead of the UI config flow.
+# when using YAML configuration instead of the UI config flow.
 #
 # Copy the sections you need to your configuration.yaml file.
 
