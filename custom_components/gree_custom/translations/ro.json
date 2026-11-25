@@ -237,6 +237,7 @@
                 "eightdegheat": "Încălzire inteligentă 8ºC",
                 "lights": "Lumină afișaj",
                 "health": "Sănătate",
+                "uv_lamp": "Lampă UV",
                 "anti_direct_blow": "Anti-suflare directă",
                 "powersave": "Economisire energie",
                 "light_sensor": "Luminozitate automată afișaj",
@@ -380,6 +381,9 @@
             },
             "health": {
                 "name": "Sănătate"
+            },
+            "uv_lamp": {
+                "name": "Lampă UV"
             },
             "powersave": {
                 "name": "Economisire energie"

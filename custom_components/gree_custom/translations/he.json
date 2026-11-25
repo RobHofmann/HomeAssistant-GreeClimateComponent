@@ -237,6 +237,7 @@
                 "eightdegheat": "חימום חכם 8ºC",
                 "lights": "תאורת תצוגה",
                 "health": "בריאות",
+                "uv_lamp": "מנורת UV",
                 "anti_direct_blow": "מניעת נשיפה ישירה",
                 "powersave": "חיסכון באנרגיה",
                 "light_sensor": "בהירות תצוגה אוטומטית",
@@ -380,6 +381,9 @@
             },
             "health": {
                 "name": "בריאות"
+            },
+            "uv_lamp": {
+                "name": "מנורת UV"
             },
             "powersave": {
                 "name": "חיסכון בחשמל"
