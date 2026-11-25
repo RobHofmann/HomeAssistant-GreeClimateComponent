@@ -287,7 +287,23 @@ class GreeDevice:
 
         try:
             props = [prop.value for prop in InfoProp]
-            result = await self._api.query_props(props, len(props))
+            try:
+                result = await self._api.query_props(props, len(props))
+            except GreeProtocolError as err:
+                # Some GCM units name more info columns than they send values
+                # for (seen: cols=10, dat=9). The values cannot be matched to
+                # the names, so ask one column at a time. A column without a
+                # value is then reported as missing. A unit that stops
+                # answering still raises GreeConnectionError.
+                _LOGGER.warning(
+                    "[%s:%s] Device info reply could not be read (%s). Asking for each column on its own",
+                    self.unique_id,
+                    self.transport,
+                    err,
+                )
+                result = await self._api.query_props(
+                    props, 1, error_as_missing=True, max_attempts=1
+                )
 
         except GreeConnectionError, GreeProtocolError:
             _LOGGER.exception(
