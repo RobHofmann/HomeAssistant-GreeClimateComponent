@@ -103,6 +103,15 @@ def test_the_auxiliary_heat_select_has_a_text_for_every_mode(language: str) -> N
 
 
 @pytest.mark.parametrize("language", LANGUAGES)
+def test_the_uv_lamp_switch_has_a_text(language: str) -> None:
+    """The feature picker and the switch both have a text."""
+    texts = translations(language)
+
+    assert texts["selector"]["features"]["options"]["uv_lamp"]
+    assert texts["entity"]["switch"]["uv_lamp"]["name"]
+
+
+@pytest.mark.parametrize("language", LANGUAGES)
 @pytest.mark.parametrize("platform", sorted(ENTITY_NAMES))
 def test_every_sensor_name_has_a_text(language: str, platform: str) -> None:
     """The name of each sensor and binary sensor, such as Compressor Running."""

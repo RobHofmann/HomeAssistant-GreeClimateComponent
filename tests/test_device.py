@@ -1195,6 +1195,56 @@ async def test_an_empty_auxiliary_heat_answer_drops_it(unit: FakeGreeDevice) -> 
         await transport.disconnect()
 
 
+@pytest.mark.parametrize(("on", "wire_value"), [(True, 1), (False, 0)])
+async def test_the_uv_lamp_sends_uvccontrol(
+    unit: FakeGreeDevice, on: bool, wire_value: int
+) -> None:
+    """A unit that answers UvcControl keeps it, and the switch writes 0 or 1."""
+    # Start from the other state, so the write is a change that gets sent.
+    unit.values[GreeProp.FEAT_UV_LAMP.value] = 1 - wire_value
+    device, transport = await bind(unit)
+
+    try:
+        assert device.supports_property(GreeProp.FEAT_UV_LAMP)
+        assert device.feature_uv_lamp is (not on)
+
+        unit.reset_record()
+        device.set_feature_uv_lamp(on)
+        await device.push_device_status()
+
+        commands = [pack for pack in unit.packs if pack.get("t") == "cmd"]
+        assert len(commands) == 1
+        sent = dict(zip(commands[0]["opt"], commands[0]["p"], strict=True))
+        assert sent[GreeProp.FEAT_UV_LAMP.value] == wire_value
+        assert unit.values[GreeProp.FEAT_UV_LAMP.value] == wire_value
+        assert device.feature_uv_lamp is on
+    finally:
+        await transport.disconnect()
+
+
+async def test_a_unit_without_a_uv_lamp_drops_it(unit: FakeGreeDevice) -> None:
+    """The first poll drops UvcControl, so it is never polled again (issue 585)."""
+    unit.unsupported_props = {GreeProp.FEAT_UV_LAMP.value}
+    device, transport = await bind(unit)
+
+    try:
+        assert not device.supports_property(GreeProp.FEAT_UV_LAMP)
+
+        unit.reset_record()
+        await device.fetch_device_status()
+
+        polled = [
+            col
+            for pack in unit.packs
+            if pack.get("t") == "status"
+            for col in pack["cols"]
+        ]
+        assert GreeProp.POWER.value in polled
+        assert GreeProp.FEAT_UV_LAMP.value not in polled
+    finally:
+        await transport.disconnect()
+
+
 async def test_an_unknown_auxiliary_heat_value_reads_as_no_mode(
     unit: FakeGreeDevice,
 ) -> None:

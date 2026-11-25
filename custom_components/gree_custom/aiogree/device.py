@@ -1196,6 +1196,15 @@ class GreeDevice:
         self._state.set_bool(GreeProp.FEAT_HEALTH, value)
 
     @property
+    def feature_uv_lamp(self) -> bool:
+        """Return the UV lamp state."""
+        return self._state.get_bool(GreeProp.FEAT_UV_LAMP)
+
+    def set_feature_uv_lamp(self, value: bool) -> None:
+        """Set the UV lamp state."""
+        self._state.set_bool(GreeProp.FEAT_UV_LAMP, value)
+
+    @property
     def feature_sleep(self) -> SleepMode:
         """Return the sleep mode state."""
 

@@ -103,6 +103,7 @@ Each switch needs its feature enabled in **Device Features and Modes**, and the 
 | Sleep | Sleep | Cool, Heat | Sleep mode: the unit changes the temperature slowly during the night. Turning it on turns Power Save and Smart Heat 8°C off. |
 | Smart Heat 8ºC | 8ºC Smart Heat | Heat | Keeps the room at 8°C to prevent frost when nobody is home. Turning it on turns Sleep and Power Save off. The unit ignores the temperature and fan settings while it is on. |
 | Health | Health | every mode | Health mode, also called cold plasma or ionizer. |
+| UV Lamp | UV Lamp | every mode | Turns the UV lamp on or off, on units that have one. This is a separate function from Health. Only created when the unit answers the `UvcControl` property. |
 | Anti Direct Blow | Anti Direct Blow | every mode | Moves the deflector so the air does not blow straight at people. |
 | Power Save | Energy Saving | Cool | Energy saving mode. Turning it on turns Sleep and Smart Heat 8°C off. The unit ignores the temperature and fan settings while it is on. |
 | Display Light | Display Light | every mode | The display and indicator lights on the unit. Configuration category. |

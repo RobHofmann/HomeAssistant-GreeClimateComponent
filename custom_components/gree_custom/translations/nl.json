@@ -237,6 +237,7 @@
                 "eightdegheat": "8ºC Smart Heat",
                 "lights": "Displayverlichting",
                 "health": "Health",
+                "uv_lamp": "UV-lamp",
                 "anti_direct_blow": "Anti Direct Blow",
                 "powersave": "Energiebesparing",
                 "light_sensor": "Automatische displayhelderheid",
@@ -380,6 +381,9 @@
             },
             "health": {
                 "name": "Health"
+            },
+            "uv_lamp": {
+                "name": "UV-lamp"
             },
             "powersave": {
                 "name": "Energiebesparing"

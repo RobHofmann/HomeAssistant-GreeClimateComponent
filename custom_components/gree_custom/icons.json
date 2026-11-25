@@ -80,6 +80,9 @@
       "health": {
         "default": "mdi:shield-check"
       },
+      "uv_lamp": {
+        "default": "mdi:lightbulb-fluorescent-tube"
+      },
       "anti_direct_blow": {
         "default": "mdi:weather-windy"
       },
