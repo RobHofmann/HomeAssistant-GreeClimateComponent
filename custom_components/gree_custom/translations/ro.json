@@ -1,0 +1,504 @@
+{
+    "config": {
+        "error": {
+            "unknown": "Ceva nu a mers bine, încearcă din nou. Dacă problema persistă, verifică jurnalele.",
+            "cannot_connect": "Nu se poate conecta la dispozitiv. Verifică configurarea dispozitivului și conexiunea la rețea, apoi încearcă din nou. Dacă problema persistă, verifică jurnalele.",
+            "cannot_bind": "Nu se poate asocia dispozitivul. Nu s-a putut găsi versiunea sau cheia de criptare a dispozitivului. Dacă problema persistă, verifică jurnalele.",
+            "invalid_network": "CIDR invalid. Exemplu: 192.168.30.0/24",
+            "invalid_host": "Adresă IP invalidă. Exemplu: 192.168.30.50",
+            "network_too_large": "Rețeaua depășește maximul de 65536 de hosturi (/16). Împarte în mai multe CIDR-uri sau listează hosturi specifice.",
+            "too_many_targets": "Rețelele și hosturile specificate depășesc maximul de 65536 de hosturi (/16). Împarte în mai multe CIDR-uri sau listează hosturi specifice.",
+            "cloud_bad_login": "Autentificarea a eșuat. Verifică dacă datele sunt corecte și încearcă din nou.",
+            "cloud_unknown": "Eroare la autentificare. Verifică jurnalele și contactează dezvoltatorii",
+            "no_devices_selected": "Selectează cel puțin un dispozitiv pentru a continua",
+            "no_methods_selected": "Selectează cel puțin o metodă de descoperire",
+            "cannot_connect_mqtt": "Nu se poate conecta la cloudul Gree (MQTT). Verifică datele contului. Dacă eroarea persistă, caută în jurnale motivul dat de server."
+        },
+        "abort": {
+            "reconfigure_successful": "Dispozitivele au fost reconfigurate cu succes.",
+            "already_configured": "Un dispozitiv cu această adresă MAC este deja configurat.",
+            "unique_id_mismatch": "Intrarea configurată nu corespunde configurării dorite.",
+            "no_devices_to_add": "Nu au fost descoperite dispozitive noi. Ajustează opțiunile de descoperire și încearcă din nou.",
+            "import_failed": "Configurația YAML nu a putut fi importată. Motivul este în reparație și în jurnal.",
+            "legacy_migration_started": "Dispozitivele tale Gree 4.x sunt mutate în această integrare. Vor apărea în câteva secunde, cu aceleași ID-uri de entitate.",
+            "yaml_managed": "Această intrare este gestionată în configuration.yaml. Modifică YAML-ul și repornește Home Assistant. Modificările făcute aici ar fi înlocuite la următoarea pornire.",
+            "reauth_successful": "Contul Gree este autentificat din nou.",
+            "already_in_progress": "O configurare pentru acest cont Gree este deja în curs."
+        },
+        "step": {
+            "user": {
+                "title": "Configurare Gree Climate",
+                "description": "Alege cum să fie descoperit dispozitivul tău Gree",
+                "data": {
+                    "discovery": "Metodă de descoperire"
+                }
+            },
+            "cloud_add": {
+                "title": "Cont Gree",
+                "description": "Introdu datele pentru conectarea la contul tău Gree",
+                "data": {
+                    "email": "E-mail",
+                    "password": "Parolă",
+                    "region": "Regiune"
+                }
+            },
+            "local_add": {
+                "title": "Descoperire locală",
+                "description": "Dispozitivele vor fi descoperite automat prin scanarea rețelelor disponibile.\n\nDacă ai dispozitive într-o altă subrețea sau VLAN, introdu una sau mai multe rețele și/sau adrese IP specifice de interogat prin unicast. Rutarea între VLAN-uri și regulile firewall trebuie să permită portul UDP 7000 de la Home Assistant către subrețeaua țintă.",
+                "data": {
+                    "extra_scan_hosts": "Hosturi suplimentare",
+                    "extra_scan_networks": "Rețele suplimentare"
+                },
+                "data_description": {
+                    "extra_scan_hosts": "(IP-uri, ex. 192.168.30.50, 192.168.30.51)",
+                    "extra_scan_networks": "(CIDR-uri, ex. 192.168.20.0/24, 192.168.30.0/24)"
+                }
+            },
+            "device_picker": {
+                "title": "Dispozitive descoperite",
+                "description": "S-au găsit {devices_found} dispozitiv(e) Gree. Selectează dispozitivele pe care vrei să le configurezi.\n\nCând cauți din nou dispozitive, această listă arată doar dispozitivele noi și dispozitivele cu o nouă conexiune locală sau cloud. Dispozitivele pe care nu le selectezi rămân neschimbate. Pentru a elimina un dispozitiv, folosește Elimină dispozitive din meniu.",
+                "data": {
+                    "devices": "Dispozitive"
+                }
+            },
+            "connection_options": {
+                "title": "Opțiuni de conexiune {device_idx} din {device_cnt}",
+                "description": "Configurează opțiunile de conexiune folosite pentru dispozitivul:\n\n{device_name}\n\nDispozitivele din spatele aceluiași controler (VRF sau controler de zonă) au în comun adresa IP, portul și versiunea de criptare. Când le modifici la reconfigurare, celelalte dispozitive ale acelui controler primesc aceleași valori.",
+                "data": {
+                    "disable_available_check": "Dezactivează verificarea disponibilității",
+                    "encryption_key": "Cheie de criptare",
+                    "scan_interval": "Interval de scanare",
+                    "uid": "ID utilizator"
+                },
+                "data_description": {
+                    "encryption_key": "Dacă rămâne gol, va fi descoperit automat",
+                    "scan_interval": "Frecvența de citire a datelor dispozitivului (în secunde)",
+                    "uid": "Numărul ID al utilizatorului care deține dispozitivul. Poate fi 0 dacă nu este cunoscut"
+                },
+                "sections": {
+                    "local": {
+                        "name": "Setări conexiune locală",
+                        "data": {
+                            "encryption_version": "Versiune de criptare",
+                            "host": "Adresă IP (descoperită: {discovered_ip})",
+                            "mac_controller_local": "MAC-ul controlerului local (descoperit: {discovered_mac_local})",
+                            "max_online_attempts": "Număr maxim de încercări de conectare",
+                            "port": "Port",
+                            "timeout": "Timp limită de conectare"
+                        },
+                        "data_description": {
+                            "max_online_attempts": "Numărul de încercări de comunicare cu dispozitivul înainte ca acesta să fie marcat ca indisponibil",
+                            "timeout": "Timpul limită pentru fiecare încercare de conectare"
+                        }
+                    },
+                    "cloud": {
+                        "name": "Setări conexiune cloud",
+                        "data": {
+                            "mac_controller_cloud": "MAC-ul controlerului cloud (descoperit: {discovered_mac_cloud})",
+                            "prefer_cloud": "Preferă conexiunea cloud"
+                        },
+                        "data_description": {
+                            "prefer_cloud": "Dispozitivele preferă conexiunile locale. Bifează dacă preferi ca acest dispozitiv să se conecteze prin cloud"
+                        }
+                    }
+                }
+            },
+            "device_options": {
+                "title": "Funcții dispozitiv {device_idx} din {device_cnt}",
+                "description": "API-ul Gree nu are o metodă sigură de a afla funcțiile suportate de un dispozitiv. Folosește opțiunile de mai jos după cât de bine îți cunoști dispozitivul. Adaugă sau activează doar funcțiile pe care telecomanda unității sau aplicația Gree le pot seta pentru dispozitivul tău.\n\n {device_name}",
+                "data": {
+                    "name": "Nume dispozitiv",
+                    "hvac_modes": "Moduri HVAC",
+                    "fan_modes": "Viteze ventilator",
+                    "swing_modes": "Moduri balansare verticală",
+                    "swing_horizontal_modes": "Moduri balansare orizontală",
+                    "features": "Funcții și moduri dispozitiv",
+                    "half_degrees": "Folosește jumătăți de grad °C",
+                    "external_temperature_sensor": "Senzor temperatură extern",
+                    "external_humidity_sensor": "Senzor umiditate extern",
+                    "restore_states": "Restabilește entitățile",
+                    "setpoint_memory": "Memorează temperatura țintă pentru fiecare mod"
+                },
+                "data_description": {
+                    "features": "Pentru o zonă a unui controler de zonă, nu include Comutator zonă dacă zona trebuie să rămână mereu deschisă.",
+                    "external_temperature_sensor": "Dacă este setat, înlocuiește senzorul de temperatură încorporat al aparatului pentru datele entității Climă",
+                    "external_humidity_sensor": "Dacă este setat, înlocuiește senzorul de umiditate încorporat al aparatului pentru datele entității Climă",
+                    "restore_states": "Dacă este bifat, la pornirea integrării dispozitivul va fi suprascris cu stările anterioare ale integrării, în loc să se folosească starea curentă a dispozitivului.",
+                    "setpoint_memory": "Dacă este bifat, temperatura țintă a fiecărui mod este memorată și setată din nou când modul este schimbat din Home Assistant. La unitatea AC a unui controler de zonă se aplică tuturor zonelor, ca la panoul de perete. În Auto, unitatea își păstrează propria setare.",
+                    "half_degrees": "Setează temperatura țintă în pași de 0,5 °C. Activează doar dacă telecomanda unității sau aplicația Gree pot seta jumătăți de grad. Unele unități returnează TemRec, StFahFlg, Add0.5 sau Add0.1 și memorează jumătatea de grad, dar funcționează totuși la gradul întreg: Home Assistant arată atunci 22,5, în timp ce unitatea funcționează la 22. Fahrenheit folosește mereu grade întregi."
+                }
+            },
+            "reconfigure": {
+                "title": "Reconfigurare dispozitive",
+                "description": "Această intrare are {device_cnt} dispozitiv(e). Alege ce vrei să faci. Modificările sunt salvate când alegi Salvează și reîncarcă.",
+                "menu_options": {
+                    "edit_device": "Editează un dispozitiv",
+                    "rediscover": "Caută din nou dispozitive",
+                    "remove_devices": "Elimină dispozitive",
+                    "finish": "Salvează și reîncarcă"
+                }
+            },
+            "rediscover": {
+                "title": "Caută din nou dispozitive",
+                "description": "Această acțiune se autentifică în contul tău Gree pentru a-i găsi dispozitivele. Autentificarea deconectează aplicația Gree.\n\nReconfigurezi o intrare cu un cont cloud. Vrei să cauți dispozitive locale care corespund dispozitivelor tale cloud?",
+                "data": {
+                    "include_local": "Include dispozitivele locale"
+                }
+            },
+            "edit_device": {
+                "title": "Editează un dispozitiv",
+                "description": "Alege dispozitivul de editat. Dacă nu schimbi modul în care se conectează, integrarea folosește conexiunea activă și nu se autentifică în contul Gree.",
+                "data": {
+                    "devices": "Dispozitiv"
+                }
+            },
+            "no_new_devices": {
+                "title": "Niciun dispozitiv nou",
+                "description": "Nu s-au găsit dispozitive noi sau conexiuni noi. Adresele IP ale dispozitivelor găsite au fost actualizate.\n\nTrimite pentru a reveni la meniu. Modificările sunt salvate când alegi Salvează și reîncarcă."
+            },
+            "remove_devices": {
+                "title": "Elimină dispozitive",
+                "description": "Alege dispozitivele de eliminat din această intrare.",
+                "data": {
+                    "devices": "Dispozitive"
+                }
+            }
+        }
+    },
+    "selector": {
+        "discovery": {
+            "options": {
+                "cloud": "Cont cloud Gree",
+                "local": "Rețea locală"
+            }
+        },
+        "encryption_version": {
+            "options": {
+                "0": "Detectare automată",
+                "1": "V1",
+                "2": "V2"
+            }
+        },
+        "hvac_modes": {
+            "options": {
+                "auto": "Auto",
+                "cool": "Răcire",
+                "dry": "Uscare",
+                "fan_only": "Doar ventilator",
+                "heat": "Încălzire",
+                "off": "Oprit"
+            }
+        },
+        "fan_modes": {
+            "options": {
+                "auto": "Auto",
+                "low": "Scăzut",
+                "medium_low": "Mediu-scăzut",
+                "medium": "Mediu",
+                "medium_high": "Mediu-ridicat",
+                "high": "Ridicat",
+                "turbo": "Turbo",
+                "quiet": "Silențios"
+            }
+        },
+        "swing_modes": {
+            "options": {
+                "default": "Implicit",
+                "full_swing": "Balansare pe toată gama",
+                "fixed_upper": "Fixat în poziția cea mai sus",
+                "fixed_upper_middle": "Fixat în poziția mijloc-sus",
+                "fixed_middle": "Fixat în poziția de mijloc",
+                "fixed_lower_middle": "Fixat în poziția mijloc-jos",
+                "fixed_lower": "Fixat în poziția cea mai jos",
+                "swing_lower": "Balansare în regiunea cea mai de jos",
+                "swing_lower_middle": "Balansare în regiunea mijloc-jos",
+                "swing_middle": "Balansare în regiunea de mijloc",
+                "swing_upper_middle": "Balansare în regiunea mijloc-sus",
+                "swing_upper": "Balansare în regiunea cea mai sus"
+            }
+        },
+        "swing_horizontal_modes": {
+            "options": {
+                "default": "Implicit",
+                "full_swing": "Balansare completă",
+                "left": "Fixat în poziția cea mai la stânga",
+                "left_center": "Fixat în poziția mijloc-stânga",
+                "center": "Fixat în poziția de mijloc",
+                "right_center": "Fixat în poziția mijloc-dreapta",
+                "right": "Fixat în poziția cea mai la dreapta"
+            }
+        },
+        "features": {
+            "options": {
+                "beeper": "Semnal sonor",
+                "air": "Aer proaspăt",
+                "xfan": "X-Fan",
+                "sleep": "Somn",
+                "eightdegheat": "Încălzire inteligentă 8ºC",
+                "lights": "Lumină afișaj",
+                "health": "Sănătate",
+                "anti_direct_blow": "Anti-suflare directă",
+                "powersave": "Economisire energie",
+                "light_sensor": "Luminozitate automată afișaj",
+                "faults": "Detectare defecțiuni",
+                "humidity_control": "Control umiditate",
+                "auxiliary_heat": "Încălzire auxiliară",
+                "zone": "Comutator zonă"
+            }
+        }
+    },
+    "device": {
+        "vrf_controller": {
+            "name": "Gateway VRF {mac}"
+        },
+        "zone_controller": {
+            "name": "Controler de zonă {mac}"
+        }
+    },
+    "entity": {
+        "sensor": {
+            "indoor_temperature": {
+                "name": "Temperatură interioară"
+            },
+            "outdoor_temperature": {
+                "name": "Temperatură exterioară"
+            },
+            "room_humidity": {
+                "name": "Umiditate interioară"
+            },
+            "compressor_frequency": {
+                "name": "Frecvență compresor"
+            },
+            "compressor_temperature": {
+                "name": "Temperatură compresor"
+            },
+            "indoor_coil_temperature": {
+                "name": "Temperatură serpentină interioară"
+            },
+            "outdoor_coil_temperature": {
+                "name": "Temperatură serpentină exterioară"
+            }
+        },
+        "binary_sensor": {
+            "faults": {
+                "name": "Detectare defecțiuni"
+            },
+            "compressor_running": {
+                "name": "Compresor în funcțiune"
+            }
+        },
+        "climate": {
+            "hvac": {
+                "state_attributes": {
+                    "fan_mode": {
+                        "state": {
+                            "auto": "Auto",
+                            "low": "Scăzut",
+                            "medium_low": "Mediu-scăzut",
+                            "medium": "Mediu",
+                            "medium_high": "Mediu-ridicat",
+                            "high": "Ridicat",
+                            "turbo": "Turbo",
+                            "quiet": "Silențios"
+                        }
+                    },
+                    "swing_mode": {
+                        "state": {
+                            "default": "Implicit",
+                            "full_swing": "Balansare pe toată gama",
+                            "fixed_upper": "Fixat în poziția cea mai sus",
+                            "fixed_upper_middle": "Fixat în poziția mijloc-sus",
+                            "fixed_middle": "Fixat în poziția de mijloc",
+                            "fixed_lower_middle": "Fixat în poziția mijloc-jos",
+                            "fixed_lower": "Fixat în poziția cea mai jos",
+                            "swing_lower": "Balansare în regiunea cea mai de jos",
+                            "swing_lower_middle": "Balansare în regiunea mijloc-jos",
+                            "swing_middle": "Balansare în regiunea de mijloc",
+                            "swing_upper_middle": "Balansare în regiunea mijloc-sus",
+                            "swing_upper": "Balansare în regiunea cea mai sus"
+                        }
+                    },
+                    "swing_horizontal_mode": {
+                        "state": {
+                            "default": "Implicit",
+                            "full_swing": "Balansare completă",
+                            "left": "Fixat în poziția cea mai la stânga",
+                            "left_center": "Fixat în poziția mijloc-stânga",
+                            "center": "Fixat în poziția de mijloc",
+                            "right_center": "Fixat în poziția mijloc-dreapta",
+                            "right": "Fixat în poziția cea mai la dreapta"
+                        }
+                    }
+                }
+            }
+        },
+        "number": {
+            "target_temp_step": {
+                "name": "Pas temperatură"
+            },
+            "humidity_control_target": {
+                "name": "Umiditate țintă"
+            },
+            "zone_target_temperature": {
+                "name": "Temperatură țintă"
+            }
+        },
+        "select": {
+            "temperature_units": {
+                "name": "Unități de temperatură"
+            },
+            "auxiliary_heat": {
+                "name": "Încălzire auxiliară",
+                "state": {
+                    "off": "Oprit",
+                    "always_on": "Mereu pornit",
+                    "auto": "Auto"
+                }
+            },
+            "humidity_control": {
+                "name": "Control umiditate",
+                "state": {
+                    "disabled": "Dezactivat",
+                    "target_dry": "Uscare normală",
+                    "smart_dry": "Uscare inteligentă",
+                    "continuous_dry": "Uscare continuă"
+                }
+            }
+        },
+        "switch": {
+            "auto_light": {
+                "name": "Lumină afișaj automată"
+            },
+            "auto_xfan": {
+                "name": "X-Fan automat"
+            },
+            "lights": {
+                "name": "Lumină afișaj"
+            },
+            "xfan": {
+                "name": "X-Fan"
+            },
+            "health": {
+                "name": "Sănătate"
+            },
+            "powersave": {
+                "name": "Economisire energie"
+            },
+            "eightdegheat": {
+                "name": "Încălzire inteligentă 8ºC"
+            },
+            "sleep": {
+                "name": "Somn"
+            },
+            "air": {
+                "name": "Aer proaspăt"
+            },
+            "anti_direct_blow": {
+                "name": "Anti-suflare directă"
+            },
+            "light_sensor": {
+                "name": "Luminozitate automată afișaj"
+            },
+            "beeper": {
+                "name": "Semnal sonor"
+            }
+        }
+    },
+    "exceptions": {
+        "turbo_availability": {
+            "message": "Modul Turbo este disponibil doar în modurile Răcire și Încălzire."
+        },
+        "entity_unavailable": {
+            "message": "Entitatea nu este disponibilă."
+        },
+        "generic": {
+            "message": "A apărut o problemă la efectuarea modificării solicitate, consultă jurnalul integrării."
+        },
+        "invalid_device_id": {
+            "message": "A apărut o problemă la efectuarea acțiunii. A fost selectat un dispozitiv invalid."
+        },
+        "entry_not_loaded": {
+            "message": "A apărut o problemă la efectuarea acțiunii. Intrarea de configurare a dispozitivului nu este încărcată."
+        },
+        "config_entry_not_found": {
+            "message": "A apărut o problemă la efectuarea acțiunii. Intrarea de configurare a dispozitivului nu a fost găsită."
+        },
+        "invalid_config_data": {
+            "message": "A apărut o problemă la efectuarea acțiunii. Intrarea de configurare conține date invalide."
+        },
+        "humidity_mode_unavailable": {
+            "message": "Controlul umidității este disponibil doar în modurile Răcire și Uscare."
+        },
+        "continuous_dry_unavailable": {
+            "message": "Uscarea continuă este disponibilă doar în modul Uscare."
+        },
+        "smart_dry_unavailable": {
+            "message": "Uscarea inteligentă este disponibilă doar în modul Răcire."
+        },
+        "remove_vrf_controller": {
+            "message": "Acesta este un controler VRF. Șterge mai întâi subunitățile sale, iar controlerul va fi șters automat."
+        },
+        "bad_credentials": {
+            "message": "Cloudul Gree a refuzat autentificarea salvată, iar o nouă autentificare cu datele de cont salvate a eșuat. Autentifică-te din nou."
+        },
+        "no_account_info": {
+            "message": "Datele contului Gree pentru această intrare lipsesc. Autentifică-te din nou."
+        },
+        "device_bind_failed": {
+            "message": "Nu se poate face asocierea cu dispozitivul Gree {mac}. Verifică conexiunea și cheia de criptare."
+        }
+    },
+    "issues": {
+        "device_connection_failed": {
+            "title": "Conectarea la dispozitiv a eșuat",
+            "description": "Nu se poate conecta la dispozitivul {device}."
+        },
+        "yaml_import_failed": {
+            "title": "Importul YAML a eșuat",
+            "description": "Configurația YAML pentru {item} nu a putut fi importată: {reason}"
+        },
+        "legacy_yaml": {
+            "title": "Actualizează configurația Gree de la 4.x",
+            "description": "Unele dispozitive Gree provin încă din configurația Gree 4.x: blocul `gree:` din `configuration.yaml` sau dispozitive configurate în interfața 4.x în timp ce un bloc YAML gestionează dispozitivele locale. Această versiune le convertește la fiecare pornire, ca să funcționeze în continuare. Acest import vechi va fi eliminat într-o versiune ulterioară.\n\nComentează blocul `gree:` și păstrează-l în caz că vrei să revii la 4.x. Apoi lipește blocul de mai jos. Dacă ai deja un bloc `gree_custom:`, adaugă în schimb dispozitivele de mai jos sub `devices:` al acestuia. Apoi repornește Home Assistant. Acest mesaj dispare când niciun dispozitiv nu mai depinde de configurația 4.x.\n\n```yaml\n{yaml}\n```"
+        },
+        "legacy_folder": {
+            "title": "Elimină fișierele vechi Gree 4.x",
+            "description": "Folderul `custom_components/gree` din Gree 4.x este încă instalat. HACS nu îl elimină când instalează această versiune. Dispozitivele din Gree 4.x sunt mutate în această integrare, iar vechile intrări de configurare 4.x sunt dezactivate.\n\nȘterge folderul `custom_components/gree` și repornește Home Assistant. Vechile intrări de configurare rămân dezactivate, astfel încât poți reveni la 4.x. O reparație separată îți permite să le elimini."
+        },
+        "legacy_entries": {
+            "title": "Elimină vechile intrări de configurare Gree 4.x",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Elimină vechile intrări de configurare Gree 4.x",
+                        "description": "Dispozitivele tale funcționează acum cu această integrare. Vechile intrări de configurare Gree 4.x sunt păstrate, dezactivate, astfel încât poți reveni la 4.x fără să o configurezi din nou.\n\nSelectează **Elimină** pentru a elimina aceste intrări vechi. După aceea, revenirea la 4.x înseamnă configurarea ei din nou.",
+                        "submit": "Elimină"
+                    }
+                }
+            }
+        }
+    },
+    "services": {
+        "get_prop_values_all": {
+            "name": "Interoghează toate proprietățile",
+            "description": "Interoghează toate proprietățile unui dispozitiv Gree",
+            "fields": {
+                "device_id": {
+                    "name": "ID dispozitiv"
+                }
+            }
+        },
+        "get_prop_values": {
+            "name": "Interoghează proprietăți",
+            "description": "Interoghează proprietățile unui dispozitiv Gree",
+            "fields": {
+                "device_id": {
+                    "name": "ID dispozitiv"
+                },
+                "prop_list": {
+                    "name": "Lista proprietăților de interogat"
+                }
+            }
+        }
+    }
+}

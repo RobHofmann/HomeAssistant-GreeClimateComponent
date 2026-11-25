@@ -1,0 +1,504 @@
+{
+    "config": {
+        "error": {
+            "unknown": "Algo deu errado, tente novamente. Se o problema continuar, verifique os logs.",
+            "cannot_connect": "Não foi possível conectar ao dispositivo. Verifique a configuração do dispositivo e a conexão de rede e tente novamente. Se o problema continuar, verifique os logs.",
+            "cannot_bind": "Não foi possível vincular o dispositivo. Não foi possível encontrar a versão ou a chave de criptografia do dispositivo. Se o problema continuar, verifique os logs.",
+            "invalid_network": "CIDR inválido. Exemplo: 192.168.30.0/24",
+            "invalid_host": "Endereço IP inválido. Exemplo: 192.168.30.50",
+            "network_too_large": "A rede excede o máximo de 65536 hosts (um /16). Divida em vários CIDRs ou liste hosts específicos.",
+            "too_many_targets": "As redes e hosts informados excedem o máximo de 65536 hosts (um /16). Divida em vários CIDRs ou liste hosts específicos.",
+            "cloud_bad_login": "Falha no login. Verifique se os dados estão corretos e tente novamente.",
+            "cloud_unknown": "Erro durante o login. Verifique os logs e entre em contato com os desenvolvedores",
+            "no_devices_selected": "Selecione pelo menos um dispositivo para continuar",
+            "no_methods_selected": "Selecione pelo menos um método de descoberta",
+            "cannot_connect_mqtt": "Não foi possível conectar à nuvem da Gree (MQTT). Verifique os dados da conta. Se o erro continuar, veja nos logs o motivo informado pelo servidor."
+        },
+        "abort": {
+            "reconfigure_successful": "Dispositivos reconfigurados com sucesso.",
+            "already_configured": "Um dispositivo com este endereço MAC já está configurado.",
+            "unique_id_mismatch": "A entrada que está sendo configurada não corresponde à intenção da configuração.",
+            "no_devices_to_add": "Nenhum dispositivo novo encontrado. Ajuste as opções de descoberta e tente novamente.",
+            "import_failed": "Não foi possível importar a configuração YAML. Veja o reparo e o log para saber o motivo.",
+            "legacy_migration_started": "Seus dispositivos do Gree 4.x estão sendo movidos para esta integração. Eles aparecem em alguns segundos, com os mesmos IDs de entidade.",
+            "yaml_managed": "Esta entrada é gerenciada em configuration.yaml. Altere o YAML e reinicie o Home Assistant. Alterações feitas aqui seriam substituídas na próxima inicialização.",
+            "reauth_successful": "A conta Gree foi conectada novamente.",
+            "already_in_progress": "Uma configuração para esta conta Gree já está em andamento."
+        },
+        "step": {
+            "user": {
+                "title": "Configuração do Gree Climate",
+                "description": "Escolha como descobrir seu dispositivo Gree",
+                "data": {
+                    "discovery": "Método de Descoberta"
+                }
+            },
+            "cloud_add": {
+                "title": "Conta Gree",
+                "description": "Informe os dados para conectar à sua conta Gree",
+                "data": {
+                    "email": "E-mail",
+                    "password": "Senha",
+                    "region": "Região"
+                }
+            },
+            "local_add": {
+                "title": "Descoberta Local",
+                "description": "Os dispositivos serão descobertos automaticamente varrendo as redes disponíveis.\n\nSe você tem dispositivos em outra sub-rede ou VLAN, informe uma ou mais redes e/ou endereços IP específicos para sondar via unicast. O roteamento entre VLANs e as regras de firewall precisam permitir a porta UDP 7000 do Home Assistant para a sub-rede de destino.",
+                "data": {
+                    "extra_scan_hosts": "Hosts Extras",
+                    "extra_scan_networks": "Redes Extras"
+                },
+                "data_description": {
+                    "extra_scan_hosts": "(IPs, ex.: 192.168.30.50, 192.168.30.51)",
+                    "extra_scan_networks": "(CIDRs, ex.: 192.168.20.0/24, 192.168.30.0/24)"
+                }
+            },
+            "device_picker": {
+                "title": "Dispositivos Descobertos",
+                "description": "{devices_found} dispositivo(s) Gree encontrado(s). Selecione os dispositivos que deseja configurar.\n\nQuando você procurar dispositivos novamente, esta lista mostra apenas dispositivos novos e dispositivos com uma nova conexão local ou na nuvem. Os dispositivos que você não selecionar ficam como estão. Para remover um dispositivo, use Remover dispositivos no menu.",
+                "data": {
+                    "devices": "Dispositivos"
+                }
+            },
+            "connection_options": {
+                "title": "Opções de Conexão {device_idx} de {device_cnt}",
+                "description": "Configure as opções de conexão que serão usadas para o dispositivo:\n\n{device_name}\n\nDispositivos atrás do mesmo controlador (VRF ou controlador de zonas) compartilham o endereço IP, a porta e a versão de criptografia. Quando você altera esses valores durante a reconfiguração, os outros dispositivos desse controlador recebem os mesmos valores.",
+                "data": {
+                    "disable_available_check": "Desativar Verificação de Disponibilidade",
+                    "encryption_key": "Chave de Criptografia",
+                    "scan_interval": "Intervalo de Consulta",
+                    "uid": "ID do Usuário"
+                },
+                "data_description": {
+                    "encryption_key": "Se ficar vazio, será descoberta automaticamente",
+                    "scan_interval": "Frequência de consulta dos dados do dispositivo (em segundos)",
+                    "uid": "O número de ID do usuário dono do dispositivo. Pode ser 0 se não for conhecido"
+                },
+                "sections": {
+                    "local": {
+                        "name": "Configurações da Conexão Local",
+                        "data": {
+                            "encryption_version": "Versão de Criptografia",
+                            "host": "Endereço IP (descoberto: {discovered_ip})",
+                            "mac_controller_local": "MAC do controlador local (descoberto: {discovered_mac_local})",
+                            "max_online_attempts": "Máximo de Tentativas de Conexão",
+                            "port": "Porta",
+                            "timeout": "Tempo Limite de Conexão"
+                        },
+                        "data_description": {
+                            "max_online_attempts": "O número de tentativas de comunicação com o dispositivo antes que ele seja marcado como indisponível",
+                            "timeout": "O tempo limite de cada tentativa de conexão"
+                        }
+                    },
+                    "cloud": {
+                        "name": "Configurações da Conexão na Nuvem",
+                        "data": {
+                            "mac_controller_cloud": "MAC do controlador na nuvem (descoberto: {discovered_mac_cloud})",
+                            "prefer_cloud": "Preferir Conexão na Nuvem"
+                        },
+                        "data_description": {
+                            "prefer_cloud": "Os dispositivos preferem conexões locais. Marque se você prefere que este dispositivo se conecte pela nuvem"
+                        }
+                    }
+                }
+            },
+            "device_options": {
+                "title": "Recursos do Dispositivo {device_idx} de {device_cnt}",
+                "description": "A API da Gree não tem um método confiável para obter os recursos suportados por um dispositivo. Use as opções abaixo de acordo com o que você sabe sobre o seu dispositivo. Adicione ou ative apenas recursos que o controle remoto da unidade ou o app Gree conseguem ajustar no seu dispositivo.\n\n {device_name}",
+                "data": {
+                    "name": "Nome do Dispositivo",
+                    "hvac_modes": "Climatização",
+                    "fan_modes": "Velocidades do Ventilador",
+                    "swing_modes": "Oscilação Vertical",
+                    "swing_horizontal_modes": "Oscilação Horizontal",
+                    "features": "Recursos e Modos do Dispositivo",
+                    "half_degrees": "Usar meios graus °C",
+                    "external_temperature_sensor": "Sensor de Temperatura Externo",
+                    "external_humidity_sensor": "Sensor de Umidade Externo",
+                    "restore_states": "Restaurar Entidades",
+                    "setpoint_memory": "Lembrar Temperatura Alvo por Modo"
+                },
+                "data_description": {
+                    "features": "Em uma zona de um controlador de zonas, deixe de fora Interruptor da Zona se a zona precisar ficar sempre aberta.",
+                    "external_temperature_sensor": "Se definido, substitui o sensor de temperatura interno do aparelho nos dados da entidade Climate",
+                    "external_humidity_sensor": "Se definido, substitui o sensor de umidade interno do aparelho nos dados da entidade Climate",
+                    "restore_states": "Se marcado, quando a integração for iniciada, o dispositivo receberá os estados anteriores da integração em vez de usar o estado atual do dispositivo.",
+                    "setpoint_memory": "Se marcado, a temperatura alvo de cada modo é lembrada e aplicada de novo quando o modo é alterado pelo Home Assistant. Na unidade de ar-condicionado de um controlador de zonas, vale para todas as zonas, como no painel de parede. No modo Auto, a unidade mantém a própria configuração.",
+                    "half_degrees": "Define a temperatura alvo em passos de 0,5 °C. Ative apenas se o controle remoto da unidade ou o app Gree conseguem ajustar meios graus. Algumas unidades retornam TemRec, StFahFlg, Add0.5 ou Add0.1 e guardam o meio grau, mas continuam funcionando no grau inteiro: o Home Assistant então mostra 22,5 enquanto a unidade funciona a 22. Fahrenheit é sempre em graus inteiros."
+                }
+            },
+            "reconfigure": {
+                "title": "Reconfigurar Dispositivos",
+                "description": "Esta entrada tem {device_cnt} dispositivo(s). Escolha o que fazer. Suas alterações são salvas quando você escolhe Salvar e recarregar.",
+                "menu_options": {
+                    "edit_device": "Editar um dispositivo",
+                    "rediscover": "Procurar dispositivos novamente",
+                    "remove_devices": "Remover dispositivos",
+                    "finish": "Salvar e recarregar"
+                }
+            },
+            "rediscover": {
+                "title": "Procurar Dispositivos Novamente",
+                "description": "Isso faz login na sua conta Gree para encontrar os dispositivos dela. O login desconecta o app Gree.\n\nVocê está reconfigurando uma entrada com uma conta na nuvem. Deseja procurar dispositivos locais que correspondam aos seus dispositivos na nuvem?",
+                "data": {
+                    "include_local": "Incluir dispositivos locais"
+                }
+            },
+            "edit_device": {
+                "title": "Editar um Dispositivo",
+                "description": "Escolha o dispositivo a editar. Se você não alterar a forma como ele se conecta, a integração usa a conexão atual e não faz login na conta Gree.",
+                "data": {
+                    "devices": "Dispositivo"
+                }
+            },
+            "no_new_devices": {
+                "title": "Nenhum Dispositivo Novo",
+                "description": "Nenhum dispositivo novo ou conexão nova foi encontrado. Os endereços IP dos dispositivos encontrados foram atualizados.\n\nEnvie para voltar ao menu. Suas alterações são salvas quando você escolhe Salvar e recarregar."
+            },
+            "remove_devices": {
+                "title": "Remover Dispositivos",
+                "description": "Escolha os dispositivos a remover desta entrada.",
+                "data": {
+                    "devices": "Dispositivos"
+                }
+            }
+        }
+    },
+    "selector": {
+        "discovery": {
+            "options": {
+                "cloud": "Conta Gree Cloud",
+                "local": "Rede local"
+            }
+        },
+        "encryption_version": {
+            "options": {
+                "0": "Detectar Automaticamente",
+                "1": "V1",
+                "2": "V2"
+            }
+        },
+        "hvac_modes": {
+            "options": {
+                "auto": "Auto",
+                "cool": "Frio",
+                "dry": "Seco",
+                "fan_only": "Apenas Ventilar",
+                "heat": "Aquecimento",
+                "off": "Desligado"
+            }
+        },
+        "fan_modes": {
+            "options": {
+                "auto": "Auto",
+                "low": "Baixo",
+                "medium_low": "Médio-Baixo",
+                "medium": "Médio",
+                "medium_high": "Médio-Alto",
+                "high": "Alto",
+                "turbo": "Turbo",
+                "quiet": "Silencioso"
+            }
+        },
+        "swing_modes": {
+            "options": {
+                "default": "Padrão",
+                "full_swing": "Oscilação completa",
+                "fixed_upper": "Fixo na posição mais alta",
+                "fixed_upper_middle": "Fixo na posição meio-superior",
+                "fixed_middle": "Fixo na posição central",
+                "fixed_lower_middle": "Fixo na posição meio-inferior",
+                "fixed_lower": "Fixo na posição mais baixa",
+                "swing_lower": "Oscilar na área mais baixa",
+                "swing_lower_middle": "Oscilar na área meio-inferior",
+                "swing_middle": "Oscilar na área central",
+                "swing_upper_middle": "Oscilar na área meio-superior",
+                "swing_upper": "Oscilar na área mais alta"
+            }
+        },
+        "swing_horizontal_modes": {
+            "options": {
+                "default": "Padrão",
+                "full_swing": "Oscilação completa",
+                "left": "Fixo na posição mais à esquerda",
+                "left_center": "Fixo na posição meio-esquerda",
+                "center": "Fixo na posição central",
+                "right_center": "Fixo na posição meio-direita",
+                "right": "Fixo na posição mais à direita"
+            }
+        },
+        "features": {
+            "options": {
+                "beeper": "Beep",
+                "air": "Ar Fresco",
+                "xfan": "X-Fan",
+                "sleep": "Dormir",
+                "eightdegheat": "Aquecimento Inteligente 8ºC",
+                "lights": "Luz do Display",
+                "health": "Saúde",
+                "anti_direct_blow": "Anti-sopro Direto",
+                "powersave": "Economia de Energia",
+                "light_sensor": "Brilho Automático do Display",
+                "faults": "Detecção de Falhas",
+                "humidity_control": "Controle de Umidade",
+                "auxiliary_heat": "Aquecimento Auxiliar",
+                "zone": "Interruptor da Zona"
+            }
+        }
+    },
+    "device": {
+        "vrf_controller": {
+            "name": "Gateway VRF {mac}"
+        },
+        "zone_controller": {
+            "name": "Controlador de zonas {mac}"
+        }
+    },
+    "entity": {
+        "sensor": {
+            "indoor_temperature": {
+                "name": "Temperatura Interna"
+            },
+            "outdoor_temperature": {
+                "name": "Temperatura Externa"
+            },
+            "room_humidity": {
+                "name": "Umidade Interna"
+            },
+            "compressor_frequency": {
+                "name": "Frequência do Compressor"
+            },
+            "compressor_temperature": {
+                "name": "Temperatura do Compressor"
+            },
+            "indoor_coil_temperature": {
+                "name": "Temperatura da Serpentina Interna"
+            },
+            "outdoor_coil_temperature": {
+                "name": "Temperatura da Serpentina Externa"
+            }
+        },
+        "binary_sensor": {
+            "faults": {
+                "name": "Detecção de Falhas"
+            },
+            "compressor_running": {
+                "name": "Compressor Ligado"
+            }
+        },
+        "climate": {
+            "hvac": {
+                "state_attributes": {
+                    "fan_mode": {
+                        "state": {
+                            "auto": "Auto",
+                            "low": "Baixo",
+                            "medium_low": "Médio-Baixo",
+                            "medium": "Médio",
+                            "medium_high": "Médio-Alto",
+                            "high": "Alto",
+                            "turbo": "Turbo",
+                            "quiet": "Silencioso"
+                        }
+                    },
+                    "swing_mode": {
+                        "state": {
+                            "default": "Padrão",
+                            "full_swing": "Oscilação completa",
+                            "fixed_upper": "Fixo no topo",
+                            "fixed_upper_middle": "Fixo no meio-superior",
+                            "fixed_middle": "Fixo no meio",
+                            "fixed_lower_middle": "Fixo no meio-inferior",
+                            "fixed_lower": "Fixo na base",
+                            "swing_lower": "Oscilar na base",
+                            "swing_lower_middle": "Oscilar no meio-inferior",
+                            "swing_middle": "Oscilar no meio",
+                            "swing_upper_middle": "Oscilar no meio-superior",
+                            "swing_upper": "Oscilar no topo"
+                        }
+                    },
+                    "swing_horizontal_mode": {
+                        "state": {
+                            "default": "Padrão",
+                            "full_swing": "Oscilação completa",
+                            "left": "Fixo à esquerda",
+                            "left_center": "Fixo no meio-esquerda",
+                            "center": "Fixo no meio",
+                            "right_center": "Fixo no meio-direita",
+                            "right": "Fixo à direita"
+                        }
+                    }
+                }
+            }
+        },
+        "number": {
+            "target_temp_step": {
+                "name": "Passo da Temperatura"
+            },
+            "humidity_control_target": {
+                "name": "Umidade Alvo"
+            },
+            "zone_target_temperature": {
+                "name": "Temperatura Alvo"
+            }
+        },
+        "select": {
+            "temperature_units": {
+                "name": "Unidade de Temperatura"
+            },
+            "auxiliary_heat": {
+                "name": "Aquecimento Auxiliar",
+                "state": {
+                    "off": "Desligado",
+                    "always_on": "Sempre Ligado",
+                    "auto": "Auto"
+                }
+            },
+            "humidity_control": {
+                "name": "Controle de Umidade",
+                "state": {
+                    "disabled": "Desativado",
+                    "target_dry": "Desumidificação Normal",
+                    "smart_dry": "Desumidificação Inteligente",
+                    "continuous_dry": "Desumidificação Contínua"
+                }
+            }
+        },
+        "switch": {
+            "auto_light": {
+                "name": "Luz Automática do Display"
+            },
+            "auto_xfan": {
+                "name": "X-Fan Automático"
+            },
+            "lights": {
+                "name": "Luz do Display"
+            },
+            "xfan": {
+                "name": "X-Fan"
+            },
+            "health": {
+                "name": "Saúde"
+            },
+            "powersave": {
+                "name": "Economia de Energia"
+            },
+            "eightdegheat": {
+                "name": "Aquecimento Inteligente 8ºC"
+            },
+            "sleep": {
+                "name": "Dormir"
+            },
+            "air": {
+                "name": "Ar Fresco"
+            },
+            "anti_direct_blow": {
+                "name": "Anti-sopro Direto"
+            },
+            "light_sensor": {
+                "name": "Brilho Automático do Display"
+            },
+            "beeper": {
+                "name": "Beep"
+            }
+        }
+    },
+    "exceptions": {
+        "turbo_availability": {
+            "message": "O modo Turbo só está disponível nos modos Frio e Aquecimento."
+        },
+        "entity_unavailable": {
+            "message": "A entidade está indisponível."
+        },
+        "generic": {
+            "message": "Ocorreu um problema ao realizar a alteração solicitada, consulte o log da integração."
+        },
+        "invalid_device_id": {
+            "message": "Ocorreu um problema ao executar a ação. Um dispositivo inválido foi selecionado."
+        },
+        "entry_not_loaded": {
+            "message": "Ocorreu um problema ao executar a ação. A entrada de configuração do dispositivo não está carregada."
+        },
+        "config_entry_not_found": {
+            "message": "Ocorreu um problema ao executar a ação. A entrada de configuração do dispositivo não foi encontrada."
+        },
+        "invalid_config_data": {
+            "message": "Ocorreu um problema ao executar a ação. A entrada de configuração tem dados inválidos."
+        },
+        "humidity_mode_unavailable": {
+            "message": "O Controle de Umidade só está disponível nos modos Frio e Seco."
+        },
+        "continuous_dry_unavailable": {
+            "message": "A Desumidificação Contínua só está disponível no modo Seco."
+        },
+        "smart_dry_unavailable": {
+            "message": "A Desumidificação Inteligente só está disponível no modo Frio."
+        },
+        "remove_vrf_controller": {
+            "message": "Este é um controlador VRF. Exclua primeiro as suas subunidades, e o controlador será excluído automaticamente."
+        },
+        "bad_credentials": {
+            "message": "A nuvem da Gree recusou o login salvo, e um novo login com os dados da conta salvos falhou. Faça login novamente."
+        },
+        "no_account_info": {
+            "message": "Os dados da conta Gree desta entrada estão faltando. Faça login novamente."
+        },
+        "device_bind_failed": {
+            "message": "Não foi possível vincular ao dispositivo Gree {mac}. Verifique a conexão e a chave de criptografia."
+        }
+    },
+    "issues": {
+        "device_connection_failed": {
+            "title": "Falha na conexão com o dispositivo",
+            "description": "Não foi possível conectar ao dispositivo {device}."
+        },
+        "yaml_import_failed": {
+            "title": "Falha na importação do YAML",
+            "description": "Não foi possível importar a configuração YAML de {item}: {reason}"
+        },
+        "legacy_yaml": {
+            "title": "Atualize sua configuração do Gree 4.x",
+            "description": "Alguns dispositivos Gree ainda vêm da configuração do Gree 4.x: o bloco `gree:` no `configuration.yaml`, ou dispositivos que você configurou pela interface do 4.x enquanto um bloco YAML gerencia os dispositivos locais. Esta versão os converte a cada inicialização, para que continuem funcionando. Esta importação legada será removida em uma versão futura.\n\nComente o bloco `gree:` e guarde-o caso queira voltar para o 4.x. Depois cole o bloco abaixo. Se você já tem um bloco `gree_custom:`, adicione os dispositivos abaixo em `devices:` dele. Depois reinicie o Home Assistant. Esta mensagem desaparece quando nenhum dispositivo depender mais da configuração do 4.x.\n\n```yaml\n{yaml}\n```"
+        },
+        "legacy_folder": {
+            "title": "Remova os arquivos antigos do Gree 4.x",
+            "description": "A pasta `custom_components/gree` do Gree 4.x ainda está instalada. O HACS não a remove ao instalar esta versão. Os dispositivos do Gree 4.x foram movidos para esta integração, e as entradas de configuração antigas do 4.x foram desativadas.\n\nExclua a pasta `custom_components/gree` e reinicie o Home Assistant. As entradas de configuração antigas continuam desativadas, então você pode voltar para o 4.x. Um reparo separado permite removê-las."
+        },
+        "legacy_entries": {
+            "title": "Remova as entradas de configuração antigas do Gree 4.x",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Remover as entradas de configuração antigas do Gree 4.x",
+                        "description": "Seus dispositivos agora funcionam nesta integração. As entradas de configuração antigas do Gree 4.x foram mantidas, desativadas, para que você possa voltar para o 4.x sem configurá-lo de novo.\n\nSelecione **Remover** para remover essas entradas antigas. Depois disso, voltar para o 4.x significa configurá-lo de novo.",
+                        "submit": "Remover"
+                    }
+                }
+            }
+        }
+    },
+    "services": {
+        "get_prop_values_all": {
+            "name": "Consultar todas as propriedades",
+            "description": "Consulta todas as propriedades de um dispositivo Gree",
+            "fields": {
+                "device_id": {
+                    "name": "ID do dispositivo"
+                }
+            }
+        },
+        "get_prop_values": {
+            "name": "Consultar propriedades",
+            "description": "Consulta propriedades de um dispositivo Gree",
+            "fields": {
+                "device_id": {
+                    "name": "ID do dispositivo"
+                },
+                "prop_list": {
+                    "name": "Lista de propriedades a consultar"
+                }
+            }
+        }
+    }
+}

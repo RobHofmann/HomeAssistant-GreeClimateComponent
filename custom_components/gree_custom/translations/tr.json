@@ -1,0 +1,504 @@
+{
+    "config": {
+        "error": {
+            "unknown": "Bir sorun oluştu, lütfen tekrar deneyin. Sorun devam ederse lütfen günlükleri kontrol edin.",
+            "cannot_connect": "Cihaza bağlanılamıyor. Lütfen cihaz yapılandırmasını ve ağ bağlantısını kontrol edip tekrar deneyin. Sorun devam ederse lütfen günlükleri kontrol edin.",
+            "cannot_bind": "Cihaz eşleştirilemiyor. Cihazın şifreleme sürümü veya anahtarı bulunamadı. Sorun devam ederse lütfen günlükleri kontrol edin.",
+            "invalid_network": "Geçersiz CIDR. Örnek: 192.168.30.0/24",
+            "invalid_host": "Geçersiz IP adresi. Örnek: 192.168.30.50",
+            "network_too_large": "Ağ, maksimum 65536 ana makine sınırını aşıyor (/16). Birden fazla CIDR'a bölün veya belirli IP'leri girin.",
+            "too_many_targets": "Belirtilen ağlar ve ana makineler, maksimum 65536 ana makine sınırını aşıyor (/16). Birden fazla CIDR'a bölün veya belirli ana makineleri girin.",
+            "cloud_bad_login": "Giriş başarısız. Bilgilerin doğru olduğundan emin olup tekrar deneyin.",
+            "cloud_unknown": "Giriş sırasında hata. Lütfen günlükleri kontrol edin ve geliştiricilerle iletişime geçin",
+            "no_devices_selected": "Devam etmek için lütfen en az bir cihaz seçin",
+            "no_methods_selected": "Lütfen en az bir keşif yöntemi seçin",
+            "cannot_connect_mqtt": "Gree bulutuna (MQTT) bağlanılamıyor. Hesap bilgilerini kontrol edin. Hata devam ederse, sunucunun verdiği nedeni görmek için günlükleri kontrol edin."
+        },
+        "abort": {
+            "reconfigure_successful": "Cihazlar başarıyla yeniden yapılandırıldı.",
+            "already_configured": "Bu MAC adresine sahip bir cihaz zaten yapılandırılmış.",
+            "unique_id_mismatch": "Yapılandırılan giriş, yapılandırma amacıyla eşleşmiyor.",
+            "no_devices_to_add": "Yeni cihaz bulunamadı. Keşif seçeneklerinizi değiştirip tekrar deneyin.",
+            "import_failed": "YAML yapılandırması içe aktarılamadı. Nedeni için onarım bildirimine ve günlüğe bakın.",
+            "legacy_migration_started": "Gree 4.x cihazlarınız bu entegrasyona taşınıyor. Birkaç saniye içinde aynı varlık kimlikleriyle görünecekler.",
+            "yaml_managed": "Bu giriş configuration.yaml içinde yönetiliyor. YAML'ı değiştirin ve Home Assistant'ı yeniden başlatın. Burada yapılan değişiklikler bir sonraki başlatmada değiştirilir.",
+            "reauth_successful": "Gree hesabına yeniden giriş yapıldı.",
+            "already_in_progress": "Bu Gree hesabı için bir kurulum zaten devam ediyor."
+        },
+        "step": {
+            "user": {
+                "title": "Gree Klima Kurulumu",
+                "description": "Gree cihazınızı nasıl keşfedeceğinizi seçin",
+                "data": {
+                    "discovery": "Keşif Yöntemi"
+                }
+            },
+            "cloud_add": {
+                "title": "Gree Hesabı",
+                "description": "Gree hesabınıza bağlanmak için bilgileri girin",
+                "data": {
+                    "email": "E-posta",
+                    "password": "Parola",
+                    "region": "Bölge"
+                }
+            },
+            "local_add": {
+                "title": "Yerel Keşif",
+                "description": "Cihazlar, kullanılabilir ağlar taranarak otomatik olarak keşfedilir.\n\nFarklı bir alt ağda veya VLAN'da cihazlarınız varsa, unicast ile yoklanacak bir veya daha fazla ağ ve/veya belirli IP adresleri girin. VLAN'lar arası yönlendirme ve güvenlik duvarı kuralları, Home Assistant'tan hedef alt ağa UDP 7000 portuna izin vermelidir.",
+                "data": {
+                    "extra_scan_hosts": "Ek Ana Makineler",
+                    "extra_scan_networks": "Ek Ağlar"
+                },
+                "data_description": {
+                    "extra_scan_hosts": "(IP'ler, ör. 192.168.30.50, 192.168.30.51)",
+                    "extra_scan_networks": "(CIDR'lar, ör. 192.168.20.0/24, 192.168.30.0/24)"
+                }
+            },
+            "device_picker": {
+                "title": "Bulunan Cihazlar",
+                "description": "{devices_found} Gree cihazı bulundu. Yapılandırmak istediğiniz cihazları seçin.\n\nCihazları yeniden aradığınızda bu liste yalnızca yeni cihazları ve yeni bir yerel veya bulut bağlantısı olan cihazları gösterir. Seçmediğiniz cihazlar olduğu gibi kalır. Bir cihazı kaldırmak için menüdeki Cihazları kaldır seçeneğini kullanın.",
+                "data": {
+                    "devices": "Cihazlar"
+                }
+            },
+            "connection_options": {
+                "title": "Bağlantı Seçenekleri {device_idx} / {device_cnt}",
+                "description": "Cihaz için kullanılacak bağlantı seçeneklerini yapılandırın:\n\n{device_name}\n\nAynı denetleyicinin (VRF veya bölge denetleyicisi) arkasındaki cihazlar IP adresini, portu ve şifreleme sürümünü paylaşır. Bunları yeniden yapılandırma sırasında değiştirdiğinizde, o denetleyicinin diğer cihazları da aynı değerleri alır.",
+                "data": {
+                    "disable_available_check": "Erişilebilirlik Kontrolünü Devre Dışı Bırak",
+                    "encryption_key": "Şifreleme Anahtarı (Encryption Key)",
+                    "scan_interval": "Tarama Aralığı",
+                    "uid": "Kullanıcı Kimliği"
+                },
+                "data_description": {
+                    "encryption_key": "Boş bırakılırsa otomatik olarak bulunur",
+                    "scan_interval": "Cihaz verilerinin sorgulanma sıklığı (saniye cinsinden)",
+                    "uid": "Cihazın sahibi olan kullanıcının kimlik numarası. Bilinmiyorsa 0 olabilir"
+                },
+                "sections": {
+                    "local": {
+                        "name": "Yerel Bağlantı Ayarları",
+                        "data": {
+                            "encryption_version": "Şifreleme Sürümü",
+                            "host": "IP Adresi (bulunan: {discovered_ip})",
+                            "mac_controller_local": "Yerel denetleyici cihazın MAC adresi (bulunan: {discovered_mac_local})",
+                            "max_online_attempts": "Maksimum Bağlantı Denemesi",
+                            "port": "Port",
+                            "timeout": "Bağlantı Zaman Aşımı"
+                        },
+                        "data_description": {
+                            "max_online_attempts": "Cihaz kullanılamaz olarak işaretlenmeden önce cihazla iletişim kurma denemesi sayısı",
+                            "timeout": "Her bağlantı denemesi için zaman aşımı"
+                        }
+                    },
+                    "cloud": {
+                        "name": "Bulut Bağlantı Ayarları",
+                        "data": {
+                            "mac_controller_cloud": "Bulut denetleyici cihazın MAC adresi (bulunan: {discovered_mac_cloud})",
+                            "prefer_cloud": "Bulut Bağlantısını Tercih Et"
+                        },
+                        "data_description": {
+                            "prefer_cloud": "Cihazlar yerel bağlantıyı tercih eder. Bu cihazın bulut üzerinden bağlanmasını tercih ediyorsanız işaretleyin"
+                        }
+                    }
+                }
+            },
+            "device_options": {
+                "title": "Cihaz Özellikleri {device_idx} / {device_cnt}",
+                "description": "Gree API'sinin bir cihazın desteklediği özellikleri almak için güvenilir bir yöntemi yoktur. Lütfen aşağıdaki seçenekleri cihazınız hakkında bildiklerinize göre kullanın. Yalnızca ünitenin kumandasının veya Gree uygulamasının cihazınız için ayarlayabildiği özellikleri ekleyin veya açın.\n\n {device_name}",
+                "data": {
+                    "name": "Cihaz Adı",
+                    "hvac_modes": "HVAC Modları",
+                    "fan_modes": "Fan Hızları",
+                    "swing_modes": "Dikey Salınım Modları",
+                    "swing_horizontal_modes": "Yatay Salınım Modları",
+                    "features": "Cihaz Özellikleri ve Modları",
+                    "half_degrees": "Yarım derece °C kullan",
+                    "external_temperature_sensor": "Harici Sıcaklık Sensörü",
+                    "external_humidity_sensor": "Harici Nem Sensörü",
+                    "restore_states": "Varlıkları Geri Yükle",
+                    "setpoint_memory": "Hedef Sıcaklığı Mod Başına Hatırla"
+                },
+                "data_description": {
+                    "features": "Bir bölge denetleyicisinin bölgesinde, bölge her zaman açık kalmalıysa Bölge Anahtarı'nı eklemeyin.",
+                    "external_temperature_sensor": "Ayarlanırsa, Klima varlığı verilerinde HVAC'ın dahili sıcaklık sensörünün yerine geçer",
+                    "external_humidity_sensor": "Ayarlanırsa, Klima varlığı verilerinde HVAC'ın dahili nem sensörünün yerine geçer",
+                    "restore_states": "İşaretlenirse, entegrasyon başlatıldığında cihazın mevcut durumu kullanılmaz; cihaz, entegrasyonun önceki durumlarıyla geçersiz kılınır.",
+                    "setpoint_memory": "İşaretlenirse, her modun hedef sıcaklığı hatırlanır ve mod Home Assistant'tan değiştirildiğinde yeniden ayarlanır. Bir bölge denetleyicisinin klima ünitesinde, duvar paneli gibi tüm bölgeleri kapsar. Otomatik modda ünite kendi ayarını korur.",
+                    "half_degrees": "Hedef sıcaklığı 0.5 °C adımlarla ayarlar. Bunu yalnızca ünitenin kumandası veya Gree uygulaması yarım derece ayarlayabiliyorsa açın. Bazı üniteler TemRec, StFahFlg, Add0.5 veya Add0.1 yanıtı verir ve yarım dereceyi kaydeder, ancak yine de tam derecede çalışır: Home Assistant bu durumda 22.5 gösterirken ünite 22'de çalışır. Fahrenheit her zaman tam derecedir."
+                }
+            },
+            "reconfigure": {
+                "title": "Cihazları Yeniden Yapılandır",
+                "description": "Bu girişte {device_cnt} cihaz var. Ne yapılacağını seçin. Değişiklikleriniz Kaydet ve yeniden yükle seçeneğini seçtiğinizde kaydedilir.",
+                "menu_options": {
+                    "edit_device": "Bir cihazı düzenle",
+                    "rediscover": "Cihazları yeniden ara",
+                    "remove_devices": "Cihazları kaldır",
+                    "finish": "Kaydet ve yeniden yükle"
+                }
+            },
+            "rediscover": {
+                "title": "Cihazları Yeniden Ara",
+                "description": "Bu işlem, cihazlarını bulmak için Gree hesabınıza giriş yapar. Bu giriş, Gree uygulamasındaki oturumu kapatır.\n\nBulut hesabı olan bir girişi yeniden yapılandırıyorsunuz. Bulut cihazlarınızla eşleşen yerel cihazları aramak istiyor musunuz?",
+                "data": {
+                    "include_local": "Yerel cihazları dahil et"
+                }
+            },
+            "edit_device": {
+                "title": "Bir Cihazı Düzenle",
+                "description": "Düzenlenecek cihazı seçin. Bağlantı şeklini değiştirmezseniz, entegrasyon çalışan bağlantıyı kullanır ve Gree hesabına giriş yapmaz.",
+                "data": {
+                    "devices": "Cihaz"
+                }
+            },
+            "no_new_devices": {
+                "title": "Yeni Cihaz Yok",
+                "description": "Yeni cihaz veya yeni bağlantı bulunamadı. Bulunan cihazların IP adresleri güncellendi.\n\nMenüye dönmek için gönderin. Değişiklikleriniz Kaydet ve yeniden yükle seçeneğini seçtiğinizde kaydedilir."
+            },
+            "remove_devices": {
+                "title": "Cihazları Kaldır",
+                "description": "Bu girişten kaldırılacak cihazları seçin.",
+                "data": {
+                    "devices": "Cihazlar"
+                }
+            }
+        }
+    },
+    "selector": {
+        "discovery": {
+            "options": {
+                "cloud": "Gree Bulut hesabı",
+                "local": "Yerel ağ"
+            }
+        },
+        "encryption_version": {
+            "options": {
+                "0": "Otomatik Algıla",
+                "1": "V1",
+                "2": "V2"
+            }
+        },
+        "hvac_modes": {
+            "options": {
+                "auto": "Otomatik",
+                "cool": "Soğutma",
+                "dry": "Nem Alma",
+                "fan_only": "Sadece Fan",
+                "heat": "Isıtma",
+                "off": "Kapalı"
+            }
+        },
+        "fan_modes": {
+            "options": {
+                "auto": "Otomatik",
+                "low": "Düşük",
+                "medium_low": "Orta-Düşük",
+                "medium": "Orta",
+                "medium_high": "Orta-Yüksek",
+                "high": "Yüksek",
+                "turbo": "Turbo",
+                "quiet": "Sessiz"
+            }
+        },
+        "swing_modes": {
+            "options": {
+                "default": "Varsayılan",
+                "full_swing": "Tam aralıkta salınım",
+                "fixed_upper": "Sabit: En üst",
+                "fixed_upper_middle": "Sabit: Orta-üst",
+                "fixed_middle": "Sabit: Orta",
+                "fixed_lower_middle": "Sabit: Orta-alt",
+                "fixed_lower": "Sabit: En alt",
+                "swing_lower": "Salınım: En alt bölge",
+                "swing_lower_middle": "Salınım: Orta-alt bölge",
+                "swing_middle": "Salınım: Orta bölge",
+                "swing_upper_middle": "Salınım: Orta-üst bölge",
+                "swing_upper": "Salınım: En üst bölge"
+            }
+        },
+        "swing_horizontal_modes": {
+            "options": {
+                "default": "Varsayılan",
+                "full_swing": "Tam aralıkta salınım",
+                "left": "Sabit: En sol",
+                "left_center": "Sabit: Orta-sol",
+                "center": "Sabit: Orta",
+                "right_center": "Sabit: Orta-sağ",
+                "right": "Sabit: En sağ"
+            }
+        },
+        "features": {
+            "options": {
+                "beeper": "Bip Sesi (Uyarı Sesi)",
+                "air": "Temiz Hava",
+                "xfan": "X-Fan (İç Ünite Kurutma)",
+                "sleep": "Uyku Modu",
+                "eightdegheat": "8ºC Akıllı Isıtma",
+                "lights": "Ekran Işığı",
+                "health": "Sağlık (İyonizer)",
+                "anti_direct_blow": "Doğrudan Üflemeyi Engelle",
+                "powersave": "Enerji Tasarrufu",
+                "light_sensor": "Ekran Otomatik Parlaklık",
+                "faults": "Arıza Algılama",
+                "humidity_control": "Nem Kontrolü",
+                "auxiliary_heat": "Ek Isıtıcı",
+                "zone": "Bölge Anahtarı"
+            }
+        }
+    },
+    "device": {
+        "vrf_controller": {
+            "name": "VRF ağ geçidi {mac}"
+        },
+        "zone_controller": {
+            "name": "Bölge denetleyicisi {mac}"
+        }
+    },
+    "entity": {
+        "sensor": {
+            "indoor_temperature": {
+                "name": "İç Sıcaklık"
+            },
+            "outdoor_temperature": {
+                "name": "Dış Sıcaklık"
+            },
+            "room_humidity": {
+                "name": "İç Nem"
+            },
+            "compressor_frequency": {
+                "name": "Kompresör Frekansı"
+            },
+            "compressor_temperature": {
+                "name": "Kompresör Sıcaklığı"
+            },
+            "indoor_coil_temperature": {
+                "name": "İç Ünite Serpantin Sıcaklığı"
+            },
+            "outdoor_coil_temperature": {
+                "name": "Dış Ünite Serpantin Sıcaklığı"
+            }
+        },
+        "binary_sensor": {
+            "faults": {
+                "name": "Arıza Algılama"
+            },
+            "compressor_running": {
+                "name": "Kompresör Çalışıyor"
+            }
+        },
+        "climate": {
+            "hvac": {
+                "state_attributes": {
+                    "fan_mode": {
+                        "state": {
+                            "auto": "Otomatik",
+                            "low": "Düşük",
+                            "medium_low": "Orta-Düşük",
+                            "medium": "Orta",
+                            "medium_high": "Orta-Yüksek",
+                            "high": "Yüksek",
+                            "turbo": "Turbo",
+                            "quiet": "Sessiz"
+                        }
+                    },
+                    "swing_mode": {
+                        "state": {
+                            "default": "Varsayılan",
+                            "full_swing": "Tam aralıkta salınım",
+                            "fixed_upper": "Sabit: En üst",
+                            "fixed_upper_middle": "Sabit: Orta-üst",
+                            "fixed_middle": "Sabit: Orta",
+                            "fixed_lower_middle": "Sabit: Orta-alt",
+                            "fixed_lower": "Sabit: En alt",
+                            "swing_lower": "Salınım: En alt bölge",
+                            "swing_lower_middle": "Salınım: Orta-alt bölge",
+                            "swing_middle": "Salınım: Orta bölge",
+                            "swing_upper_middle": "Salınım: Orta-üst bölge",
+                            "swing_upper": "Salınım: En üst bölge"
+                        }
+                    },
+                    "swing_horizontal_mode": {
+                        "state": {
+                            "default": "Varsayılan",
+                            "full_swing": "Tam aralıkta salınım",
+                            "left": "Sabit: En sol",
+                            "left_center": "Sabit: Orta-sol",
+                            "center": "Sabit: Orta",
+                            "right_center": "Sabit: Orta-sağ",
+                            "right": "Sabit: En sağ"
+                        }
+                    }
+                }
+            }
+        },
+        "number": {
+            "target_temp_step": {
+                "name": "Sıcaklık Adımı"
+            },
+            "humidity_control_target": {
+                "name": "Nem Kontrolü Hedefi"
+            },
+            "zone_target_temperature": {
+                "name": "Hedef Sıcaklık"
+            }
+        },
+        "select": {
+            "temperature_units": {
+                "name": "Sıcaklık Birimleri"
+            },
+            "auxiliary_heat": {
+                "name": "Ek Isıtıcı",
+                "state": {
+                    "off": "Kapalı",
+                    "always_on": "Her zaman açık",
+                    "auto": "Otomatik"
+                }
+            },
+            "humidity_control": {
+                "name": "Nem Kontrolü",
+                "state": {
+                    "disabled": "Devre dışı",
+                    "target_dry": "Normal Nem Alma",
+                    "smart_dry": "Akıllı Nem Alma",
+                    "continuous_dry": "Sürekli Nem Alma"
+                }
+            }
+        },
+        "switch": {
+            "auto_light": {
+                "name": "Otomatik Ekran Işığı"
+            },
+            "auto_xfan": {
+                "name": "Otomatik X-Fan"
+            },
+            "lights": {
+                "name": "Ekran Işığı"
+            },
+            "xfan": {
+                "name": "X-Fan (İç Ünite Kurutma)"
+            },
+            "health": {
+                "name": "Sağlık (İyonizer)"
+            },
+            "powersave": {
+                "name": "Güç Tasarrufu"
+            },
+            "eightdegheat": {
+                "name": "Akıllı Isıtma 8ºC"
+            },
+            "sleep": {
+                "name": "Uyku Modu"
+            },
+            "air": {
+                "name": "Temiz Hava"
+            },
+            "anti_direct_blow": {
+                "name": "Doğrudan Üflemeyi Engelle"
+            },
+            "light_sensor": {
+                "name": "Ekran Otomatik Parlaklık"
+            },
+            "beeper": {
+                "name": "Bip Sesi (Uyarı Sesi)"
+            }
+        }
+    },
+    "exceptions": {
+        "turbo_availability": {
+            "message": "Turbo modu yalnızca Soğutma ve Isıtma modlarında kullanılabilir."
+        },
+        "entity_unavailable": {
+            "message": "Varlık kullanılamıyor."
+        },
+        "generic": {
+            "message": "İstenen değişiklik yapılırken bir sorun oluştu, lütfen entegrasyon günlüğüne bakın."
+        },
+        "invalid_device_id": {
+            "message": "İşlem yapılırken bir sorun oluştu. Geçersiz bir cihaz seçildi."
+        },
+        "entry_not_loaded": {
+            "message": "İşlem yapılırken bir sorun oluştu. Cihazın yapılandırma girişi yüklenmemiş."
+        },
+        "config_entry_not_found": {
+            "message": "İşlem yapılırken bir sorun oluştu. Cihazın yapılandırma girişi bulunamadı."
+        },
+        "invalid_config_data": {
+            "message": "İşlem yapılırken bir sorun oluştu. Yapılandırma girişinde geçersiz veri var."
+        },
+        "humidity_mode_unavailable": {
+            "message": "Nem Kontrolü yalnızca Soğutma ve Nem Alma modlarında kullanılabilir."
+        },
+        "continuous_dry_unavailable": {
+            "message": "Sürekli Nem Alma yalnızca Nem Alma modunda kullanılabilir."
+        },
+        "smart_dry_unavailable": {
+            "message": "Akıllı Nem Alma yalnızca Soğutma modunda kullanılabilir."
+        },
+        "remove_vrf_controller": {
+            "message": "Bu bir VRF denetleyicisidir. Önce alt ünitelerini silin; denetleyici otomatik olarak silinir."
+        },
+        "bad_credentials": {
+            "message": "Gree bulutu kayıtlı girişi reddetti ve kayıtlı hesap bilgileriyle yapılan yeni giriş başarısız oldu. Yeniden giriş yapın."
+        },
+        "no_account_info": {
+            "message": "Bu girişin Gree hesap bilgileri eksik. Yeniden giriş yapın."
+        },
+        "device_bind_failed": {
+            "message": "Gree cihazı {mac} ile eşleştirme yapılamıyor. Bağlantıyı ve şifreleme anahtarını kontrol edin."
+        }
+    },
+    "issues": {
+        "device_connection_failed": {
+            "title": "Cihaz bağlantısı başarısız",
+            "description": "{device} cihazına bağlanılamıyor."
+        },
+        "yaml_import_failed": {
+            "title": "YAML içe aktarma başarısız",
+            "description": "{item} için YAML yapılandırması içe aktarılamadı: {reason}"
+        },
+        "legacy_yaml": {
+            "title": "Gree yapılandırmanızı 4.x'ten güncelleyin",
+            "description": "Bazı Gree cihazları hâlâ Gree 4.x yapılandırmasından geliyor: `configuration.yaml` içindeki `gree:` bloğu veya bir YAML bloğu yerel cihazları yönetirken 4.x arayüzünde kurduğunuz cihazlar. Bu sürüm onları her başlatmada dönüştürür, böylece çalışmaya devam ederler. Bu eski içe aktarma ileriki bir sürümde kaldırılacak.\n\n`gree:` bloğunu yorum satırına alın ve 4.x'e geri dönmek isterseniz diye saklayın. Ardından aşağıdaki bloğu yapıştırın. Zaten bir `gree_custom:` bloğunuz varsa, bunun yerine aşağıdaki cihazları onun `devices:` altına ekleyin. Ardından Home Assistant'ı yeniden başlatın. Hiçbir cihaz artık 4.x yapılandırmasına bağlı olmadığında bu mesaj kaybolur.\n\n```yaml\n{yaml}\n```"
+        },
+        "legacy_folder": {
+            "title": "Eski Gree 4.x dosyalarını kaldırın",
+            "description": "Gree 4.x'ten kalan `custom_components/gree` klasörü hâlâ yüklü. HACS bu sürümü yüklerken onu kaldırmaz. Gree 4.x cihazları bu entegrasyona taşındı ve eski 4.x yapılandırma girişleri devre dışı bırakıldı.\n\n`custom_components/gree` klasörünü silin ve Home Assistant'ı yeniden başlatın. Eski yapılandırma girişleri devre dışı kalır, böylece 4.x'e geri dönebilirsiniz. Ayrı bir onarım, bunları kaldırmanızı sağlar."
+        },
+        "legacy_entries": {
+            "title": "Eski Gree 4.x yapılandırma girişlerini kaldırın",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Eski Gree 4.x yapılandırma girişlerini kaldırın",
+                        "description": "Cihazlarınız artık bu entegrasyonda çalışıyor. Gree 4.x'in eski yapılandırma girişleri devre dışı olarak saklanıyor, böylece yeniden kurmadan 4.x'e geri dönebilirsiniz.\n\nBu eski girişleri kaldırmak için **Kaldır**'ı seçin. Bundan sonra 4.x'e geri dönmek, onu yeniden kurmak anlamına gelir.",
+                        "submit": "Kaldır"
+                    }
+                }
+            }
+        }
+    },
+    "services": {
+        "get_prop_values_all": {
+            "name": "Tüm özellikleri sorgula",
+            "description": "Bir Gree cihazının tüm özelliklerini sorgular",
+            "fields": {
+                "device_id": {
+                    "name": "Cihaz Kimliği"
+                }
+            }
+        },
+        "get_prop_values": {
+            "name": "Özellikleri sorgula",
+            "description": "Bir Gree cihazının özelliklerini sorgular",
+            "fields": {
+                "device_id": {
+                    "name": "Cihaz Kimliği"
+                },
+                "prop_list": {
+                    "name": "Sorgulanacak özelliklerin listesi"
+                }
+            }
+        }
+    }
+}
