@@ -91,8 +91,11 @@ gree:
     # temp_sensor_offset: true
 
     # Minimum value in °C to which temperature can be set (optional, defaults to 16°C).
-    # E.g. some units allows going down to 8 °C degree by degree instead of having separate 
+    # E.g. some units allows going down to 8 °C degree by degree instead of having separate
     # 8 °C mode. Can be set higher too.
+    #
+    # Use this option only if your unit accepts temperatures below 16 °C. Other units change
+    # the target back to 16 °C.
     # min_temp: 8
 
 # Example for multiple AC units:
