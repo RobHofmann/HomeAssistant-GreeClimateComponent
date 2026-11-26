@@ -41,7 +41,8 @@
       "uid": "UID",
       "encryption_version": "Versiune criptare",
       "disable_available_check": "Dezactivează verificarea disponibilității",
-      "temp_sensor_offset": "Offset senzor temperatură"
+      "temp_sensor_offset": "Offset senzor temperatură",
+      "min_temp": "Temperatura minimă reglabilă"
     }
   },
   "options": {
@@ -54,7 +55,8 @@
           "swing_modes": "Moduri balansare verticală",
           "swing_horizontal_modes": "Moduri balansare orizontală",
           "disable_available_check": "Dezactivează verificarea disponibilității",
-          "temp_sensor_offset": "Offset senzor temperatură"
+          "temp_sensor_offset": "Offset senzor temperatură",
+          "min_temp": "Temperatura minimă reglabilă"
         }
       }
     }

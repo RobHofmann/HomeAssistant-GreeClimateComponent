@@ -41,7 +41,8 @@
       "uid": "UID",
       "encryption_version": "Wersja szyfrowania",
       "disable_available_check": "Wyłącz sprawdzanie dostępności",
-      "temp_sensor_offset": "Offset czujnika temperatury"
+      "temp_sensor_offset": "Offset czujnika temperatury",
+      "min_temp": "Minimalna regulowana temperatura"
     }
   },
   "options": {
@@ -54,7 +55,8 @@
           "swing_modes": "Tryby pionowego ruchu",
           "swing_horizontal_modes": "Tryby poziomego ruchu",
           "disable_available_check": "Wyłącz sprawdzanie dostępności",
-          "temp_sensor_offset": "Offset czujnika temperatury"
+          "temp_sensor_offset": "Offset czujnika temperatury",
+          "min_temp": "Minimalna regulowana temperatura"
         }
       }
     }

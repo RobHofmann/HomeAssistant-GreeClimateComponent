@@ -34,6 +34,7 @@ from .const import (
     CONF_ENCRYPTION_VERSION,
     CONF_FAN_MODES,
     CONF_HVAC_MODES,
+    CONF_MIN_TEMP,
     CONF_SWING_HORIZONTAL_MODES,
     CONF_SWING_MODES,
     CONF_TEMP_SENSOR_OFFSET,
@@ -44,6 +45,7 @@ from .const import (
     DEFAULT_SWING_HORIZONTAL_MODES,
     DEFAULT_SWING_MODES,
     DOMAIN,
+    MAX_TEMP_C,
     OPTION_KEYS,
 )
 
@@ -77,6 +79,7 @@ CLIMATE_SCHEMA = vol.Schema(
         vol.Optional(CONF_SWING_HORIZONTAL_MODES, default=DEFAULT_SWING_HORIZONTAL_MODES): vol.All(cv.ensure_list, [cv.string]),
         vol.Optional(CONF_DISABLE_AVAILABLE_CHECK, default=False): cv.boolean,
         vol.Optional(CONF_TEMP_SENSOR_OFFSET): cv.boolean,
+        vol.Optional(CONF_MIN_TEMP): vol.All(vol.Coerce(int), vol.Range(min=8, max=MAX_TEMP_C)),
     }
 )
 

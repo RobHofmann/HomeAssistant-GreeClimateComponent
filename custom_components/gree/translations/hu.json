@@ -41,7 +41,8 @@
       "uid": "UID",
       "encryption_version": "Titkosítási verzió",
       "disable_available_check": "Elérhetőség ellenőrzésének letiltása",
-      "temp_sensor_offset": "Hőmérséklet érzékelő eltolás"
+      "temp_sensor_offset": "Hőmérséklet érzékelő eltolás",
+      "min_temp": "Minimális beállítható hőmérséklet"
     }
   },
   "options": {
@@ -54,7 +55,8 @@
           "swing_modes": "Függőleges lengési módok",
           "swing_horizontal_modes": "Vízszintes lengési módok",
           "disable_available_check": "Elérhetőség ellenőrzésének letiltása",
-          "temp_sensor_offset": "Hőmérséklet érzékelő eltolás"
+          "temp_sensor_offset": "Hőmérséklet érzékelő eltolás",
+          "min_temp": "Minimális beállítható hőmérséklet"
         }
       }
     }

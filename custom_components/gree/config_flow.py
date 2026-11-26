@@ -30,6 +30,7 @@ from .const import (
     CONF_EXTRA_SCAN_NETWORKS,
     CONF_FAN_MODES,
     CONF_HVAC_MODES,
+    CONF_MIN_TEMP,
     CONF_SWING_HORIZONTAL_MODES,
     CONF_SWING_MODES,
     CONF_TEMP_SENSOR_OFFSET,
@@ -41,6 +42,7 @@ from .const import (
     DEFAULT_SWING_MODES,
     DOMAIN,
     MAX_UNICAST_SCAN_HOSTS,
+    MAX_TEMP_C,
     OPTION_KEYS,
 )
 from .gree_protocol import test_connection, discover_gree_devices, detect_device_encryption
@@ -332,6 +334,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             for key in OPTION_KEYS:
                 if key in user_input:
                     value = user_input[key]
+                    if key == CONF_MIN_TEMP and value not in (None, ""):
+                        value = int(value)
                     normalized_input[key] = value if value not in (None, "") else None
                 elif key in self.config_entry.options:
                     normalized_input[key] = None
@@ -372,6 +376,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_TEMP_SENSOR_OFFSET,
                     description={"suggested_value": options.get(CONF_TEMP_SENSOR_OFFSET)},
                 ): vol.Any(None, bool),
+                vol.Optional(
+                    CONF_MIN_TEMP,
+                    description={"suggested_value": options.get(CONF_MIN_TEMP)},
+                ): vol.Any(None, selector.NumberSelector(selector.NumberSelectorConfig(min=8, max=MAX_TEMP_C, step=1, mode=selector.NumberSelectorMode.BOX, unit_of_measurement="°C"))),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)

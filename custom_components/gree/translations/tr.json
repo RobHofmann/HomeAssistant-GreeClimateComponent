@@ -68,7 +68,8 @@
       "uid": "UID",
       "encryption_version": "Şifreleme Sürümü",
       "disable_available_check": "Erişilebilirlik Kontrolünü Devre Dışı Bırak",
-      "temp_sensor_offset": "Sıcaklık Sensörü Sapması (Offset)"
+      "temp_sensor_offset": "Sıcaklık Sensörü Sapması (Offset)",
+      "min_temp": "Ayarlanabilir Minimum Sıcaklık"
     }
   },
   "options": {
@@ -81,7 +82,8 @@
           "swing_modes": "Dikey Salınım Modları",
           "swing_horizontal_modes": "Yatay Salınım Modları",
           "disable_available_check": "Erişilebilirlik Kontrolünü Devre Dışı Bırak",
-          "temp_sensor_offset": "Sıcaklık Sensörü Sapması (Offset)"
+          "temp_sensor_offset": "Sıcaklık Sensörü Sapması (Offset)",
+          "min_temp": "Ayarlanabilir Minimum Sıcaklık"
         }
       }
     }
