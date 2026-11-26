@@ -41,7 +41,8 @@
       "uid": "UID",
       "encryption_version": "Verschlüsselungsversion",
       "disable_available_check": "Verfügbarkeitsprüfung deaktivieren",
-      "temp_sensor_offset": "Temperatursensor-Offset"
+      "temp_sensor_offset": "Temperatursensor-Offset",
+      "min_temp": "Minimale einstellbare Temperatur"
     }
   },
   "options": {
@@ -54,7 +55,8 @@
           "swing_modes": "Vertikale Swing-Modi",
           "swing_horizontal_modes": "Horizontale Swing-Modi",
           "disable_available_check": "Verfügbarkeitsprüfung deaktivieren",
-          "temp_sensor_offset": "Temperatursensor-Offset"
+          "temp_sensor_offset": "Temperatursensor-Offset",
+          "min_temp": "Minimale einstellbare Temperatur"
         }
       }
     }

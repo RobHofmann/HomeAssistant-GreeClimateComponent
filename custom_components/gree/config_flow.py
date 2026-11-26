@@ -379,7 +379,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_MIN_TEMP,
                     description={"suggested_value": options.get(CONF_MIN_TEMP)},
-                ): vol.Any(None, selector.NumberSelector(selector.NumberSelectorConfig(min=0, max=MAX_TEMP_C, step=1, mode=selector.NumberSelectorMode.BOX, unit_of_measurement="°C"))),
+                ): vol.Any(None, selector.NumberSelector(selector.NumberSelectorConfig(min=8, max=MAX_TEMP_C, step=1, mode=selector.NumberSelectorMode.BOX, unit_of_measurement="°C"))),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)

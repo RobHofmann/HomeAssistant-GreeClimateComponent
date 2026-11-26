@@ -41,7 +41,8 @@
       "uid": "UID",
       "encryption_version": "גרסת הצפנה",
       "disable_available_check": "השבת בדיקת זמינות",
-      "temp_sensor_offset": "היסט חיישן טמפרטורה"
+      "temp_sensor_offset": "היסט חיישן טמפרטורה",
+      "min_temp": "טמפרטורה מינימלית הניתנת להגדרה"
     }
   },
   "options": {
@@ -54,7 +55,8 @@
           "swing_modes": "מצבי נדנוד אנכי",
           "swing_horizontal_modes": "מצבי נדנוד אופקי",
           "disable_available_check": "השבת בדיקת זמינות",
-          "temp_sensor_offset": "היסט חיישן טמפרטורה"
+          "temp_sensor_offset": "היסט חיישן טמפרטורה",
+          "min_temp": "טמפרטורה מינימלית הניתנת להגדרה"
         }
       }
     }

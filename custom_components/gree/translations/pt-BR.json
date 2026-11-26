@@ -41,7 +41,8 @@
       "uid": "UID",
       "encryption_version": "Versão da Criptografia",
       "disable_available_check": "Desativar Verificação de Disponibilidade",
-      "temp_sensor_offset": "Ajuste do Sensor de Temperatura"
+      "temp_sensor_offset": "Ajuste do Sensor de Temperatura",
+      "min_temp": "Temperatura Mínima Ajustável"
     }
   },
   "options": {
@@ -54,7 +55,8 @@
           "swing_modes": "Oscilação Vertical",
           "swing_horizontal_modes": "Oscilação Horizontal",
           "disable_available_check": "Desativar Verificação de Disponibilidade",
-          "temp_sensor_offset": "Ajuste do Sensor de Temperatura"
+          "temp_sensor_offset": "Ajuste do Sensor de Temperatura",
+          "min_temp": "Temperatura Mínima Ajustável"
         }
       }
     }

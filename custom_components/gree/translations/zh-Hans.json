@@ -41,7 +41,8 @@
       "uid": "UID",
       "encryption_version": "加密版本",
       "disable_available_check": "禁用可用性检查",
-      "temp_sensor_offset": "温度传感器偏移"
+      "temp_sensor_offset": "温度传感器偏移",
+      "min_temp": "可设置的最低温度"
     }
   },
   "options": {
@@ -54,7 +55,8 @@
           "swing_modes": "垂直扫风模式",
           "swing_horizontal_modes": "水平扫风模式",
           "disable_available_check": "禁用可用性检查",
-          "temp_sensor_offset": "温度传感器偏移"
+          "temp_sensor_offset": "温度传感器偏移",
+          "min_temp": "可设置的最低温度"
         }
       }
     }

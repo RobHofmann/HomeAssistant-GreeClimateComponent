@@ -68,7 +68,8 @@
       "uid": "UID",
       "encryption_version": "Version de chiffrement",
       "disable_available_check": "Désactiver la vérification de disponibilité",
-      "temp_sensor_offset": "Décalage du capteur de température"
+      "temp_sensor_offset": "Décalage du capteur de température",
+      "min_temp": "Température minimale réglable"
     }
   },
   "options": {
@@ -81,7 +82,8 @@
           "swing_modes": "Modes de balancement vertical",
           "swing_horizontal_modes": "Modes de balancement horizontal",
           "disable_available_check": "Désactiver la vérification de disponibilité",
-          "temp_sensor_offset": "Décalage du capteur de température"
+          "temp_sensor_offset": "Décalage du capteur de température",
+          "min_temp": "Température minimale réglable"
         }
       }
     }
