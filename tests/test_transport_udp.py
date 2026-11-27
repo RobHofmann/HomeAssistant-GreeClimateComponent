@@ -10,6 +10,7 @@ is not about retrying, because a full failure costs a few seconds.
 # pytest pattern, not shadowing.
 
 from collections.abc import AsyncIterator
+from typing import Any, override
 
 from aiogree.api import gree_get_response_pack, gree_get_status, gree_set_status
 from aiogree.cipher import EncryptionVersion, get_cipher
@@ -216,3 +217,43 @@ async def test_a_bind_gets_the_session_key(device: FakeGreeDevice) -> None:
 
     assert pack["key"] == DEFAULT_SESSION_KEY
     assert device.keys_used == ["generic"]
+
+
+class NullValDevice(FakeGreeDevice):
+    """A VRF gateway that answers None in val for props it does not know.
+
+    Seen in issue 545: the buzzer props came back as None, the rest as set.
+    """
+
+    @override
+    def build_command_result(self, pack: dict[str, Any]) -> dict[str, Any]:
+        """Add a val list with None for the buzzer props."""
+        result = super().build_command_result(pack)
+        result["val"] = [
+            None if option.startswith("Buzzer") else value
+            for option, value in zip(result["opt"], result["p"], strict=True)
+        ]
+        return result
+
+
+async def test_a_command_with_none_in_val_is_accepted() -> None:
+    """None in val does not fail the command, the device did take it."""
+    device = NullValDevice()
+    await device.start()
+    transport = GreeUdpTransport(device.host, device.port, max_retries=1, timeout=0.5)
+    wanted = {"Pow": 1, "SetTem": 24, "Buzzer_ON_OFF": 1, "BuzzerCtrl": 0}
+
+    try:
+        result = await gree_set_status(
+            DEFAULT_MAC,
+            DEFAULT_MAC,
+            0,
+            wanted,
+            get_cipher(EncryptionVersion.V1, DEFAULT_SESSION_KEY),
+            transport,
+        )
+    finally:
+        await transport.disconnect()
+        device.close()
+
+    assert result == wanted

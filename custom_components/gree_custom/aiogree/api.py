@@ -1273,7 +1273,9 @@ async def gree_set_status(
     # the fields bellow are optional
     options_set: list[str] = result.get("opt", [])
     values_set_1 = list(map(int, result.get("p", [])))
-    values_set_2 = list(map(int, result.get("val", [])))  # If present, must match [p]
+    # If present, must match [p] in length. Only the length is used: a VRF
+    # gateway answers None in val for a prop it does not know (issue 545)
+    values_set_2: list[Any] = result.get("val", [])
 
     # In case the response has nothing, but didn't had a error code
     # Assume all was set and return all given props
